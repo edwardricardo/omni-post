@@ -344,6 +344,49 @@ manifest at every prompt, not at session start.
     guard, per record, when its document leaves the tree or every row of it is derived by a gate
     from machine-readable data, so that a skipped search cannot lose a fact.
 
+## Amendment of 2026-11-18: the fitness reference
+
+1. **The second record.** The blocks of the fitness checks left `CLAUDE.md` §Automated Compliance
+   Checks for [`docs/development/FITNESS_FUNCTIONS.md`](../development/FITNESS_FUNCTIONS.md), byte
+   for byte: the fenced block of the 54 checks (157,314 bytes, sha256 `fba1d8f2d7facc8a…`) and the
+   paragraph on the integration-tier RLS coverage gate (2,389 bytes, sha256 `7718c881676a3520…`).
+   The reference is the manifest's second record. Its path-scoped rule,
+   `.claude/rules/fitness-functions.md`, governs the fitness workflow, the reference itself and the
+   scripts whose behaviour a block states, and the record guard of decision 3 refuses a write of
+   those files until the session, or the agent writing, has opened the reference. A block is a
+   record while its one-line rule stays loaded: a block grows with every change of its check (its
+   threat, scope, exclusions, fail-closed paths and residual limits), while what a session needs in
+   order to work is the list of checks and how to change one.
+2. **The list is derived.** `CLAUDE.md` keeps the section's heading, its governing paragraph, the
+   paragraph on a scope path that does not exist, a paragraph that says where the blocks are, one
+   line per check, a short pointer for the RLS coverage gate, and "Extending the suite". A list line
+   is `- **#N** <name> — <how>`: its name is the name of its step in
+   `.github/workflows/fitness.yml`, copied, and `<how>` is `shell` or the command the step runs. No
+   rule is reworded: the list carries the workflow's names, and "Extending the suite" changes only
+   the words that name where a block lives.
+3. **Fitness #44 holds the three sources to one set.** It reads the numbered steps of the workflow
+   with their run bodies, the `# N.` headings of the reference's `## Check blocks`, and the list of
+   `CLAUDE.md`. It refuses a number one of the three lacks, a list name that differs from its
+   step's, a list command its step's body does not contain, a list line not in the form, a check
+   block left in a code block of `CLAUDE.md`, and a count sentence in the reference.
+4. **The instruction-context gate is fitness #55.** Item 7 of the previous amendment left it
+   un-numbered until the section was rewritten, since a numbered check added its block to the file
+   whose bytes the gate holds. Its block now lives in the reference, and `CLAUDE.md` carries its
+   list line only.
+5. **The measurement.** `CLAUDE.md` went from 201,668 to 48,394 bytes, and the auto-loaded tracked
+   set, as the gate measures it, from 288,897 to 135,623 bytes, 114,377 under the target of
+   250,000. `budget.targetOwedBy` left the manifest (the gate's `--write` lowers `budget.bytes` and
+   leaves that key, so it was deleted by hand), and rule B3 now refuses any `budget.bytes` above the
+   target: the target holds as a hard cap.
+6. **ADR-0012 superseded in one point.** ADR-0012 adds a check's regex to `CLAUDE.md §Automated
+Compliance Checks`. The block now goes to the reference, and that section takes the check's line
+   and the raised count, as its "Extending the suite" states.
+7. **The import form, measured.** The gate resolves an `@` token from the directory of the file
+   that holds it. `@docs/development/FITNESS_FUNCTIONS.md` written in a rule under `.claude/rules/`
+   names no file and loads nothing; `@../../docs/development/FITNESS_FUNCTIONS.md` written there is
+   refused by R1 and R2, and `@docs/development/FITNESS_FUNCTIONS.md` written in `CLAUDE.md` by R2
+   and M1.
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,
@@ -370,18 +413,22 @@ check is added, changed or retired`
 
 ## Risks and Mitigations
 
-| Risk                                                   | Mitigation                                                                                                                                                         |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A record nobody reads                                  | The path-scoped rule loads on the governed files; decision 3 blocks an edit with no read                                                                           |
-| The rule's `paths` list drifts from the governed files | The budget check refuses a glob that matches no tracked file without a stated reason (amendment, item 5); a governed file the list does not name is left to review |
-| A moved citation is left pointing at the canon         | The canon's section lists every moved title, so an old citation resolves in one hop                                                                                |
-| The canon or the record grows past the budget          | The budget check of decision 4                                                                                                                                     |
+| Risk                                                   | Mitigation                                                                                                                                                                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A record nobody reads                                  | The path-scoped rule loads on the governed files; decision 3 blocks an edit with no read                                                                                                                          |
+| The rule's `paths` list drifts from the governed files | The budget check refuses a glob that matches no tracked file without a stated reason (amendment, item 5); a governed file the list does not name is left to review                                                |
+| A moved citation is left pointing at the canon         | The canon's section lists every moved title, so an old citation resolves in one hop; a citation of `CLAUDE.md §Automated Compliance Checks` finds the check's line there and its block by number in the reference |
+| The canon or the record grows past the budget          | The budget check of decision 4                                                                                                                                                                                    |
 
 ## References
 
 - [`docs/security/DEPENDENCY_AUDIT_RECORD.md`](../security/DEPENDENCY_AUDIT_RECORD.md) and the
   canon's section "Dependency audit record" in
   [`SECURITY_CANON.md`](../security/SECURITY_CANON.md)
+- [`docs/development/FITNESS_FUNCTIONS.md`](../development/FITNESS_FUNCTIONS.md), the blocks of the
+  fitness checks, and their list in `CLAUDE.md` §Automated Compliance Checks
+- [ADR-0012](ADR-0012-fitness-functions-architecture-tests.md): the fitness functions, whose
+  location of a check's regex the amendment of 2026-11-18 supersedes
 - [ADR-0018](ADR-0018-dependency-freshness-canon.md): the dependency freshness canon
 - [FOUNDATION_PRACTICES.md](../development/FOUNDATION_PRACTICES.md): FP-033, FP-034
 - The plan row TOKEN-1 in [`cross-cutting.md`](../product/plan/cross-cutting.md)
