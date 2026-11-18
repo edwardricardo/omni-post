@@ -1440,12 +1440,15 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # at the next line, outside a block scalar and not a comment, at its column or to its left, so the
 # body of a step with no numbered name, a bare `- run:` or `- uses:` entry included, is never
 # credited to the numbered step before it. Block scalars are never read as keys, and an UNQUOTED
-# `name: #N` is refused because YAML reads it as a comment. Reference side: every `# N.` line at column 0 inside a fenced block of the section
-# `## Check blocks` of this document, which ends at the next level-1 or level-2 heading OUTSIDE a
-# fence, so a column-0 `## ` comment inside a block does not truncate it. List side: every line
-# of CLAUDE.md §Automated Compliance Checks, outside code blocks, of the form
-# `- **#N** <name> — <how>`, where <how> is `shell` for an inline check or one code span holding
-# the command its step runs, and the count sentence of that section's prose.
+# `name: #N` is refused because YAML reads it as a comment. A step's name is a key of its entry
+# itself: a numbered `name:` nested below the entry's own keys, in a list or mapping the step
+# holds (an item of a list under `with:`, say), is refused because it names no step, and an
+# unnumbered one changes nothing. Reference side: every `# N.` line at column 0 inside a fenced
+# block of the section `## Check blocks` of this document, which ends at the next level-1 or
+# level-2 heading OUTSIDE a fence, so a column-0 `## ` comment inside a block does not truncate
+# it. List side: every line of CLAUDE.md §Automated Compliance Checks, outside code blocks, of
+# the form `- **#N** <name> — <how>`, where <how> is `shell` for an inline check or one code span
+# holding the command its step runs, and the count sentence of that section's prose.
 # THE HEADING CONVENTION IS LOAD-BEARING, and the gate says so out loud: a check heading follows
 # the fence or a blank line, and a `# N.` line anywhere else is reported by its line number as a
 # comment shaped like a heading. A look-alike that does follow a blank line is counted, and then
@@ -1465,10 +1468,10 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # since the blocks live here; and a count sentence in this document, since the count is stated
 # once, in CLAUDE.md.
 # FAIL-CLOSED: an unreadable file, zero numbered steps, a numbered name that no entry of a steps
-# list holds (a job's, say, whose body no step can be told to own), a missing section in
-# CLAUDE.md or here, zero headings, zero list lines, a fence that never closes, and no count
-# sentence each exit 1 naming the cause — a scan that read nothing must never render as a clean
-# inventory.
+# list holds (a job's, say, whose body no step can be told to own) or that is nested below an
+# entry's own keys, a missing section in CLAUDE.md or here, zero headings, zero list lines, a
+# fence that never closes, and no count sentence each exit 1 naming the cause — a scan that read
+# nothing must never render as a clean inventory.
 # RESIDUAL LIMITS, stated rather than implied: (1) textual over the three files, so a step whose
 # name is assembled by a matrix, a composite action or a flow-style mapping is invisible to it,
 # and a YAML escape in a quoted name is compared as written; (2) a look-alike comment that

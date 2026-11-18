@@ -13,7 +13,9 @@
  *   agreed with the document whatever actually ran. The step this gate replaced returned exit 0
  *   against all three of those plants. The check blocks then left the canon for a reference read on
  *   demand (ADR-0045), so the canon keeps one line per check: three files now state the suite, and
- *   this gate holds the three to one set.
+ *   this gate fails when they do not each hold every number from 1 to the highest step number
+ *   exactly once, when a list line's name is not its step's or its command does not occur in that
+ *   step's run body, or when the count sentence does not state that highest number.
  *
  *   THE THREE SOURCES. The workflow side is every step whose `name:` value starts with `#<number>`,
  *   double- or single-quoted, in any job of `.github/workflows/fitness.yml`, with the lines of the
@@ -24,14 +26,16 @@
  *   scalars are never read as keys, so a shell line shaped like a step name is never read as one.
  *   An UNQUOTED `name: #N …` is refused: YAML reads it as a comment, so the step has no name and
  *   its number would be invisible. A numbered name that no open entry holds (a job's, say) is
- *   refused too: no step's body can be told to be its. The reference side is every line of
- *   the form `# N.` at column 0 inside a fenced code block of the section `## Check blocks` of
- *   `docs/development/FITNESS_FUNCTIONS.md`. The list side is every line of `CLAUDE.md` §Automated
- *   Compliance Checks, outside code blocks, of the form `- **#N** <name> — <how>`, where `<how>` is
- *   `shell` for an inline check or one code span holding the command its step runs; the count
- *   sentence is read from the same section's prose. A section ends at the next level-1 or level-2
- *   heading OUTSIDE a fence, so a column-0 `## ` shell comment inside a code block does not
- *   truncate it.
+ *   refused too, and so is one nested in a list or mapping the entry holds (an item of a list
+ *   under `with:`, say), below the entry's own keys: neither names a step, so no step's body can
+ *   be told to be its. A `name:` nested that way and not numbered changes nothing, and the step
+ *   keeps its body. The reference side is every line of the form `# N.` at column 0 inside a fenced
+ *   code block of the section `## Check blocks` of `docs/development/FITNESS_FUNCTIONS.md`. The list
+ *   side is every line of `CLAUDE.md` §Automated Compliance Checks, outside code blocks, of the form
+ *   `- **#N** <name> — <how>`, where `<how>` is `shell` for an inline check or one code span holding
+ *   the command its step runs; the count sentence is read from the same section's prose. A section
+ *   ends at the next level-1 or level-2 heading OUTSIDE a fence, so a column-0 `## ` shell comment
+ *   inside a code block does not truncate it.
  *
  *   WHAT COUNTS AS A CHECK HEADING, and why the convention stays load-bearing. Every check block in
  *   the reference opens with `# N.` at column 0, either on the line after the fence opens or after
@@ -57,9 +61,10 @@
  *   in the canon).
  *
  *   FAIL-CLOSED. An unreadable file, zero numbered steps, a numbered name outside an entry of a
- *   steps list, a missing section in the canon or the reference, zero reference headings, zero list
- *   lines, a fence that never closes, and a missing count sentence each exit 1 with a message naming
- *   the cause. A scan that read nothing must never render as a clean inventory.
+ *   steps list or nested below its own keys, a missing section in the canon or the reference, zero
+ *   reference headings, zero list lines, a fence that never closes, and a missing count sentence
+ *   each exit 1 with a message naming the cause. A scan that read nothing must never render as a
+ *   clean inventory.
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) Textual, not a YAML or Markdown parser: a step
  *   whose name is assembled by a matrix, a composite action or a flow-style `{ name: … }` mapping is
@@ -106,6 +111,11 @@ const BLOCK_SCALAR_KEY = /^(\s*)(-\s+)?[A-Za-z_][\w-]*:\s*[|>][+-]?\d*\s*(?:#.*)
 const SEQUENCE_ENTRY = /^(\s*)-(?:\s|$)/;
 /** A comment line, which ends no YAML structure whatever its indentation. */
 const COMMENT_LINE = /^\s*#/;
+/**
+ * What may follow an entry's dash and hold no key: node properties alone (an anchor `&…`, a tag
+ * `!…`, or both), then at most a comment, or nothing at all.
+ */
+const NO_KEY_AFTER_DASH = /^(?:[&!]\S*(?:\s+|$))*(?:#.*)?$/;
 const DOUBLE_QUOTED = /^"((?:[^"\\]|\\.)*)"/;
 const SINGLE_QUOTED = /^'((?:[^']|'')*)'/;
 /** The number at the start of a step name: digits not followed by another digit. */
@@ -185,6 +195,20 @@ function indentOf(line) {
 }
 
 /**
+ * @description The column where the keys of the sequence entry opened on `line` start: the first
+ *   character after the dash and its spaces. `null` when what follows the dash holds no key
+ *   (nothing, a comment, or only an anchor or a tag, then at most a comment), so the entry's first
+ *   key is on a later line and that line's indentation decides.
+ * @param {string} line
+ * @param {number} dashColumn The column of the entry's `-`.
+ * @returns {number | null}
+ */
+function entryKeyColumnOf(line, dashColumn) {
+  const content = line.slice(dashColumn + 1).trimStart();
+  return NO_KEY_AFTER_DASH.test(content.trim()) ? null : line.length - content.length;
+}
+
+/**
  * @description The count sentences of a text.
  * @param {string} text
  * @returns {CountSentence[]}
@@ -204,8 +228,11 @@ function countSentencesOf(text) {
  *   and the next line outside a block scalar at that entry's column or to its left (the next entry,
  *   named or not, or a key that leaves the list) ends it. A block scalar's lines belong to the step
  *   whose entry holds them, so the body of a step with no numbered name is never credited to the
- *   numbered step before it. A numbered name that no open entry holds names no step whose body can
- *   be told, so it is refused rather than counted. Comment lines end nothing.
+ *   numbered step before it. A step's name is a key of its entry itself, at the column of the
+ *   entry's own keys; a `name:` further in belongs to a list or mapping the step holds and neither
+ *   ends the step nor opens one. A numbered name that no open entry holds, or that sits further in
+ *   than the entry's own keys, names no step whose body can be told, so it is refused rather than
+ *   counted. Comment lines end nothing.
  * @param {string} text
  * @param {string} label How the file is named in a violation.
  * @returns {{ steps: Step[], violations: string[] }}
@@ -219,6 +246,8 @@ function readWorkflowSteps(text, label) {
   let blockKeyColumn = null;
   /** @type {number | null} The column of the `-` of the open sequence entry. */
   let entryColumn = null;
+  /** @type {number | null} The column of the open entry's own keys, once a line has shown it. */
+  let entryKeyColumn = null;
   /** @type {Step | null} */
   let current = null;
 
@@ -236,10 +265,18 @@ function readWorkflowSteps(text, label) {
     if (line.trim().length > 0 && !COMMENT_LINE.test(line)) {
       if (entryColumn !== null && indentOf(line) <= entryColumn) {
         entryColumn = null;
+        entryKeyColumn = null;
         current = null;
       }
       const entry = SEQUENCE_ENTRY.exec(line);
-      if (entry !== null && entryColumn === null) entryColumn = (entry[1] ?? "").length;
+      if (entryColumn === null) {
+        if (entry !== null) {
+          entryColumn = (entry[1] ?? "").length;
+          entryKeyColumn = entryKeyColumnOf(line, entryColumn);
+        }
+      } else if (entryKeyColumn === null) {
+        entryKeyColumn = indentOf(line);
+      }
     }
 
     const scalar = BLOCK_SCALAR_KEY.exec(line);
@@ -249,7 +286,11 @@ function readWorkflowSteps(text, label) {
 
     const key = NAME_KEY.exec(line);
     if (key === null) continue;
-    current = null;
+    // A `name:` below the entry's own keys belongs to a list or mapping the step holds, so it
+    // neither ends the step nor names it.
+    const ownKey =
+      entryColumn !== null && (key[1] ?? "").length + (key[2] ?? "").length === entryKeyColumn;
+    if (ownKey) current = null;
     const value = (key[3] ?? "").trim();
     if (value.startsWith("#")) {
       violations.push(
@@ -279,6 +320,15 @@ function readWorkflowSteps(text, label) {
         `${label}:${String(lineNumber)} names \`${name}\` outside an entry of a steps list (a line ` +
           "that starts `- `), so no step's run body can be told to be its. A check is a step: name " +
           "it on the step, or drop the number."
+      );
+      continue;
+    }
+    if (!ownKey) {
+      violations.push(
+        `${label}:${String(lineNumber)} names \`${name}\` inside a list or mapping that an entry of ` +
+          "a steps list holds (a `with:` value, say), not as a key of the entry itself, so it names " +
+          "no step and no step's run body can be told to be its. A check is a step: name it on the " +
+          "step, or drop the number."
       );
       continue;
     }
