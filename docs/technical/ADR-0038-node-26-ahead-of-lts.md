@@ -11,6 +11,8 @@
   both image stages move to 26.12.1, the security release of 2026-10-21)
 - **Amended**: 2026-11-14, §"Amendment of 2026-11-14: Node 26.13.1" (both image stages move to
   26.13.1, the security release of 2026-11-11; `engines.node` stays at 26.12.1)
+- **Amended**: 2026-11-18, §"Amendment of 2026-11-18: the `engines.node` floor at 26.13.1" (the
+  `engines.node` floor moves to 26.13.1, the release both image stages run)
 - **Amends**: slice `0.16` of `openspec/changes/testing-refoundation/tasks.md` ("the runtime follows
   LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51 (entries of the tracker's Decisions log, removed from the tree on 2026-11-10)
 - **Related**: [ADR-0017](ADR-0017-production-build-bundler.md) (the image build model);
@@ -350,6 +352,26 @@ change in what CI installs. The lockfile does not move.
 **The re-check.** The watchlist's date entry `contract-0.16-node-26` carries a dated line for this
 amendment; the entry `zlib-stage-remove` left with the stage it watched.
 
+## Amendment of 2026-11-18: the `engines.node` floor at 26.13.1
+
+Taken on 2026-11-18 by the Maintainer's decision: `engines.node` moves from `>=26.12.1 <27` to
+`>=26.13.1 <27` in all 101 manifests, so that every manifest declares the security release of
+2026-11-11 as the lowest runtime it accepts. It is the clause of the case "A 26.x security release"
+of §"Revisit if" that the amendment of 2026-11-14 left untaken, the floor "when CI must not resolve
+below it". 26.13.1 was published at 2026-11-11T16:44:25Z and is mature from 2026-11-18T16:44Z, so
+the floor is taken inside the 7-day buffer. `.nvmrc` stays `26`, and the four Dockerfiles, which run
+26.13.1 since the amendment of 2026-11-14, do not change. The sentences of this ADR that name
+26.12.1 as the `engines.node` floor describe the state before this amendment.
+
+The floor is a declaration and fails nothing by itself, measured on 2026-11-18: this repository sets
+no `engineStrict`, and pnpm documents that without it an `engines.node` that does not accept the
+running Node prints a warning and the install continues; on pnpm 12.6.0,
+`pnpm install --frozen-lockfile --offline` under Node 26.12.1 over the installed tree exited 0 and
+printed no warning. The engines gate holds the major only, and the shared `setup-node` step sets no
+`check-latest` (`.github/actions/setup-node-pnpm-cache/action.yml:20-23`). A run that resolves a
+26.x below 26.13.1 therefore still fails nothing; that residual is the plan row
+`ENGINES-NODE-FLOOR-FAILS-NOTHING` (`docs/product/plan/cross-cutting.md`).
+
 ## Legal impact
 
 None: the runtime version changes. No personal data, cookie or storage key, OAuth scope, recipient,
@@ -379,6 +401,10 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
   26.13.1 on 2026-11-14"). `docs/deployment/DEPLOYMENT_CHECKLIST.md` is unchanged: `engines.node`
   stays `>=26.12.1 <27`. No repository variable or secret, runtime variable or external account
   changes.
+- The amendment of 2026-11-18:
+  `docs/deployment/DEPLOYMENT_CHECKLIST.md — updated: Node.js 26 and pnpm 12.6.0` (operators need
+  v26.13.1 or a later 26.x; `engines.node` `>=26.13.1 <27`). No Dockerfile, repository variable or
+  secret, runtime variable or external account changes.
 
 ## Revisit if
 
