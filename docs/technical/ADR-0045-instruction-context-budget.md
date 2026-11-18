@@ -409,6 +409,28 @@ Compliance Checks`. The block now goes to the reference, and that section takes 
    record with this manifest, passes; run over the record of a session started before the move, it
    refuses and names the five.
 
+## Amendment of 2026-11-18: the closing measurement
+
+1. **What the ceiling covers.** The Product Owner decided on 2026-11-18 that the 250,000 bytes of
+   decision 4 cover the project's files a session loads by itself: the tracked set, the local files
+   of the main checkout and the feedback files. The user's own instruction file and the memory
+   index load too and are outside it: they belong to the user and to the machine, not to a
+   checkout, and the manifest does not name them.
+2. **The bytes.** With the feedback files loading, the project's files total 223,800 bytes, 26,200
+   under the ceiling: 135,623 tracked, as the gate measures them; 679 of `CLAUDE.local.md`; 16,355
+   of `.claude/CLAUDE.md`; 71,143 of the five feedback files. Beside them a session on this machine
+   loads the user's instruction file, 91,629 bytes, and the memory index, 15,008: 330,437 bytes in
+   all, where the plan row TOKEN-1 counted about 692,000 before this feature.
+3. **The requests.** A headless request of one word from the main checkout on 2026-11-18, each
+   session reporting 13 instruction files: `opus` (`claude-opus-5-5`) 166,618 input tokens, `sonnet`
+   (`claude-sonnet-5-5`) 166,587, `haiku` 167,298, and each answered. On 2026-11-17 the same
+   checkout sent about 290,000 and `opus` refused every request; once the audit record had left the
+   canon it sent about 187,000.
+4. **What no check holds.** The gate holds the tracked set to its exact ceiling and to the target.
+   It cannot read the local and the feedback files, 88,177 bytes today, which git ignores and which
+   grow with every new feedback rule, so their sum with the tracked set is measured here and held
+   by no check (plan row `INSTRUCTION-BUDGET-LOCAL-FILES-HELD-BY-NO-CHECK`).
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,
