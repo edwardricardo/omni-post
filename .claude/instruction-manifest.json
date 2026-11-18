@@ -18,8 +18,7 @@
     }
   ],
   "budget": {
-    "bytes": 288897,
-    "target": 250000,
-    "targetOwedBy": "TOKEN-1 T3"
+    "bytes": 135348,
+    "target": 250000
   }
 }

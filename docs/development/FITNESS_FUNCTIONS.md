@@ -1420,39 +1420,58 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # registration (SMELL-158). A harness that omits the collector now fails when it builds its
 # container, so what this gate still adds is that every harness composes through the seam.
 
-# 44. The fitness inventory is contiguous, and its count is derived.
+# 44. The fitness inventory is contiguous, its three sources agree, and its count is derived.
 # Threat: the one invariant in this suite that nothing measured was the suite ITSELF. A step
-# wired without its canon block, a canon block whose step was deleted, a number two steps both
-# claim, or a count sentence left at the previous value all read as a complete inventory while
-# a check silently stops being enforced — and the summary printed a TYPED count that agreed
-# with the document no matter what actually ran.
+# wired without its block, a block whose step was deleted, a number two steps both claim, or a
+# count sentence left at the previous value all read as a complete inventory while a check
+# silently stops being enforced — and the summary printed a TYPED count that agreed with the
+# document no matter what actually ran. Since 2026-11-18 the suite is stated in three files: the
+# steps of fitness.yml, the blocks of this document, and the list of CLAUDE.md §Automated
+# Compliance Checks, the one of the three a session loads (ADR-0045). A list line that drifts
+# from its step tells every session a rule nothing runs, and a block left behind in CLAUDE.md
+# grows the loaded context back.
 # THE RULE IS A SCRIPT WITH A SUITE, not inline shell: scripts/testing/fitness-inventory-gate.mjs,
 # pinned by apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts. The code below is its
 # invocation and is the workflow step's body line for line; the script derives N and writes the
 # job summary from it, so no count is typed anywhere outside the sentence it checks.
 # WHAT IT READS. Workflow side: every step whose `name:` value starts with `#<number>`, double-
-# or single-quoted, in any job of fitness.yml; `run: |` bodies are skipped, and an UNQUOTED
-# `name: #N` is refused because YAML reads it as a comment. Canon side: every `# N.` line at
-# column 0 inside a fenced block of this section, which ends at the next level-1 or level-2
-# heading OUTSIDE a fence, so a column-0 `## ` comment inside this block does not truncate it.
+# or single-quoted, in any job of fitness.yml, with the lines of its `run: |` body; block scalars
+# are never read as keys, and an UNQUOTED `name: #N` is refused because YAML reads it as a
+# comment. Reference side: every `# N.` line at column 0 inside a fenced block of the section
+# `## Check blocks` of this document, which ends at the next level-1 or level-2 heading OUTSIDE a
+# fence, so a column-0 `## ` comment inside a block does not truncate it. List side: every line
+# of CLAUDE.md §Automated Compliance Checks, outside code blocks, of the form
+# `- **#N** <name> — <how>`, where <how> is `shell` for an inline check or one code span holding
+# the command its step runs, and the count sentence of that section's prose.
 # THE HEADING CONVENTION IS LOAD-BEARING, and the gate says so out loud: a check heading follows
 # the fence or a blank line, and a `# N.` line anywhere else is reported by its line number as a
 # comment shaped like a heading. A look-alike that does follow a blank line is counted, and then
-# surfaces as a duplicate heading or a documented-but-unwired number — red either way.
-# SETS, not sequences, and that distinction is MEASURED rather than stylistic: the steps are
-# declared 1-15, 19, 16, 17, 18, 20-N and the canon headings 1-17, 19, 18, 20-N, so comparing
-# declaration ORDER would go red today over placement that changes nothing. Do not "fix" either
-# file into numeric order to satisfy this gate; it asserts the workflow SET is 1..N with no hole
-# and no duplicate, the canon carries the same set with no duplicate, and exactly one count
-# sentence states the derived N.
-# FAIL-CLOSED: an unreadable file, zero numbered steps, a missing section, zero headings, a fence
-# that never closes, and no count sentence each exit 1 naming the cause — a scan that read
-# nothing must never render as a clean inventory.
-# RESIDUAL LIMITS, stated rather than implied: (1) textual over both files, so a step whose name
-# is assembled by a matrix, a composite action or a flow-style mapping is invisible to it; (2) a
-# look-alike comment that follows a blank line can stand in for a deleted heading with the same
-# number; (3) it proves the inventory is COMPLETE, never that a listed check still measures what
-# its prose claims.
+# surfaces as a duplicate heading or a documented-but-unwired number — red either way. A line of
+# the list that opens like an entry (a list marker, then `#` and a digit, bold or not) and is not
+# exactly `- **#N** ` with no leading zero is reported by its line number the same way.
+# SETS, not sequences, and that distinction is MEASURED rather than stylistic: neither the
+# workflow nor this document declares its checks in numeric order, so comparing declaration ORDER
+# would go red over placement that changes nothing. Do not "fix" any of the files into numeric
+# order to satisfy this gate; it asserts the workflow SET is 1..N with no hole and no duplicate,
+# the reference and the list each carry the same set with no duplicate, and exactly one count
+# sentence, in CLAUDE.md, states the derived N.
+# WHAT FAILS beyond the sets: a list line whose name is not its step's name without the `#N `
+# prefix, character for character, and the violation prints the line as it must read; a list line
+# that ends in neither ` — shell` nor ` — ` and one code span, or whose code span's text does not
+# occur in its step's run body; a `# N.` heading inside a code block of the CLAUDE.md section,
+# since the blocks live here; and a count sentence in this document, since the count is stated
+# once, in CLAUDE.md.
+# FAIL-CLOSED: an unreadable file, zero numbered steps, a missing section in CLAUDE.md or here,
+# zero headings, zero list lines, a fence that never closes, and no count sentence each exit 1
+# naming the cause — a scan that read nothing must never render as a clean inventory.
+# RESIDUAL LIMITS, stated rather than implied: (1) textual over the three files, so a step whose
+# name is assembled by a matrix, a composite action or a flow-style mapping is invisible to it,
+# and a YAML escape in a quoted name is compared as written; (2) a look-alike comment that
+# follows a blank line can stand in for a deleted heading with the same number; (3) the command
+# check proves the command occurs in the step's run body, not that it is the command the step's
+# verdict comes from, and a step whose `run:` is one line has no body and can only be listed as
+# `shell`; (4) a block's text and its step's body are still mirrored by hand; (5) it proves the
+# inventory is COMPLETE, never that a listed check still measures what its prose claims.
 set -euo pipefail
 if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SUMMARY:-/dev/null}"; then
   echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate, fitness.yml and CLAUDE.md §Automated Compliance Checks disagree on its set, the stated count is not the derived N, or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
