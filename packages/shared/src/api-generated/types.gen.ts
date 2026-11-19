@@ -1245,6 +1245,20 @@ export type PostAdminAuthLoginResponses = {
   200: unknown;
 };
 
+export type PostAdminAuthPasswordChangeRequiredData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/admin/auth/password/change-required";
+};
+
+export type PostAdminAuthPasswordChangeRequiredResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type PostAdminAuthRefreshData = {
   body?: never;
   path?: never;

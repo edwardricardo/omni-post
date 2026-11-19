@@ -3,7 +3,8 @@
  * @description Validates CSRF token on state-changing admin requests.
  *   Reads X-CSRF-Token header (forwarded by the Next.js proxy from the httpOnly cookie)
  *   and validates against the active AdminSession in DB.
- *   Skips safe methods (GET/HEAD/OPTIONS) and exempt routes (login, refresh, reset).
+ *   Skips safe methods (GET/HEAD/OPTIONS) and exempt routes (login, required password change,
+ *   refresh, reset).
  * @layer infrastructure
  */
 
@@ -17,6 +18,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const EXEMPT_PATHS = new Set([
   "/admin/auth/login",
+  "/admin/auth/password/change-required",
   "/admin/auth/refresh",
   "/admin/auth/password/reset",
   "/admin/auth/password/reset/confirm",

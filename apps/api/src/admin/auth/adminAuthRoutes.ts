@@ -21,6 +21,7 @@ import {
   refreshTokenSchema,
   logoutSchema,
   changePasswordSchema,
+  requiredPasswordChangeSchema,
   resetPasswordRequestSchema,
   resetPasswordConfirmSchema,
   mfaVerifySchema,
@@ -31,6 +32,29 @@ import {
 import type { AuthErrorCode, DeviceFingerprint } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
+
+/** The statuses the sign-in answers for the codes of its checks; any other code is a 500. */
+const SIGN_IN_STATUS: Partial<Record<AuthErrorCode, number>> = {
+  INVALID_CREDENTIALS: 401,
+  ACCOUNT_LOCKED: 403,
+  ACCOUNT_INACTIVE: 403,
+  MFA_INVALID: 401,
+};
+
+/**
+ * The required password change runs the sign-in's checks, so it answers their codes alike, except
+ * two: a missing second factor is an error here, since nothing changed, and the brute-force
+ * gate's refusal is a 429.
+ */
+const REQUIRED_PASSWORD_CHANGE_STATUS: Partial<Record<AuthErrorCode, number>> = {
+  ...SIGN_IN_STATUS,
+  MFA_REQUIRED: 401,
+  RATE_LIMIT_EXCEEDED: 429,
+  PASSWORD_CHANGE_NOT_REQUIRED: 409,
+  PASSWORD_TOO_WEAK: 400,
+  PASSWORD_REUSED: 400,
+  CONCURRENT_MODIFICATION: 409,
+};
 
 // ============================================================================
 // Route Handler Class
@@ -78,8 +102,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/login
-   * Login with email and password
+   * @method login
+   * @description POST /admin/auth/login. Signs an administrator in with the e-mail and the
+   *   password; a missing second factor is answered as a success that asks for it.
+   * @param request - The request, whose body carries the credentials
+   * @param reply - The reply the outcome is sent on
    */
   async login(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -106,13 +133,7 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
       if (result.error === "MFA_REQUIRED") {
         return this.sendSuccess(ctx, { requiresMfa: true });
       }
-      const statusMap: Record<string, number> = {
-        INVALID_CREDENTIALS: 401,
-        ACCOUNT_LOCKED: 403,
-        ACCOUNT_INACTIVE: 403,
-        MFA_INVALID: 401,
-      };
-      const status = statusMap[result.error] || 500;
+      const status = SIGN_IN_STATUS[result.error] || 500;
       return this.sendError(ctx, status, result.error);
     }
 
@@ -120,8 +141,42 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/refresh
-   * Refresh access token using refresh token
+   * @method changeRequiredPassword
+   * @description POST /admin/auth/password/change-required. Replaces a password that must be
+   *   changed, for a caller without a session: the e-mail, the current password and the new one
+   *   go through the sign-in's checks, and no session is opened, so the administrator then signs
+   *   in with the new password. Every refusal, a missing second factor included, is an error.
+   * @param request - The request, whose body carries the credentials and the new password
+   * @param reply - The reply the outcome is sent on
+   */
+  async changeRequiredPassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const validation = requiredPasswordChangeSchema.safeParse(request.body);
+
+    if (!validation.success) {
+      return this.sendValidationError(ctx, validation.error);
+    }
+
+    const { email, currentPassword, newPassword, mfaToken } = validation.data;
+    const result = await this.adminAuthService.changeRequiredPassword(
+      { email, currentPassword, newPassword, ...(mfaToken !== undefined && { mfaToken }) },
+      this.getDeviceFingerprint(request)
+    );
+
+    if (!result.ok) {
+      const status = REQUIRED_PASSWORD_CHANGE_STATUS[result.error] || 500;
+      return this.sendError(ctx, status, result.error);
+    }
+
+    return this.sendSuccess(ctx, { message: "Password changed. Sign in with the new password." });
+  }
+
+  /**
+   * @method refreshToken
+   * @description POST /admin/auth/refresh. Issues a new access token for the session the refresh
+   *   token and the CSRF token name.
+   * @param request - The request, whose body carries the refresh token and the CSRF token
+   * @param reply - The reply the outcome is sent on
    */
   async refreshToken(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -148,8 +203,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/logout
-   * Logout (revoke session)
+   * @method logout
+   * @description POST /admin/auth/logout. Revokes the current session, or every session when
+   *   the body asks for it.
+   * @param request - The authenticated request
+   * @param reply - The reply the outcome is sent on
    */
   async logout(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -179,8 +237,10 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * GET /admin/auth/me
-   * Get current authenticated user profile
+   * @method getCurrentUser
+   * @description GET /admin/auth/me. Answers the signed-in administrator's profile.
+   * @param request - The authenticated request
+   * @param reply - The reply the profile is sent on
    */
   async getCurrentUser(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -193,8 +253,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/password/change
-   * Change password for authenticated user
+   * @method changePassword
+   * @description POST /admin/auth/password/change. Changes the signed-in administrator's
+   *   password, given the current one.
+   * @param request - The authenticated request, whose body carries both passwords
+   * @param reply - The reply the outcome is sent on
    */
   async changePassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -231,8 +294,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/password/reset
-   * Request password reset (forgot password flow)
+   * @method resetPasswordRequest
+   * @description POST /admin/auth/password/reset. Starts the forgotten-password flow and e-mails
+   *   the reset link; the answer is the same whether or not the address exists.
+   * @param request - The request, whose body carries the e-mail
+   * @param reply - The reply the outcome is sent on
    */
   async resetPasswordRequest(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -293,8 +359,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/password/reset/confirm
-   * Confirm password reset with token
+   * @method resetPasswordConfirm
+   * @description POST /admin/auth/password/reset/confirm. Completes a password reset with the
+   *   reset token, after the Turnstile challenge when one is configured.
+   * @param request - The request, whose body carries the token and the new password
+   * @param reply - The reply the outcome is sent on
    */
   async resetPasswordConfirm(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -351,8 +420,10 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/password/validate
-   * Validate password strength
+   * @method validatePassword
+   * @description POST /admin/auth/password/validate. Scores a password against the policy.
+   * @param request - The request, whose body carries the password
+   * @param reply - The reply the score is sent on
    */
   async validatePassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -371,8 +442,10 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   // ==========================================================================
 
   /**
-   * POST /admin/auth/mfa/setup
-   * Setup MFA (generate QR code and backup codes)
+   * @method mfaSetup
+   * @description POST /admin/auth/mfa/setup. Starts the second factor's enrolment.
+   * @param request - The authenticated request
+   * @param reply - The reply the secret, QR code and backup codes are sent on
    */
   async mfaSetup(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -391,8 +464,10 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/mfa/verify
-   * Verify MFA token and enable MFA
+   * @method mfaVerify
+   * @description POST /admin/auth/mfa/verify. Enables the second factor once a code verifies.
+   * @param request - The authenticated request, whose body carries the code
+   * @param reply - The reply the outcome is sent on
    */
   async mfaVerify(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -420,8 +495,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/mfa/disable
-   * Disable MFA
+   * @method mfaDisable
+   * @description POST /admin/auth/mfa/disable. Disables the second factor, given the password
+   *   and a code.
+   * @param request - The authenticated request, whose body carries the password and the code
+   * @param reply - The reply the outcome is sent on
    */
   async mfaDisable(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -454,8 +532,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * GET /admin/auth/mfa/status
-   * Get MFA status
+   * @method mfaStatus
+   * @description GET /admin/auth/mfa/status. Answers whether the second factor is enabled and
+   *   how many backup codes remain.
+   * @param request - The authenticated request
+   * @param reply - The reply the status is sent on
    */
   async mfaStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -478,8 +559,10 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   // ==========================================================================
 
   /**
-   * GET /admin/auth/sessions
-   * List active sessions
+   * @method listSessions
+   * @description GET /admin/auth/sessions. Lists the active sessions, marking the current one.
+   * @param request - The authenticated request
+   * @param reply - The reply the sessions are sent on
    */
   async listSessions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -504,8 +587,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * POST /admin/auth/sessions/revoke
-   * Revoke specific session
+   * @method revokeSession
+   * @description POST /admin/auth/sessions/revoke. Revokes one session of the signed-in
+   *   administrator.
+   * @param request - The authenticated request, whose body names the session
+   * @param reply - The reply the outcome is sent on
    */
   async revokeSession(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -566,6 +652,17 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Admin Auth"], summary: "Admin login" },
     },
     async (request, reply) => handler.login(request, reply)
+  );
+
+  // Required password change: it runs the sign-in's checks without a session, so it takes the
+  // sign-in's rate limit
+  fastify.post(
+    "/admin/auth/password/change-required",
+    {
+      preHandler: [rateLimit(loginRateMax, 60000)],
+      schema: { tags: ["Admin Auth"], summary: "Change a password that must be changed" },
+    },
+    async (request, reply) => handler.changeRequiredPassword(request, reply)
   );
 
   // Refresh token

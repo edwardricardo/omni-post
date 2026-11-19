@@ -609,6 +609,8 @@ export type {
   PostAdminAuthMfaVerifyData,
   PostAdminAuthMfaVerifyResponses,
   PostAdminAuthPasswordChangeData,
+  PostAdminAuthPasswordChangeRequiredData,
+  PostAdminAuthPasswordChangeRequiredResponses,
   PostAdminAuthPasswordChangeResponses,
   PostAdminAuthPasswordResetConfirmData,
   PostAdminAuthPasswordResetConfirmResponses,
