@@ -603,6 +603,8 @@
 | SB-582 | F-02 T2d (`c27ab113`), review-060644730ccd694e                                        | R4-password-lost-after-commit (WARNING)                          | `apps/api/src/cli/firstAdministratorCommand.ts:204-207`                                                                                     | resilience                   | closed: recorded in the plan under FIRST-ADMIN-UNKNOWN-COMMIT-LOSES-THE-PASSWORD (see Closed with a reason)                                                     |
 | SB-583 | F-02 T2d (`c27ab113`), review-060644730ccd694e                                        | R2-collision-duck-typing (WARNING)                               | `packages/core/auth/src/CreateFirstAdministratorUseCase.ts:190-202`                                                                         | readability                  | closed: taken in part in `0d6a6bf5`; one message per collision and no default (see Closed with a reason)                                                        |
 | SB-584 | F-02 T2d (`004ab0d7`), review-3cda050afdfb5718                                        | R3-removed-exports-unproved (WARNING)                            | `apps/api/src/cli/firstAdministratorCommand.ts:51`                                                                                          | reliability                  | closed: refuted by measurement; no other file uses the three names (see Closed with a reason)                                                                   |
+| SB-585 | `effect` CVE floor (`930066d0`), review-c73c3fbf76bb9497                              | R2-main-commit-baseline-ambiguity                                | `docs/security/DEPENDENCY_AUDIT_RECORD.md:307`                                                                                              | readability                  | closed: the entry already says the checkout it compares with holds the same `schema.prisma` and `prisma.config.ts` (see Closed with a reason)                   |
+| SB-586 | `effect` CVE floor (`930066d0`), review-c73c3fbf76bb9497                              | R2-effect-row-ambiguous-antecedent                               | `docs/security/DEPENDENCY_AUDIT_RECORD.md:91`                                                                                               | readability                  | open: put "which declares `effect` 3.20.0 exactly" beside `@prisma/config`, the package that declares it                                                        |
 
 ## Entries — code and prose
 
@@ -1558,6 +1560,14 @@
 - **Suggestion:** write one line to stderr when the load cannot be recorded and the log line cannot be written.
 - **Why justified:** the event cannot block and its exit code is ignored, so the recorder's silence loses a diagnostic, never the block: with no record the check refuses the next prompt and its message names a full disk and an unwritable state directory among the causes.
 - **To implement:** with the next edit of the hooks.
+
+### SB-586 — the `effect` row reads as if `@prisma/client` declared the exact pin
+
+- **Source:** the native review of the `effect` CVE floor (`930066d0`, review-c73c3fbf76bb9497), finding `R2-effect-row-ambiguous-antecedent` (SUGGESTION).
+- **Location:** `docs/security/DEPENDENCY_AUDIT_RECORD.md`, §"CVE-floor pins", row `effect`.
+- **Suggestion:** move the clause "which declares `"effect": "3.20.0"` EXACTLY" beside `@prisma/config@7.10.1`, so the sentence cannot be read as naming `@prisma/client`.
+- **Why justified:** the comment on the override in `pnpm-workspace.yaml`, the row's own remove-when and the floor-history note all name `@prisma/config` as the package that pins `effect`; only the order of one sentence is at stake, and no value, band or measurement changes.
+- **To implement:** with the next edit of the row, which the rewrite of the dependency record planned for the dependency window of 2026-11-24 makes.
 
 ## Entries — tests
 
@@ -2540,3 +2550,4 @@
 | SB-582 | Recorded in `42c3e8d5` as the second way to the state that row holds; how an operator recovers is the Product Owner's decision the row asks for, so no procedure is written here.                      |
 | SB-583 | Taken in part in `0d6a6bf5`: a map with one entry per collision replaces the default. No check of the code is added: the port's error has two members and `in` tells them apart.                       |
 | SB-584 | Refuted by measurement: knip reported the three as exports nobody imports, a search of the repository finds them in that module only, and the battery of the tip runs the typecheck.                   |
+| SB-585 | Answered by the entry itself: it names the checkout it compares with (`a49e1c76`) and says it holds the same `schema.prisma` and `prisma.config.ts`, the inputs of the generated client.               |

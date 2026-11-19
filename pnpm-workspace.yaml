@@ -308,6 +308,16 @@ overrides:
   # Measured, with the remove-when, in DEPENDENCY_AUDIT_RECORD §"CVE-floor pins", row `minimatch`,
   # and §"Blocked floors".
   "minimatch@>=9.0.0 <11.0.1": 11.0.1
+  # CVE floor added 2026-11-19 for GHSA-7589-6fvf-x4pw (high, CVE-2026-121707, CWE-1333):
+  # Schema.TemplateLiteral decodes each Schema.String span with the lazy wildcard `[\s\S]*?`, so a
+  # template with two or more string spans backtracks cubically on an input it does not match.
+  # OSV `introduced 0, fixed 3.22.1`, GitHub's first_patched_version and upstream
+  # (Effect-TS/effect 3cc3c6e1, release effect@3.22.1) agree. Its one consumer, @prisma/config
+  # 7.10.1 (under prisma and @prisma/client 7.10.1, the newest stable Prisma), pins `effect`
+  # 3.20.0 exactly, so the band forces 3.20.0 -> 3.22.1, the minimal patched version (ADR-0018).
+  # @prisma/config builds no TemplateLiteral. Measured, with the remove-when, in
+  # DEPENDENCY_AUDIT_RECORD §"CVE-floor pins", row `effect`.
+  "effect@<3.22.1": 3.22.1
 
 # Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
 # a documented remove-when (DEPENDENCY_AUDIT_RECORD §Audited-audit-ignores). pnpm audit still
