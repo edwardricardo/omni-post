@@ -374,6 +374,15 @@ printed no warning. The engines gate holds the major only, and the shared `setup
 26.x below 26.13.1 therefore still fails nothing; that residual is the plan row
 `ENGINES-NODE-FLOOR-FAILS-NOTHING` (`docs/product/plan/cross-cutting.md`).
 
+Confirmed on 2026-11-19, after the maturity instant. Read at 00:52Z: the GitHub release v26.13.1 is
+published and is neither a draft nor a prerelease; `nodejs.org/dist/index.json` lists it
+(2026-11-10, `lts: Lithium`, `security: true`) as the newest 26.x, the only newer entries being
+27.0.0 prereleases, outside the `<27` ceiling; the `actions/node-versions` manifest lists 26.13.1 as
+its newest 26.x; and the distroless `latest` is still the digest the four Dockerfiles pin
+(`sha256:80631bd2`). Nothing withdrew or superseded the release, so the floor taken inside the
+buffer stands on a mature release. The review is recorded in the watchlist entry
+`contract-0.16-node-26` (`scripts/testing/maturity-watchlist.json`).
+
 ## Legal impact
 
 None: the runtime version changes. No personal data, cookie or storage key, OAuth scope, recipient,
