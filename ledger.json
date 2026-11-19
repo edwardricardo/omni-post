@@ -27,7 +27,7 @@
       "total": 1219
     },
     "blocks": {
-      "total": 15224,
+      "total": 15225,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14913
+        "BEHAVIOURAL": 14914
       }
     },
     "deleted": {
@@ -52188,42 +52188,49 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns values that each satisfy the administrators' password policy and hold no whitespace",
-          "line": 39,
+          "line": 43,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c127cf922499b15a3a9d1534d37a2272aea11ae92dc557d582db7352dfbf24c"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns values of 24 characters drawn from an alphabet of 73, at least 128 bits each",
-          "line": 49,
+          "line": 53,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ad19c3d46b1a2899f0ec02ac5edd05520a90f706b1d747fbaa3caf4ef7691bc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns a different value on every call",
-          "line": 58,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ffe06de25555deba628c7d0ea521710f95ab20e19e15df9e546b6ef477522ff"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns the characters randomInt picks, each drawn with the alphabet's size as its bound",
-          "line": 99,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2886e0193ce5e4270e76484fd7a26e40251103e08be6a786a397cc45b9b43699"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns the next draw when the policy refuses the first",
-          "line": 109,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "774c8af4a9dab0be773c2af7d715302faab5b511dbc9ca648ae0a9186fbba0c8"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::raises after a hundred draws when the policy refuses every one",
+          "line": 128,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ffa0795ab25f20ae9f4d475a822884498fac32102e5c1742b577c355de89bb3"
         }
       ],
       "verdict": "KEEP",

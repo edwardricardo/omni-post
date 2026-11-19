@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1209  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15224 |
+| Blocks                  | 15225 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -799,7 +799,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts`                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/CustomerTokenServiceAdapter.test.ts`                     | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/FetchHttpClient.test.ts`                                 | test             | 12     | 0          | ADJUDICATE | machine                     | duplicate-union      |
-| `apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts`            | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts`            | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/PrismaAdminMfaUserRepository.test.ts`                    | test             | 22     | 0          | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/infrastructure/adapters/PrismaCustomerMfaUserRepository.test.ts`                 | test             | 22     | 0          | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/infrastructure/adapters/PrismaMentionRepository.test.ts`                         | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

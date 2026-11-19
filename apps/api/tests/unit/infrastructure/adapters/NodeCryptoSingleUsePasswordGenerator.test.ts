@@ -5,7 +5,8 @@
  *   password policy, to the absence of whitespace and to the alphabet whose size and the value's
  *   length give at least 128 bits of entropy. A second suite replaces `randomInt` and pins that
  *   every character is drawn from it with the alphabet's size as its bound, the source Node
- *   documents as free of modulo bias, and that a draw the policy refuses is drawn again.
+ *   documents as free of modulo bias, that a draw the policy refuses is drawn again, and that
+ *   the generator raises after a hundred refused draws.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -24,6 +25,9 @@ const ALPHABET = `${LOWERCASE}${UPPERCASE}${DIGITS}${SYMBOLS}`;
 
 /** The length of every value. */
 const LENGTH = 24;
+
+/** The draws the generator tries before it raises. */
+const MAX_DRAWS = 100;
 
 /** @returns The given number of values drawn by one generator. */
 function drawMany(count: number): string[] {
@@ -119,5 +123,18 @@ describe("NodeCryptoSingleUsePasswordGenerator generate, with the random source 
 
     expect(value).toBe(accepted);
     expect(bounds).toHaveLength(2 * LENGTH);
+  });
+
+  it("raises after a hundred draws when the policy refuses every one", async () => {
+    const refusedForNoDigit = "abcdefghijkLMNOPQRSTUV#%";
+    expect(validatePasswordStrength(refusedForNoDigit).valid).toBe(false);
+    const { generator, bounds } = await loadWithIndices(
+      Array.from({ length: MAX_DRAWS }, () => indicesOf(refusedForNoDigit)).flat()
+    );
+
+    expect(() => generator.generate()).toThrow(
+      new Error("No value met the administrators' password policy in 100 draws")
+    );
+    expect(bounds).toHaveLength(MAX_DRAWS * LENGTH);
   });
 });

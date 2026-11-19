@@ -19,6 +19,7 @@ import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   SYSTEM_ROLE_COLLISIONS,
+  type SystemRoleCollision,
   type SystemRoleDefinition,
   type SystemRoleRepository,
 } from "@core/domain/repositories/SystemRoleRepository.js";
@@ -44,6 +45,12 @@ const MESSAGES = {
   transactionFailed:
     "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again",
 } as const;
+
+/** The refusal each collision of the role write is reported with: one entry per collision. */
+const ROLE_CONFLICT_MESSAGES: Readonly<Record<SystemRoleCollision, string>> = {
+  [SYSTEM_ROLE_COLLISIONS.ID]: MESSAGES.roleIdHeld,
+  [SYSTEM_ROLE_COLLISIONS.NAME]: MESSAGES.roleNameHeld,
+};
 
 /** The e-mail of the administrator to create, the command's only input. */
 export interface CreateFirstAdministratorInput {
@@ -195,11 +202,9 @@ export class CreateFirstAdministratorUseCase implements UseCase<
           new UseCaseError(MESSAGES.roleWriteFailed, USE_CASE_ERRORS.INTERNAL_ERROR, error)
         );
       }
-      const message =
-        error.collision === SYSTEM_ROLE_COLLISIONS.NAME
-          ? MESSAGES.roleNameHeld
-          : MESSAGES.roleIdHeld;
-      return err(new UseCaseError(message, USE_CASE_ERRORS.CONFLICT, error));
+      return err(
+        new UseCaseError(ROLE_CONFLICT_MESSAGES[error.collision], USE_CASE_ERRORS.CONFLICT, error)
+      );
     }
 
     const exists = await this.administrators.existsAny();
