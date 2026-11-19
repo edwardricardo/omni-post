@@ -4,7 +4,7 @@
  *   permissions it is granted, so every writer of the role writes the same values. It holds that
  *   role alone: the other administration roles have a single writer, the development seed, and stay
  *   there. It is plain data and imports nothing, so `@infra/prisma` takes no dependency for it; its
- *   permission values are wire strings of the `Permission` enum of `@core/domain`, as a test holds.
+ *   permissions are every wire string of the `Permission` enum of `@core/domain`, as a test holds.
  * @layer infrastructure
  */
 
@@ -43,5 +43,11 @@ export const SUPER_ADMIN_ROLE = {
     "webhook:manage",
     "dashboard:view",
     "post:manage",
+    "secrets:view",
+    "channels:force_reauth",
+    "webhooks:rotate_secret",
+    "oidc:replace_secret",
+    "apikeys:admin_rotate",
+    "providers:mass_force_reauth",
   ],
 } as const satisfies AdminSystemRole;

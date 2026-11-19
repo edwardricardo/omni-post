@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1201  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15150 |
+| Blocks                  | 15151 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -537,7 +537,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/admin/secretsRotationRoutes.test.ts`                                             | test             | 4      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/webhookAdminRoutes.test.ts`                                                | test             | 8      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts`                                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/repurposeGraph.test.ts`                                                 | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/aiLocalizedRoutes.test.ts`                                                    | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
