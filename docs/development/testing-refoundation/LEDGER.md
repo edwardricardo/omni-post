@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1219  |
+| Files                   | 1224  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1054  |
-| ADJUDICATE              | 92    |
+| KEEP                    | 1058  |
+| ADJUDICATE              | 93    |
 | unmeasured              | 0     |
-| Machine rows            | 1209  |
+| Machine rows            | 1214  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15225 |
+| Blocks                  | 15284 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -399,6 +399,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/fixtures/run-tests-gate/cleanExitNonZero.fixture.ts`                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/adminPasswordResetClaim.integration.test.ts`                              | integration-test | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/adminRefreshRotationClaim.integration.test.ts`                            | integration-test | 5      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts`                          | integration-test | 4      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/integration/aiLocalizedRoutes.live.test.ts`                                           | live-test        | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/analyticsPremiumRoutes.live.test.ts`                                      | live-test        | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/analyticsStreamRoutes.live.test.ts`                                       | live-test        | 3      | 0          | KEEP       | machine                     | behavioural          |
@@ -430,6 +431,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/helpers/appRoleClient.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/bulkScheduleHarness.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/caseScope.ts`                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `apps/api/tests/integration/helpers/migratedScratchDatabase.ts`                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/postTrioFixtures.ts`                                              | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/publishNowPromotionDoubles.ts`                                    | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/publishNowPromotionHarness.ts`                                    | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -528,15 +530,18 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts`                                 | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/AdminUserAdminService.test.ts`                                             | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/CustomerAccountBillingService.test.ts`                                     | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts`                           | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/adminAuthService.test.ts`                                                  | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/adminTestHelper.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/admin/apiKeyAdminRoutes.test.ts`                                                 | test             | 5      | 0          | ADJUDICATE | machine                     | title-contradiction  |
+| `apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts`                               | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/auth/PasswordService.test.ts`                                              | test             | 14     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/admin/channelReauthRoutes.test.ts`                                               | test             | 7      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/massReauthRoutes.test.ts`                                                  | test             | 6      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/oidcAdminRoutes.test.ts`                                                   | test             | 7      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/secretsRotationRoutes.test.ts`                                             | test             | 4      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/webhookAdminRoutes.test.ts`                                                | test             | 8      | 0          | ADJUDICATE | machine                     | title-contradiction  |
+| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts`                                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -986,12 +991,12 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/PlatformCredentialService.test.ts`                                      | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/adminRateLimit.test.ts`                                                 | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/channelCredentialsCrypto.shared.test.ts`                                | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/csrfMiddleware.test.ts`                                                 | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/csrfMiddleware.test.ts`                                                 | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/decryptAuditContext.test.ts`                                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`                                        | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`                                      | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/inputValidation.mutations.test.ts`                                      | test             | 161    | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts`                                          | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigest.test.ts`                                                     | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestCanonicalize.test.ts`                                         | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestUnicodeTable.test.ts`                                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
