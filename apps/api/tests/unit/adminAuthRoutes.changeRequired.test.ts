@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { err, ok } from "@shared/types";
 
 const { logged } = vi.hoisted(() => ({ logged: [] as unknown[] }));
@@ -95,6 +95,11 @@ describe("POST /admin/auth/password/change-required", () => {
     await app.ready();
   });
 
+  // Closed here rather than at the end of each case, so a failed assertion does not leave it open.
+  afterEach(async () => {
+    await app.close();
+  });
+
   async function post(payload: unknown) {
     return app.inject({
       method: "POST",
@@ -118,7 +123,6 @@ describe("POST /admin/auth/password/change-required", () => {
       { email: STORED_EMAIL, currentPassword: CURRENT_PASSWORD, newPassword: NEW_PASSWORD },
       { deviceId: "", userAgent: USER_AGENT, ipAddress: "127.0.0.1" }
     );
-    await app.close();
   });
 
   it("hands the service the second factor's code when one is given", async () => {
@@ -133,7 +137,6 @@ describe("POST /admin/auth/password/change-required", () => {
       },
       expect.anything()
     );
-    await app.close();
   });
 
   it.each([
@@ -156,7 +159,6 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(body.error).toBe("Validation failed");
     expect(body.details.issues.map((issue: { path: string }) => issue.path)).toContain(path);
     expect(adminAuthStub.changeRequiredPassword).not.toHaveBeenCalled();
-    await app.close();
   });
 
   it.each([
@@ -177,9 +179,10 @@ describe("POST /admin/auth/password/change-required", () => {
 
     expect(res.statusCode).toBe(status);
     expect(JSON.parse(res.body)).toEqual({ ok: false, error: code });
-    await app.close();
   });
 
+  // MFA_REQUIRED and RATE_LIMIT_EXCEEDED are left out: this route answers both with statuses of
+  // its own, which the table above pins, and the sign-in's own answers for them are not pinned here.
   it.each(["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_INACTIVE", "MFA_INVALID"])(
     "answers %s with the status the sign-in gives it",
     async (code) => {
@@ -194,36 +197,10 @@ describe("POST /admin/auth/password/change-required", () => {
       });
 
       expect(change.statusCode).toBe(signIn.statusCode);
-      await app.close();
     }
   );
 
-  it("answers the brute-force gate's refusal with 429, the one code whose status differs from the sign-in's 500", async () => {
-    changeResult = err("RATE_LIMIT_EXCEEDED");
-    loginResult = err("RATE_LIMIT_EXCEEDED");
-
-    const change = await post(VALID_BODY);
-    const signIn = await app.inject({
-      method: "POST",
-      url: "/admin/auth/login",
-      payload: { email: TYPED_EMAIL, password: CURRENT_PASSWORD },
-    });
-
-    expect([change.statusCode, signIn.statusCode]).toEqual([429, 500]);
-    await app.close();
-  });
-
-  it("answers a missing second factor as an error, since nothing changed", async () => {
-    changeResult = err("MFA_REQUIRED");
-
-    const res = await post(VALID_BODY);
-
-    expect(res.statusCode).toBe(401);
-    expect(JSON.parse(res.body)).toEqual({ ok: false, error: "MFA_REQUIRED" });
-    await app.close();
-  });
-
-  it("applies the sign-in's rate limit, in a bucket of its own", async () => {
+  it("spends the sign-in's rate-limit bucket, with the sign-in's allowance", async () => {
     await post(VALID_BODY);
     await app.inject({
       method: "POST",
@@ -235,10 +212,8 @@ describe("POST /admin/auth/password/change-required", () => {
       [string, unknown],
       [string, unknown],
     ];
-    expect(changeCall[0].endsWith(`:${ROUTE}`)).toBe(true);
-    expect(signInCall[0].endsWith(":/admin/auth/login")).toBe(true);
-    expect(changeCall[1]).toEqual(signInCall[1]);
-    await app.close();
+    expect(signInCall[0]).toBe("admin:127.0.0.1:/admin/auth/login");
+    expect(changeCall).toEqual(signInCall);
   });
 
   it("answers 429 and does not run the service when the rate limit refuses", async () => {
@@ -248,7 +223,6 @@ describe("POST /admin/auth/password/change-required", () => {
 
     expect(res.statusCode).toBe(429);
     expect(adminAuthStub.changeRequiredPassword).not.toHaveBeenCalled();
-    await app.close();
   });
 
   it("writes neither password into a response or a logged object", async () => {
@@ -266,6 +240,5 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(logged.length).toBeGreaterThan(0);
     expect(written.includes(CURRENT_PASSWORD)).toBe(false);
     expect(written.includes(NEW_PASSWORD)).toBe(false);
-    await app.close();
   });
 });

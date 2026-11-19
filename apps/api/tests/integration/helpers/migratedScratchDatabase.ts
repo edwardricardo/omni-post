@@ -104,31 +104,43 @@ export async function createMigratedScratchDatabase(
   };
 }
 
+/** How long `waitUntilBackendsBlocked` waits for the blocked backends before it rejects. */
+export const BLOCKED_BACKENDS_TIMEOUT_MS = 20_000;
+
 /**
  * @function waitUntilBackendsBlocked
- * @description Resolves once at least `count` backends of `database` wait on a lock, observed in
- *   `pg_stat_activity` rather than guessed with a sleep.
+ * @description Resolves once at least `count` backends of `database` wait on a lock while running
+ *   a statement that matches `statementLike`, observed in `pg_stat_activity` rather than guessed
+ *   with a sleep. A backend waiting on a lock in any other statement does not count.
  * @param owner - A client of the same server that can read `pg_stat_activity`
  * @param database - The database whose backends are counted
  * @param count - How many blocked backends to wait for
+ * @param statementLike - A SQL `LIKE` pattern the blocked backend's current statement must match
  * @param description - Why the wait matters, carried by the error when it times out
- * @returns Nothing once the backends are blocked; rejects when they are not within 20 seconds
+ * @returns The current statements of the matching blocked backends; rejects when fewer than
+ *   `count` are blocked within `BLOCKED_BACKENDS_TIMEOUT_MS`
  */
 export async function waitUntilBackendsBlocked(
   owner: PrismaClient,
   database: string,
   count: number,
+  statementLike: string,
   description: string
-): Promise<void> {
+): Promise<string[]> {
+  let statements: string[] = [];
   await until(
     async () => {
-      const rows = await owner.$queryRaw<{ waiting: bigint }[]>`
-        SELECT count(*) AS waiting
+      const rows = await owner.$queryRaw<{ query: string }[]>`
+        SELECT query
         FROM pg_stat_activity
-        WHERE datname = ${database} AND cardinality(pg_blocking_pids(pid)) > 0
+        WHERE datname = ${database}
+          AND cardinality(pg_blocking_pids(pid)) > 0
+          AND query LIKE ${statementLike}
       `;
-      return Number(rows[0]?.waiting ?? 0) >= count;
+      statements = rows.map((row) => row.query);
+      return statements.length >= count;
     },
-    { description, timeoutMs: 20_000, intervalMs: 25 }
+    { description, timeoutMs: BLOCKED_BACKENDS_TIMEOUT_MS, intervalMs: 25 }
   );
+  return statements;
 }

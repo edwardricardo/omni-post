@@ -19,15 +19,6 @@ import {
   needsRehash,
 } from "../../auth/passwordHashing.js";
 
-/** The audit sink of a password change. */
-type PasswordChangedSink = (event: {
-  type: SecurityEventType;
-  userId: string;
-  success: boolean;
-  error?: string;
-  timestamp: Date;
-}) => Promise<void>;
-
 /** The stored hashes a new password must not match: the most recent ones the policy keeps. */
 function reuseWindow(history: readonly string[]): string[] {
   return history.slice(-adminAuthConfig.passwordPolicy.preventPasswordReuse);
@@ -99,7 +90,13 @@ export class PasswordService {
     userId: string,
     currentPassword: string,
     newPassword: string,
-    onSecurityEvent: PasswordChangedSink
+    onSecurityEvent: (event: {
+      type: SecurityEventType;
+      userId: string;
+      success: boolean;
+      error?: string;
+      timestamp: Date;
+    }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
     // Get user with password hash
     const user = await this.prisma.adminUser.findUnique({
@@ -136,9 +133,9 @@ export class PasswordService {
       return err("PASSWORD_TOO_WEAK");
     }
 
-    const reused = await this.refuseReused(newPassword, reuseWindow(user.passwordHistory));
-    if (!reused.ok) {
-      return reused;
+    const reuseCheck = await this.refuseReused(newPassword, reuseWindow(user.passwordHistory));
+    if (!reuseCheck.ok) {
+      return reuseCheck;
     }
 
     // Hash new password
@@ -180,10 +177,11 @@ export class PasswordService {
    * @method replaceRequiredPassword
    * @description Replaces the password of an administrator whose password must be changed, in
    *   one write guarded by the row as the sign-in's checks read it: its id, the hash the current
-   *   password verified against, the history, the mark and the active flag. The write stores the
-   *   new hash, its algorithm, the history with the replaced hash appended and the change date,
-   *   and clears the mark; a row any other writer moved since the read, including an
-   *   administrator deactivated since, matches nothing and nothing is written. Once the write
+   *   password verified against, the history, the mark, the active flag and the second-factor
+   *   flag. The write stores the new hash, its algorithm, the history with the replaced hash
+   *   appended and the change date, and clears the mark; a row any other writer moved since the
+   *   read, including an administrator deactivated or whose second factor was enabled or
+   *   disabled since, matches nothing and nothing is written. Once the write
    *   lands, every session of the administrator is revoked. No session is opened. The caller
    *   checks the new password against the policy before the sign-in's checks.
    * @param admin - The administrator as the sign-in's checks read it
@@ -193,29 +191,31 @@ export class PasswordService {
    *   nothing written
    */
   async replaceRequiredPassword(
-    admin: Pick<AdminUser, "id" | "passwordHash" | "passwordHistory">,
+    admin: Pick<AdminUser, "id" | "passwordHash" | "passwordHistory" | "mfaEnabled">,
     newPassword: string
   ): Promise<Result<void, AuthErrorCode>> {
     // The current password is a single-use secret, so it must not become the lasting one.
-    const reused = await this.refuseReused(newPassword, [
+    const reuseCheck = await this.refuseReused(newPassword, [
       ...reuseWindow(admin.passwordHistory),
       admin.passwordHash,
     ]);
-    if (!reused.ok) {
-      return reused;
+    if (!reuseCheck.ok) {
+      return reuseCheck;
     }
 
     const { hash, algorithm } = await this.hashPassword(newPassword);
 
-    // The predicate names every value the data derives from, the mark it clears and the active
-    // flag the checks accepted, so the database decides whether the row is still the one the
-    // checks read: under Read Committed a concurrent committed writer makes the update re-check
-    // exactly these columns, and the loser matches zero rows.
+    // The predicate names every value the data derives from, the mark it clears, the active flag
+    // the checks accepted and the second-factor flag as they read it (whether a second factor was
+    // owed), so the database decides whether the row is still the one the checks read: under Read
+    // Committed a concurrent committed writer makes the update re-check exactly these columns,
+    // and the loser matches zero rows.
     const { count } = await this.prisma.adminUser.updateMany({
       where: {
         id: admin.id,
         mustChangePassword: true,
         isActive: true,
+        mfaEnabled: admin.mfaEnabled,
         passwordHash: admin.passwordHash,
         passwordHistory: { equals: admin.passwordHistory },
       },

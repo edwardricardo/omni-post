@@ -33,6 +33,9 @@ import type { AuthErrorCode, DeviceFingerprint } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
+/** The sign-in's route pattern, which also names the rate-limit bucket the sign-in's checks spend. */
+const SIGN_IN_ROUTE = "/admin/auth/login";
+
 /** The statuses the sign-in answers for the codes of its checks; any other code is a 500. */
 const SIGN_IN_STATUS: Partial<Record<AuthErrorCode, number>> = {
   INVALID_CREDENTIALS: 401,
@@ -646,7 +649,7 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   // Login (with rate limiting — account lockout after 5 failed attempts provides primary brute-force protection)
   const loginRateMax = env.NODE_ENV === "test" ? 100 : 15;
   fastify.post(
-    "/admin/auth/login",
+    SIGN_IN_ROUTE,
     {
       preHandler: [rateLimit(loginRateMax, 60000)], // 15 req/min production, 100 in test
       schema: { tags: ["Admin Auth"], summary: "Admin login" },
@@ -654,12 +657,12 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.login(request, reply)
   );
 
-  // Required password change: it runs the sign-in's checks without a session, so it takes the
-  // sign-in's rate limit
+  // Required password change: it runs the sign-in's checks without a session, so it spends the
+  // sign-in's bucket, and an address gets one allowance for guessing passwords, not two
   fastify.post(
     "/admin/auth/password/change-required",
     {
-      preHandler: [rateLimit(loginRateMax, 60000)],
+      preHandler: [rateLimit(loginRateMax, 60000, SIGN_IN_ROUTE)],
       schema: { tags: ["Admin Auth"], summary: "Change a password that must be changed" },
     },
     async (request, reply) => handler.changeRequiredPassword(request, reply)

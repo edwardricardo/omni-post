@@ -4,8 +4,8 @@
  *              migrated from empty. Each case empties the administrators' tables and creates the
  *              first administrator through the composition the operator command uses, so the
  *              administrator holds a single-use password and must change it. The route runs over
- *              the real `AdminAuthService` on a client of that database; the brute-force port is
- *              a permissive recorder, since the subject is the stored row.
+ *              the real `AdminAuthService` on a client of that database; the brute-force port
+ *              allows every attempt and records nothing, since the subject is the stored row.
  *
  *              The case of two calls at once does not leave the interleaving to chance: a third
  *              connection holds the administrator's row lock, which plain reads do not wait on,
@@ -18,13 +18,14 @@
  * @layer infrastructure
  */
 
-import { describe, it, before, after } from "node:test";
+import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import Fastify from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import { ok } from "@shared/types";
 import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
 import {
+  BLOCKED_BACKENDS_TIMEOUT_MS,
   createMigratedScratchDatabase,
   waitUntilBackendsBlocked,
   type MigratedScratchDatabase,
@@ -47,6 +48,12 @@ const ADMIN_EMAIL = "first.admin@required-change-integration.test";
 const NEW_PASSWORD = "Fixture-Lasting-Pw-4q!";
 const RIVAL_PASSWORD = "Fixture-Rival-Pw-7u?";
 const WRONG_PASSWORD = "Fixture-Wrong-Pw-2d%";
+
+/**
+ * A `LIKE` pattern for the current statement of a backend blocked in the guarded write: the
+ * update of the administrators' table, as `pg_stat_activity` shows the Prisma client's statement.
+ */
+const GUARDED_WRITE_STATEMENT = 'UPDATE "public"."AdminUser" SET %';
 
 interface FirstAdministrator {
   readonly id: string;
@@ -85,6 +92,7 @@ describe("The required password change on a migrated database", { concurrency: 1
   let database: MigratedScratchDatabase | undefined;
   let scratch: PrismaClient | undefined;
   let appClient: PrismaClient | undefined;
+  let openApp: FastifyInstance | undefined;
 
   before(async () => {
     database = await createMigratedScratchDatabase("omnipost_required_change");
@@ -96,6 +104,12 @@ describe("The required password change on a migrated database", { concurrency: 1
     await appClient?.$disconnect();
     await scratch?.$disconnect();
     await database?.drop();
+  }, TIMING);
+
+  // Closed here rather than at the end of each case, so a failed assertion does not leave it open.
+  afterEach(async () => {
+    await openApp?.close();
+    openApp = undefined;
   }, TIMING);
 
   /** The fixture client, after asserting the migration ran. */
@@ -135,6 +149,7 @@ describe("The required password change on a migrated database", { concurrency: 1
       tryConsume: async () => ({ allowed: true }),
     });
     app.decorate("container", container);
+    openApp = app;
     await app.register(adminAuthRoutes);
     await app.ready();
     return app;
@@ -161,14 +176,13 @@ describe("The required password change on a migrated database", { concurrency: 1
 
   it("refuses a wrong current password with 401 and changes nothing", TIMING, async () => {
     const admin = await firstAdministrator();
-    const before = await storedAdmin(admin.id);
+    const rowBefore = await storedAdmin(admin.id);
     const app = await buildApp();
 
     const call = await change(app, WRONG_PASSWORD, NEW_PASSWORD);
 
     assert.deepEqual(call, { status: 401, body: { ok: false, error: "INVALID_CREDENTIALS" } });
-    assert.deepEqual(await storedAdmin(admin.id), before);
-    await app.close();
+    assert.deepEqual(await storedAdmin(admin.id), rowBefore);
   });
 
   it(
@@ -176,7 +190,7 @@ describe("The required password change on a migrated database", { concurrency: 1
     TIMING,
     async () => {
       const admin = await firstAdministrator();
-      const before = await storedAdmin(admin.id);
+      const rowBefore = await storedAdmin(admin.id);
       const app = await buildApp();
 
       const call = await change(app, admin.password, NEW_PASSWORD);
@@ -187,9 +201,8 @@ describe("The required password change on a migrated database", { concurrency: 1
       assert.equal(await verifyPassword(row.passwordHash, admin.password), false);
       assert.equal(row.mustChangePassword, false);
       assert.equal(row.lastLoginAt, null);
-      assert.deepEqual(row.passwordHistory, [before.passwordHash]);
+      assert.deepEqual(row.passwordHistory, [rowBefore.passwordHash]);
       assert.equal(await migrated().adminSession.count({ where: { userId: admin.id } }), 0);
-      await app.close();
     }
   );
 
@@ -210,7 +223,6 @@ describe("The required password change on a migrated database", { concurrency: 1
         body: { ok: false, error: "PASSWORD_CHANGE_NOT_REQUIRED" },
       });
       assert.deepEqual(await storedAdmin(admin.id), afterFirst);
-      await app.close();
     }
   );
 
@@ -219,7 +231,7 @@ describe("The required password change on a migrated database", { concurrency: 1
     TIMING,
     async () => {
       const admin = await firstAdministrator();
-      const before = await storedAdmin(admin.id);
+      const rowBefore = await storedAdmin(admin.id);
       const app = await buildApp();
       assert.ok(database, "the scratch database was created");
       const { owner, name } = database;
@@ -228,28 +240,39 @@ describe("The required password change on a migrated database", { concurrency: 1
       const holding = new Promise<void>((resolve) => {
         held = resolve;
       });
+      let blockedStatements: string[] = [];
       const holder = migrated().$transaction(
         async (tx) => {
           await tx.$executeRaw`SELECT id FROM "AdminUser" WHERE id = ${admin.id} FOR UPDATE`;
           held();
-          await waitUntilBackendsBlocked(
+          blockedStatements = await waitUntilBackendsBlocked(
             owner,
             name,
             2,
+            GUARDED_WRITE_STATEMENT,
             "both guarded writes to block on the held row; without that overlap the case proves nothing"
           );
         },
-        { timeout: 60_000 }
+        // The transaction must outlive the wait inside it, or Prisma ends the transaction first
+        // and the wait's own message, which says what did not block, is lost.
+        { timeout: 3 * BLOCKED_BACKENDS_TIMEOUT_MS }
       );
       await Promise.race([holding, holder]);
 
-      const [calls] = await Promise.all([
+      // Both outcomes are awaited before either is judged, so a failed holder cannot leave the
+      // two calls pending behind the lock it held.
+      const [callsOutcome, holderOutcome] = await Promise.allSettled([
         Promise.all([
           change(app, admin.password, NEW_PASSWORD),
           change(app, admin.password, RIVAL_PASSWORD),
         ]),
         holder,
       ]);
+      if (holderOutcome.status === "rejected") throw holderOutcome.reason;
+      if (callsOutcome.status === "rejected") throw callsOutcome.reason;
+      const calls = callsOutcome.value;
+
+      assert.equal(blockedStatements.length, 2);
 
       const succeeded = calls.filter((call) => call.status === 200);
       const refused = calls.filter((call) => call.status !== 200);
@@ -263,8 +286,7 @@ describe("The required password change on a migrated database", { concurrency: 1
       assert.equal(await verifyPassword(row.passwordHash, winner), true);
       assert.equal(await verifyPassword(row.passwordHash, loser), false);
       assert.equal(row.mustChangePassword, false);
-      assert.deepEqual(row.passwordHistory, [before.passwordHash]);
-      await app.close();
+      assert.deepEqual(row.passwordHistory, [rowBefore.passwordHash]);
     }
   );
 });

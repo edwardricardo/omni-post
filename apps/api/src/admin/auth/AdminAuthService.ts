@@ -116,23 +116,7 @@ export class AdminAuthService {
     // Successful authentication — clear per-identifier counters.
     await this.bruteForce.recordSuccessfulAttempt(attempt);
 
-    // Log security event - build event object conditionally
-    const securityEvent: SecurityEvent = {
-      type: "LOGIN_SUCCESS",
-      userId: user.id,
-      email: user.email,
-      ipAddress: device.ipAddress,
-      userAgent: device.userAgent,
-      deviceId: device.deviceId,
-      success: true,
-      timestamp: new Date(),
-    };
-
-    if (device.location) {
-      securityEvent.location = device.location;
-    }
-
-    await this.logSecurityEvent(securityEvent);
+    await this.logSecurityEvent(this.successEventOf("LOGIN_SUCCESS", user, device));
 
     const profile = await this.getUserProfile(user.id);
     if (!profile.ok) {
@@ -200,8 +184,23 @@ export class AdminAuthService {
       return replaced;
     }
 
-    const securityEvent: SecurityEvent = {
-      type: "PASSWORD_CHANGED",
+    await this.logSecurityEvent(this.successEventOf("PASSWORD_CHANGED", admin, device));
+
+    await this.bruteForce.recordSuccessfulAttempt(attempt);
+    return ok(undefined);
+  }
+
+  /**
+   * The security event of an operation an administrator completed from a device: who, from
+   * which address, agent and device, and where, when the device's location is known.
+   */
+  private successEventOf(
+    type: SecurityEvent["type"],
+    admin: Pick<AdminUser, "id" | "email">,
+    device: DeviceFingerprint
+  ): SecurityEvent {
+    const event: SecurityEvent = {
+      type,
       userId: admin.id,
       email: admin.email,
       ipAddress: device.ipAddress,
@@ -211,12 +210,9 @@ export class AdminAuthService {
       timestamp: new Date(),
     };
     if (device.location) {
-      securityEvent.location = device.location;
+      event.location = device.location;
     }
-    await this.logSecurityEvent(securityEvent);
-
-    await this.bruteForce.recordSuccessfulAttempt(attempt);
-    return ok(undefined);
+    return event;
   }
 
   /**

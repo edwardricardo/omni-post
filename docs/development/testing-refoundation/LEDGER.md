@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1224  |
+| Files                   | 1225  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1058  |
+| KEEP                    | 1059  |
 | ADJUDICATE              | 93    |
 | unmeasured              | 0     |
-| Machine rows            | 1214  |
+| Machine rows            | 1215  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15284 |
+| Blocks                  | 15285 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -530,7 +530,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts`                                 | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/AdminUserAdminService.test.ts`                                             | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/CustomerAccountBillingService.test.ts`                                     | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts`                           | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts`                           | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/adminAuthService.test.ts`                                                  | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/adminTestHelper.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/admin/apiKeyAdminRoutes.test.ts`                                                 | test             | 5      | 0          | ADJUDICATE | machine                     | title-contradiction  |
@@ -541,7 +541,8 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/admin/oidcAdminRoutes.test.ts`                                                   | test             | 7      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/secretsRotationRoutes.test.ts`                                             | test             | 4      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/webhookAdminRoutes.test.ts`                                                | test             | 8      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/adminAuthMiddleware.rateLimit.test.ts`                                           | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts`                                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |

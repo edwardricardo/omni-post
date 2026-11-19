@@ -217,14 +217,16 @@ export const requireAdmin = requireRole(["SUPER_ADMIN", "ADMIN"]);
  *              limiter outage.
  * @param maxRequests - Maximum requests allowed inside the window.
  * @param windowMs - Window size in milliseconds.
+ * @param bucket - The route pattern whose bucket the route spends, so routes that name one
+ *   pattern share one allowance per address; when absent, the bucket is the route's own pattern.
  * @returns Fastify handler middleware.
  */
-export function rateLimit(maxRequests: number, windowMs: number) {
+export function rateLimit(maxRequests: number, windowMs: number, bucket?: string) {
   return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const limiter = request.server.container?.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
     if (!limiter) return;
 
-    const key = `admin:${resolveClientIp(request)}:${request.routeOptions.url}`;
+    const key = `admin:${resolveClientIp(request)}:${bucket ?? request.routeOptions.url}`;
     let decision;
     try {
       decision = await limiter.tryConsume(key, {
