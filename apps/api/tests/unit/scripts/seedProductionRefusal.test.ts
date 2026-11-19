@@ -17,9 +17,19 @@
  *
  *   The seed loads its env file before its guard runs. In the first case an env file at the
  *   repository root, when the machine has one, is therefore loaded, but it cannot override a
- *   variable the process already sets, and the environment carries every variable the seed reads
- *   before it builds its client, so the outcome is the same with no file and with a well-formed one.
- *   A file Node cannot parse ends the seed with the loader's own error before the guard runs.
+ *   variable the process already sets, and the production rule, which reads only `NODE_ENV`, ends
+ *   the run before anything else is read, so the outcome is the same with no file and with a
+ *   well-formed one. A file Node cannot parse ends the seed with the loader's own error before the
+ *   guard runs.
+ *
+ *   The seed also takes no default administrator password. Under a development environment with no
+ *   `ADMIN_PASSWORD` it ends with exit code 1, writes the password rule's reason to stderr and
+ *   nothing to stdout, and opens no connection. That case runs in a fixture whose env file sets no
+ *   password, so an env file at the repository root cannot change its result. A last case sets
+ *   `ADMIN_PASSWORD` only in the fixture's env file: the seed is not refused, goes on and opens a
+ *   connection, which shows it reads the variable after its env file is loaded. The two cases under
+ *   production set no password and still end with the production reason: the production rule runs
+ *   first.
  *
  *   The database is a loopback socket this suite opens: it counts the connections it receives and
  *   closes each one at once, so no server ever answers and a seed that did try to connect fails fast
@@ -73,6 +83,22 @@ const REFUSED_RUN = {
   connections: 0,
 } as const;
 
+/** The reason the seed's password rule gives when `ADMIN_PASSWORD` is absent or blank. */
+const ADMIN_PASSWORD_REASON =
+  "The development seed creates an administrator and takes no default password: set ADMIN_PASSWORD in the environment or in the env file at the repository root.";
+
+/** The outcome every run with no administrator password must have, the sensor's count included. */
+const REFUSED_WITHOUT_ADMIN_PASSWORD_RUN = {
+  code: 1,
+  killed: false,
+  stdout: "",
+  stderr: `${ADMIN_PASSWORD_REASON}\n`,
+  connections: 0,
+} as const;
+
+/** An env file that sets no variable, so it gives the seed no administrator password. */
+const ENV_FILE_WITHOUT_ADMIN_PASSWORD = "";
+
 /** How long one run of the seed may take before the runner ends it; below the case's own limit. */
 const SEED_RUN_LIMIT_MS = 45_000;
 
@@ -125,12 +151,23 @@ function seedEnvironment(databaseUrl: string): Record<string, string> {
   };
 }
 
+/** The same variables under a development `NODE_ENV`, with no `ADMIN_PASSWORD`. */
+function developmentSeedEnvironment(databaseUrl: string): Record<string, string> {
+  return { ...seedEnvironment(databaseUrl), NODE_ENV: "development" };
+}
+
+/** An env file that sets only an obviously fake administrator password. */
+function envFileWithFakeAdminPassword(): string {
+  return "ADMIN_PASSWORD=fake-seed-admin-password\n";
+}
+
 /**
  * A checkout of the seed of its own: a copy of `infra/prisma/seed.ts` at the same depth, the real
  * `package.json`, `node_modules`, `generated` and `src` linked beside it, and an env file at the
- * root that holds only `NODE_ENV=production`. Returns the directory the seed runs from.
+ * root that holds `envFileText`, by default only `NODE_ENV=production`. Returns the directory the
+ * seed runs from.
  */
-function makeEnvFileFixture(): string {
+function makeEnvFileFixture(envFileText = "NODE_ENV=production\n"): string {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "seed-env-file-")));
   fixtures.push(root);
   const prismaDir = path.join(root, "infra", "prisma");
@@ -139,7 +176,7 @@ function makeEnvFileFixture(): string {
   for (const entry of LINKED_PRISMA_ENTRIES) {
     symlinkSync(path.join(PRISMA_DIR, entry), path.join(prismaDir, entry));
   }
-  writeFileSync(path.join(root, ".env"), "NODE_ENV=production\n");
+  writeFileSync(path.join(root, ".env"), envFileText);
   return prismaDir;
 }
 
@@ -204,6 +241,54 @@ describe("the development seed under a production environment", () => {
       const run = await runSeed(seedEnvironment(database.url), prismaDir);
 
       assert.deepStrictEqual({ ...run, connections: database.connections() }, REFUSED_RUN);
+    },
+    SEED_CASE_TIMEOUT_MS
+  );
+});
+
+describe("the development seed without an administrator password", () => {
+  afterEach(async () => {
+    for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true });
+    await Promise.all(
+      servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
+    );
+  });
+
+  it(
+    "refuses to run, with the password reason and no connection, when ADMIN_PASSWORD is absent under a development environment",
+    async () => {
+      const database = await openDatabaseSensor();
+      const prismaDir = makeEnvFileFixture(ENV_FILE_WITHOUT_ADMIN_PASSWORD);
+
+      const run = await runSeed(developmentSeedEnvironment(database.url), prismaDir);
+
+      assert.deepStrictEqual(
+        { ...run, connections: database.connections() },
+        REFUSED_WITHOUT_ADMIN_PASSWORD_RUN
+      );
+    },
+    SEED_CASE_TIMEOUT_MS
+  );
+
+  it(
+    "does not refuse, and opens a connection, when only the env file sets ADMIN_PASSWORD under a development environment",
+    async () => {
+      const database = await openDatabaseSensor();
+      const prismaDir = makeEnvFileFixture(envFileWithFakeAdminPassword());
+
+      const run = await runSeed(developmentSeedEnvironment(database.url), prismaDir);
+
+      // Past both rules the seed goes on to the database: the sensor receives a connection, and the
+      // run never ends with the password rule's reason. How the database client then fails against
+      // a server that answers nothing, how often it retries and how long it takes are not this
+      // case's to pin, so neither the exit code nor the time limit is asserted.
+      assert.deepStrictEqual(
+        {
+          refusedForPassword: run.stderr.includes(ADMIN_PASSWORD_REASON),
+          reachedTheDatabase: database.connections() >= 1,
+        },
+        { refusedForPassword: false, reachedTheDatabase: true }
+      );
     },
     SEED_CASE_TIMEOUT_MS
   );

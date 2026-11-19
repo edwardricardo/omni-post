@@ -496,16 +496,15 @@ and do not consume these variables.
 
 ### 8.2 Admin bootstrap seed
 
-| Env var          | Used by     | Notes                                                               |
-| ---------------- | ----------- | ------------------------------------------------------------------- |
-| `ADMIN_EMAIL`    | Seed script | Default `admin@omnipost.local`; identifies the bootstrap admin user |
-| `ADMIN_PASSWORD` | Seed script | Replaced via the launch runbook in any non-dev environment          |
+| Env var          | Used by     | Notes                                                                                      |
+| ---------------- | ----------- | ------------------------------------------------------------------------------------------ |
+| `ADMIN_EMAIL`    | Seed script | Default `admin@omnipost.local`; identifies the bootstrap admin user                        |
+| `ADMIN_PASSWORD` | Seed script | Required by the development seed, which takes no default and does not run under production |
 
-The seed script is invoked once at first boot of a new environment.
-After the first admin user exists, this env var is no longer consulted.
-Production launch must replace the default with a strong randomly
-generated value; the bootstrap admin must immediately rotate that
-password to one only the operator knows.
+The development seed reads `ADMIN_PASSWORD` on every run, and every run sets the
+administrator's password to it. It creates no administrator in production:
+how the first one comes to exist there is the row "The first admin user" of
+the [deployment checklist](../deployment/DEPLOYMENT_CHECKLIST.md).
 
 ### 8.3 Bcrypt rounds
 

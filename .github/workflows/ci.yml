@@ -432,8 +432,12 @@ jobs:
         # seed.ts requires PLATFORM_ENCRYPTION_KEY (32 bytes, base64). Generate
         # the same deterministic test-only key ci-setup-test-env.sh writes to
         # .env.test (no secret-shaped literal stored in the workflow).
+        # The seed creates an administrator and takes no default password, and
+        # nothing signs in as it in CI: each run generates one and never prints it.
         run: |
           export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
+          ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          export ADMIN_PASSWORD
           pnpm --filter @infra/prisma run seed
 
       # The services tier runs BEFORE the API and the workers start. A running API
