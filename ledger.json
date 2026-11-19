@@ -2,10 +2,10 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1213,
+      "total": 1219,
       "byShape": {
-        "test": 975,
-        "integration-test": 87,
+        "test": 980,
+        "integration-test": 88,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1049,
-        "ADJUDICATE": 91,
+        "KEEP": 1054,
+        "ADJUDICATE": 92,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1203,
+      "machine": 1209,
       "confirmed": 10,
-      "total": 1213
+      "total": 1219
     },
     "blocks": {
-      "total": 15188,
+      "total": 15225,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14877
+        "BEHAVIOURAL": 14914
       }
     },
     "deleted": {
@@ -5316,6 +5316,83 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 8,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates one administrator with the SUPER_ADMIN role and prints its password once, when the database is empty",
+          "line": 323,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fd01cbe7eeaadd5f3004b61a140831d5e24bb96000db8583591b606d02921284"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a second run with exit code 1 and leaves the first administrator unchanged",
+          "line": 365,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d8c72e7c89e73ac14465ea685240e8b08b5a61d280976bdad92dad8b29320af9"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses and rolls the role write back when an administrator exists under another role and no SUPER_ADMIN row does",
+          "line": 381,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "aa9e4e6ed6ad7b0c7f244ca48c86c573ce39a4f071417793dd031c105fb15fc0"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator and refuses the other run as a concurrent one, when two runs start at once on an empty database",
+          "line": 409,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "576796c16b43cf2203d32cf3a59009a23ebc56d208cc9092008b8e2d3301fe9f"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::makes the SUPER_ADMIN role exactly its definition and creates the administrator, when the role holds other fields and permissions",
+          "line": 442,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e4d82c695437327650a49aafa89d3a277cb69940d9041f58a985342954fdbcd6"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses with the message of a lasting refusal and creates nothing, when a role of that name holds another id",
+          "line": 487,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "01429c11f87a339d76826c49fb229e77f8a71725e0802fc881d64bdd7eab7a9f"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator when two runs start at once on a database where the SUPER_ADMIN role exists and no administrator does",
+          "line": 508,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b0cd389a2558df3bbefb6f6da7615b8acc0af547ef6105961d5b25e24c72c15a"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::runs as a process in a pseudo-terminal, shows only the block and ends by itself",
+          "line": 546,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d304b81d51f40f154329b17f2386ec95719fa3376537290ec02a8d9dbb127799"
+        }
+      ],
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "firstAdministratorCommand",
+        "module": "apps/api/src/cli/firstAdministratorCommand.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/integration/generatedImageTenantIsolation.integration.test.ts",
       "shape": "integration-test",
       "framework": "node",
@@ -5545,7 +5622,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 83
+      "importers": 84
     },
     {
       "path": "apps/api/tests/integration/inboxRoutes.live.test.ts",
@@ -36680,6 +36757,111 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 12,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, the reason and the usage, echoing no argument, when given $args",
+          "line": 133,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4f53860705de567b262099733bcdc6f3f37c8550a305733712ddc5c6f56b0659"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the help on standard output, loading nothing, when given %j",
+          "line": 162,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2babfaa8ce1c3cf498d9d4779404d42b9e4ca3f6f99df2eab364d4070bd6ddcc"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, loading nothing, when standard output's isTTY is $isTTY",
+          "line": 193,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "80463e434c981f995ef4f676c330b512f58964113579ebc5c8bdbc68b933a19d"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the block with the password exactly once on standard output and nothing on standard error",
+          "line": 217,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5be98ff0da95990559d45513d5c8a459189c3d95b6fbe71f90a2f6f7fb14d89d"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::passes the e-mail as given, the --email=<address> form included",
+          "line": 230,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9bbd6c919bc90d5f8578c16ab8e671a59a63907099e020e6c17699c224230259"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and reports the failure to close on standard error when the connection does not close",
+          "line": 238,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1168345c2d5bb27bba6486100ab4132faf301f2618a9287a59e35a32bb5585fe"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes only the use case's message on standard error when it refuses: %s",
+          "line": 258,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9b6be79c17368e922e4d6f0f3e33bb0eeda58fed2449e8ef1192386d3713cb1d"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 2 and writes the use case's message with the usage when the sign-in's rule refuses the address",
+          "line": 279,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8f886c7f2ace6d25997cc4d01cc64ba839f61fc6eeed65a3e08177d3c0769633"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes the message and each cause's class and code, never a cause's message",
+          "line": 293,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e8b5ed3b6a2ab3de4a8fd6374b3181041562ff5bca4c69dc7c18c9cdb6e0d6f7"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::writes a cause's class without its code when the code is not an upper-case identifier",
+          "line": 319,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7254f64015d8531a503d5f4ddd3b249fb6c36fddd6d9bb3d12d3d153e0654dbb"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 with the class and code of the error, never its message, when the composition does not load",
+          "line": 337,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "018b8f2c27b24939cff064d37270da044c72779181c3aa291a5aa28f658b33a6"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1, closes the connection and writes no message of the error when the use case rejects",
+          "line": 353,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ff88225c830d0da5653951458a55705b084c9fa6fb50c2d683d3f42f857db85b"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "firstAdministratorCommand",
+        "module": "apps/api/src/cli/firstAdministratorCommand.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/comments/commentRoutes.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -52001,6 +52183,69 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 6,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns values that each satisfy the administrators' password policy and hold no whitespace",
+          "line": 43,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5c127cf922499b15a3a9d1534d37a2272aea11ae92dc557d582db7352dfbf24c"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns values of 24 characters drawn from an alphabet of 73, at least 128 bits each",
+          "line": 53,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5ad19c3d46b1a2899f0ec02ac5edd05520a90f706b1d747fbaa3caf4ef7691bc"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns a different value on every call",
+          "line": 62,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8ffe06de25555deba628c7d0ea521710f95ab20e19e15df9e546b6ef477522ff"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns the characters randomInt picks, each drawn with the alphabet's size as its bound",
+          "line": 103,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2886e0193ce5e4270e76484fd7a26e40251103e08be6a786a397cc45b9b43699"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::returns the next draw when the policy refuses the first",
+          "line": 113,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "774c8af4a9dab0be773c2af7d715302faab5b511dbc9ca648ae0a9186fbba0c8"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.test.ts::raises after a hundred draws when the policy refuses every one",
+          "line": 128,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ffa0795ab25f20ae9f4d475a822884498fac32102e5c1742b577c355de89bb3"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "NodeCryptoSingleUsePasswordGenerator",
+        "module": "apps/api/src/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/infrastructure/adapters/PrismaAdminMfaUserRepository.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -52943,6 +53188,41 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/infrastructure/adapters/ZodAdministratorSignInAddressRule.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/ZodAdministratorSignInAddressRule.test.ts::asks the address schema of both sign-in paths about the address it is given",
+          "line": 123,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "10f1e63f2fed457a9b4fb86fefeb79ab16edc741435b90b777d78a410c01d8d4"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/adapters/ZodAdministratorSignInAddressRule.test.ts::answers what both sign-in paths answer when the address has $why",
+          "line": 136,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "628e955561493776b84d5d2936fe776e3c773840fdc69b7e6b4d3046f163b9e4"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "ZodAdministratorSignInAddressRule",
+        "module": "apps/api/src/infrastructure/adapters/ZodAdministratorSignInAddressRule.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/infrastructure/adapters/mfaUserRepositoryConformance.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -53282,6 +53562,48 @@
       "subject": null,
       "duplicate": null,
       "importers": 2
+    },
+    {
+      "path": "apps/api/tests/unit/infrastructure/container/firstAdministratorRole.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/infrastructure/container/firstAdministratorRole.test.ts::returns the shared role's fields and its permissions as values of the Permission enum",
+          "line": 35,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6887b7262333e9d67af4a73e8d3b9365f0096ebe00acef137f452cdb9a3f4564"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/container/firstAdministratorRole.test.ts::refuses, naming the value, when a permission string is not a value of the Permission enum",
+          "line": 51,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8e7c3278e6715448a26ec20fbbe4ce4fb1beea81c2778894bbb5a8b76832dcac"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/container/firstAdministratorRole.test.ts::refuses when a permission string differs from an enum value only by its case",
+          "line": 61,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3fec0305c094bac28ad0b20db9257454ee526a96f4a7c8c8766225064ae61230"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "firstAdministratorRole",
+        "module": "apps/api/src/infrastructure/container/firstAdministratorRole.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
     },
     {
       "path": "apps/api/tests/unit/infrastructure/container/setupAccountUseCases.test.ts",
@@ -55235,74 +55557,81 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 11,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok with the definition's fields and exactly its permissions when the role does not exist",
-          "line": 256,
+          "line": 257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "56485ef95107ed24d789a89d0c384e702e8b687ce30f384225cb587bea87eef0"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok with the definition's fields and exactly its permissions when the role held others (%s)",
-          "line": 270,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f61fef74873625e7b1e0dd5a77fbbd3fe18f6674df5a520f516c28dec1633ff4"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok and deletes or inserts no row when the role already holds the definition (%s)",
-          "line": 287,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9db77e4ceb8a3e2e678cde4750920a1a0eb671c61a169e960215c6514ec378e"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok from the transaction's client when called inside an open unit of work",
-          "line": 307,
+          "line": 308,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c08d87178690fa08ee85b569f440f4bf961f684ee0d6831e3c4fa573c46d3436"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok from the base client when no unit of work is open",
-          "line": 320,
+          "line": 321,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6561d161842e54b087e747509fade7e800c03e1b07e47d6e113cc37af2290185"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError carrying the violation when another writer holds the role first (%s)",
-          "line": 332,
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError naming the key another writer holds when the store refuses $index",
+          "line": 333,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fc5afc48b90dd416ca1189f094c7ae28c2f5898d72cf0ca6891f98f56ddd819a"
+          "bodyHash": "234a4879df740764397b20271fc57c7b09e07449c0d903e7b7e1dcc4933540f9"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError naming the key when the driver names the columns $fields instead of the index",
+          "line": 365,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "772e6deb8c44994313b3503a4f8faf2360cdc70a4feb6c15abef91a4ea31be64"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError whose cause names only the type when the violation is not an Error",
-          "line": 354,
+          "line": 393,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab98f5ae86d850c6de9cd2416d9b3272c68dadf42411824fcd35d7da36ad7095"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError for a unique violation of a constraint that is not the role's",
-          "line": 376,
+          "line": 415,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2442a92422ddc4f2eeeb35fe882d50bb509eab23f832c1a8baab3861b553494"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails otherwise",
-          "line": 390,
+          "line": 429,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "04d8a87c973f075b3f1ac7d2b016b3930588cb004fac2a8cbee86e79060b7aba"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError whose cause names only the type when the client rejects with a non-Error",
-          "line": 407,
+          "line": 446,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1094802d51507df6269d59267f9ba3e1ca6dca840db78d0c07b8cdb386214f8b"
@@ -70877,6 +71206,51 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc9461a7e8fee02575ed5907f368318e7b687e1a84120f1fece22e059c860bf2"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses with exit code 2 and the usage, opening no connection, when given no argument",
+          "line": 124,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cef0355a94750a61aa2ab4a7cc42b12dbb175ab59bcbaee09354293bc4f3bc78"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses with exit code 2 and the usage, opening no connection, when given an unknown argument",
+          "line": 145,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ddfc861e672d8b8d6bc8443c4f88a42bd6ae34acb0976d46d5f5e7df36313f5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::returns 0 with the help on standard output, opening no connection, when given --help",
+          "line": 166,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b8c61bbbcedc0356380d4dafd961cf18c0ffbe3bbf60e0434d3249d547cdad6f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses with exit code 2, opening no connection, when standard output is a pipe and not a terminal",
+          "line": 181,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "efffd87fbc3947ff6921d143f9082c57f2385714a4d30d5cd46d680479602a3e"
         }
       ],
       "verdict": "KEEP",
@@ -108450,137 +108824,144 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/auth/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 19,
+      "blockCount": 20,
       "blocks": [
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the created administrator and its single-use password when the e-mail is valid",
-          "line": 290,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7613a33e7256b4c6d26c964c5639c75dcb6fc444a2058bb27b1200d40509ccbc"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after writing the role with exactly the definition it was given",
-          "line": 313,
+          "line": 319,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "554b2d28844752e3c016c21997a93198050c4f1ce8562682b5f31098b1260404"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after creating the administrator with the role's id, the hash of the generated password and mustChangePassword true",
-          "line": 324,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "32d3bf46f213640bfb8b1cfe9c092af271ebfcb46f2981efd45b54c4f11c57d0"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the administrator named $name, after asking the rule about '$stored', when the e-mail is '$email'",
-          "line": 343,
+          "line": 349,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "510d292ef57499220b0469c285c5abaf5a433cbad0cb0ff6f03bcae8b53cad43"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT from inside the transaction when an administrator exists",
-          "line": 388,
+          "line": 394,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e38a72f60d78f8c172236eeee64c8a9928bb05ed48859869b3268ab60271815"
         },
         {
-          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT and its own message when another writer holds the role",
-          "line": 408,
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT and its own message when another run holds the role's id",
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0819b00bb8231f2ee27907490482d48c10b98e92f39aa0922dc8acc07cd945cf"
+          "bodyHash": "ab189cf1c89f4ad15820b12477653b7de93a38177aa5aed50ec0acfce61b33b9"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT and the message of a lasting refusal when a role of the same name holds another id",
+          "line": 434,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e922c9737b2a049e33232e5b0dd422fb99f74388e89c2be7e2027b53667c068e"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error when the role write fails",
-          "line": 430,
+          "line": 455,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea4acf81bfba8e2b092a6552e710724cd93e1d9a8dc4200b539916170de5a75a"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error when reading whether an administrator exists fails",
-          "line": 453,
+          "line": 478,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a15ac8cf0e81d46c7ec5a7f5f02fcfc370a9b79cc055c35ac34398aa5d41fa0b"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error, from inside the transaction, when creating the administrator fails",
-          "line": 476,
+          "line": 501,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f28622ef34fab212002a9deaf61cc9b93df7750dbe61e18caae4a2ff492e72f"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR whose cause names only the type when creating the administrator raises a value that is not an Error",
-          "line": 496,
+          "line": 521,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c21b6a0148c855483b4012310a423274110dbecf99837192d51a6a17238963e4"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the hasher's error, before any transaction, when hashing fails",
-          "line": 520,
+          "line": 545,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fdb43ca8096cc2d35d27a000bd80eb7f3d2d04853a710c493650fa48e5ddc71d"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the generator's error, before hashing, when drawing the password fails",
-          "line": 536,
+          "line": 561,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0fcea6d2d9e03f16341936bb3470e75b997af7eacbf7ece758c8b18f633d72db"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error when the transaction itself fails",
-          "line": 551,
+          "line": 576,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "402005b9852d7af6320f2d3ac280110e4ae4768d443bb3eb6732b0b991f2428c"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR from inside the transaction, rolled back, when $call raises instead of returning its Result",
-          "line": 570,
+          "line": 595,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da5334b543a13566718e7586538828fbe0487c055cc7da39e9817770388b5adb"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR from inside the transaction, rolled back, whose cause names only the type when the role write raises a value that is not an Error",
-          "line": 610,
+          "line": 635,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9feb2fd6b6ee3231fbaa82f85b1fb35bd38c6a72cc0e11c73184a9c52715c97f"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with VALIDATION_FAILED, touching no other port, when the sign-in's rule refuses the normalized address",
-          "line": 637,
+          "line": 662,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e0f3182f6bbafea00f656a460c868df700f8db7a913f21d62581c5c2075c5ca"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with VALIDATION_FAILED, touching no other port, when the rule accepts '$email', which has no local part",
-          "line": 649,
+          "line": 674,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c2aaebb3cf2a520bce91c5a59badd8cddb3b4cc8123be406c32d80c5d5be1df5"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns an error that holds the password nowhere when $outcome",
-          "line": 666,
+          "line": 691,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6aff2760c9d1a6c12ac8cb1eb70454c2fe09dc7c64d4438d8856353f0eb6c2ce"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the password under the key password and nowhere else in the output when the administrator is created",
-          "line": 715,
+          "line": 740,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4c87afc12673da1604a6b742e65f8d9ac912e7e5fb208303cc0543a3b1abe2f"

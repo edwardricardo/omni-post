@@ -17,7 +17,9 @@ import type { AdminUserCreateInput } from "@core/domain/repositories/AdminUserRe
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
+  SYSTEM_ROLE_COLLISIONS,
   SystemRoleConflictError,
+  type SystemRoleCollision,
   type SystemRoleDefinition,
   type SystemRoleRepository,
 } from "@core/domain/repositories/SystemRoleRepository.js";
@@ -40,8 +42,10 @@ const MESSAGES = {
   noLocalPart: "The e-mail has no local part to name the administrator after",
   administratorExists:
     "An administrator already exists: the first administrator is created only on a database that has none",
-  roleConflict:
-    "Another writer holds the administration role's id or name, as another run of this command does while it is in progress: wait for it to end, then check whether an administrator exists",
+  roleIdHeld:
+    "Another run of this command wrote the administration role first: check whether an administrator exists",
+  roleNameHeld:
+    "A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed",
   generateFailed: "Generating the single-use password failed",
   hashFailed: "Hashing the single-use password failed",
   roleWriteFailed: "Writing the administration role failed",
@@ -105,8 +109,10 @@ function makeRoleDefinition(): SystemRoleDefinition {
 }
 
 /** The conflict the role repository returns when another writer holds the role's id or name. */
-function makeRoleConflict(): SystemRoleConflictError {
-  return new SystemRoleConflictError(new Error("fixture: the store's unique violation"));
+function makeRoleConflict(
+  collision: SystemRoleCollision = SYSTEM_ROLE_COLLISIONS.ID
+): SystemRoleConflictError {
+  return new SystemRoleConflictError(collision, new Error("fixture: the store's unique violation"));
 }
 
 function makeAdminUserDto(overrides: Partial<AdminUserDto> = {}): AdminUserDto {
@@ -405,16 +411,35 @@ describe("CreateFirstAdministratorUseCase", () => {
       expect(harness.createdInputs).toEqual([]);
     });
 
-    it("refuses with CONFLICT and its own message when another writer holds the role", async () => {
-      const conflict = makeRoleConflict();
+    it("refuses with CONFLICT and its own message when another run holds the role's id", async () => {
+      const conflict = makeRoleConflict(SYSTEM_ROLE_COLLISIONS.ID);
       const harness = makeHarness({ roleSave: { ok: false, error: conflict } });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
       expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.roleConflict);
+      expect(error.message).toBe(MESSAGES.roleIdHeld);
       expect(error.message).not.toBe(MESSAGES.administratorExists);
+      expect(error.cause).toBe(conflict);
+      expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
+      expect(harness.journal).toEqual([
+        ...BEFORE_THE_TRANSACTION,
+        JOURNAL.saveRole,
+        JOURNAL.rollback,
+      ]);
+      expect(harness.createdInputs).toEqual([]);
+    });
+
+    it("refuses with CONFLICT and the message of a lasting refusal when a role of the same name holds another id", async () => {
+      const conflict = makeRoleConflict(SYSTEM_ROLE_COLLISIONS.NAME);
+      const harness = makeHarness({ roleSave: { ok: false, error: conflict } });
+
+      const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
+
+      const error = expectFailure(result);
+      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
+      expect(error.message).toBe(MESSAGES.roleNameHeld);
       expect(error.cause).toBe(conflict);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([

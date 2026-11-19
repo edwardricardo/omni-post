@@ -11,19 +11,21 @@ import { isUniqueViolationOf } from "@infra/prisma/extensions/constraintViolatio
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
 import {
+  SYSTEM_ROLE_COLLISIONS,
   SystemRoleConflictError,
   type SystemRoleDefinition,
   type SystemRoleRepository,
 } from "@core/domain/repositories/SystemRoleRepository.js";
 
 /**
- * The unique constraints of `Role`, as the migrations name them. A concurrent write of the same
- * role raises P2002 on one of them: Prisma runs an upsert that carries nested writes as a read
- * followed by a create, so two runs that both read nothing both create, and the second fails.
+ * The unique constraints of `Role`, as the migrations name them, and the key each one covers. A
+ * concurrent write of the same role raises P2002 on the id: Prisma runs an upsert that carries
+ * nested writes as a read followed by a create, so two runs that both read nothing both create,
+ * and the second fails. A violation of the name means a role of that name holds another id.
  */
 const ROLE_UNIQUE_CONSTRAINTS = [
-  { index: "Role_pkey", fields: ["id"] },
-  { index: "Role_name_key", fields: ["name"] },
+  { index: "Role_pkey", fields: ["id"], collision: SYSTEM_ROLE_COLLISIONS.ID },
+  { index: "Role_name_key", fields: ["name"], collision: SYSTEM_ROLE_COLLISIONS.NAME },
 ] as const;
 
 /**
@@ -49,9 +51,9 @@ export class PrismaSystemRoleRepository implements SystemRoleRepository {
    *   does not change whether an existing role is active, and a role it creates takes the
    *   column's default, active.
    * @param definition - The role as code defines it
-   * @returns Ok when written, Err(SystemRoleConflictError) on a unique violation of the role's id
-   *   or name, Err(RepositoryFailureError) whose cause is what the client raised on any other
-   *   failure
+   * @returns Ok when written, Err(SystemRoleConflictError) naming the key on a unique violation
+   *   of the role's id or name, Err(RepositoryFailureError) whose cause is what the client raised
+   *   on any other failure
    */
   async save(
     definition: SystemRoleDefinition
@@ -83,8 +85,11 @@ export class PrismaSystemRoleRepository implements SystemRoleRepository {
       });
       return ok(undefined);
     } catch (error: unknown) {
-      if (ROLE_UNIQUE_CONSTRAINTS.some((constraint) => isUniqueViolationOf(error, constraint))) {
-        return err(new SystemRoleConflictError(error));
+      const held = ROLE_UNIQUE_CONSTRAINTS.find((constraint) =>
+        isUniqueViolationOf(error, constraint)
+      );
+      if (held !== undefined) {
+        return err(new SystemRoleConflictError(held.collision, error));
       }
       return err(new RepositoryFailureError("Writing a system role failed", error));
     }

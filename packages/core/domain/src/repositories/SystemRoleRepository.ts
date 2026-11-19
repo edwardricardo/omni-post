@@ -23,25 +23,51 @@ import {
 export const SYSTEM_ROLE_CONFLICT_CODE = "SYSTEM_ROLE_CONFLICT";
 
 /**
+ * Which unique key of the role another writer holds. The two call for different answers: the id
+ * is taken by a concurrent write of the same role, which ends, while the name held under another
+ * id belongs to a different role, which refuses every later write until it is renamed or removed.
+ */
+export const SYSTEM_ROLE_COLLISIONS = {
+  ID: "id",
+  NAME: "name",
+} as const;
+
+/** One of {@link SYSTEM_ROLE_COLLISIONS}. */
+export type SystemRoleCollision =
+  (typeof SYSTEM_ROLE_COLLISIONS)[keyof typeof SYSTEM_ROLE_COLLISIONS];
+
+/** The message of each collision; it names the key and holds no value of the definition. */
+const CONFLICT_MESSAGES: Readonly<Record<SystemRoleCollision, string>> = {
+  [SYSTEM_ROLE_COLLISIONS.ID]: "Another writer already holds this system role's id",
+  [SYSTEM_ROLE_COLLISIONS.NAME]:
+    "Another role already holds this system role's name under another id",
+};
+
+/**
  * A system-role write the store refused because another writer already holds the role's id or
  * its name, as when a concurrent run wrote the same role first. The store's unique constraints
  * decide it, since two writers that both read no role can both try to create it.
  *
- * `cause` is the store's own unique violation, which names the constraint: the role's id taken
- * by a concurrent run, or its name held under another id, which refuses every later run too.
- * A raised value that is not an `Error` goes through the function `RepositoryFailureError` uses:
- * it is not kept, since it may be any data, and an `Error` of its own names its type.
+ * `collision` says which key, as read from the constraint the store's violation names; `cause`
+ * is that violation. A raised value that is not an `Error` goes through the function
+ * `RepositoryFailureError` uses: it is not kept, since it may be any data, and an `Error` of its
+ * own names its type.
  */
 export class SystemRoleConflictError extends DomainError {
   public override readonly cause: Error;
 
+  /** Which unique key of the role another writer holds. */
+  public readonly collision: SystemRoleCollision;
+
   /**
-   * @description Builds the error with its fixed message, {@link SYSTEM_ROLE_CONFLICT_CODE} and
-   *   the store's violation as its cause.
+   * @description Builds the error with the message of its collision,
+   *   {@link SYSTEM_ROLE_CONFLICT_CODE} and the store's violation as its cause.
+   * @param collision - The key the violated constraint covers
    * @param caught - The value the store raised
    */
-  constructor(caught: unknown) {
-    super("Another writer already holds this system role's id or name", SYSTEM_ROLE_CONFLICT_CODE);
+  constructor(collision: SystemRoleCollision, caught: unknown) {
+    super(CONFLICT_MESSAGES[collision], SYSTEM_ROLE_CONFLICT_CODE);
+    this.collision = collision;
     this.cause = causeOfStoreFailure(caught);
   }
 }

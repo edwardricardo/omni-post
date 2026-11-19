@@ -89,18 +89,32 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 # The timeout and the explicit exits are the other half: an entry that opens a
 # socket or registers a timer at import would otherwise leave the RUN hanging
 # with no bound, and a build that hangs is worse than one that fails.
+#
+# THE FIRST-ADMINISTRATOR COMMAND is a second entry of this tree, run by an
+# operator as `dist/cli/createFirstAdministrator.js`, and no static graph of the
+# CMD reaches it: its entry loads its composition by a dynamic import. So the
+# same rule is applied, in order, to the CMD and to the two modules that hold
+# the command's graph: the module of its function and the composition module
+# the entry loads. The entry itself is not imported, because importing it runs
+# the command. Each import resolves and parses its whole graph before any of it
+# runs; evaluation stops where the API's env module refuses this stage's
+# environment, which is the normal case above.
 WORKDIR /prod/api
 RUN timeout 120 node --input-type=module -e '\
   const unresolved = new Set(["ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND", "ERR_PACKAGE_PATH_NOT_EXPORTED", "ERR_UNSUPPORTED_DIR_IMPORT"]); \
   const defects = new Set(["TypeError", "ReferenceError", "SyntaxError"]); \
-  import("./dist/index.js").then( \
-    () => { console.log("dist/index.js and its whole import graph resolve"); process.exit(0); }, \
-    (e) => { const code = (e && e.code) || ""; const kind = (e && e.constructor && e.constructor.name) || ""; \
-      if (unresolved.has(code)) { console.error("deploy tree cannot resolve the CMD graph (" + code + "): " + e.message); process.exit(1); } \
-      if (defects.has(kind)) { console.error("the CMD graph loaded but evaluating it threw " + kind + ": " + e.message); process.exit(1); } \
-      console.log("import graph resolved; boot stopped at " + (code || kind || "a runtime error") + ", which needs services this stage has none of"); \
-      process.exit(0); } \
-  );'
+  const graphs = [["./dist/index.js", "the CMD graph"], \
+    ["./dist/cli/firstAdministratorCommand.js", "the first-administrator command graph"], \
+    ["./dist/infrastructure/container/firstAdministratorProcess.js", "the first-administrator composition graph"]]; \
+  let failed = false; \
+  for (const [entry, graph] of graphs) { \
+    try { await import(entry); console.log(entry + " and its whole import graph resolve"); } \
+    catch (e) { const code = (e && e.code) || ""; const kind = (e && e.constructor && e.constructor.name) || ""; \
+      if (unresolved.has(code)) { console.error("deploy tree cannot resolve " + graph + " (" + code + "): " + e.message); failed = true; } \
+      else if (defects.has(kind)) { console.error(graph + " loaded but evaluating it threw " + kind + ": " + e.message); failed = true; } \
+      else { console.log(entry + ": import graph resolved; evaluation stopped at " + (code || kind || "a runtime error") + ", which needs services this stage has none of"); } } \
+  } \
+  process.exit(failed ? 1 : 0);'
 WORKDIR /app
 
 # ---- production: distroless, non-root ----------------------------------------
