@@ -105,7 +105,7 @@ pnpm format:check  # Check formatting only
 pnpm db:up         # Preflight only, starts nothing: resolve, reach and authenticate DATABASE_URL and REDIS_URL from .env (start local ones first with docker compose up -d)
 pnpm db:studio     # Open Prisma Studio
 pnpm db:migrate    # Run migrations
-pnpm db:seed       # Seed test data
+pnpm db:seed       # Seed test data; needs ADMIN_PASSWORD, set in the environment or in the root .env
 ```
 
 ### Test Commands

@@ -138,7 +138,12 @@ jobs:
         run: pnpm --filter @infra/prisma exec prisma migrate deploy
 
       - name: Seed roles + permissions
-        run: pnpm --filter @infra/prisma run seed
+        # The seed creates an administrator and takes no default password, and
+        # nothing signs in as it in CI: each run generates one and never prints it.
+        run: |
+          ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          export ADMIN_PASSWORD
+          pnpm --filter @infra/prisma run seed
 
       - name: Start API in background
         run: |

@@ -180,12 +180,16 @@ jobs:
       - name: Seed roles + permissions
         # seed.ts requires PLATFORM_ENCRYPTION_KEY (32 bytes, base64): the same
         # deterministic test-only key ci-setup-test-env.sh writes to .env.test.
+        # The seed creates an administrator and takes no default password, and
+        # nothing signs in as it in CI: each run generates one and never prints it.
         env:
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
         run: |
           PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
           export PLATFORM_ENCRYPTION_KEY
+          ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          export ADMIN_PASSWORD
           pnpm --filter @infra/prisma run seed
 
       # Chosen before the tier runs, so a green run's seed is on its page as well as

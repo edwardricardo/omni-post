@@ -27,7 +27,7 @@
       "total": 1211
     },
     "blocks": {
-      "total": 15142,
+      "total": 15150,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14831
+        "BEHAVIOURAL": 14839
       }
     },
     "deleted": {
@@ -77151,21 +77151,35 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 2,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when NODE_ENV is production",
-          "line": 186,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "945647d8446c1d1fcecba534be7576a596fc97483e34e8f358d36ba4ab443335"
         },
         {
           "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when only the env file sets NODE_ENV to production",
-          "line": 198,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ed4e0cafa28662f07199dbf6899ef19c86dc31549ad7790a01417a0eea631012"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the password reason and no connection, when ADMIN_PASSWORD is absent under a development environment",
+          "line": 257,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9a6db3a93dc08529c57ce62edf45c91106d5070b9ec9139e22eb6634e56149f3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::does not refuse, and opens a connection, when only the env file sets ADMIN_PASSWORD under a development environment",
+          "line": 273,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "920d743ae54c6dd5dc491e3f7fc09af68e52f34dcc767da733b9662cd9e894d1"
         }
       ],
       "verdict": "KEEP",
@@ -83797,49 +83811,91 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the production reason when NODE_ENV is production",
-          "line": 31,
+          "line": 39,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49efd0053e1cc6a40aee3460f6db2106b307d071a85564aca75d46789cb49a40"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the production reason when NODE_ENV is %j, production by casing or surrounding whitespace",
-          "line": 38,
+          "line": 46,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e719a224d5213a637abe9f15f7d3abf6ff77403433beaa28c502abcb0d39ee77"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is %j",
-          "line": 48,
+          "line": 56,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13f7bf9d01cb61cbb64621d88cf331d3adf36eed1f4e78a354666ea5dfcf7ffd"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is absent",
-          "line": 52,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d88773739b8f3f53e2eba636d731d41fd0a3c95e0b4982c7d42f3d0141019fd8"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is empty",
-          "line": 56,
+          "line": 64,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fdc0930b2ce43d16d1354ed8803211e0c638ffb4e4e88826c2d943af1de3f021"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV only contains production inside a longer value",
-          "line": 60,
+          "line": 68,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a3113d1da36069149a59624b039615809e8a028f04697d10c39541ed2450050"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the password reason when ADMIN_PASSWORD is absent",
+          "line": 91,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b2ae62bd108939d814c25a7a5f867dd5620b30c8e5baa28bf65b57ee54911921"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the password reason when ADMIN_PASSWORD is empty",
+          "line": 98,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "34ff71f94ee64bc07b1884025282ba8f4e48f744777cf045fe4c32ad8d02d123"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the password reason when ADMIN_PASSWORD is %j, blank once trimmed",
+          "line": 105,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7f1966139d208bd9c8719c50e2fd43411296e67963ece3a0df560cffe988dc5a"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason that carries none of the value when ADMIN_PASSWORD is Unicode whitespace only",
+          "line": 115,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fe93c3a69a17f0e66b4065e8d038f2f04494172dd7b96b4214a09840c6bf7158"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::returns the password exactly as given when ADMIN_PASSWORD is set",
+          "line": 124,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "302463fc24e1c9731bc0cf1e05a68179b097ce31b3cf55cec0ad4e77a0295f14"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::returns the password exactly as given, surrounding whitespace included, when ADMIN_PASSWORD is padded",
+          "line": 134,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "251df1994a78207db94658997c8bbead57c8a9566bab8fee41ef3dbda47484fe"
         }
       ],
       "verdict": "KEEP",

@@ -6,7 +6,8 @@
  *   roles with their permissions, and an administrator. It runs through `pnpm db:seed`, or through
  *   `prisma db seed`, which runs the command `prisma.config.ts` names. It loads its env file from
  *   the repository root, then refuses to run, before it builds its database client, when the
- *   environment it ends up with is a production one.
+ *   environment it ends up with is a production one, or gives no `ADMIN_PASSWORD` for the
+ *   administrator it creates.
  * @layer infrastructure
  */
 import { existsSync } from "fs";
@@ -18,7 +19,7 @@ import argon2 from "argon2";
 import { randomBytes, createCipheriv } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createLogger } from "@observability/logger";
-import { evaluateSeedEnvironment } from "./src/seedGuard.js";
+import { evaluateAdminPassword, evaluateSeedEnvironment } from "./src/seedGuard.js";
 import { SUPER_ADMIN_ROLE } from "./src/adminSystemRoles.js";
 
 // Load env from project root. Mirror apps/api/src/config/env.ts: under
@@ -38,6 +39,15 @@ if (!seedVerdict.allowed) {
   process.stderr.write(`${seedVerdict.reason}\n`);
   process.exit(1);
 }
+
+// The administrator the seed creates takes its password from ADMIN_PASSWORD, which the env file
+// may set, and has no default: with no password there is no seed.
+const adminPasswordVerdict = evaluateAdminPassword(process.env);
+if (!adminPasswordVerdict.allowed) {
+  process.stderr.write(`${adminPasswordVerdict.reason}\n`);
+  process.exit(1);
+}
+const adminPassword = adminPasswordVerdict.password;
 
 const logger = createLogger("seed");
 
@@ -773,7 +783,6 @@ async function main() {
   );
 
   // Seed SUPER_ADMIN user for local development
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!";
   const hashedPassword = await argon2.hash(adminPassword, {
     type: argon2.argon2id,
     memoryCost: 65536,
