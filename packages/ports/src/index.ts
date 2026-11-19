@@ -29,3 +29,5 @@ export * from "./MentionTrackingPort.js";
 export * from "./NotificationDispatchPort.js";
 export * from "./PlatformCredentialPort.js";
 export * from "./LoggerPort.js";
+export * from "./SingleUsePasswordGenerator.js";
+export * from "./AdministratorSignInAddressRule.js";

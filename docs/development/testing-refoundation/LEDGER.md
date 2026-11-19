@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1212  |
+| Files                   | 1213  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1048  |
+| KEEP                    | 1049  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1202  |
+| Machine rows            | 1203  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15169 |
+| Blocks                  | 15188 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1211,6 +1211,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/core/application/tests/unit/UseCase.test.ts`                                                | test             | 22     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/application/tests/unit/retryOnWriteConflict.test.ts`                                   | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/assets/tests/unit/CreateMediaAssetUseCase.test.ts`                                     | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts`                               | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/auth/tests/unit/RoleManagementService.test.ts`                                         | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/billing/tests/unit/CreateAccountSubscriptionUseCase.test.ts`                           | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/billing/tests/unit/SubscriptionPlanService.calculateTrialInfo.test.ts`                 | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

@@ -10,3 +10,10 @@ export {
   type UpdateRoleInput,
   type RoleDetail,
 } from "./RoleManagementService.js";
+export {
+  CreateFirstAdministratorUseCase,
+  type CreateFirstAdministratorInput,
+  type CreateFirstAdministratorOutput,
+  type FirstAdministratorRepository,
+  type SingleUsePasswordHasher,
+} from "./CreateFirstAdministratorUseCase.js";

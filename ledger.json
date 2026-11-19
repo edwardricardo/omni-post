@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1212,
+      "total": 1213,
       "byShape": {
-        "test": 974,
+        "test": 975,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1048,
+        "KEEP": 1049,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1202,
+      "machine": 1203,
       "confirmed": 10,
-      "total": 1212
+      "total": 1213
     },
     "blocks": {
-      "total": 15169,
+      "total": 15188,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14858
+        "BEHAVIOURAL": 14877
       }
     },
     "deleted": {
@@ -108439,6 +108439,160 @@
       "subject": {
         "stem": "CreateMediaAssetUseCase",
         "module": "packages/core/assets/src/CreateMediaAssetUseCase.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/core/auth/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 19,
+      "blocks": [
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the created administrator and its single-use password when the e-mail is valid",
+          "line": 290,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7613a33e7256b4c6d26c964c5639c75dcb6fc444a2058bb27b1200d40509ccbc"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after writing the role with exactly the definition it was given",
+          "line": 313,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "554b2d28844752e3c016c21997a93198050c4f1ce8562682b5f31098b1260404"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after creating the administrator with the role's id, the hash of the generated password and mustChangePassword true",
+          "line": 324,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "32d3bf46f213640bfb8b1cfe9c092af271ebfcb46f2981efd45b54c4f11c57d0"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the administrator named $name, after asking the rule about '$stored', when the e-mail is '$email'",
+          "line": 343,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "510d292ef57499220b0469c285c5abaf5a433cbad0cb0ff6f03bcae8b53cad43"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT from inside the transaction when an administrator exists",
+          "line": 388,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2e38a72f60d78f8c172236eeee64c8a9928bb05ed48859869b3268ab60271815"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT and its own message when another writer holds the role",
+          "line": 408,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0819b00bb8231f2ee27907490482d48c10b98e92f39aa0922dc8acc07cd945cf"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error when the role write fails",
+          "line": 430,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ea4acf81bfba8e2b092a6552e710724cd93e1d9a8dc4200b539916170de5a75a"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error when reading whether an administrator exists fails",
+          "line": 453,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a15ac8cf0e81d46c7ec5a7f5f02fcfc370a9b79cc055c35ac34398aa5d41fa0b"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error, from inside the transaction, when creating the administrator fails",
+          "line": 476,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8f28622ef34fab212002a9deaf61cc9b93df7750dbe61e18caae4a2ff492e72f"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR whose cause names only the type when creating the administrator raises a value that is not an Error",
+          "line": 496,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c21b6a0148c855483b4012310a423274110dbecf99837192d51a6a17238963e4"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the hasher's error, before any transaction, when hashing fails",
+          "line": 520,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fdb43ca8096cc2d35d27a000bd80eb7f3d2d04853a710c493650fa48e5ddc71d"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the generator's error, before hashing, when drawing the password fails",
+          "line": 536,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0fcea6d2d9e03f16341936bb3470e75b997af7eacbf7ece758c8b18f633d72db"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error when the transaction itself fails",
+          "line": 551,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "402005b9852d7af6320f2d3ac280110e4ae4768d443bb3eb6732b0b991f2428c"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR from inside the transaction, rolled back, when $call raises instead of returning its Result",
+          "line": 570,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "da5334b543a13566718e7586538828fbe0487c055cc7da39e9817770388b5adb"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR from inside the transaction, rolled back, whose cause names only the type when the role write raises a value that is not an Error",
+          "line": 610,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9feb2fd6b6ee3231fbaa82f85b1fb35bd38c6a72cc0e11c73184a9c52715c97f"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with VALIDATION_FAILED, touching no other port, when the sign-in's rule refuses the normalized address",
+          "line": 637,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9e0f3182f6bbafea00f656a460c868df700f8db7a913f21d62581c5c2075c5ca"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with VALIDATION_FAILED, touching no other port, when the rule accepts '$email', which has no local part",
+          "line": 649,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c2aaebb3cf2a520bce91c5a59badd8cddb3b4cc8123be406c32d80c5d5be1df5"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns an error that holds the password nowhere when $outcome",
+          "line": 666,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6aff2760c9d1a6c12ac8cb1eb70454c2fe09dc7c64d4438d8856353f0eb6c2ce"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the password under the key password and nowhere else in the output when the administrator is created",
+          "line": 715,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e4c87afc12673da1604a6b742e65f8d9ac912e7e5fb208303cc0543a3b1abe2f"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "CreateFirstAdministratorUseCase",
+        "module": "packages/core/auth/src/CreateFirstAdministratorUseCase.ts",
         "imported": true
       },
       "duplicate": null,
