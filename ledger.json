@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1211,
+      "total": 1212,
       "byShape": {
-        "test": 973,
+        "test": 974,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1047,
+        "KEEP": 1048,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1201,
+      "machine": 1202,
       "confirmed": 10,
-      "total": 1211
+      "total": 1212
     },
     "blocks": {
-      "total": 15151,
+      "total": 15169,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14840
+        "BEHAVIOURAL": 14858
       }
     },
     "deleted": {
@@ -54318,70 +54318,126 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findById returns a public DTO with NO credential columns",
-          "line": 94,
+          "line": 99,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08c24ea881970dca43e1ddadc8a0289a4221ec2c065915214907ea0e7115ca03"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findByEmail returns a public DTO with NO credential columns",
-          "line": 107,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63350768c4adedb66df8e0600fb928d70d5277275bf1a90a85720736cbf6e832"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findActiveUser strips credentials and enforces active status",
-          "line": 119,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85dc3e72acb1df6646d92b84dcfdcc7794a5a850b5a5d77cb215061ec0bbf68e"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findManyByIds and findByRoleId strip credentials",
-          "line": 133,
+          "line": 138,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "33867c7bffc7272c6bdfa0866644c75bfd27feff5100ac02d29dd76583c88a7f"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findCredentialsById returns the DTO WITH credential columns",
-          "line": 146,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8282803edf778674cc14814cd1dd7cc368df2e447ad833b4f04eb4e29e7b2f50"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findCredentialsByEmail lowercases the email and returns credentials",
-          "line": 158,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5d138bc336f920ecb89baad354204d13733332c14df8a1c174289d1c03d07ea"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findCredentialsById returns NOT_FOUND when absent",
-          "line": 168,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "497eb5c35ec48c7f6df4797c50be1ddb89e86227f167f15248cdba947fa33e2c"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::create returns a public DTO with NO credential columns",
-          "line": 175,
+          "line": 180,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70ed507660e84ba4f8ac6d8a177635d77cc12c653ec371c667943f14b6056950"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::update returns a public DTO and clears mfaSecret via null",
-          "line": 188,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "539c51795c8dd29844fe0a1958dcd93ba86e449d56ac75c3e9a79508e0372b07"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns false when no administrator row exists, from a query that filters on nothing",
+          "line": 254,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f5cb754875d18bea2258e1f8bac40a493507c47007e9e687a6b195faa1cb70bd"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns true when an administrator row exists",
+          "line": 266,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d1eb92c719c8c2bb979407f64f437e02368b3ee20947a97922f73a44151b698b"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the answer of the transaction's client when called inside an open unit of work",
+          "line": 275,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1ab516f6b5c4d5e419fa51336d0aa99608814f5e955d004078806db7907f92aa"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the answer of the base client when no unit of work is open",
+          "line": 288,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3f2478d4b1ada10225601041c050598f4969c28392ef572e702b2ee411cc9561"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails",
+          "line": 298,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "250d1ff14e1141e86e0a449322467a9bac9877d92272f9773d2edc5b7968fbd2"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the administrator created with mustChangePassword written when the input gives it",
+          "line": 326,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0fe18b7372bb63edbb8626a717446201065b59477fc3746c39a4ba52f4fb9efc"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the administrator created with no mustChangePassword key sent when the input omits it",
+          "line": 345,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "70e132a0392721518cf53bb988eaa87e3e580d9e1ddf68c5aa53413c5ef5bdbc"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the administrator created by the transaction's client when called inside an open unit of work",
+          "line": 361,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "737beee9df1f276f5bb6ef580fc1ea51213b9935920c28fdda523943b1af66e6"
         }
       ],
       "verdict": "KEEP",
@@ -55168,6 +55224,97 @@
       "subject": {
         "stem": "PrismaSubscriptionStatsQueryRepository",
         "module": "apps/api/src/infrastructure/repositories/PrismaSubscriptionStatsQueryRepository.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 10,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok with the definition's fields and exactly its permissions when the role does not exist",
+          "line": 256,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "56485ef95107ed24d789a89d0c384e702e8b687ce30f384225cb587bea87eef0"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok with the definition's fields and exactly its permissions when the role held others (%s)",
+          "line": 270,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f61fef74873625e7b1e0dd5a77fbbd3fe18f6674df5a520f516c28dec1633ff4"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok and deletes or inserts no row when the role already holds the definition (%s)",
+          "line": 287,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b9db77e4ceb8a3e2e678cde4750920a1a0eb671c61a169e960215c6514ec378e"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok from the transaction's client when called inside an open unit of work",
+          "line": 307,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c08d87178690fa08ee85b569f440f4bf961f684ee0d6831e3c4fa573c46d3436"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok from the base client when no unit of work is open",
+          "line": 320,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6561d161842e54b087e747509fade7e800c03e1b07e47d6e113cc37af2290185"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError carrying the violation when another writer holds the role first (%s)",
+          "line": 332,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fc5afc48b90dd416ca1189f094c7ae28c2f5898d72cf0ca6891f98f56ddd819a"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError whose cause names only the type when the violation is not an Error",
+          "line": 354,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ab98f5ae86d850c6de9cd2416d9b3272c68dadf42411824fcd35d7da36ad7095"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError for a unique violation of a constraint that is not the role's",
+          "line": 376,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a2442a92422ddc4f2eeeb35fe882d50bb509eab23f832c1a8baab3861b553494"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails otherwise",
+          "line": 390,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "04d8a87c973f075b3f1ac7d2b016b3930588cb004fac2a8cbee86e79060b7aba"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError whose cause names only the type when the client rejects with a non-Error",
+          "line": 407,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1094802d51507df6269d59267f9ba3e1ca6dca840db78d0c07b8cdb386214f8b"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "PrismaSystemRoleRepository",
+        "module": "apps/api/src/infrastructure/repositories/PrismaSystemRoleRepository.ts",
         "imported": true
       },
       "duplicate": null,
