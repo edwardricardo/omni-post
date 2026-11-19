@@ -18,7 +18,7 @@ import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
-  SYSTEM_ROLE_CONFLICT_CODE,
+  SYSTEM_ROLE_COLLISIONS,
   type SystemRoleDefinition,
   type SystemRoleRepository,
 } from "@core/domain/repositories/SystemRoleRepository.js";
@@ -30,8 +30,10 @@ const MESSAGES = {
   noLocalPart: "The e-mail has no local part to name the administrator after",
   administratorExists:
     "An administrator already exists: the first administrator is created only on a database that has none",
-  roleConflict:
-    "Another writer holds the administration role's id or name, as another run of this command does while it is in progress: wait for it to end, then check whether an administrator exists",
+  roleIdHeld:
+    "Another run of this command wrote the administration role first: check whether an administrator exists",
+  roleNameHeld:
+    "A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed",
   generateFailed: "Generating the single-use password failed",
   hashFailed: "Hashing the single-use password failed",
   roleWriteFailed: "Writing the administration role failed",
@@ -185,11 +187,19 @@ export class CreateFirstAdministratorUseCase implements UseCase<
   ): Promise<Result<CreateFirstAdministratorOutput, UseCaseError>> {
     const saved = await this.systemRoles.save(this.role);
     if (!saved.ok) {
-      return err(
-        saved.error.code === SYSTEM_ROLE_CONFLICT_CODE
-          ? new UseCaseError(MESSAGES.roleConflict, USE_CASE_ERRORS.CONFLICT, saved.error)
-          : new UseCaseError(MESSAGES.roleWriteFailed, USE_CASE_ERRORS.INTERNAL_ERROR, saved.error)
-      );
+      const { error } = saved;
+      // The conflict is recognised by its `collision` field, a value, and not by its class,
+      // whose identity is not stable across the domain package's dual export.
+      if (!("collision" in error)) {
+        return err(
+          new UseCaseError(MESSAGES.roleWriteFailed, USE_CASE_ERRORS.INTERNAL_ERROR, error)
+        );
+      }
+      const message =
+        error.collision === SYSTEM_ROLE_COLLISIONS.NAME
+          ? MESSAGES.roleNameHeld
+          : MESSAGES.roleIdHeld;
+      return err(new UseCaseError(message, USE_CASE_ERRORS.CONFLICT, error));
     }
 
     const exists = await this.administrators.existsAny();

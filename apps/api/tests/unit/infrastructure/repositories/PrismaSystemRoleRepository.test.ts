@@ -15,6 +15,7 @@ import {
   RepositoryFailureError,
   REPOSITORY_FAILURE_CODE,
   SystemRoleConflictError,
+  SYSTEM_ROLE_COLLISIONS,
   SYSTEM_ROLE_CONFLICT_CODE,
   type SystemRoleDefinition,
 } from "@core/domain";
@@ -329,9 +330,20 @@ describe("PrismaSystemRoleRepository save", () => {
     expect(tx.role.upsert).not.toHaveBeenCalled();
   });
 
-  it.each(["Role_pkey", "Role_name_key"])(
-    "returns a SystemRoleConflictError carrying the violation when another writer holds the role first (%s)",
-    async (index) => {
+  it.each([
+    {
+      index: "Role_pkey",
+      collision: SYSTEM_ROLE_COLLISIONS.ID,
+      message: "Another writer already holds this system role's id",
+    },
+    {
+      index: "Role_name_key",
+      collision: SYSTEM_ROLE_COLLISIONS.NAME,
+      message: "Another role already holds this system role's name under another id",
+    },
+  ])(
+    "returns a SystemRoleConflictError naming the key another writer holds when the store refuses $index",
+    async ({ index, collision, message }) => {
       const { base } = makeTransactionalClients();
       const raised = uniqueViolation(index);
       base.role.upsert.mockRejectedValue(raised);
@@ -343,11 +355,38 @@ describe("PrismaSystemRoleRepository save", () => {
       if (result.ok) return;
       expect(result.error).toBeInstanceOf(SystemRoleConflictError);
       expect(result.error.code).toBe(SYSTEM_ROLE_CONFLICT_CODE);
+      expect(result.error).toMatchObject({ collision });
       expect(result.error.cause).toBe(raised);
-      expect(result.error.message).toBe(
-        "Another writer already holds this system role's id or name"
-      );
+      expect(result.error.message).toBe(message);
       expectNoDefinitionValue(result.error.message);
+    }
+  );
+
+  it.each([
+    { fields: ["id"], collision: SYSTEM_ROLE_COLLISIONS.ID },
+    { fields: ["name"], collision: SYSTEM_ROLE_COLLISIONS.NAME },
+  ])(
+    "returns a SystemRoleConflictError naming the key when the driver names the columns $fields instead of the index",
+    async ({ fields, collision }) => {
+      const { base } = makeTransactionalClients();
+      const raised = Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: {
+          driverAdapterError: {
+            cause: { kind: "UniqueConstraintViolation", constraint: { fields } },
+          },
+        },
+      });
+      base.role.upsert.mockRejectedValue(raised);
+      const repo = new PrismaSystemRoleRepository(base as never);
+
+      const result = await repo.save(DEFINITION);
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe(SYSTEM_ROLE_CONFLICT_CODE);
+      expect(result.error).toMatchObject({ collision });
+      expect(result.error.cause).toBe(raised);
     }
   );
 
