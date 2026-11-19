@@ -18,12 +18,12 @@ import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { CreateFirstAdministratorInput, CreateFirstAdministratorOutput } from "@core/auth";
 
 /** A stream the command writes text to. */
-export interface CommandOutput {
+interface CommandOutput {
   write(text: string): unknown;
 }
 
 /** Standard output, which must be a terminal for the password to be written to it. */
-export interface CommandTerminal extends CommandOutput {
+interface CommandTerminal extends CommandOutput {
   readonly isTTY?: boolean | undefined;
 }
 
@@ -48,13 +48,11 @@ export interface FirstAdministratorCommand {
 export type FirstAdministratorCommandLoader = () => Promise<FirstAdministratorCommand>;
 
 /** The command's exit codes. */
-export const FIRST_ADMINISTRATOR_EXIT_CODES = {
+const EXIT = {
   OK: 0,
   REFUSED_OR_FAILED: 1,
   USAGE: 2,
 } as const;
-
-const EXIT = FIRST_ADMINISTRATOR_EXIT_CODES;
 
 const USAGE = "Usage: create-first-admin --email <address>\nRun it with --help for what it does.\n";
 
