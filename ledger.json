@@ -27,7 +27,7 @@
       "total": 1211
     },
     "blocks": {
-      "total": 15150,
+      "total": 15151,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14839
+        "BEHAVIOURAL": 14840
       }
     },
     "deleted": {
@@ -18374,7 +18374,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "apps/api/tests/unit/adminSystemRoles.test.ts::holds only values of the Permission enum when its permissions are read",
@@ -18391,8 +18391,15 @@
           "bodyHash": "9760ef9427141ce19552b4f0275220855846868b9e26afd60f823d17d966a2a3"
         },
         {
-          "id": "apps/api/tests/unit/adminSystemRoles.test.ts::keeps the id, name and level the seed wrote when the role is read",
+          "id": "apps/api/tests/unit/adminSystemRoles.test.ts::holds every value of the Permission enum when its permissions are read",
           "line": 42,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f220ff97098d0622dd1aa69fc0bf3e4fa8f1e1db05635fff9c96e693c82ae6d0"
+        },
+        {
+          "id": "apps/api/tests/unit/adminSystemRoles.test.ts::keeps the id, name and level the seed wrote when the role is read",
+          "line": 49,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d1ca06aa5410d95baf297f594a572c93e144273490810dd90a4142e21ee2565"

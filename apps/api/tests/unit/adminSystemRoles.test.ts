@@ -1,10 +1,10 @@
 /**
  * @file adminSystemRoles.test.ts
  * @description Pins `SUPER_ADMIN_ROLE` (`infra/prisma/src/adminSystemRoles.ts`), the one definition
- *   of the `SUPER_ADMIN` role that the development seed writes: what is true of any right list of
- *   permissions (each one is a value of the `Permission` enum, the vocabulary the API checks, and
- *   none appears twice) and the identity the seed wrote before the definition moved (its id, name
- *   and level). Which permissions the list holds, and how many, is not decided, so neither is pinned.
+ *   of the `SUPER_ADMIN` role: its permissions are the `Permission` enum, the vocabulary the API
+ *   checks (each one is a value of the enum, none appears twice, and no value of the enum is
+ *   absent), and its identity is fixed: its id, which rows reference, its name, by which the API
+ *   recognises the role, and its level.
  * @layer infrastructure
  */
 
@@ -13,7 +13,7 @@ import { describe, it } from "vitest";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { SUPER_ADMIN_ROLE } from "../../../../infra/prisma/src/adminSystemRoles.js";
 
-/** The identity `infra/prisma/seed.ts` wrote for the role before the definition moved. */
+/** The role's identity: rows reference it by this id, and the API recognises it by this name. */
 const SEEDED_SUPER_ADMIN_IDENTITY = {
   id: "role-super-admin",
   name: "SUPER_ADMIN",
@@ -37,6 +37,13 @@ describe("SUPER_ADMIN_ROLE", () => {
     );
 
     assert.deepStrictEqual(repeated, []);
+  });
+
+  it("holds every value of the Permission enum when its permissions are read", () => {
+    const granted = new Set<string>(SUPER_ADMIN_ROLE.permissions);
+    const absent = Object.values(Permission).filter((permission) => !granted.has(permission));
+
+    assert.deepStrictEqual(absent, []);
   });
 
   it("keeps the id, name and level the seed wrote when the role is read", () => {
