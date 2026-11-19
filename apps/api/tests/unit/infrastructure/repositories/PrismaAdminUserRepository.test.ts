@@ -4,10 +4,15 @@
  *              Locks in the credential-separation contract: the public reads
  *              (findById/findByEmail/findActiveUser/findManyByIds/findByRoleId/
  *              create/update) return objects with NO credential columns, while
- *              findCredentialsById/findCredentialsByEmail return them.
+ *              findCredentialsById/findCredentialsByEmail return them. Also pins
+ *              the query that says whether any administrator exists, the
+ *              `mustChangePassword` write of `create`, and that both run on
+ *              the Unit of Work's transaction client when one is open.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
+import { RepositoryFailureError, REPOSITORY_FAILURE_CODE } from "@core/domain";
 
 vi.mock("@infra/prisma", () => ({ Prisma: {} }));
 
@@ -192,5 +197,178 @@ describe("PrismaAdminUserRepository credential separation", () => {
     expect(data.mfaEnabled).toBe(false);
     expect(data.mfaSecret).toBeNull();
     for (const key of CREDENTIAL_KEYS) expect(key in dto).toBe(false);
+  });
+});
+
+/** The two delegate methods of `adminUser` that the existence query and `create` call. */
+interface AdminUserClientDouble {
+  adminUser: {
+    findFirst: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+  };
+}
+
+/** A client double whose delegate methods record their calls and resolve nothing by default. */
+function makeAdminUserClient(): AdminUserClientDouble {
+  return { adminUser: { findFirst: vi.fn(), create: vi.fn() } };
+}
+
+/**
+ * A base client whose `$transaction` hands its callback a second double, as Prisma hands an
+ * interactive transaction its own client: a call that lands on `tx` ran inside the transaction.
+ */
+function makeTransactionalClients() {
+  const tx = makeAdminUserClient();
+  const base = {
+    ...makeAdminUserClient(),
+    $transaction: vi.fn(async (work: (client: AdminUserClientDouble) => Promise<unknown>) =>
+      work(tx)
+    ),
+  };
+  return { base, tx };
+}
+
+/** A tenant provider that reports no context, so the Unit of Work binds no GUC. */
+const NO_TENANT: ConstructorParameters<typeof PrismaUnitOfWork>[1] = {
+  getTenantContext: () => undefined,
+  getSystemContext: () => undefined,
+};
+
+/** The fields every creation in this suite gives; each case adds what it is about. */
+const CREATE_INPUT = {
+  email: "First.Admin@Example.com",
+  passwordHash: "argon2-hash",
+  name: "First.Admin",
+  roleId: "role-super-admin",
+} as const;
+
+describe("PrismaAdminUserRepository existsAny", () => {
+  let clients: ReturnType<typeof makeTransactionalClients>;
+  let repo: InstanceType<typeof PrismaAdminUserRepository>;
+
+  beforeEach(() => {
+    clients = makeTransactionalClients();
+    repo = new PrismaAdminUserRepository(clients.base as never);
+  });
+
+  it("returns false when no administrator row exists, from a query that filters on nothing", async () => {
+    clients.base.adminUser.findFirst.mockResolvedValue(null);
+
+    const result = await repo.existsAny();
+
+    expect(result).toEqual({ ok: true, value: false });
+    expect(clients.base.adminUser.findFirst).toHaveBeenCalledTimes(1);
+    expect(clients.base.adminUser.findFirst.mock.calls[0]).toStrictEqual([
+      { select: { id: true } },
+    ]);
+  });
+
+  it("returns true when an administrator row exists", async () => {
+    clients.base.adminUser.findFirst.mockResolvedValue({ id: "u-1" });
+
+    const result = await repo.existsAny();
+
+    expect(result).toEqual({ ok: true, value: true });
+    expect(clients.base.adminUser.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the answer of the transaction's client when called inside an open unit of work", async () => {
+    clients.tx.adminUser.findFirst.mockResolvedValue({ id: "u-1" });
+    clients.base.adminUser.findFirst.mockResolvedValue(null);
+    const uow = new PrismaUnitOfWork(clients.base as never, NO_TENANT);
+
+    const result = await uow.executeInTransaction(() => repo.existsAny());
+
+    expect(result).toEqual({ ok: true, value: true });
+    expect(clients.base.$transaction).toHaveBeenCalledTimes(1);
+    expect(clients.tx.adminUser.findFirst).toHaveBeenCalledTimes(1);
+    expect(clients.base.adminUser.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns the answer of the base client when no unit of work is open", async () => {
+    clients.base.adminUser.findFirst.mockResolvedValue(null);
+
+    const result = await repo.existsAny();
+
+    expect(result).toEqual({ ok: true, value: false });
+    expect(clients.base.$transaction).not.toHaveBeenCalled();
+    expect(clients.tx.adminUser.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns a RepositoryFailureError whose cause is the client's own error when the client fails", async () => {
+    const raised = Object.assign(new Error("Can't reach database server at db:5432"), {
+      code: "P1001",
+    });
+    clients.base.adminUser.findFirst.mockRejectedValue(raised);
+
+    const result = await repo.existsAny();
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBeInstanceOf(RepositoryFailureError);
+    expect(result.error.code).toBe(REPOSITORY_FAILURE_CODE);
+    expect(result.error.cause).toBe(raised);
+    expect(result.error.message).toBe("Reading whether an admin user exists failed");
+  });
+});
+
+describe("PrismaAdminUserRepository create and mustChangePassword", () => {
+  let clients: ReturnType<typeof makeTransactionalClients>;
+  let repo: InstanceType<typeof PrismaAdminUserRepository>;
+
+  beforeEach(() => {
+    clients = makeTransactionalClients();
+    repo = new PrismaAdminUserRepository(clients.base as never);
+    clients.base.adminUser.create.mockResolvedValue(makeRow({ mustChangePassword: true }));
+    clients.tx.adminUser.create.mockResolvedValue(makeRow({ mustChangePassword: true }));
+  });
+
+  it("returns the administrator created with mustChangePassword written when the input gives it", async () => {
+    const dto = await repo.create({ ...CREATE_INPUT, mustChangePassword: true });
+
+    expect(clients.base.adminUser.create).toHaveBeenCalledTimes(1);
+    expect(clients.base.adminUser.create.mock.calls[0]).toStrictEqual([
+      {
+        data: {
+          email: "first.admin@example.com",
+          passwordHash: "argon2-hash",
+          name: "First.Admin",
+          roleId: "role-super-admin",
+          mustChangePassword: true,
+        },
+        include: { role: true },
+      },
+    ]);
+    expect(dto.mustChangePassword).toBe(true);
+  });
+
+  it("returns the administrator created with no mustChangePassword key sent when the input omits it", async () => {
+    await repo.create({ ...CREATE_INPUT });
+
+    expect(clients.base.adminUser.create.mock.calls[0]).toStrictEqual([
+      {
+        data: {
+          email: "first.admin@example.com",
+          passwordHash: "argon2-hash",
+          name: "First.Admin",
+          roleId: "role-super-admin",
+        },
+        include: { role: true },
+      },
+    ]);
+  });
+
+  it("returns the administrator created by the transaction's client when called inside an open unit of work", async () => {
+    const uow = new PrismaUnitOfWork(clients.base as never, NO_TENANT);
+
+    await uow.executeInTransaction(() =>
+      repo.create({ ...CREATE_INPUT, mustChangePassword: true })
+    );
+
+    expect(clients.tx.adminUser.create).toHaveBeenCalledTimes(1);
+    expect(clients.tx.adminUser.create.mock.calls[0]?.[0]?.data).toMatchObject({
+      mustChangePassword: true,
+    });
+    expect(clients.base.adminUser.create).not.toHaveBeenCalled();
   });
 });

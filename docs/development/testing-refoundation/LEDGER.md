@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1211  |
+| Files                   | 1212  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1047  |
+| KEEP                    | 1048  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1201  |
+| Machine rows            | 1202  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15151 |
+| Blocks                  | 15169 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -830,7 +830,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/infrastructure/repositories/PrismaAccountQueryRepository.test.ts`                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaAccountSubscriptionQueryRepository.test.ts`    | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts`                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts`                   | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts`                   | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaAnalyticsReadRepository.test.ts`               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts`                    | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaConversionRepository.test.ts`                  | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
@@ -842,6 +842,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/infrastructure/repositories/PrismaSemanticRetrievalAdapter.test.ts`              | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaStyleGuideRuleRepository.test.ts`              | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaSubscriptionStatsQueryRepository.test.ts`      | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts`                  | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaThreadReadRepository.test.ts`                  | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaTrackedTermQuery.test.ts`                      | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/repositories/PrismaTrendRadarQueryAdapter.test.ts`                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

@@ -6,10 +6,12 @@
 
 import type { AdminUserDto, AdminUserCredentialsDto } from "./ReadModelDtos.js";
 import type { Result } from "@shared/types";
+import type { RepositoryFailureError } from "../errors/RepositoryFailureError.js";
 
 /**
  * Fields required to create a new admin user.
  * Role is referenced by its primary key (resolved from a role name by the caller).
+ * An omitted optional field is not written, so the store's default applies.
  */
 export interface AdminUserCreateInput {
   email: string;
@@ -17,6 +19,8 @@ export interface AdminUserCreateInput {
   name: string;
   roleId: string;
   emailVerified?: boolean;
+  /** When true, the administrator must set a new password before doing anything else. */
+  mustChangePassword?: boolean;
 }
 
 /**
@@ -122,6 +126,18 @@ export interface AdminUserRepositoryPort {
    * @returns All admin users as AdminUserDto records
    */
   findAll(): Promise<AdminUserDto[]>;
+
+  /**
+   * Say whether any admin user exists, active or not. Inside an open Unit of
+   * Work it reads through that transaction, and an error returned there means
+   * the store may have aborted it: the caller returns the error so the
+   * transaction ends, and writes nothing more in it.
+   *
+   * @returns Ok(true) when at least one admin user row exists, Ok(false) when
+   *          none does, Err(RepositoryFailureError) carrying what the store
+   *          raised when it could not answer
+   */
+  existsAny(): Promise<Result<boolean, RepositoryFailureError>>;
 
   /**
    * Persist a new admin user.

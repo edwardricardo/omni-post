@@ -17,3 +17,4 @@ export {
   VERSION_CONFLICT_CODE,
   type DomainErrorType,
 } from "./DomainError.js";
+export { RepositoryFailureError, REPOSITORY_FAILURE_CODE } from "./RepositoryFailureError.js";

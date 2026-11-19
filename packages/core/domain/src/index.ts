@@ -73,6 +73,7 @@ export * from "./repositories/WebhookDeadLetterArchivalPort.js";
 export * from "./ai/AIContracts.js";
 export * from "./repositories/AIRequestExecutorPort.js";
 export * from "./repositories/RoleManagementRepository.js";
+export * from "./repositories/SystemRoleRepository.js";
 export * from "./repositories/RbacCacheInvalidatorPort.js";
 export * from "./auth/Permission.js";
 export * from "./repositories/EncryptionPort.js";

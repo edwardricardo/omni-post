@@ -10,6 +10,7 @@ import { ok, err } from "@shared/types";
 import type { Result } from "@shared/types";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
+import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
 import type {
   AdminUserRepositoryPort,
   AdminUserCreateInput,
@@ -82,10 +83,14 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Find an admin user and verify they are active.
-   *
-   * Looks up by ID (default) or email. Email is reduced to its canonical
-   * identity form before the query so the caller does not need to pre-normalize.
+   * @method findActiveUser
+   * @description Find an admin user and verify they are active. Looks up by ID
+   *   (default) or email. Email is reduced to its canonical identity form before
+   *   the query so the caller does not need to pre-normalize.
+   * @param identifier - User ID or email address
+   * @param type - Lookup type: "id" (default) or "email"
+   * @returns Ok(user) when found and active, Err("NOT_FOUND") when no user
+   *   matches, Err("USER_INACTIVE") when the user is not active
    */
   async findActiveUser(
     identifier: string,
@@ -103,7 +108,10 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Find an admin user by ID without performing an active-status check.
+   * @method findById
+   * @description Find an admin user by ID without performing an active-status check.
+   * @param id - AdminUser primary key
+   * @returns Ok(user) when found, Err("NOT_FOUND") otherwise
    */
   async findById(id: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
@@ -116,8 +124,11 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Find an admin user by email address.
-   * Email is reduced to its canonical identity form before the query.
+   * @method findByEmail
+   * @description Find an admin user by email address. Email is reduced to its
+   *   canonical identity form before the query.
+   * @param email - Email address to look up
+   * @returns Ok(user) when found, Err("NOT_FOUND") otherwise
    */
   async findByEmail(email: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
@@ -130,8 +141,11 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Find an admin user by ID including credential material.
-   * For the authentication and MFA flows only.
+   * @method findCredentialsById
+   * @description Find an admin user by ID including credential material. For
+   *   the authentication and MFA flows only.
+   * @param id - AdminUser primary key
+   * @returns Ok(user with credentials) when found, Err("NOT_FOUND") otherwise
    */
   async findCredentialsById(id: string): Promise<Result<AdminUserCredentialsDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
@@ -144,9 +158,12 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Find an admin user by email including credential material.
-   * Email is reduced to its canonical identity form before the query. For the
-   * login flow only.
+   * @method findCredentialsByEmail
+   * @description Find an admin user by email including credential material.
+   *   Email is reduced to its canonical identity form before the query. For the
+   *   login flow only.
+   * @param email - Email address to look up
+   * @returns Ok(user with credentials) when found, Err("NOT_FOUND") otherwise
    */
   async findCredentialsByEmail(
     email: string
@@ -161,8 +178,12 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Validate that a given user record is active (synchronous guard).
-   * Does not perform any I/O — operates on the already-fetched user object.
+   * @method validateActive
+   * @description Validate that a given user record is active (synchronous
+   *   guard). Does not perform any I/O — operates on the already-fetched user
+   *   object.
+   * @param user - AdminUserDto record already retrieved from storage
+   * @returns Ok(undefined) when active, Err("USER_INACTIVE") when not
    */
   validateActive(user: AdminUserDto): Result<void, "USER_INACTIVE"> {
     if (!user.isActive) return err("USER_INACTIVE");
@@ -170,9 +191,12 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Retrieve multiple users by their IDs in a single query.
-   * Both active and inactive users are returned.
-   * Non-existent IDs are silently omitted.
+   * @method findManyByIds
+   * @description Retrieve multiple users by their IDs in a single query. Both
+   *   active and inactive users are returned. Non-existent IDs are silently
+   *   omitted.
+   * @param ids - Array of AdminUser primary keys
+   * @returns The matching users mapped to AdminUserDto, order not guaranteed
    */
   async findManyByIds(ids: string[]): Promise<AdminUserDto[]> {
     const users = await this.prisma.adminUser.findMany({
@@ -183,8 +207,27 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Persist a new admin user with the role relation eagerly loaded.
-   *
+   * @method existsAny
+   * @description Says whether any admin user row exists, active or not: the
+   *   query filters on nothing and reads one id. It runs on the Unit of Work's
+   *   client, so inside an open transaction it reads through that transaction.
+   * @returns Ok(true) when a row exists, Ok(false) when none does, or
+   *   Err(RepositoryFailureError) whose cause is what the client raised
+   */
+  async existsAny(): Promise<Result<boolean, RepositoryFailureError>> {
+    try {
+      const row = await this.getClient().adminUser.findFirst({ select: { id: true } });
+      return ok(row !== null);
+    } catch (error: unknown) {
+      return err(new RepositoryFailureError("Reading whether an admin user exists failed", error));
+    }
+  }
+
+  /**
+   * @method create
+   * @description Persist a new admin user with the role relation eagerly
+   *   loaded, on the Unit of Work's client when a transaction is open. An
+   *   optional field the input omits is not sent, so the column's default applies.
    * @param input - Creation fields including the resolved roleId
    * @returns The created user mapped to AdminUserDto
    */
@@ -199,6 +242,9 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
         name: input.name,
         roleId: input.roleId,
         ...(input.emailVerified !== undefined && { emailVerified: input.emailVerified }),
+        ...(input.mustChangePassword !== undefined && {
+          mustChangePassword: input.mustChangePassword,
+        }),
       },
       include: { role: true },
     });
@@ -206,8 +252,8 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Apply a partial update to an admin user.
-   *
+   * @method update
+   * @description Apply a partial update to an admin user.
    * @param id - AdminUser primary key
    * @param data - Fields to change; `null` clears a nullable field, omitted
    *               keys are untouched
@@ -243,7 +289,9 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * List every admin user (active and inactive), oldest first.
+   * @method findAll
+   * @description List every admin user (active and inactive), oldest first.
+   * @returns All admin users mapped to AdminUserDto
    */
   async findAll(): Promise<AdminUserDto[]> {
     const users = await this.prisma.adminUser.findMany({
@@ -254,8 +302,8 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * List all admin users assigned to a given role, newest first.
-   *
+   * @method findByRoleId
+   * @description List all admin users assigned to a given role, newest first.
    * @param roleId - Role primary key
    * @returns Matching users mapped to AdminUserDto, ordered by createdAt desc
    */
@@ -269,8 +317,8 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   }
 
   /**
-   * Permanently delete an admin user.
-   *
+   * @method delete
+   * @description Permanently delete an admin user.
    * @param id - AdminUser primary key
    */
   async delete(id: string): Promise<void> {
