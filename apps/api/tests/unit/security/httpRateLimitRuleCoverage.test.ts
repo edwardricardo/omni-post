@@ -12,9 +12,9 @@
  *              app and compares with the committed copy. Booting the app here
  *              is not hermetic: building it opens Redis connections and
  *              schedules a database probe. The projection omits the routes the
- *              OpenAPI spec hides (the API reference under `/docs` and the
- *              `OPTIONS *` route), so a rule that names only such a route reads
- *              as dead here, which fails toward red.
+ *              OpenAPI spec hides (the API reference under `/docs`), so a rule
+ *              that names only such a route reads as dead here, which fails
+ *              toward red.
  * @layer infrastructure
  */
 

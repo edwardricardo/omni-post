@@ -295,14 +295,6 @@
       "decidedOn": "2026-11-13",
       "note": "Plan rows A-TEAM-08 and A-TEAM-09 (single sign-on, docs/product/plan/areas.md) describe its feature and DEF-52 (chain.md) records a defect of its cookie; no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
-    "@fastify/cors": {
-      "status": "kept",
-      "grounds": "in-use",
-      "utility": "Registered by SecurityManager.register (index.ts:525).",
-      "replacement": "None: Fastify's own CORS plugin.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies)."
-    },
     "@fastify/helmet": {
       "status": "kept",
       "grounds": "in-use",
@@ -450,7 +442,7 @@
     "@sentry/node": {
       "status": "kept",
       "grounds": "single-adapter",
-      "utility": "Sentry.init (index.ts:480, when a DSN is set) and captureException from errorHandler and SagaIntegration.",
+      "utility": "Sentry.init (index.ts:459, when a DSN is set) and captureException from errorHandler and SagaIntegration.",
       "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/api (dependencies)."

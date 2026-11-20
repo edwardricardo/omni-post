@@ -411,27 +411,6 @@ async function createApp(): Promise<FastifyInstance> {
         "upgrade-insecure-requests": [],
       },
     },
-    cors: {
-      enabled: true,
-      allowedOrigins: [
-        "http://localhost:3000", // API
-        "http://localhost:3100", // Admin
-        "http://localhost:3200", // Client
-        "https://localhost:3000",
-        "https://localhost:3100",
-        "https://localhost:3200",
-      ],
-      allowedMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-      allowCredentials: true,
-      maxAge: 86400,
-    },
-    hsts: {
-      enabled: true,
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true,
-    },
   });
 
   // Initialize performance monitor

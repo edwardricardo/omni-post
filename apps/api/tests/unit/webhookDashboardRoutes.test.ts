@@ -10,6 +10,7 @@
  * @layer infrastructure
  */
 
+import { once } from "node:events";
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 
 vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
@@ -666,7 +667,35 @@ describe("webhookDashboardRoutes", () => {
   });
 
   describe("GET /api/webhooks/dashboard/stream", () => {
-    // SSE connection test moved to integration — requires real HTTP, not inject().
+    it("opens the event stream with no Access-Control header for a foreign Origin", async () => {
+      // `payloadAsStream` resolves the injection when the head is written, so the
+      // open-ended stream can be read and then aborted.
+      const controller = new AbortController();
+      const response = await app.inject({
+        method: "GET",
+        url: "/webhooks/dashboard/stream",
+        headers: { authorization: `Bearer ${testToken}`, origin: "https://foreign.example" },
+        payloadAsStream: true,
+        signal: controller.signal,
+      });
+      const stream = response.stream();
+      const [firstChunk] = (await once(stream, "data")) as [Buffer];
+      const aborted = once(stream, "error");
+      controller.abort();
+      const [abortError] = (await aborted) as [Error];
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toBe("text/event-stream");
+      expect(response.headers["cache-control"]).toBe("no-cache");
+      expect(response.headers["connection"]).toBe("keep-alive");
+      expect(
+        Object.keys(response.headers).filter((name) => name.startsWith("access-control-"))
+      ).toEqual([]);
+      expect(firstChunk.toString()).toMatch(
+        /^data: \{"type":"connected","timestamp":"[^"]+"\}\n\n$/
+      );
+      expect(abortError.name).toBe("AbortError");
+    });
 
     it("should reject SSE without authentication", async () => {
       const response = await app.inject({
