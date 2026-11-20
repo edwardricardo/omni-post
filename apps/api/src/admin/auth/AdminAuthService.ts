@@ -41,6 +41,13 @@ import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 /** The credentials the sign-in's checks verify. */
 type SignInCredentials = Pick<LoginRequest, "email" | "password" | "mfaToken">;
 
+/** How an operation an administrator attempted from a device ended: done, or refused with a code. */
+type DeviceEventOutcome =
+  { readonly success: true } | { readonly success: false; readonly error: AuthErrorCode };
+
+/** The outcome of an operation the administrator completed. */
+const COMPLETED: DeviceEventOutcome = { success: true };
+
 /** The attempt the brute-force port counts: the e-mail as presented, the address, the agent. */
 function attemptOf(email: string, device: DeviceFingerprint): CheckLoginAttemptInput {
   return {
@@ -73,12 +80,22 @@ export class AdminAuthService {
    * @method login
    * @description Signs an administrator in: runs the sign-in's checks, then opens a session,
    *   writes `lastLoginAt`, clears the brute-force counters and records the sign-in.
+   *
+   *   An administrator whose password must be changed is refused once every check has passed. The
+   *   refusal writes one security event, `LOGIN_FAILED` with the error `PASSWORD_CHANGE_REQUIRED`,
+   *   the administrator's id and the device's address and agent, so an operator sees it, and
+   *   nothing else: no session, no token, no `lastLoginAt`, no session cleanup or cap and no
+   *   cleared counters. The credentials were right, so no failed attempt is recorded either. The
+   *   refusal comes after the second factor, so a caller who holds the password but not the
+   *   second factor learns nothing of the mark, and the code that verified is spent by the
+   *   refused sign-in.
    * @param request - The e-mail, the password, the second factor's code when there is one, and
    *   whether the session is remembered
    * @param device - The caller's device, whose address and agent the session and the attempt
    *   records carry
    * @returns The administrator's profile and the session's tokens; otherwise the code of the
-   *   check that failed, or `INTERNAL_ERROR` when the profile cannot be read back
+   *   check that failed, `PASSWORD_CHANGE_REQUIRED` for a password that must be changed, or
+   *   `INTERNAL_ERROR` when the profile cannot be read back
    */
   async login(
     request: LoginRequest,
@@ -92,6 +109,16 @@ export class AdminAuthService {
       return err(verified.error);
     }
     const user = verified.value;
+
+    if (user.mustChangePassword) {
+      await this.logSecurityEvent(
+        this.deviceEventOf("LOGIN_FAILED", user, device, {
+          success: false,
+          error: "PASSWORD_CHANGE_REQUIRED",
+        })
+      );
+      return err("PASSWORD_CHANGE_REQUIRED");
+    }
 
     // Cleanup expired sessions
     await this.sessionManager.cleanupExpiredSessions(user.id);
@@ -116,7 +143,7 @@ export class AdminAuthService {
     // Successful authentication — clear per-identifier counters.
     await this.bruteForce.recordSuccessfulAttempt(attempt);
 
-    await this.logSecurityEvent(this.successEventOf("LOGIN_SUCCESS", user, device));
+    await this.logSecurityEvent(this.deviceEventOf("LOGIN_SUCCESS", user, device, COMPLETED));
 
     const profile = await this.getUserProfile(user.id);
     if (!profile.ok) {
@@ -184,20 +211,22 @@ export class AdminAuthService {
       return replaced;
     }
 
-    await this.logSecurityEvent(this.successEventOf("PASSWORD_CHANGED", admin, device));
+    await this.logSecurityEvent(this.deviceEventOf("PASSWORD_CHANGED", admin, device, COMPLETED));
 
     await this.bruteForce.recordSuccessfulAttempt(attempt);
     return ok(undefined);
   }
 
   /**
-   * The security event of an operation an administrator completed from a device: who, from
-   * which address, agent and device, and where, when the device's location is known.
+   * The security event of an operation an administrator attempted from a device: who, from which
+   * address, agent and device, how it ended, with the refusal's code when it was refused, and
+   * where, when the device's location is known.
    */
-  private successEventOf(
+  private deviceEventOf(
     type: SecurityEvent["type"],
     admin: Pick<AdminUser, "id" | "email">,
-    device: DeviceFingerprint
+    device: DeviceFingerprint,
+    outcome: DeviceEventOutcome
   ): SecurityEvent {
     const event: SecurityEvent = {
       type,
@@ -206,9 +235,12 @@ export class AdminAuthService {
       ipAddress: device.ipAddress,
       userAgent: device.userAgent,
       deviceId: device.deviceId,
-      success: true,
+      success: outcome.success,
       timestamp: new Date(),
     };
+    if (!outcome.success) {
+      event.error = outcome.error;
+    }
     if (device.location) {
       event.location = device.location;
     }

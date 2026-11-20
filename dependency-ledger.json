@@ -6,11 +6,11 @@
     "production": 97,
     "devOnly": 63,
     "types": 9,
-    "aboveFloor": 47,
-    "underFloor": 113,
+    "aboveFloor": 49,
+    "underFloor": 111,
     "atZero": 14,
-    "underFloorWithSites": 99,
-    "kept": 107,
+    "underFloorWithSites": 97,
+    "kept": 105,
     "remove": 6,
     "pending": 1
   },
@@ -283,6 +283,7 @@
         "runtime-import": {
           "production": ["apps/api/src/index.ts"],
           "test": [
+            "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts",
             "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
             "apps/api/tests/unit/analyticsRoutes.test.ts",
             "apps/api/tests/unit/approvals/approvalRoutes.test.ts",
@@ -1385,17 +1386,10 @@
         }
       ],
       "bins": [],
-      "verdict": "under-floor",
-      "real": 2,
-      "decision": "kept",
-      "sites": {
-        "runtime-import": {
-          "test": [
-            "apps/admin/tests/unit/instrumentation.test.ts",
-            "apps/admin/tests/unit/shared/SkipLink.test.tsx"
-          ]
-        }
-      }
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
     },
     {
       "name": "@tiptap/core",
@@ -2303,14 +2297,10 @@
         }
       ],
       "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "kept",
-      "sites": {
-        "type-only": {
-          "production": ["packages/ui/src/components/submit-button.tsx"]
-        }
-      }
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
     },
     {
       "name": "@types/validator",
@@ -4130,7 +4120,11 @@
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": ["packages/ui/src/components/submit-button.tsx"]
+          "production": ["packages/ui/src/components/submit-button.tsx"],
+          "test": [
+            "apps/admin/tests/unit/auth/loginForm.test.tsx",
+            "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx"
+          ]
         }
       }
     },

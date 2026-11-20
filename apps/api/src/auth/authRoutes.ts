@@ -45,7 +45,8 @@ class AuthRouteHandler extends BaseRouteHandler {
    * @method login
    * @description POST /auth/login - Verifies the credentials, and the MFA token when one is
    *   sent, then sets the refresh token as an HTTP-only cookie and returns the user and its
-   *   access token; an account that needs a second factor gets the MFA challenge instead.
+   *   access token; an account that needs a second factor gets the MFA challenge instead, and an
+   *   account whose password must be changed gets 403 with no cookie and no session.
    * @param request - The login body: e-mail, password and an optional MFA token.
    * @param reply - The reply the session, the MFA challenge or the refusal is sent on.
    */
@@ -79,6 +80,7 @@ class AuthRouteHandler extends BaseRouteHandler {
         INVALID_CREDENTIALS: { code: 401, message: "Invalid email or password" },
         USER_INACTIVE: { code: 403, message: "Account is inactive" },
         INVALID_MFA_TOKEN: { code: 401, message: "Invalid MFA token or backup code" },
+        PASSWORD_CHANGE_REQUIRED: { code: 403, message: "Password change required" },
         DATABASE_ERROR: { code: 500, message: "Internal server error" },
       };
 

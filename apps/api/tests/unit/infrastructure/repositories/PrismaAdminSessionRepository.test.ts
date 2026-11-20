@@ -3,12 +3,21 @@
  * @description Unit tests for the Prisma adapter of the AdminSessionRepository
  *              port. The Prisma client is stubbed with vi-mocked adminSession
  *              methods to assert create payload (optional ipAddress/userAgent),
- *              refresh-token rotation, listing filters, and bulk revoke/delete.
+ *              refresh-token rotation, listing filters, and bulk revoke/delete,
+ *              and that the bulk revoke writes through the Unit of Work's
+ *              transaction client when one is open.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 
 vi.mock("@infra/prisma", () => ({ Prisma: {} }));
+
+/** A tenant provider that reports no context, so the Unit of Work binds no GUC. */
+const NO_TENANT: ConstructorParameters<typeof PrismaUnitOfWork>[1] = {
+  getTenantContext: () => undefined,
+  getSystemContext: () => undefined,
+};
 
 const { PrismaAdminSessionRepository } =
   await import("../../../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
@@ -113,5 +122,37 @@ describe("PrismaAdminSessionRepository", () => {
     const count = await repo.deleteAllForUser("u-1");
     expect(prisma.adminSession.deleteMany).toHaveBeenCalledWith({ where: { userId: "u-1" } });
     expect(count).toBe(2);
+  });
+});
+
+describe("PrismaAdminSessionRepository inside a unit of work", () => {
+  let base: MockPrisma & { $transaction: ReturnType<typeof vi.fn> };
+  let tx: MockPrisma;
+  let repo: InstanceType<typeof PrismaAdminSessionRepository>;
+
+  beforeEach(() => {
+    tx = makePrisma();
+    // Prisma hands an interactive transaction its own client: a call on `tx` ran inside it.
+    base = {
+      ...makePrisma(),
+      $transaction: vi.fn(async (work: (client: MockPrisma) => Promise<unknown>) => work(tx)),
+    };
+    repo = new PrismaAdminSessionRepository(base as never);
+  });
+
+  it("returns the count of the transaction's client, and writes nothing through the base client, when revokeAllForUser runs inside an open unit of work", async () => {
+    tx.adminSession.updateMany.mockResolvedValue({ count: 2 });
+    const uow = new PrismaUnitOfWork(base as never, NO_TENANT);
+
+    const count = await uow.executeInTransaction(() => repo.revokeAllForUser("u-1"));
+
+    expect(count).toBe(2);
+    expect(base.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.adminSession.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.adminSession.updateMany).toHaveBeenCalledWith({
+      where: { userId: "u-1", isActive: true },
+      data: { isActive: false, revokedAt: expect.any(Date) },
+    });
+    expect(base.adminSession.updateMany).not.toHaveBeenCalled();
   });
 });

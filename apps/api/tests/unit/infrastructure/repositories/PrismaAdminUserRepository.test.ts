@@ -6,11 +6,12 @@
  *              create/update) return objects with NO credential columns, while
  *              findCredentialsById/findCredentialsByEmail return them. Also pins
  *              the query that says whether any administrator exists, the
- *              `mustChangePassword` write of `create`, and that both run on
+ *              `mustChangePassword` write of `create`, the guarded
+ *              replacement of a single-use password, and that each runs on
  *              the Unit of Work's transaction client when one is open.
  * @layer infrastructure
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { RepositoryFailureError, REPOSITORY_FAILURE_CODE } from "@core/domain";
 
@@ -200,17 +201,21 @@ describe("PrismaAdminUserRepository credential separation", () => {
   });
 });
 
-/** The two delegate methods of `adminUser` that the existence query and `create` call. */
+/**
+ * The delegate methods of `adminUser` that the existence query, `create` and the guarded
+ * replacement of a single-use password call.
+ */
 interface AdminUserClientDouble {
   adminUser: {
     findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
 }
 
 /** A client double whose delegate methods record their calls and resolve nothing by default. */
 function makeAdminUserClient(): AdminUserClientDouble {
-  return { adminUser: { findFirst: vi.fn(), create: vi.fn() } };
+  return { adminUser: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() } };
 }
 
 /**
@@ -370,5 +375,104 @@ describe("PrismaAdminUserRepository create and mustChangePassword", () => {
       mustChangePassword: true,
     });
     expect(clients.base.adminUser.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
+  const CHANGED_AT = new Date("2026-11-20T01:30:00Z");
+  const REPLACEMENT = {
+    id: "u-1",
+    currentPasswordHash: "argon2-hash-as-read",
+    currentPasswordResetToken: "reset-token-hash-as-read",
+    passwordHash: "argon2-hash-of-the-new-password",
+  } as const;
+  let clients: ReturnType<typeof makeTransactionalClients>;
+  let repo: InstanceType<typeof PrismaAdminUserRepository>;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(CHANGED_AT);
+    clients = makeTransactionalClients();
+    repo = new PrismaAdminUserRepository(clients.base as never);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns true after one update guarded by the id, the hash and the reset token as read, the mark and no sign-in date, writing the hash and the change date and clearing the pending reset", async () => {
+    clients.base.adminUser.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await repo.replaceSingleUsePassword(REPLACEMENT);
+
+    expect(result).toEqual({ ok: true, value: true });
+    expect(clients.base.adminUser.updateMany).toHaveBeenCalledTimes(1);
+    expect(clients.base.adminUser.updateMany.mock.calls[0]).toStrictEqual([
+      {
+        where: {
+          id: "u-1",
+          passwordHash: "argon2-hash-as-read",
+          passwordResetToken: "reset-token-hash-as-read",
+          mustChangePassword: true,
+          lastLoginAt: null,
+        },
+        data: {
+          passwordHash: "argon2-hash-of-the-new-password",
+          passwordChangedAt: CHANGED_AT,
+          passwordResetToken: null,
+          passwordResetExpires: null,
+        },
+      },
+    ]);
+  });
+
+  it("guards on an empty reset token when none was read", async () => {
+    clients.base.adminUser.updateMany.mockResolvedValue({ count: 1 });
+
+    await repo.replaceSingleUsePassword({ ...REPLACEMENT, currentPasswordResetToken: null });
+
+    expect(clients.base.adminUser.updateMany.mock.calls[0]?.[0]?.where).toStrictEqual({
+      id: "u-1",
+      passwordHash: "argon2-hash-as-read",
+      passwordResetToken: null,
+      mustChangePassword: true,
+      lastLoginAt: null,
+    });
+  });
+
+  it("returns false when the guard matches no row", async () => {
+    clients.base.adminUser.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await repo.replaceSingleUsePassword(REPLACEMENT);
+
+    expect(result).toEqual({ ok: true, value: false });
+    expect(clients.base.adminUser.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the answer of the transaction's client when called inside an open unit of work", async () => {
+    clients.tx.adminUser.updateMany.mockResolvedValue({ count: 1 });
+    const uow = new PrismaUnitOfWork(clients.base as never, NO_TENANT);
+
+    const result = await uow.executeInTransaction(() => repo.replaceSingleUsePassword(REPLACEMENT));
+
+    expect(result).toEqual({ ok: true, value: true });
+    expect(clients.tx.adminUser.updateMany).toHaveBeenCalledTimes(1);
+    expect(clients.base.adminUser.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("returns a RepositoryFailureError whose cause is the client's own error when the client fails", async () => {
+    const raised = Object.assign(new Error("Can't reach database server at db:5432"), {
+      code: "P1001",
+    });
+    clients.base.adminUser.updateMany.mockRejectedValue(raised);
+
+    const result = await repo.replaceSingleUsePassword(REPLACEMENT);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBeInstanceOf(RepositoryFailureError);
+    expect(result.error.code).toBe(REPOSITORY_FAILURE_CODE);
+    expect(result.error.cause).toBe(raised);
+    expect(result.error.message).toBe("Replacing an admin user's single-use password failed");
   });
 });

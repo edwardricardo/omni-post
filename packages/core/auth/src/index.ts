@@ -15,5 +15,12 @@ export {
   type CreateFirstAdministratorInput,
   type CreateFirstAdministratorOutput,
   type FirstAdministratorRepository,
-  type SingleUsePasswordHasher,
 } from "./CreateFirstAdministratorUseCase.js";
+export {
+  ReissueAdministratorPasswordUseCase,
+  type ReissueAdministratorPasswordInput,
+  type ReissueAdministratorPasswordOutput,
+  type ReissueAdministratorRepository,
+  type ReissueSessionRepository,
+} from "./ReissueAdministratorPasswordUseCase.js";
+export type { SingleUsePasswordHasher, SystemAuditLog } from "./singleUsePassword.js";

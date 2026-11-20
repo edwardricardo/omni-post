@@ -33,11 +33,14 @@ import type { AuthErrorCode, DeviceFingerprint } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
-/** The sign-in's route pattern, which also names the rate-limit bucket the sign-in's checks spend. */
+/**
+ * The sign-in's route pattern, which also names the rate-limit bucket that every route running the
+ * sign-in's checks spends, the sign-in included, whatever prefix the routes are registered under.
+ */
 const SIGN_IN_ROUTE = "/admin/auth/login";
 
-/** The statuses the sign-in answers for the codes of its checks; any other code is a 500. */
-const SIGN_IN_STATUS: Partial<Record<AuthErrorCode, number>> = {
+/** The statuses of the sign-in's checks, which every route that runs them answers alike. */
+const SIGN_IN_CHECK_STATUS: Partial<Record<AuthErrorCode, number>> = {
   INVALID_CREDENTIALS: 401,
   ACCOUNT_LOCKED: 403,
   ACCOUNT_INACTIVE: 403,
@@ -45,12 +48,21 @@ const SIGN_IN_STATUS: Partial<Record<AuthErrorCode, number>> = {
 };
 
 /**
- * The required password change runs the sign-in's checks, so it answers their codes alike, except
- * two: a missing second factor is an error here, since nothing changed, and the brute-force
- * gate's refusal is a 429.
+ * The sign-in answers its checks' codes, and a password that must be changed with 403: the
+ * credentials verified and the server refuses to open a session. Any other code is a 500.
+ */
+const SIGN_IN_STATUS: Partial<Record<AuthErrorCode, number>> = {
+  ...SIGN_IN_CHECK_STATUS,
+  PASSWORD_CHANGE_REQUIRED: 403,
+};
+
+/**
+ * The required password change runs the sign-in's checks, so it answers their codes alike, and
+ * adds two of its own: a missing second factor is an error here, since nothing changed, and the
+ * brute-force gate's refusal is a 429.
  */
 const REQUIRED_PASSWORD_CHANGE_STATUS: Partial<Record<AuthErrorCode, number>> = {
-  ...SIGN_IN_STATUS,
+  ...SIGN_IN_CHECK_STATUS,
   MFA_REQUIRED: 401,
   RATE_LIMIT_EXCEEDED: 429,
   PASSWORD_CHANGE_NOT_REQUIRED: 409,
@@ -107,7 +119,8 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method login
    * @description POST /admin/auth/login. Signs an administrator in with the e-mail and the
-   *   password; a missing second factor is answered as a success that asks for it.
+   *   password; a missing second factor is answered as a success that asks for it, and a password
+   *   that must be changed with 403 and no session.
    * @param request - The request, whose body carries the credentials
    * @param reply - The reply the outcome is sent on
    */
@@ -651,7 +664,7 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     SIGN_IN_ROUTE,
     {
-      preHandler: [rateLimit(loginRateMax, 60000)], // 15 req/min production, 100 in test
+      preHandler: [rateLimit(loginRateMax, 60000, SIGN_IN_ROUTE)], // 15 req/min production, 100 in test
       schema: { tags: ["Admin Auth"], summary: "Admin login" },
     },
     async (request, reply) => handler.login(request, reply)

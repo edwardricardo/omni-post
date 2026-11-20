@@ -2,9 +2,10 @@
  * @file firstAdministratorCommand.test.ts
  * @description Unit tests for `runFirstAdministratorCommand`, the function the first-administrator
  *   command's entry runs, with its streams and its composition replaced by doubles. They pin the
- *   argument table, `--help`, the refusal when standard output is not a terminal, the success
- *   block (the single-use password exactly once on standard output and never on standard error),
- *   every refusal and failure, and the exit codes; and that standard error never carries a cause's
+ *   argument table, `--help`, the refusal when standard output is not a terminal, the block of a
+ *   creation and of a re-issue (`--reissue`), each with the single-use password exactly once on
+ *   standard output and never on standard error, every refusal and failure of both modes, and
+ *   the exit codes; and that standard error never carries a cause's
  *   message, so nothing of the input, no hash and no password reaches it even when a cause holds
  *   them. The composition is loaded only once the arguments and the terminal are right.
  * @layer infrastructure
@@ -13,7 +14,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { err, ok, type Result } from "@shared/types";
 import { USE_CASE_ERRORS, UseCaseError } from "@core/application/UseCase.js";
 import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
-import type { CreateFirstAdministratorOutput } from "@core/auth";
+import type {
+  CreateFirstAdministratorOutput,
+  ReissueAdministratorPasswordOutput,
+} from "@core/auth";
 import {
   runFirstAdministratorCommand,
   type FirstAdministratorCommand,
@@ -24,13 +28,23 @@ const OPERATOR_EMAIL = "  First.Admin@Example.COM ";
 const STORED_EMAIL = "first.admin@example.com";
 const PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$Zml4dHVyZQ$Zml4dHVyZS1oYXNo";
 
-const USAGE = "Usage: create-first-admin --email <address>\nRun it with --help for what it does.\n";
+const USAGE =
+  "Usage: create-first-admin --email <address> [--reissue]\nRun it with --help for what it does.\n";
 
 const REASONS = {
   missing: "The e-mail of the administrator to create is required.",
-  value: "--email takes the administrator's address as its value, and --help takes none.",
-  unknown: "This command takes only --email <address> and --help.",
+  missingForReissue: "The e-mail of the administrator whose password to re-issue is required.",
+  value:
+    "--email takes the administrator's address as its value, and --reissue and --help take none.",
+  unknown: "This command takes only --email <address>, --reissue and --help.",
   repeated: "--email is given more than once.",
+} as const;
+
+const NO_ANSWER = {
+  create:
+    "Failed: creating the first administrator stopped without an answer, so whether it was created is not known: check whether an administrator exists before running it again, and when one exists whose password nobody saw, run this command with --reissue and the same --email.\n",
+  reissue:
+    "Failed: re-issuing the single-use password stopped without an answer, so whether it was replaced is not known: run this command again with --reissue and the same --email.\n",
 } as const;
 
 const TERMINAL_REFUSAL =
@@ -65,6 +79,26 @@ function successBlock(password: string): string {
   ].join("\n");
 }
 
+/** What the re-issue returns when it replaces the password. */
+function makeReissued(): ReissueAdministratorPasswordOutput {
+  return { id: "admin-uuid-001", email: STORED_EMAIL, password: makeSingleUsePassword() };
+}
+
+/** The block the command writes when it re-issues the password, line by line. */
+function reissuedBlock(password: string): string {
+  return [
+    "A new single-use password was issued.",
+    "",
+    `  E-mail:              ${STORED_EMAIL}`,
+    `  Single-use password: ${password}`,
+    "",
+    "The password is shown this once and is stored nowhere: only its hash is kept.",
+    "The previous single-use password no longer works, and every session of this administrator was ended.",
+    "Sign in with it now and change it at once.",
+    "",
+  ].join("\n");
+}
+
 /** A stream double that records what is written to it. */
 function makeStream(isTTY?: boolean) {
   const chunks: string[] = [];
@@ -84,10 +118,31 @@ function makeCommand(
   closeOutcome: () => Promise<void> = async () => undefined
 ) {
   const execute = vi.fn(outcome);
+  const reissue = vi.fn(async () => ok(makeReissued()));
   const close = vi.fn(closeOutcome);
-  const command: FirstAdministratorCommand = { createFirstAdministrator: { execute }, close };
+  const command: FirstAdministratorCommand = {
+    createFirstAdministrator: { execute },
+    reissueAdministratorPassword: { execute: reissue },
+    close,
+  };
   const load = vi.fn(async () => command);
-  return { execute, close, load };
+  return { execute, reissue, close, load };
+}
+
+/** The composition double of a re-issue: its use case answers `outcome`, the creation is not run. */
+function makeReissueCommand(
+  outcome: () => Promise<Result<ReissueAdministratorPasswordOutput, UseCaseError>>
+) {
+  const create = vi.fn(async () => ok(makeCreated()));
+  const execute = vi.fn(outcome);
+  const close = vi.fn(async () => undefined);
+  const command: FirstAdministratorCommand = {
+    createFirstAdministrator: { execute: create },
+    reissueAdministratorPassword: { execute },
+    close,
+  };
+  const load = vi.fn(async () => command);
+  return { create, execute, close, load };
 }
 
 /** A failure of the store whose messages carry the input, the hash and the password. */
@@ -146,6 +201,15 @@ describe("runFirstAdministratorCommand", () => {
         args: ["--email", OPERATOR_EMAIL, "--email", "other@example.com"],
         reason: REASONS.repeated,
       },
+      { args: ["--reissue"], reason: REASONS.missingForReissue },
+      { args: ["--reissue", "--email", ""], reason: REASONS.value },
+      { args: ["--reissue=yes", "--email", OPERATOR_EMAIL], reason: REASONS.value },
+      { args: ["--no-reissue", "--email", OPERATOR_EMAIL], reason: REASONS.unknown },
+      { args: ["--reissue", "--email", OPERATOR_EMAIL, "extra"], reason: REASONS.unknown },
+      {
+        args: ["--reissue", "--email", OPERATOR_EMAIL, "--email", "other@example.com"],
+        reason: REASONS.repeated,
+      },
     ])(
       "refuses with exit code 2, the reason and the usage, echoing no argument, when given $args",
       async ({ args, reason }) => {
@@ -159,7 +223,11 @@ describe("runFirstAdministratorCommand", () => {
       }
     );
 
-    it.each([[["--help"]], [["--email", OPERATOR_EMAIL, "--help"]]])(
+    it.each([
+      [["--help"]],
+      [["--email", OPERATOR_EMAIL, "--help"]],
+      [["--reissue", "--email", OPERATOR_EMAIL, "--help"]],
+    ])(
       "returns 0 and writes the help on standard output, loading nothing, when given %j",
       async (args) => {
         const { load } = makeCommand(async () => ok(makeCreated()));
@@ -172,18 +240,22 @@ describe("runFirstAdministratorCommand", () => {
         expect(stderr.text()).toBe("");
         const help = stdout.text();
         for (const line of [
-          "Usage: create-first-admin --email <address>",
+          "Usage: create-first-admin --email <address> [--reissue]",
           "Creates the first administrator of a database that has none",
           "is marked to change that password (mustChangePassword): sign in with\nit and change it at once.",
-          "It runs once: once an administrator exists, every later run is refused.",
-          "--email <address>  The e-mail of the administrator to create, its only input.",
+          "Without --reissue it creates an administrator once: once an administrator exists, every\nlater run without --reissue is refused.",
+          "With --reissue it prints a new single-use password for the administrator with that e-mail",
+          "has never signed in and is still marked to change the password",
+          "--email <address>  The e-mail of the administrator to create, or whose single-use password\n                     to re-issue.",
+          "--reissue          Re-issues the single-use password instead of creating an administrator.",
           "Its standard output must be an interactive terminal",
-          "0  The administrator was created.",
-          "1  Refused (an administrator exists, or the administration role is held) or failed.",
+          "0  The administrator was created, or its single-use password was re-issued.",
+          "1  Refused (an administrator exists, or the administration role is held; with --reissue, no\n     administrator has the e-mail, it has signed in, or it is not marked) or failed.",
           "2  The arguments are wrong, the sign-in refuses the e-mail, or standard output is not a terminal.",
         ]) {
           expect(help).toContain(line);
         }
+        expect(help).not.toContain("It runs once");
         expect(load).not.toHaveBeenCalled();
       }
     );
@@ -211,6 +283,129 @@ describe("runFirstAdministratorCommand", () => {
         expect(load).not.toHaveBeenCalled();
       }
     );
+
+    it.each([{ isTTY: false }, { isTTY: undefined }])(
+      "refuses a re-issue with exit code 2, loading nothing, when standard output's isTTY is $isTTY",
+      async ({ isTTY }) => {
+        const { load } = makeReissueCommand(async () => ok(makeReissued()));
+        const stdout = makeStream(isTTY);
+        const stderr = makeStream();
+
+        const code = await runFirstAdministratorCommand(
+          ["--reissue", "--email", OPERATOR_EMAIL],
+          { stdout, stderr },
+          load
+        );
+
+        expect({ code, stdout: stdout.text(), stderr: stderr.text() }).toEqual({
+          code: 2,
+          stdout: "",
+          stderr: TERMINAL_REFUSAL,
+        });
+        expect(load).not.toHaveBeenCalled();
+      }
+    );
+  });
+
+  describe("re-issuing the single-use password", () => {
+    it("returns 0 and writes the re-issue's block with the password exactly once on standard output and nothing on standard error", async () => {
+      const { load, create, execute, close } = makeReissueCommand(async () => ok(makeReissued()));
+
+      const run = await runInTerminal(["--reissue", "--email", OPERATOR_EMAIL], load);
+
+      expect(run).toEqual({ code: 0, stdout: reissuedBlock(makeSingleUsePassword()), stderr: "" });
+      expect(occurrences(run.stdout, makeSingleUsePassword())).toBe(1);
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(execute).toHaveBeenCalledWith({ email: OPERATOR_EMAIL });
+      expect(create).not.toHaveBeenCalled();
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it("re-issues when --reissue follows the e-mail", async () => {
+      const { load, create, execute } = makeReissueCommand(async () => ok(makeReissued()));
+
+      const run = await runInTerminal(["--email", OPERATOR_EMAIL, "--reissue"], load);
+
+      expect(run.code).toBe(0);
+      expect(execute).toHaveBeenCalledWith({ email: OPERATOR_EMAIL });
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it("runs the creation and not the re-issue when --reissue is not given", async () => {
+      const { load, execute, reissue } = makeCommand(async () => ok(makeCreated()));
+
+      await runInTerminal(["--email", OPERATOR_EMAIL], load);
+
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(reissue).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        code: USE_CASE_ERRORS.NOT_FOUND,
+        message: "No administrator has this e-mail: there is no single-use password to re-issue",
+      },
+      {
+        code: USE_CASE_ERRORS.CONFLICT,
+        message:
+          "This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued",
+      },
+      {
+        code: USE_CASE_ERRORS.CONFLICT,
+        message:
+          "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
+      },
+    ])(
+      "returns 1 and writes only the use case's message on standard error when the re-issue is refused with $code: $message",
+      async ({ code, message }) => {
+        const refusal = new UseCaseError(message, code, makeLeakyStoreFailure());
+        const { load, close } = makeReissueCommand(async () => err(refusal));
+
+        const run = await runInTerminal(["--reissue", "--email", OPERATOR_EMAIL], load);
+
+        expect(run).toEqual({ code: 1, stdout: "", stderr: `Refused: ${message}\n` });
+        expect(close).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it("returns 1 and writes the message and each cause's class and code, never a cause's message, when the re-issue fails", async () => {
+      const failure = new UseCaseError(
+        "Replacing the single-use password failed",
+        USE_CASE_ERRORS.INTERNAL_ERROR,
+        new RepositoryFailureError("Replacing failed", makeLeakyStoreFailure())
+      );
+      const { load } = makeReissueCommand(async () => err(failure));
+
+      const run = await runInTerminal(["--reissue", "--email", OPERATOR_EMAIL], load);
+
+      expect(run).toEqual({
+        code: 1,
+        stdout: "",
+        stderr: [
+          "Failed: Replacing the single-use password failed",
+          "Cause: RepositoryFailureError, code REPOSITORY_FAILURE",
+          "Cause: Error, code P2010",
+          "",
+        ].join("\n"),
+      });
+      expectNothingSecret(run.stderr);
+    });
+
+    it("returns 1, closes the connection and tells the operator to run the re-issue again when the re-issue rejects", async () => {
+      const { load, close } = makeReissueCommand(async () => {
+        throw makeLeakyStoreFailure();
+      });
+
+      const run = await runInTerminal(["--reissue", "--email", OPERATOR_EMAIL], load);
+
+      expect(run).toEqual({
+        code: 1,
+        stdout: "",
+        stderr: `${NO_ANSWER.reissue}Cause: Error, code P2010\n`,
+      });
+      expectNothingSecret(run.stderr);
+      expect(close).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("on success", () => {
@@ -316,6 +511,23 @@ describe("runFirstAdministratorCommand", () => {
       expect(close).toHaveBeenCalledTimes(1);
     });
 
+    it("returns 1 and reports NOT_FOUND from the creation as a failure with its causes, not as a refusal", async () => {
+      const failure = new UseCaseError(
+        "Reading the administration role failed",
+        USE_CASE_ERRORS.NOT_FOUND,
+        makeLeakyStoreFailure()
+      );
+      const { load } = makeCommand(async () => err(failure));
+
+      const run = await runInTerminal(["--email", OPERATOR_EMAIL], load);
+
+      expect(run).toEqual({
+        code: 1,
+        stdout: "",
+        stderr: "Failed: Reading the administration role failed\nCause: Error, code P2010\n",
+      });
+    });
+
     it("writes a cause's class without its code when the code is not an upper-case identifier", async () => {
       const cause = Object.assign(new TypeError(`bad ${OPERATOR_EMAIL}`), { code: OPERATOR_EMAIL });
       const failure = new UseCaseError(
@@ -360,8 +572,7 @@ describe("runFirstAdministratorCommand", () => {
       expect(run).toEqual({
         code: 1,
         stdout: "",
-        stderr:
-          "Failed: creating the first administrator stopped without an answer, so whether it was created is not known: check whether an administrator exists before running it again.\nCause: Error, code P2010\n",
+        stderr: `${NO_ANSWER.create}Cause: Error, code P2010\n`,
       });
       expectNothingSecret(run.stderr);
       expect(close).toHaveBeenCalledTimes(1);
