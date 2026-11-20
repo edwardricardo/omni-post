@@ -86,10 +86,13 @@ export const SuspendedDuringTrial: Story = {
       trial: { isOnTrial: true, trialDaysRemaining: 12, trialExpired: false },
     }),
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     const badge = canvas.getByText("Suspended");
     await expect(badge).toBeVisible();
     await expect(getComputedStyle(badge).color).toBe(tokenColor(badge, "--error"));
-    await expect(canvas.queryByText("Trial (12d)")).toBeNull();
+    // Suspension wins over the trial: the badge is the only element carrying text and the
+    // story's whole text is its label, so no trial label sits beside it, whatever its wording.
+    await expect(canvas.getAllByText(/\S/)).toEqual([badge]);
+    await expect(canvasElement.textContent).toBe("Suspended");
   },
 };

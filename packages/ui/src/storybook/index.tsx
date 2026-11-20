@@ -17,6 +17,23 @@ const STORY_THEMES = ["light", "dark"] as const;
 /** A theme a story renders in. */
 export type StoryTheme = (typeof STORY_THEMES)[number];
 
+/** How the theme toolbar labels a theme. */
+interface ThemeToolbarLabel {
+  /** The item's text in the toolbar. */
+  title: string;
+  /** The Storybook icon beside it. */
+  icon: string;
+}
+
+/**
+ * Keyed by the theme type, so a theme added to the list without its label does not compile. Each
+ * icon keeps its literal type, the only form Storybook's toolbar accepts as an icon name.
+ */
+const THEME_TOOLBAR_LABELS = {
+  light: { title: "Light", icon: "sun" },
+  dark: { title: "Dark", icon: "moon" },
+} as const satisfies Readonly<Record<StoryTheme, ThemeToolbarLabel>>;
+
 /** A message catalog, the shape next-intl reads, restated so this module needs no next-intl. */
 export interface StoryMessages {
   [key: string]: StoryMessages | string;
@@ -147,10 +164,7 @@ export function createStoryPreview<TLocale extends string>(
         toolbar: {
           title: "Theme",
           icon: "paintbrush",
-          items: [
-            { value: "light", title: "Light", icon: "sun" },
-            { value: "dark", title: "Dark", icon: "moon" },
-          ],
+          items: STORY_THEMES.map((value) => ({ value, ...THEME_TOOLBAR_LABELS[value] })),
           dynamicTitle: true,
         },
       },
