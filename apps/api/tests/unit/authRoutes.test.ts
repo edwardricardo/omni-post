@@ -274,8 +274,8 @@ describe("authRoutes Integration Tests", () => {
           },
           ipAddress: "127.0.0.1",
           userAgent: "fixture-route-agent/1.0",
-          success: true,
-          error: null,
+          success: false,
+          error: "PASSWORD_CHANGE_REQUIRED",
           createdAt: expect.any(Date),
         },
       ]);

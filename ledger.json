@@ -27,7 +27,7 @@
       "total": 1225
     },
     "blocks": {
-      "total": 15302,
+      "total": 15303,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14991
+        "BEHAVIOURAL": 14992
       }
     },
     "deleted": {
@@ -3909,7 +3909,7 @@
           "line": 364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "cacdc26289f6c1f77ada377351f4cf0675aca8571bad11b341a65d927c79eb7b"
+          "bodyHash": "d8355a77b23f05ea1c13fa66dda26c2e8d5698f1d13ca233252d0adc3e1d52de"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::signs in at both sign-ins with the new password once it is changed, opening a session at each and setting lastLoginAt, and refuses the single-use one",
@@ -12612,7 +12612,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 20,
+      "blockCount": 21,
       "blocks": [
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::persists the entry through the port with category/severity folded into details",
@@ -12622,134 +12622,141 @@
           "bodyHash": "54aa2b9d30ffbf45aa42b4e0395596ff10bcdf1537e040430a9ccdd005e0ca07"
         },
         {
-          "id": "apps/api/tests/unit/AuditableService.test.ts::omits optional fields when undefined and includes them when provided",
+          "id": "apps/api/tests/unit/AuditableService.test.ts::stores a refused action as failed, with its code, when the entry names a failure",
           "line": 121,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c7f798e7b90a108353310e2a232322a0c46a14f173e13e1aaebbfe0e2817e20e"
+        },
+        {
+          "id": "apps/api/tests/unit/AuditableService.test.ts::omits optional fields when undefined and includes them when provided",
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38dd076cce24df72134b6e0bf0d7f92df7096c21bf881ddea18104da6bff9010"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::preserves complex nested details verbatim",
-          "line": 141,
+          "line": 155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eec17f4397035dc6975213527ebd3be811b97d244dbaafd1f68cdd1e43ef03bb"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::records the acting user for an account-level action",
-          "line": 158,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7410b49a09139d5d07f2c46ad4b4ad83cdf5b4bec4c2b750059253e2c510741"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::persists accountId on the row for searchability",
-          "line": 175,
+          "line": 189,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aedcd85a7cac1e402ea799f981aed34cd93a5a9674735b1dff799bebf4ddc827"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::maps resourceType to the resource column with resourceId",
-          "line": 188,
+          "line": 202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "475bb3104d3635f6d30c723bd6258ae0fe2835f27f1eb78546c39168dbed436f"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::writes a system action with null actor FKs and actorType SYSTEM",
-          "line": 207,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af2ea4644413bec0a46b76b39e5c52dc8a44b456ae86fd42014c13d8cfb723dc"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::persists accountId on system action rows",
-          "line": 228,
+          "line": 242,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66939c817636fec2b6b6301298a9fe388bc1adcf33961050905ae6294efad181"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::ADMIN actor → userId set, customerUserId null, actorType ADMIN",
-          "line": 242,
+          "line": 256,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87da34ffc6d6ecf5de1e1092ebee784380ea84b45902d0e05d2f7e44eba0d6ae"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::CUSTOMER actor → customerUserId set, userId null, actorType CUSTOMER, accountId carried",
-          "line": 253,
+          "line": 267,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d3805d69bfa12f3708901ff29521441b4f6561c95a3794302180486f135891e1"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::CUSTOMER actor without an explicit entry accountId falls back to the actor's accountId",
-          "line": 266,
+          "line": 280,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "685bd5a91f37f65c04c76965171b45e2c0b5a7a8ef8ddee54bc6956c94d665cd"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::CUSTOMER actor with a differing entry accountId → the entry accountId wins",
-          "line": 277,
+          "line": 291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c82283a978db76a9948e54c923151d044b5f277532c49fd8c3d8e12123756f13"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::SYSTEM actor → both FKs null, actorType SYSTEM",
-          "line": 292,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b8f4c0696faef07fad0b9aa5b974a6c18aec53bcb180d48b5e0abc77aa86c639"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::admin write produces a create-input byte-identical to pre-change plus additive actorType",
-          "line": 305,
+          "line": 319,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fda2d6b2346e00e0f6ad507a22a62fc33bc38c4b1392aad4bd3f3d2063b4141d"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::returns the operation result and logs a success entry with operation metadata",
-          "line": 340,
+          "line": 354,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6360329e137467d6f9ff94fa5a854f773ae1a82b65b5dc829e96bddee24d86ee"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::rethrows on failure and logs a HIGH-severity failure entry",
-          "line": 360,
+          "line": 374,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "43da95dbf866b4482759861f827e60f6f8f675123c3ac9fa77b27e5f2de41d68"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::delegates getUserAuditLogs to the port's findByUser",
-          "line": 382,
+          "line": 396,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ad50778aee754ce77c4f9a4befd6716c7ba1141ae6c8752a395605911a3cc44e"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::delegates getAccountAuditLogs to the port's findByAccount (customer-scoped query)",
-          "line": 391,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "097d398db6951c444d5b734cfc42647801e281cde1510bcbe2ffa31f9f37777d"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::delegates getResourceAuditLogs to the port's findByResource",
-          "line": 410,
+          "line": 424,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "315fa5e6f1645fc754c3eaf54a23746d71a5bd980c1bb96e8c14461079f1dfb2"
         },
         {
           "id": "apps/api/tests/unit/AuditableService.test.ts::does not throw when the audit write fails (audit must not break the caller)",
-          "line": 425,
+          "line": 439,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9fc7ee15d031c52e905f4af53599451e8e866f1a21e45a429e8767b735b60e4"
@@ -34817,7 +34824,7 @@
           "line": 234,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "c453dfdcbb464f0e3c80eb48f2c864e0795d4de3521dc1b7b4eeca88a12571d9"
+          "bodyHash": "a25830f1f0ebd0f7ed8516ab2b84858c159b8018cddc959fd377d30a0c7d14df"
         },
         {
           "id": "apps/api/tests/unit/authRoutes.test.ts::should refresh with valid cookie",
@@ -35006,7 +35013,7 @@
           "line": 269,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f6276807464145702932e2aec940ed5cf4aafc2f01d9d2857c9f00e00851802b"
+          "bodyHash": "23520f4fe398348f7e2b064f493af2104f5401f46af327a157effce8343ce320"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::answers a wrong password with INVALID_CREDENTIALS for an administrator who must change the password",

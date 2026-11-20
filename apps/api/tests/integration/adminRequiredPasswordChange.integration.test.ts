@@ -387,8 +387,8 @@ describe("The required password change on a migrated database", { concurrency: 1
             action: "USER_LOGIN",
             actorType: "ADMIN",
             resource: null,
-            success: true,
-            error: null,
+            success: false,
+            error: "PASSWORD_CHANGE_REQUIRED",
             ipAddress: "127.0.0.1",
             userAgent: USER_AGENT,
             details: {

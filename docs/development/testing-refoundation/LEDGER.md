@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1215  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15302 |
+| Blocks                  | 15303 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -495,7 +495,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/testUtils.ts`                                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/trialPeriod.integration.test.ts`                                                      | integration-test | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/AnalyticsAggregator.test.ts`                                                     | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/AuditableService.test.ts`                                                        | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/AuditableService.test.ts`                                                        | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/BaseService.test.ts`                                                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/CQRSBus.registration.test.ts`                                                    | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/CQRSBus.test-helpers.ts`                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |

@@ -298,8 +298,8 @@ describe("AuthService", () => {
           },
           ipAddress: "192.168.1.100",
           userAgent: "Mozilla/5.0 Test",
-          success: true,
-          error: null,
+          success: false,
+          error: "PASSWORD_CHANGE_REQUIRED",
           createdAt: expect.any(Date),
         },
       ]);

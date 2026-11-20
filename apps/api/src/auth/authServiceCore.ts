@@ -334,6 +334,7 @@ export class AuthServiceCore extends AuditableService {
           },
           ipAddress: sessionFingerprint.ipAddress,
           userAgent: sessionFingerprint.userAgent,
+          failure: "PASSWORD_CHANGE_REQUIRED",
         });
         return err("PASSWORD_CHANGE_REQUIRED");
       }
