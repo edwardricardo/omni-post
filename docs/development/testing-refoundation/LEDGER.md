@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1261  |
+| Files                   | 1263  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1092  |
-| ADJUDICATE              | 96    |
+| KEEP                    | 1093  |
+| ADJUDICATE              | 97    |
 | unmeasured              | 0     |
-| Machine rows            | 1249  |
+| Machine rows            | 1251  |
 | Confirmed rows          | 12    |
-| Blocks                  | 15635 |
+| Blocks                  | 15660 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -357,6 +357,7 @@ Deleted: 0 files, 31 blocks.
 
 | Path                                                                                                  | Shape            | Blocks | Decorative | Verdict    | Status                          | Basis                |
 | ----------------------------------------------------------------------------------------------------- | ---------------- | ------ | ---------- | ---------- | ------------------------------- | -------------------- |
+| `apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts`                              | spec             | 1      | 0          | ADJUDICATE | machine                         | opaque               |
 | `apps/admin/lib/http/__tests__/forwardedFor.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/admin/lib/stores/__tests__/notificationStore.test.ts`                                           | test             | 12     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/admin/tests/e2e/a11y.spec.ts`                                                                   | spec             | 1      | 0          | ADJUDICATE | machine                         | opaque               |
@@ -464,6 +465,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts`                            | integration-test | 12     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/projectAccountScope.integration.test.ts`                                  | integration-test | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/projectMemberTenantIsolation.integration.test.ts`                         | integration-test | 7      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts`                                 | integration-test | 7      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/publishWorkerTenantIsolation.integration.test.ts`                         | integration-test | 9      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/publishing/failedWrite.smoke.integration.test.ts`                         | integration-test | 2      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts`                         | integration-test | 14     | 0          | KEEP       | machine                         | behavioural          |
@@ -1003,7 +1005,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planClosureGate.test.ts`                                                 | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 159    | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 176    | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
