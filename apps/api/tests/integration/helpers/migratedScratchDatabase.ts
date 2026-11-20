@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { until } from "@packages/vitest-shared/determinism";
@@ -20,6 +20,97 @@ const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url
 
 /** Long enough for every migration on a loaded runner; a hung migration still ends the suite. */
 const MIGRATION_TIMEOUT_MS = 120_000;
+
+/** How a process run by `runInOwnProcessGroup` ended, and what it wrote. */
+export interface ProcessOutcome {
+  /** The exit code; `null` when a signal ended the process or it never started. */
+  readonly status: number | null;
+  /** The signal that ended the process, or `null`. */
+  readonly signal: NodeJS.Signals | null;
+  /** Why the process did not run to its end: it never started, or it outlived its limit. */
+  readonly error?: Error;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/** Where, with what environment and for how long `runInOwnProcessGroup` runs a process. */
+export interface ProcessGroupOptions {
+  readonly cwd: string;
+  readonly env: NodeJS.ProcessEnv;
+  readonly timeoutMs: number;
+}
+
+/**
+ * Ends every process of the group `pid` leads. A group is named by its leader's negative pid, and
+ * `kill(-0)` names this process's own group while `kill(-1)` names every process it may signal, so
+ * a pid that is missing or not above 1 ends nothing. A group that already ended is not an error.
+ */
+function endProcessGroup(pid: number | undefined): void {
+  if (pid === undefined || !Number.isInteger(pid) || pid <= 1) return;
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch (error: unknown) {
+    const code = error instanceof Error && "code" in error ? error.code : undefined;
+    if (code !== "ESRCH") throw error;
+  }
+}
+
+/**
+ * @function runInOwnProcessGroup
+ * @description Runs a command as the leader of a process group of its own, without blocking the
+ *   event loop, so the hook or test that waits for it keeps its own timeout. When the command
+ *   outlives `timeoutMs`, the whole group ends, the processes it started included, and the outcome
+ *   carries an error that names the limit. The outcome is resolved once the process has ended and
+ *   every holder of its output has closed it.
+ * @param command - The program to run
+ * @param args - Its arguments
+ * @param options - The working directory, the environment and the limit in milliseconds
+ * @returns How the process ended and what it wrote to its two streams; it never rejects
+ */
+export function runInOwnProcessGroup(
+  command: string,
+  args: readonly string[],
+  options: ProcessGroupOptions
+): Promise<ProcessOutcome> {
+  return new Promise((resolve) => {
+    const child = spawn(command, [...args], {
+      cwd: options.cwd,
+      env: options.env,
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    let failure: Error | undefined;
+    let settled = false;
+    const timer = setTimeout(() => {
+      failure = new Error(
+        `${command} outlived its limit of ${String(options.timeoutMs)} ms, so its process group was ended`
+      );
+      endProcessGroup(child.pid);
+    }, options.timeoutMs);
+    const settle = (status: number | null, signal: NodeJS.Signals | null): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ status, signal, ...(failure !== undefined && { error: failure }), stdout, stderr });
+    };
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", (error: Error) => {
+      failure = error;
+      // A process that never started has no group to wait for.
+      if (child.pid === undefined) settle(null, null);
+    });
+    child.on("close", (status, signal) => settle(status, signal));
+  });
+}
 
 /** A migrated database of a suite's own, with the owner connection that created it. */
 export interface MigratedScratchDatabase {
@@ -49,7 +140,8 @@ function urlOfDatabase(ownerUrl: string, database: string): string {
 /**
  * @function createMigratedScratchDatabase
  * @description Creates an empty database named after `prefix` and a random suffix on the owner
- *   channel's server, and applies every migration to it. The migration's failure is not thrown:
+ *   channel's server, and applies every migration to it in a process group of its own, which ends
+ *   whole when the migration outlives its limit. The migration's failure is not thrown:
  *   `assertMigrated` reports it.
  * @param prefix - The start of the database's name, which names the suite that owns it
  * @returns The database, its URL, the owner client and the migration's verdict
@@ -62,7 +154,7 @@ export async function createMigratedScratchDatabase(
   const name = `${prefix}_${randomBytes(6).toString("hex")}`;
   await owner.$executeRawUnsafe(`CREATE DATABASE "${name}"`);
   const url = urlOfDatabase(ownerUrl, name);
-  const migration: SpawnSyncReturns<string> = spawnSync(
+  const migration = await runInOwnProcessGroup(
     "pnpm",
     ["--filter", "@infra/prisma", "run", "migrate"],
     {
@@ -71,12 +163,12 @@ export async function createMigratedScratchDatabase(
         ...process.env,
         MIGRATE_DATABASE_URL: url,
         // Prisma refuses an empty shadow URL, and one that names the database it migrates,
-        // although applying migrations never opens the shadow database.
+        // although applying migrations never opens the shadow database. A caller that exports
+        // none gets the name of a database nobody creates.
         SHADOW_DATABASE_URL:
           process.env.SHADOW_DATABASE_URL || urlOfDatabase(ownerUrl, `${name}_shadow`),
       },
-      encoding: "utf8",
-      timeout: MIGRATION_TIMEOUT_MS,
+      timeoutMs: MIGRATION_TIMEOUT_MS,
     }
   );
 
@@ -85,6 +177,8 @@ export async function createMigratedScratchDatabase(
     url,
     owner,
     assertMigrated() {
+      // A child that never started, or that its limit stopped, has no status: the reason is in its
+      // error or its signal, and its output may be missing.
       const outcome = [
         `status ${String(migration.status)}`,
         ...(migration.signal ? [`signal ${migration.signal}`] : []),
