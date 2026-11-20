@@ -134,6 +134,15 @@ class SensitiveWriteGateTests(_Gate):
         self.assertEqual(self._gate("echo x > scripts/testing/error-registry-gate.mjs"), "allowed")
         self.assertEqual(self._gate("echo x > packages/eslint-plugin-testing/src/index.js"), "allowed")
 
+    def test_the_reminder_the_stall_alarm_speaks_through_is_written_only_with_a_token(self):
+        self.assertEqual(self._gate("echo x > scripts/testing/lib/issue-reminder.mjs"), "blocked(2)")
+        self.assertEqual(self._gate("cp /tmp/quiet.mjs scripts/testing/lib/issue-reminder.mjs"), "blocked(2)")
+
+    def test_reading_the_reminder_or_running_a_gate_that_uses_it_is_not_blocked(self):
+        self.assertEqual(self._gate("rg -n remindIssues scripts/testing/lib/issue-reminder.mjs"), "allowed")
+        self.assertEqual(self._gate("node scripts/testing/patched-dependencies-gate.mjs --remind"), "allowed")
+        self.assertEqual(self._gate("node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind"), "allowed")
+
     def test_deleting_or_copying_onto_the_path_is_a_write(self):
         self.assertEqual(self._gate("rm -rf .claude/hooks-py/tests"), "blocked(2)")
         self.assertEqual(self._gate("cp .env.example .env"), "blocked(2)")

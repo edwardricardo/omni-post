@@ -43,6 +43,10 @@ SENSITIVE_PATTERNS = [
     "/packages/eslint-plugin-errors/",
     "/scripts/testing/lib/error-scope.mjs",
     "/scripts/testing/error-sites-gate.mjs",
+    # The reminder the sites gate's stall alarm opens its issue through, which the
+    # patched-dependencies gate shares. It counts nothing, but a session that could
+    # edit it could silence the alarm that says the list stopped shrinking.
+    "/scripts/testing/lib/issue-reminder.mjs",
 ]
 
 # The grant store, or a file in it.

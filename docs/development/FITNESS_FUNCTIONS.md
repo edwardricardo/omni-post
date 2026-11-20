@@ -2434,8 +2434,9 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # TESTS-BESIDE-SOURCE-GLOBS-MATCH-A-PACKAGE-SRC-TESTS-DIRECTORY). Of the stall: a row's date is what its author wrote, the
 # clock read only to refuse a date after today, and `--stalled` trusts it; two runs of one day
 # that read different counts both comment; it says the list moved inside the window, not that its
-# pace is enough, and it blocks no merge; scripts/testing/lib/issue-reminder.mjs, which it calls
-# to keep the issue, is not a guarded path.
+# pace is enough, and it blocks no merge. scripts/testing/lib/issue-reminder.mjs, which it calls
+# to keep the issue and which the patched-dependencies gate shares, is a guarded path as the gate
+# is, so a change to either gate's reminder waits for a window of the Maintainer.
 # RETIRES WHEN, part by part (ADR-0047, decision 4): the baseline, its history, S3 and S6 to S10
 # once every count is zero, when the history is deleted and the sites gate keeps only "no entry of
 # an `errors/` rule", S4 and S5; S4 and the guard with the rule; the stall alarm when the history
