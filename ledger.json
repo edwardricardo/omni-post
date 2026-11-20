@@ -27,7 +27,7 @@
       "total": 1235
     },
     "blocks": {
-      "total": 15420,
+      "total": 15424,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15109
+        "BEHAVIOURAL": 15113
       }
     },
     "deleted": {
@@ -50584,84 +50584,98 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 13,
       "blocks": [
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 with healthy status",
-          "line": 187,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "54b9dd3969ac1a4de2d5b8f7b2271671785c6c1c5d134a1e5143c6f382f77e83"
         },
         {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers from the last refreshed report without running the checks",
+          "line": 209,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a8506da58685669dcab14c40845c7a0be5a272463fad667be29c46e349ef0b6d"
+        },
+        {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return comprehensive health information",
-          "line": 203,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1aecaa4b28eea729b91ad097448433f90306989528658a200b6854b3a98ce2e7"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should always return 200 for liveness probe",
-          "line": 223,
+          "line": 241,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28bde23c8c76c679ff9d428d4bbb42a2f3fe8efdd2ee7a3a977c963d662b4ac3"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should include process uptime",
-          "line": 237,
+          "line": 255,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f35469712aa9ff9cbe807d6e973c613244c377c03e7b06eb1ecdf594d72ec872"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 when critical dependencies are healthy",
-          "line": 250,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9838a4796cbf69dc86e82a353858ee3768b383afead2d3b47e57b009cee95a87"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return specific dependency health",
-          "line": 265,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d78284ae528401e47e98fefac482fd1faea2abe4a8c333b77e275878cd7f80fb"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 404 for unknown dependency",
-          "line": 283,
+          "line": 301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6aa678e8cc0cf543797c24c09df47f95285613d6c8c294982b05ab38d614196c"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should not enumerate registered dependencies to an unauthenticated caller",
-          "line": 297,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd9e991982007961e376a8732fb3641016f2453078889956a9aaa7f6c53f441c"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 503 rather than 404 when a registered dependency's check fails",
-          "line": 312,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6707a6e0d46cf91ebb8e10f9a6c28233e837321dde1df9e7e2d384d94faf870b"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::registers each checker the composition root built under its dependency name",
-          "line": 330,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d85bc2a65994a94900e3919eaea038d3091d788a5b49176533ed6500540459f2"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::serves its routes from the options alone, with no DI container on the instance",
-          "line": 337,
+          "line": 355,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "61dcafe1d4efff69f9ae66fcd40581b83dbf345f9687d46a3358265c197ec5ae"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::builds its health manager on the composition root's scheduler, overriding no timing",
+          "line": 359,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ab15ca62e80c419075207fddf4b0370a99ab2249af5b0c921d35ca9a1231a0e"
         }
       ],
       "verdict": "KEEP",
@@ -103642,7 +103656,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/workers/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is ready when every critical dependency, including the publish consumer, is healthy",
@@ -103673,15 +103687,22 @@
           "bodyHash": "5fe09d7ef2116ba32851851fc83087ba363912dd3ae411bfbc19332e6cdc5413"
         },
         {
-          "id": "apps/workers/tests/unit/readiness.unit.test.ts::treats a degraded critical dependency as not ready",
+          "id": "apps/workers/tests/unit/readiness.unit.test.ts::treats a degraded critical dependency as ready, since it still answers",
           "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "dbc04271ea75a3434e098580936c8e780a8313058b016a49fda8aa937d269b08"
+          "bodyHash": "93727576026317a3fb3d501a2d0f2beb1d9343603deee93d56c9ce068885735c"
+        },
+        {
+          "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a dependency reports a status other than healthy or degraded",
+          "line": 83,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "66b6df08416265a3a395ac8438b4c91df2df12bfd56d161edc38a28017c37090"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::names the consumer dependency after the queue it watches",
-          "line": 82,
+          "line": 94,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4adafbe40e2aa5eb13d3c98161a92ff0d99317a8b8b2f9551ea12bef373317ba"
@@ -105628,7 +105649,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $queryRaw on the INJECTED client during initial health check",
@@ -105645,15 +105666,29 @@
           "bodyHash": "795f86639d9e940fb87dbebc4f001a9e6a82f13799859e74f38fc1b7c4da6d00"
         },
         {
-          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $disconnect on the INJECTED client",
+          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::asks the INJECTED client one SELECT 1 and answers ok",
           "line": 96,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "61ddc096f2edee6a9fb55060f403fc856b32eec95d072387482b9d9af9276514"
+        },
+        {
+          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::answers DATABASE_ERROR when the database does not answer",
+          "line": 111,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "09d7f6983ee020f3be1a7ba2a2e798e17e544c6012af36692d7e44fb824df8c1"
+        },
+        {
+          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $disconnect on the INJECTED client",
+          "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ccbf7246602496818442988ba3319f2d207d3960b24251e16e91eb83c99b3ad"
         },
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::unregisters the scheduler task on close()",
-          "line": 105,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5dd80da2202d0e3f24bd9c78c499efd9d7a95ed0d5e29bb5cb9c04442cfe6d1"
@@ -106113,123 +106148,116 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::createAccount — uses INJECTED client, not global",
-          "line": 253,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2072afc225824b6f8c5ddf42a21ab7165ed284760e8831807eb3f7649326f1dc"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getAccountById — uses INJECTED client, not global",
-          "line": 271,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bec741a44f5db456ca66c204871b7e19c2ecfa324447e89bf86df967588fb3e6"
         },
         {
-          "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::listAccounts — uses INJECTED client, not global",
-          "line": 289,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "28bde27c312347fa126805dd068ba693d3adeb30c06ef12fdf7434f72ef07e5d"
-        },
-        {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getProjectsByAccount — uses INJECTED client, not global",
-          "line": 298,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "56ce36fd564fe61efeb546a55bd819ea30bcbdfd4da0015774ee943be03b7b1c"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getPostById — uses INJECTED client, not global",
-          "line": 307,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "efc5b87ebec4043ff93e6f291dc3d0bfd95ab6acb94bdf0278313b4a4a2cebfb"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::listPosts — uses INJECTED client, not global",
-          "line": 314,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f423c891d42f7ed97dcd607c1c1eee9f1ff7a042f7ad684ab539130b66f23d4"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::createPost — writes the media rows on the TRANSACTION, never on the base client",
-          "line": 322,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "389e7f0e9aa64a29c4b539f5499de0456d234652614c73b5909556941bf2003e"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelsByIds — uses INJECTED client, not global",
-          "line": 344,
+          "line": 334,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62f5eb7deed4d6a0c8f5e0a1cb56323dbe6f9d3700bef0a70f6ca525043511ea"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelOwnerAccountId — uses INJECTED client, not global",
-          "line": 361,
+          "line": 351,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2cb24d9982a8337f39ce1c7a0e19872574d4d84e796825f60cb3df11120d854"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelsByIds — rejects a blank tenant scope without querying",
-          "line": 374,
+          "line": 364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "614235b18832eb206a781f60fc92419411691883aa12bd125a596977abbd2f1e"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelOwnerAccountId — resolves no owner for a blank channelId without querying",
-          "line": 392,
+          "line": 382,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af5a789534df7244124e37fc9cbcb47a695c5699b5c3d241080737279d9ab928"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::logPublish — uses INJECTED client, not global",
-          "line": 406,
+          "line": 396,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7fcb4aa1e8fab9513ea5b280c22af051763c8c326e399a0974136254e3ef9aa1"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getLogByDedupeKey — uses INJECTED client, not global",
-          "line": 420,
+          "line": 410,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c024639c709e6b862b33af77b6c41cebe1f56333f895ccc3d47a70a3d44a1d32"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::listAnalytics — uses INJECTED client, not global",
-          "line": 429,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63c102fc6ab2149a02f64cec41fd4b3ed54e3973d1cda1649246b65b005d88b0"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::addAnalytics — uses INJECTED client, not global",
-          "line": 436,
+          "line": 426,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "434349f25656a2cbf5fd8fa20a91bc375407f50457454158a34c52ae303495a1"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getThreadByPostId — uses INJECTED client, not global",
-          "line": 445,
+          "line": 435,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b00b8dbe6a772f4827361c596e679e30f6c6283a10019334039ce9a9b8d4f2d7"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getTweetsByThread — uses INJECTED client, not global",
-          "line": 452,
+          "line": 442,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7bef9442fae8b18e97fb4fd60d9e96a1a1691586b581722ef78bb09e6eee15d8"

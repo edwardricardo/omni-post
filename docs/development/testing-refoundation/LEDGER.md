@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1225  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15420 |
+| Blocks                  | 15424 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -120,7 +120,7 @@ Deleted: 0 files, 55 blocks. Floors lowered: functions from 60.4 to 60.3, branch
 | `apps/api/tests/unit/cacheStatsRoutes.test.ts`                     | test  | 22     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/correlationMiddleware.test.ts`                | test  | 9      | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/fileUploadValidator.test.ts`                  | test  | 32     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/healthRoutes.test.ts`                         | test  | 11     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/healthRoutes.test.ts`                         | test  | 13     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/metricsMiddleware.test.ts`                    | test  | 35     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/optimizedPostsRoutes.test.ts`                 | test  | 17     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/performanceMonitor.init.test.ts`              | test  | 23     | 5          | REWRITE | machine | some-decorative |
@@ -285,7 +285,7 @@ Deleted: 0 files, 52 blocks.
 | ---------------------------------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | --------------- |
 | `packages/adapters/cache-redis/tests/factory.test.ts`                        | test  | 7      | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/cache-redis/tests/metrics.test.ts`                        | test  | 7      | 0          | KEEP    | machine | behavioural     |
-| `packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts`     | test  | 4      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts`     | test  | 6      | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/db-prisma/tests/resilience.test.ts`                       | test  | 39     | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/dead-letter-queue/tests/index.test.ts`                    | test  | 22     | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/external-apis/tests/circuitBreaker.test.ts`               | test  | 35     | 0          | KEEP    | machine | behavioural     |
@@ -1188,7 +1188,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/workers/tests/unit/env.unit.test.ts`                                                            | test             | 10     | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/workers/tests/unit/publishWorker.drain-order.test.ts`                                           | test             | 1      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/workers/tests/unit/publishWorker.unit.test.ts`                                                  | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/workers/tests/unit/readiness.unit.test.ts`                                                      | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/workers/tests/unit/readiness.unit.test.ts`                                                      | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/worker.smoke.ts`                                                                  | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `packages/adapters/cache-redis/tests/access-patterns.test.ts`                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/cache-manager.test.ts`                                           | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
@@ -1202,7 +1202,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/adapters/db-prisma/tests/channelRepository.decryptInput.unit.test.ts`                       | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/postRepositoryLiveness.test.ts`                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/postRepositoryStoredValues.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/db-prisma/tests/subRepos.di.test.ts`                                               | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/adapters/db-prisma/tests/subRepos.di.test.ts`                                               | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/uniqueViolationMapping.test.ts`                                    | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts`                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts`                            | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
