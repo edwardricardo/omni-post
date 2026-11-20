@@ -43,7 +43,6 @@ function makeTrackedMockClient() {
     updatedAt: new Date(),
   });
   const accountDelete = vi.fn().mockResolvedValue({ id: "acc-1" });
-  const accountFindMany = vi.fn().mockResolvedValue([]);
 
   const projectCreate = vi.fn().mockResolvedValue({ id: "proj-1", name: "p", accountId: "acc-1" });
   const projectFindMany = vi.fn().mockResolvedValue([]);
@@ -169,7 +168,6 @@ function makeTrackedMockClient() {
       create: accountCreate,
       update: accountUpdate,
       delete: accountDelete,
-      findMany: accountFindMany,
     },
     project: {
       create: projectCreate,
@@ -212,7 +210,6 @@ function makeTrackedMockClient() {
       accountCreate,
       accountUpdate,
       accountDelete,
-      accountFindMany,
       projectCreate,
       projectFindMany,
       projectDelete,
@@ -284,13 +281,6 @@ describe("sub-repo DI contract — injected client threading", () => {
 
       assert.ok(result.ok, "getAccountById should succeed");
       expect(spies.accountFindUnique).toHaveBeenCalledTimes(1);
-    });
-
-    it("listAccounts — uses INJECTED client, not global", async () => {
-      const { client, spies } = makeTrackedMockClient();
-      const repo = createAccountRepository(mockReadBreaker, mockWriteBreaker, client);
-      await repo.listAccounts();
-      expect(spies.accountFindMany).toHaveBeenCalledTimes(1);
     });
   });
 

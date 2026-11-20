@@ -299,7 +299,7 @@ Comprehensive security header management with configurable policies:
 
 - **Content Security Policy**: Configurable CSP with environment-specific directives
 - **HSTS**: HTTP Strict Transport Security with subdomain inclusion and preload
-- **CORS**: Advanced CORS handling with origin validation and wildcard subdomain support
+- **No CORS**: the API sends no CORS header, a preflight included, because no browser calls it cross-origin: both portals call their own `/api/backend/*` and their servers call the API. A feature that needs a cross-origin caller defines its own policy for its routes
 - **Frame Protection**: X-Frame-Options and frame-ancestors CSP directive
 - **Additional Headers**: X-Content-Type-Options, X-Download-Options, Cross-Origin policies
 
@@ -321,12 +321,6 @@ class SecurityManager {
         "frame-ancestors": ["'none'"],
         "upgrade-insecure-requests": [],
       },
-    },
-    cors: {
-      allowedOrigins: ["http://localhost:3100", "http://localhost:3200", "http://localhost:3000"],
-      allowedMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      allowCredentials: true,
-      maxAge: 86400,
     },
     hsts: {
       maxAge: 31536000,
@@ -540,7 +534,7 @@ interface SecurityMetrics {
 - ✅ Advanced Input Validation with threat detection
 - ✅ SQL injection protection via Prisma ORM
 - ✅ XSS protection with CSP and input sanitization
-- ✅ CORS configuration with origin validation
+- ✅ No CORS header on any response, since no browser calls the API cross-origin
 - ✅ Comprehensive security headers
 - ✅ Complete audit logging system
 - ✅ Session management with tracking

@@ -64,7 +64,7 @@ under `.github/workflows/`.
 | Semgrep                             | `audit.yml:86`, Semgrep CE (SAST) › Run Semgrep                                                                                                                      | PR, main                  | the step's `semgrep scan` command                                            |
 | CodeQL                              | `security-testing.yml:77`, CodeQL (typescript, javascript) › Perform CodeQL analysis                                                                                 | PR, main, nightly         | —                                                                            |
 | Dependency advisories               | `ci.yml:687`, Security Audit › Run security audit; `production-ci.yml:38`, Security Audit › Audit dependencies                                                       | PR, main                  | `pnpm audit --audit-level moderate --json`                                   |
-| Container images (Trivy)            | `production-ci.yml:453`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
+| Container images (Trivy)            | `production-ci.yml:462`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
 | Security headers                    | `ci.yml:174`, Test Suite (shard N) › Run API tests (shard, blob reporter), which collects `tests/unit/securityHeaders.test.ts`; on a running API, the ZAP scan below | PR, main                  | `pnpm --filter @apps/api exec vitest run tests/unit/securityHeaders.test.ts` |
 | SQL injection and XSS               | `ci.yml:560`, Integration Tests › Run integration tests (live tier): the cases of `tests/security.live.test.ts`                                                      | PR, main                  | [The security suites](#the-security-suites)                                  |
 | OWASP ZAP baseline                  | `security-testing.yml:166`, OWASP ZAP DAST › Run OWASP ZAP baseline scan                                                                                             | nightly 03:00 UTC, manual | —                                                                            |
@@ -244,7 +244,7 @@ intent for the SMELL-83 rewrite.
 **Test Coverage**:
 
 - **Security Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
-- **CORS Security**: Origin validation, Credential handling
+- **CORS Security**: asserts only that `Access-Control-Allow-Origin` never echoes an attacker's origin, on a request and on a preflight; no collector runs this suite (its ledger row has no collector). That the API sends no CORS header at all is held by `apps/api/tests/unit/security/noCorsHeaders.test.ts`, with the cases of `securityHeaders.test.ts` and `webhookDashboardRoutes.test.ts` beside it
 - **TLS/Transport Security**: Certificate validation, Cipher strength
 - **Information Disclosure**: Error message sanitization, Version hiding
 - **File Upload Security**: Type validation, Size limits, Path sanitization
@@ -470,7 +470,7 @@ cd apps/api && NODE_ENV=test node --conditions development --import tsx --test t
 1. **Rate Limiting**: Implement rate limiting on all endpoints
 2. **Input Validation**: Validate all inputs with strict schemas
 3. **Authentication**: Require authentication for sensitive operations
-4. **CORS**: Configure CORS properly for your domains
+4. **CORS**: Send no CORS header while no browser calls the API cross-origin; a feature that needs a cross-origin caller defines its own policy for its routes
 5. **Headers**: Use security headers to prevent attacks
 
 ## 🔄 Continuous Improvement

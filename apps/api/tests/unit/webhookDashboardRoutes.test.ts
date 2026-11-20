@@ -10,7 +10,9 @@
  * @layer infrastructure
  */
 
+import { once } from "node:events";
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
+import { until } from "@packages/vitest-shared/determinism";
 
 vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
   const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
@@ -220,6 +222,9 @@ const mockBroadcaster = {
   shutdown: () => {},
 };
 
+// The stream's heartbeat task lands here; its tasks are the stream's observable residue.
+const scheduler = new NoopBackgroundTaskScheduler();
+
 // Create test Fastify instance with a DI container so authMiddleware can resolve AuthService
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
@@ -237,7 +242,7 @@ async function createTestApp(): Promise<FastifyInstance> {
     TOKENS.RbacService,
     new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository())
   );
-  container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
+  container.registerInstance(TOKENS.BackgroundTaskScheduler, scheduler);
   typedApp.decorate("container", container);
 
   await typedApp.register(registerWebhookDashboardRoutes);
@@ -252,7 +257,10 @@ describe("webhookDashboardRoutes", () => {
     app = await createTestApp();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Each case starts with no task, whatever a stream an earlier case opened left behind.
+    await scheduler.shutdownAll();
+
     // Mock authentication service
     vi.spyOn(authService, "verifyAccessToken").mockImplementation(async (token: string) => {
       if (token && token !== "invalid-token") {
@@ -666,7 +674,75 @@ describe("webhookDashboardRoutes", () => {
   });
 
   describe("GET /api/webhooks/dashboard/stream", () => {
-    // SSE connection test moved to integration — requires real HTTP, not inject().
+    it("opens the event stream with no Access-Control header for a foreign Origin", async () => {
+      // `payloadAsStream` resolves the injection when the head is written, so the
+      // open-ended stream can be read and then aborted.
+      const controller = new AbortController();
+      const response = await app.inject({
+        method: "GET",
+        url: "/webhooks/dashboard/stream",
+        headers: { authorization: `Bearer ${testToken}`, origin: "https://foreign.example" },
+        payloadAsStream: true,
+        signal: controller.signal,
+      });
+      const stream = response.stream();
+      const [firstChunk] = (await once(stream, "data")) as [Buffer];
+      const aborted = once(stream, "error");
+      controller.abort();
+      const [abortError] = (await aborted) as [Error];
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toBe("text/event-stream");
+      expect(response.headers["cache-control"]).toBe("no-cache");
+      expect(response.headers["connection"]).toBe("keep-alive");
+      expect(
+        Object.keys(response.headers).filter((name) => name.startsWith("access-control-"))
+      ).toEqual([]);
+      expect(firstChunk.toString()).toMatch(
+        /^data: \{"type":"connected","timestamp":"[^"]+"\}\n\n$/
+      );
+      expect(abortError.name).toBe("AbortError");
+    });
+
+    it("drops its heartbeat task and its broadcaster subscription once the connection closes", async () => {
+      const unsubscribe = vi.fn();
+      const subscribe = vi.spyOn(mockBroadcaster, "subscribeSSE").mockReturnValue(unsubscribe);
+      const controller = new AbortController();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/webhooks/dashboard/stream",
+          headers: { authorization: `Bearer ${testToken}` },
+          payloadAsStream: true,
+          signal: controller.signal,
+        });
+        const stream = response.stream();
+        await once(stream, "data");
+
+        expect(subscribe).toHaveBeenCalledTimes(1);
+        expect(scheduler.getActiveTasks()).toEqual([
+          expect.stringMatching(/^webhook-dashboard-heartbeat-[0-9a-f-]{36}$/),
+        ]);
+        expect(unsubscribe).not.toHaveBeenCalled();
+
+        const aborted = once(stream, "error");
+        controller.abort();
+        await aborted;
+        await until(
+          () => unsubscribe.mock.calls.length > 0 && scheduler.getActiveTasks().length === 0,
+          {
+            description: "the stream's teardown on close: unsubscribed and no task left",
+            // Below the case's own timeout, so a missing teardown fails with this description.
+            timeoutMs: 2_000,
+          }
+        );
+
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+        expect(scheduler.getActiveTasks()).toEqual([]);
+      } finally {
+        subscribe.mockRestore();
+      }
+    });
 
     it("should reject SSE without authentication", async () => {
       const response = await app.inject({

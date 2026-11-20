@@ -1,13 +1,13 @@
 /**
  * @file securityHeaders.mutations.test.ts
  * @description Mutation-killing boundary tests for SecurityManager.
- *              Targets: handleCorsOrigin, buildCSPHeader, buildPermissionsPolicyHeader,
+ *              Targets: buildCSPHeader, buildPermissionsPolicyHeader,
  *              validateRequest edge cases, createSecurityMiddleware paths.
  * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SecurityManager, SecurityConfigs } from "../../src/security/securityHeaders.js";
+import { SecurityManager } from "../../src/security/securityHeaders.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
 vi.mock("../../src/lib/logger.js", () => ({
@@ -67,99 +67,6 @@ function createMockReply(): FastifyReply & { body: any; getAllHeaders: () => Rec
 describe("SecurityManager — mutation-killing boundaries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  // --------------------------------------------------------------------------
-  // handleCorsOrigin — private, tested indirectly
-  // --------------------------------------------------------------------------
-
-  describe("handleCorsOrigin", () => {
-    it("allows request with no origin", () => {
-      const mgr = new SecurityManager();
-      const cb = vi.fn();
-      (mgr as any).handleCorsOrigin(undefined, cb);
-      expect(cb).toHaveBeenCalledWith(null, true);
-    });
-
-    it("allows request with exact matching origin", () => {
-      const mgr = new SecurityManager({
-        cors: {
-          enabled: true,
-          allowedOrigins: ["https://example.com"],
-          allowedMethods: ["GET"],
-          allowedHeaders: ["Content-Type"],
-          allowCredentials: false,
-          maxAge: 86400,
-        },
-      });
-      const cb = vi.fn();
-      (mgr as any).handleCorsOrigin("https://example.com", cb);
-      expect(cb).toHaveBeenCalledWith(null, true);
-    });
-
-    it("allows wildcard origin *", () => {
-      const mgr = new SecurityManager({
-        cors: {
-          enabled: true,
-          allowedOrigins: ["*"],
-          allowedMethods: ["GET"],
-          allowedHeaders: [],
-          allowCredentials: false,
-          maxAge: 0,
-        },
-      });
-      const cb = vi.fn();
-      (mgr as any).handleCorsOrigin("https://anything.com", cb);
-      expect(cb).toHaveBeenCalledWith(null, true);
-    });
-
-    it("allows wildcard subdomain match *.example.com", () => {
-      const mgr = new SecurityManager({
-        cors: {
-          enabled: true,
-          allowedOrigins: ["*.example.com"],
-          allowedMethods: ["GET"],
-          allowedHeaders: [],
-          allowCredentials: false,
-          maxAge: 0,
-        },
-      });
-      const cb = vi.fn();
-      (mgr as any).handleCorsOrigin("https://app.example.com", cb);
-      expect(cb).toHaveBeenCalledWith(null, true);
-    });
-
-    it("rejects non-matching subdomain for wildcard", () => {
-      const mgr = new SecurityManager({
-        cors: {
-          enabled: true,
-          allowedOrigins: ["*.example.com"],
-          allowedMethods: ["GET"],
-          allowedHeaders: [],
-          allowCredentials: false,
-          maxAge: 0,
-        },
-      });
-      const cb = vi.fn();
-      (mgr as any).handleCorsOrigin("https://evil.other.com", cb);
-      expect(cb).toHaveBeenCalledWith(expect.any(Error), false);
-    });
-
-    it("rejects origin not in allowed list", () => {
-      const mgr = new SecurityManager({
-        cors: {
-          enabled: true,
-          allowedOrigins: ["https://allowed.com"],
-          allowedMethods: ["GET"],
-          allowedHeaders: [],
-          allowCredentials: false,
-          maxAge: 0,
-        },
-      });
-      const cb = vi.fn();
-      (mgr as any).handleCorsOrigin("https://blocked.com", cb);
-      expect(cb).toHaveBeenCalledWith(expect.any(Error), false);
-    });
   });
 
   // --------------------------------------------------------------------------
@@ -470,39 +377,6 @@ describe("SecurityManager — mutation-killing boundaries", () => {
       const config2 = mgr.getConfig();
       expect(config1).not.toBe(config2);
       expect(config1).toEqual(config2);
-    });
-  });
-
-  // --------------------------------------------------------------------------
-  // SecurityConfigs presets
-  // --------------------------------------------------------------------------
-
-  describe("SecurityConfigs presets details", () => {
-    it("development disables CSP and HSTS", () => {
-      expect(SecurityConfigs.development.contentSecurityPolicy.enabled).toBe(false);
-      expect(SecurityConfigs.development.hsts.enabled).toBe(false);
-    });
-
-    it("development allows all origins and disables credentials", () => {
-      expect(SecurityConfigs.development.cors.allowedOrigins).toEqual(["*"]);
-      expect(SecurityConfigs.development.cors.allowCredentials).toBe(false);
-    });
-
-    it("production has strict CSP directives", () => {
-      const directives = SecurityConfigs.production.contentSecurityPolicy.directives;
-      expect(directives).toBeDefined();
-      expect(directives!["object-src"]).toEqual(["'none'"]);
-      expect(directives!["frame-ancestors"]).toEqual(["'none'"]);
-    });
-
-    it("production has HSTS with preload and subdomains", () => {
-      expect(SecurityConfigs.production.hsts.maxAge).toBe(31536000);
-      expect(SecurityConfigs.production.hsts.includeSubDomains).toBe(true);
-      expect(SecurityConfigs.production.hsts.preload).toBe(true);
-    });
-
-    it("production CORS has credentials enabled", () => {
-      expect(SecurityConfigs.production.cors.allowCredentials).toBe(true);
     });
   });
 });
