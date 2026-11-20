@@ -298,7 +298,7 @@
     "@fastify/helmet": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Registered by SecurityManager.register (index.ts:525).",
+      "utility": "Registered by SecurityManager.register (index.ts:493).",
       "replacement": "None: Fastify's own security-headers plugin.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/api (dependencies)."

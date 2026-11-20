@@ -244,7 +244,7 @@ intent for the SMELL-83 rewrite.
 **Test Coverage**:
 
 - **Security Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
-- **CORS Security**: a foreign origin is never allowed, a preflight included; the API sends no CORS header at all
+- **CORS Security**: asserts only that `Access-Control-Allow-Origin` never echoes an attacker's origin, on a request and on a preflight; no collector runs this suite (its ledger row has no collector). That the API sends no CORS header at all is held by `apps/api/tests/unit/security/noCorsHeaders.test.ts`, with the cases of `securityHeaders.test.ts` and `webhookDashboardRoutes.test.ts` beside it
 - **TLS/Transport Security**: Certificate validation, Cipher strength
 - **Information Disclosure**: Error message sanitization, Version hiding
 - **File Upload Security**: Type validation, Size limits, Path sanitization
