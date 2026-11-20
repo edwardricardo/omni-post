@@ -65,7 +65,6 @@ type Entries = Array<[string, string]>;
 
 interface EnvironmentModule {
   REQUIRED_KEYS: readonly string[];
-  DEVELOPMENT_TOOL_KEYS: readonly string[];
   generateEnvironment(options: {
     randomBytes: (size: number) => Buffer;
     postgresHostPort?: number;
@@ -883,13 +882,8 @@ describe("the generated environment", () => {
   it("holds what the platform requires and, besides it, what the development tools need", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
 
-    expect(core.DEVELOPMENT_TOOL_KEYS).toEqual(["ADMIN_PASSWORD"]);
-    expect(core.REQUIRED_KEYS.filter((key) => core.DEVELOPMENT_TOOL_KEYS.includes(key))).toEqual(
-      []
-    );
-    expect(Object.keys(values).sort()).toEqual(
-      [...core.REQUIRED_KEYS, ...core.DEVELOPMENT_TOOL_KEYS].sort()
-    );
+    expect(core.REQUIRED_KEYS).not.toContain("ADMIN_PASSWORD");
+    expect(Object.keys(values).sort()).toEqual([...core.REQUIRED_KEYS, "ADMIN_PASSWORD"].sort());
   });
 
   it("requires nothing of an existing file that only the development tools read", () => {

@@ -15,9 +15,8 @@
  *
  *   ONE LIST PER PURPOSE. What the platform reads is what an existing file must hold:
  *   `REQUIRED_KEYS` is read off the platform's generator, so the two cannot drift. What the
- *   development tools need is generated for a new file and never required of an existing one
- *   (`DEVELOPMENT_TOOL_KEYS`): the platform never reads it, and a tool whose variable is missing
- *   refuses by itself, naming it.
+ *   development tools need is generated for a new file and never required of an existing one: the
+ *   platform never reads it, and a tool whose variable is missing refuses by itself, naming it.
  *
  *   THREE READERS take the file: Compose, Node's loader (`process.loadEnvFile`, `--env-file`) and a
  *   shell that sources it. A value outside the plain set is written in single quotes, the one
@@ -142,12 +141,6 @@ const discarded = { randomBytes: (/** @type {number} */ size) => Buffer.alloc(si
  * are.
  */
 export const REQUIRED_KEYS = platformEntries(discarded).map(([key]) => key);
-
-/**
- * The variables a new checkout receives for the development tools, which no existing file is
- * required to hold, read off the same kind of throwaway generation.
- */
-export const DEVELOPMENT_TOOL_KEYS = developmentToolEntries(discarded).map(([key]) => key);
 
 /**
  * @function renderEnvironmentFile
