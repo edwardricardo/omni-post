@@ -174,10 +174,10 @@ docker compose ps
 
 ```bash
 curl http://localhost:3000/health
-# {"ok":true,"timestamp":"..."}
+# {"status":"healthy","timestamp":"...","uptime":...}: 200 for healthy or degraded, 503 for unhealthy
 
-curl http://localhost:3000/health/full
-# Shows database and Redis status
+curl http://localhost:3000/health/detailed
+# Shows the status of each dependency
 
 curl http://localhost:3300/health/ready   # the workers
 curl http://localhost:3100/api/health     # the administration portal
