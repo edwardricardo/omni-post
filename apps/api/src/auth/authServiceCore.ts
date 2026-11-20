@@ -77,7 +77,15 @@ export class AuthServiceCore extends AuditableService {
   }
 
   /**
-   * Register a new admin user
+   * @method registerAdmin
+   * @description Creates an administrator with a verified e-mail under the named role, and
+   *   records the creation in the audit log.
+   * @param email - The administrator's e-mail, stored normalized
+   * @param password - The password, at least 8 characters, stored as a hash
+   * @param name - The administrator's display name
+   * @param role - The name of the role the administrator gets
+   * @returns The administrator; otherwise `VALIDATION_ERROR` for a missing field, a short
+   *   password or an unknown role, `EMAIL_EXISTS`, or `DATABASE_ERROR`
    */
   async registerAdmin(
     email: string,
@@ -127,7 +135,24 @@ export class AuthServiceCore extends AuditableService {
   }
 
   /**
-   * Authenticate user and create session
+   * @method login
+   * @description Signs an administrator in with the e-mail, the password and, when the
+   *   administrator has a second factor, its code. It verifies the password (upgrading a hash
+   *   stored under weaker parameters), the active state, the session count when Redis is
+   *   available and the second factor, then opens a session, writes `lastLoginAt` and records
+   *   the sign-in. A missing code is answered with the second factor's challenge.
+   *
+   *   An administrator whose password must be changed is refused once every check has passed and
+   *   before the session is opened: no session, no `lastLoginAt` and no record of a sign-in. The
+   *   refusal comes after the second factor, so a caller who holds the password but not the
+   *   second factor learns nothing of the mark, and the code that verified is spent.
+   * @param credentials - The e-mail, the password and the second factor's code when there is one
+   * @param ipAddress - The caller's address, used when no fingerprint is given
+   * @param userAgent - The caller's agent, used when no fingerprint is given
+   * @param fingerprint - The caller's device, which the session is bound to
+   * @returns The administrator and the session's tokens, or the second factor's challenge;
+   *   otherwise `INVALID_CREDENTIALS`, `USER_INACTIVE`, `TOO_MANY_SESSIONS`, `INVALID_MFA_TOKEN`,
+   *   `PASSWORD_CHANGE_REQUIRED` or `DATABASE_ERROR`
    */
   async login(
     credentials: LoginCredentials,
@@ -142,6 +167,7 @@ export class AuthServiceCore extends AuditableService {
       | "MFA_REQUIRED"
       | "INVALID_MFA_TOKEN"
       | "TOO_MANY_SESSIONS"
+      | "PASSWORD_CHANGE_REQUIRED"
       | "DATABASE_ERROR"
     >
   > {
@@ -292,6 +318,12 @@ export class AuthServiceCore extends AuditableService {
         }
       }
 
+      // The password must be changed first: refused only now, so the mark stays hidden from a
+      // caller without the second factor, and before the session, so nothing of a sign-in lands.
+      if (user.mustChangePassword) {
+        return err("PASSWORD_CHANGE_REQUIRED");
+      }
+
       const tokens = await this.createSession(user, sessionFingerprint);
 
       if (this.hasRedis) {
@@ -336,21 +368,42 @@ export class AuthServiceCore extends AuditableService {
   // Audit Proxies (expose protected AuditableService methods for session module)
   // ---------------------------------------------------------------------------
 
-  /** @internal Exposed for AuthServiceSession */
+  /**
+   * @internal
+   * @method writeAuditLogPublic
+   * @description Writes an audit row for the session module, which cannot reach the protected
+   *   writer this class inherits.
+   * @param args - The arguments of the inherited writer
+   * @returns What the inherited writer returns
+   */
   async writeAuditLogPublic(
     ...args: Parameters<typeof this.writeAuditLog>
   ): ReturnType<typeof this.writeAuditLog> {
     return this.writeAuditLog(...args);
   }
 
-  /** @internal Exposed for AuthServiceSession */
+  /**
+   * @internal
+   * @method logUserActionPublic
+   * @description Records an administrator's action for the session module, which cannot reach
+   *   the protected recorder this class inherits.
+   * @param args - The arguments of the inherited recorder
+   * @returns What the inherited recorder returns
+   */
   async logUserActionPublic(
     ...args: Parameters<typeof this.logUserAction>
   ): ReturnType<typeof this.logUserAction> {
     return this.logUserAction(...args);
   }
 
-  /** @internal Exposed for AuthServiceSession */
+  /**
+   * @internal
+   * @method logSecurityEventPublic
+   * @description Records a security event for the session module, which cannot reach the
+   *   protected recorder this class inherits.
+   * @param args - The arguments of the inherited recorder
+   * @returns What the inherited recorder returns
+   */
   async logSecurityEventPublic(
     ...args: Parameters<typeof this.logSecurityEvent>
   ): ReturnType<typeof this.logSecurityEvent> {
@@ -361,6 +414,15 @@ export class AuthServiceCore extends AuditableService {
   // Shared Utilities
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method createSession
+   * @description Opens a session for the administrator: stores it with the hash of its refresh
+   *   token, issues the token pair and, when Redis is available, stores the device fingerprint
+   *   and counts the session as active.
+   * @param user - The administrator the session belongs to
+   * @param fingerprint - The caller's device, whose address and agent the session carries
+   * @returns The two tokens, the refresh token's expiry and the session's id
+   */
   async createSession(user: AdminUserDto, fingerprint: SessionFingerprint): Promise<AuthTokens> {
     const tempToken = randomBytes(32).toString("hex");
     const session = await this.sessionRepo.create({
@@ -393,6 +455,20 @@ export class AuthServiceCore extends AuditableService {
     return tokens;
   }
 
+  /**
+   * @method generateTokens
+   * @description Signs an access token and a refresh token for a session. The refresh token
+   *   carries an id of its own, so no two mints are equal; when Redis is available both tokens
+   *   carry the device fingerprint, the token version, the issuer and the audience.
+   * @param userId - The administrator
+   * @param email - The administrator's e-mail
+   * @param role - The administrator's role
+   * @param sessionId - The session the tokens belong to
+   * @param fingerprint - The device the tokens are bound to when Redis is available
+   * @param tokenVersion - The version the tokens carry when Redis is available
+   * @returns The two tokens, the refresh token's expiry, the session's id and, when Redis is
+   *   available, the token version
+   */
   async generateTokens(
     userId: string,
     email: string,
@@ -448,14 +524,35 @@ export class AuthServiceCore extends AuditableService {
     };
   }
 
+  /**
+   * @method hashPassword
+   * @description Hashes a password with the canonical password-hashing helper.
+   * @param password - The password
+   * @returns The encoded hash
+   */
   async hashPassword(password: string): Promise<string> {
     return hashPassword(password);
   }
 
+  /**
+   * @method verifyPassword
+   * @description Checks a password against a stored hash.
+   * @param password - The password presented
+   * @param hash - The stored hash
+   * @returns Whether the password matches the hash
+   */
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     return verifyPassword(hash, password);
   }
 
+  /**
+   * @method mapUserToAuthenticatedUser
+   * @description Projects an administrator onto the identity a signed-in caller receives, with no
+   *   credential material.
+   * @param user - The stored administrator
+   * @returns The id, e-mail, name, role, active and verified states, last sign-in and whether a
+   *   second factor is enabled
+   */
   mapUserToAuthenticatedUser(user: AdminUserDto): AuthenticatedUser {
     return {
       id: user.id,

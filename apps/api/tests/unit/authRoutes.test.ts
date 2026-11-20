@@ -228,6 +228,31 @@ describe("authRoutes Integration Tests", () => {
       const body = JSON.parse(response.body);
       expect(body.error).toBe("Account is inactive");
     });
+
+    it("answers 403 with its message, sets no cookie and opens no session for an administrator who must change the password", async () => {
+      const markedEmail = `must-change-${timestamp}@example.com`;
+      const created = await authService.registerAdmin(
+        markedEmail,
+        testPassword,
+        "Must Change User",
+        "ADMIN"
+      );
+      if (!created.ok) throw new Error("the administrator must be registered");
+      stores.adminUser.update(created.value.id, { mustChangePassword: true });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: { email: markedEmail, password: testPassword },
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body)).toEqual({ ok: false, error: "Password change required" });
+      expect(response.cookies).toEqual([]);
+      expect(stores.adminSession.all().filter((s) => s.userId === created.value.id)).toEqual([]);
+      const stored = stores.adminUser.all().find((u) => u.id === created.value.id);
+      expect(stored?.lastLoginAt).toBeNull();
+    });
   });
 
   describe("POST /auth/refresh", () => {
