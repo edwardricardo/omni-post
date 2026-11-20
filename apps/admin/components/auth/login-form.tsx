@@ -1,22 +1,17 @@
 /**
  * @file login-form.tsx
  * @description Admin Login Form using React 19 useActionState with MFA two-step flow.
- *   Uses CSS custom-property design tokens for full theme support.
+ *   Uses CSS custom-property design tokens for full theme support. Its error line shows the
+ *   catalog message of the error code, never the code itself.
  * @layer infrastructure
  */
 "use client";
 
 import { useState, useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { loginAction } from "@/app/actions/auth";
-import type { AdminAuthState } from "@/lib/auth/types";
-
-const INPUT_CLASS = [
-  "appearance-none rounded-md relative block w-full px-3 py-2",
-  "border border-[var(--border-default)] bg-[var(--bg-surface)]",
-  "placeholder-[var(--text-tertiary)] text-[var(--text-primary)]",
-  "focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]",
-  "sm:text-sm",
-].join(" ");
+import { adminAuthErrorMessageKey, type AdminAuthState } from "@/lib/auth/types";
+import { AUTH_INPUT_CLASS, AUTH_SUBMIT_CLASS } from "./authFormClasses";
 
 /**
  * @component LoginForm
@@ -24,6 +19,7 @@ const INPUT_CLASS = [
  *   Handles credential submission and TOTP code verification.
  */
 export function LoginForm() {
+  const tErrors = useTranslations("adminAuthErrors");
   const [mfaCredentials, setMfaCredentials] = useState<{
     email: string;
     password: string;
@@ -59,7 +55,9 @@ export function LoginForm() {
             role="alert"
             data-testid="login-error"
           >
-            <div className="text-sm text-[var(--error)]">{state.error}</div>
+            <div className="text-sm text-[var(--error)]">
+              {tErrors(adminAuthErrorMessageKey(state.error))}
+            </div>
           </div>
         )}
 
@@ -84,7 +82,7 @@ export function LoginForm() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={6}
-                className={`${INPUT_CLASS} mt-1 tracking-widest text-center text-lg`}
+                className={`${AUTH_INPUT_CLASS} mt-1 tracking-widest text-center text-lg`}
                 placeholder="000000"
                 aria-label="MFA one-time code"
                 aria-required="true"
@@ -103,7 +101,7 @@ export function LoginForm() {
                 type="email"
                 autoComplete="email"
                 required
-                className={INPUT_CLASS}
+                className={AUTH_INPUT_CLASS}
                 placeholder="Email address"
                 aria-label="Email address"
                 aria-required="true"
@@ -120,7 +118,7 @@ export function LoginForm() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className={INPUT_CLASS}
+                className={AUTH_INPUT_CLASS}
                 placeholder="Password"
                 aria-label="Password"
                 aria-required="true"
@@ -148,14 +146,7 @@ export function LoginForm() {
             type="submit"
             disabled={isPending}
             aria-busy={isPending}
-            className={[
-              "group relative w-full flex justify-center py-2 px-4",
-              "border border-transparent text-sm font-medium rounded-md",
-              "text-[var(--accent-fg)] bg-[var(--accent)] hover:bg-[var(--accent-hover)]",
-              "focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent)]",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              "transition-colors",
-            ].join(" ")}
+            className={AUTH_SUBMIT_CLASS}
           >
             {isPending ? "Signing in..." : state?.requiresMfa ? "Verify" : "Sign in"}
           </button>

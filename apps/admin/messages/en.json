@@ -1104,6 +1104,51 @@
     "successTitle": "Password Reset Successfully",
     "successDesc": "Your password has been updated. Redirecting to login..."
   },
+  "requiredPasswordChange": {
+    "title": "Set a new password",
+    "description": "This account must change its password before it can sign in. Enter the e-mail address, the current password and a new password. No session is opened here: once the password is changed, sign in with the new one.",
+    "emailLabel": "E-mail address",
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "confirmPasswordLabel": "Confirm the new password",
+    "mfaCodeLabel": "Authentication code",
+    "policyTitle": "The new password must:",
+    "policy": {
+      "length": "be 12 to 128 characters long",
+      "lowercase": "contain at least one lowercase letter",
+      "uppercase": "contain at least one uppercase letter",
+      "number": "contain at least one number",
+      "special": "contain at least one character that is neither a letter nor a number",
+      "reuse": "differ from the current password and from the last five passwords of the account"
+    },
+    "submit": "Change password",
+    "submitting": "Changing password...",
+    "backToSignIn": "Back to sign in",
+    "invalidField": {
+      "email": "Enter a valid e-mail address.",
+      "currentPassword": "Enter the current password.",
+      "newPassword": "Enter a new password of at most 128 characters.",
+      "mfaToken": "The authentication code is six digits."
+    },
+    "passwordChanged": "The password was changed. Sign in with the new password."
+  },
+  "adminAuthErrors": {
+    "passwordMismatch": "The new password and its confirmation do not match.",
+    "invalidCredentials": "The e-mail address or the password is not correct.",
+    "mfaRequired": "This account uses two-step verification. Enter the code from the authentication app.",
+    "mfaInvalid": "The authentication code is not valid. Enter a new code.",
+    "accountLocked": "This account is locked. Try again later.",
+    "accountInactive": "This account is inactive.",
+    "passwordChangeNotRequired": "This account does not need a password change. Sign in with its password.",
+    "concurrentModification": "The account changed while the password was being saved. Try again.",
+    "passwordTooWeak": "The new password does not meet the requirements listed under it.",
+    "passwordReused": "The new password cannot be the current password or one of the last five. Choose another one.",
+    "rateLimitExceeded": "Too many attempts. Wait a moment and try again.",
+    "ipNotAllowed": "Access from this network address is not allowed.",
+    "validationFailed": "Some fields are not valid.",
+    "internalError": "The server could not complete the request. Try again later.",
+    "unknown": "The request could not be completed. Try again."
+  },
   "logs": {
     "title": "Audit Logs",
     "description": "Track all system events and user activities (auto-refreshes every 30s)",
