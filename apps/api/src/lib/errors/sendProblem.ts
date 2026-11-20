@@ -339,12 +339,15 @@ export function sendProblemOnSocket(
  *   alone, as Node's documentation of `http.Agent` says, so the failure's answer waits for the
  *   answer in flight to end (its response's `close` event, "the response is completed, or its
  *   underlying connection was terminated prematurely") and is written after its last byte, never
- *   between or over it, then the connection is closed. When the connection can no longer be written by then
- *   (the answer in flight closed it, or the client went away), nothing is written, the line says
- *   so, and the connection is closed. The id and the address are taken when the failure arrives,
- *   while the connection can still give its peer's address. Nothing but that answer's end bounds
- *   the wait: no timer is added, and the request in flight is held as long whether or not a message
- *   follows it.
+ *   between or over it, then the connection is closed. When the connection can no longer be
+ *   written by then (the answer in flight closed it, the client went away, or the server ended its
+ *   side once the client had ended its own, as `createClientErrorHandler` does), nothing is
+ *   written, the line says so, and the connection is closed. The id and the address are taken when
+ *   the failure arrives, while the connection can still give its peer's address. While the client
+ *   stays connected, nothing but that answer's end bounds the wait, and no timer is added: a
+ *   request in flight whose route never answers holds its connection as long whether or not a
+ *   message follows it, since the server sets no handler or idle timeout and Node's request
+ *   timeout bounds only a message still being received.
  * @param socket - The connection whose parser failed on the following message.
  * @param error - The failure, a registered error whose cause is the connection's error.
  * @param logger - The logger the failure's one line is written to.

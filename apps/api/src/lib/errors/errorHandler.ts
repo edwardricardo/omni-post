@@ -100,6 +100,26 @@ export function createNotFoundHandler(logger: FastifyBaseLogger) {
 }
 
 /**
+ * The connections whose parser failed and that are answered, or whose answer waits for the answer
+ * in flight on them. The failed message is the last one such a connection carries: no later failure
+ * of it is answered again, and no request read from it afterwards is taken, which can only be the
+ * failed message itself, read whole after its request timeout was answered.
+ */
+const answeredConnections = new WeakSet<Socket>();
+
+/**
+ * Ends the server's side of an answered connection once the client has ended its own, as Node ends
+ * a connection whose client ends its side between messages, since the server allows no half-open
+ * connection (`socketOnEnd` in `lib/_http_server.js`). When the client's end cuts a message, and
+ * when the request timeout fires, Node leaves closing the socket to the `clientError` listener; a
+ * connection whose answer waits for the answer in flight would otherwise stay open for as long as
+ * that answer takes, after its client has gone.
+ */
+function endWhenTheClientHasEnded(socket: Socket): void {
+  if (socket.readableEnded) socket.end();
+}
+
+/**
  * @function answerFrameworkRefusal
  * @description The server's `frameworkErrors` option: a request the framework refuses before it
  *   routes it is answered through `sendProblem`, on the server's logger, the one the error and
@@ -111,6 +131,9 @@ export function createNotFoundHandler(logger: FastifyBaseLogger) {
  *   and no metric, and its correlation id is the request id, as for any failure no hook stamped;
  *   Fastify writes its "incoming request" line for them and no "request completed" line. A failing
  *   async constraint arrives without the constraint's own error, which Fastify does not pass on.
+ *   A request read on a connection already answered for a failure of its parser is the failed
+ *   message itself, read whole after its request timeout was answered: it is not answered again,
+ *   and its reply is hijacked, so nothing is written after the connection's own refusal.
  * @param error - The framework's refusal.
  * @param request - The request Fastify built for the refusal.
  * @param reply - The reply the problem is sent on.
@@ -120,6 +143,10 @@ export function answerFrameworkRefusal(
   request: FastifyRequest,
   reply: FastifyReply
 ): void {
+  if (answeredConnections.has(request.socket)) {
+    reply.hijack();
+    return;
+  }
   sendProblem(request, reply, error, request.server.log);
 }
 
@@ -281,6 +308,13 @@ export function trackRequestsInFlight(
   requestsInFlight: RequestsInFlight
 ): void {
   server.addHook("onRequest", (request, reply, done) => {
+    if (answeredConnections.has(request.socket)) {
+      // The failed message itself, read whole after its request timeout was answered: a hijacked
+      // reply runs no later hook and no route, and sends nothing after the connection's refusal.
+      reply.hijack();
+      done();
+      return;
+    }
     requestsInFlight.set(request.socket, { request, reply });
     keepClientAddress(request);
     done();
@@ -307,9 +341,17 @@ export function trackRequestsInFlight(
  *   `sendProblemOnSocket` answers at once, the failure that request's own when there is one. With
  *   a request whose message is complete, the failure is the next message's, its own event:
  *   `sendProblemAfterAnswerInFlight` answers it once the answer in flight has ended. A connection
- *   is answered once: the parser stays failed, so the errors Node raises for the bytes that follow,
- *   or its request timeout of the same message, are the same failure's. A connection the client
- *   reset (`ECONNRESET`), or one already destroyed, is left as it is, as the framework's own handler
+ *   is answered once. Node calls the handler again for a connection it answered in three ways:
+ *   for each later chunk, since llhttp returns its error again once failed; for the request
+ *   timeout of the failed message, which stays among the messages Node times out; and for the end
+ *   of data, when the client ends its side in the middle of a message the parser has not failed,
+ *   as after a request timeout. Each is the same failure's and is not answered again; but in the
+ *   last two Node leaves closing the socket to this handler, so once the client has ended its side,
+ *   in that call or in the first, the server ends its own, and a refusal waiting for the answer in
+ *   flight then finds a connection that can no longer be written. A client that ends its side
+ *   after a failure llhttp raised needs nothing more: Node raises no error at the end of data for a
+ *   parser already failed, and ends the server's side itself. A connection the client reset
+ *   (`ECONNRESET`), or one already destroyed, is left as it is, as the framework's own handler
  *   leaves it: nothing can be written to it, and a request in flight on it logs its own failure
  *   when its body's stream fails. No hook of the application runs for these answers, so they carry
  *   no security header and count against no rate limit and no metric.
@@ -317,19 +359,23 @@ export function trackRequestsInFlight(
  * @returns The handler.
  */
 export function createClientErrorHandler(requestsInFlight: RequestsInFlight) {
-  const answered = new WeakSet<Socket>();
   return function answerClientError(
     this: FastifyInstance,
     error: ConnectionError,
     socket: Socket
   ): void {
-    if (error.code === "ECONNRESET" || socket.destroyed || answered.has(socket)) return;
-    answered.add(socket);
+    if (error.code === "ECONNRESET" || socket.destroyed) return;
+    if (answeredConnections.has(socket)) {
+      endWhenTheClientHasEnded(socket);
+      return;
+    }
+    answeredConnections.add(socket);
     const inFlight = requestsInFlight.get(socket);
     if (inFlight === undefined) {
       sendProblemOnSocket(socket, connectionFailure(error, false), this.log, undefined);
     } else if (inFlight.request.raw.complete) {
       sendProblemAfterAnswerInFlight(socket, connectionFailure(error, false), this.log, inFlight);
+      endWhenTheClientHasEnded(socket);
     } else {
       sendProblemOnSocket(socket, connectionFailure(error, true), this.log, inFlight);
     }

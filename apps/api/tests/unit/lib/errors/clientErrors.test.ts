@@ -97,6 +97,8 @@ function serverAsTheAppBuildsIt(): FastifyInstance {
     await slowRelease.promise;
     return { slow: true };
   });
+  // Never answers, so a case holds a request in flight for as long as the case lasts.
+  app.get("/hang", async () => new Promise<never>(() => undefined));
   app.post(
     "/stream-early",
     {
@@ -129,6 +131,17 @@ function serverAsTheAppBuildsIt(): FastifyInstance {
     done();
   });
   return app;
+}
+
+/**
+ * @description The connections the server holds, as Node counts them.
+ * @param app - The server.
+ * @returns How many there are.
+ */
+async function connectionsOf(app: FastifyInstance): Promise<number> {
+  return new Promise((resolve, reject) => {
+    app.server.getConnections((error, count) => (error ? reject(error) : resolve(count)));
+  });
 }
 
 /**
@@ -775,6 +788,68 @@ describe("a connection whose request cannot be read, on the server createServer 
     }
   );
 
+  it("ends its side of a connection whose client ends its own in the middle of a message that follows a request still unanswered, and writes nothing, with one line", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    socket.write("GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+
+    const failed = once(app.server, "clientError");
+    socket.end("GET /things HTTP/1.1\r\nHo");
+    await failed;
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+      timeoutMs: 2_000,
+    });
+    await until(() => lines.warn.mock.calls.length === 1, { description: "the failure's line" });
+
+    expect(received).toEqual([]);
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE,
+        // Node builds the end of data's error without its reason (`socketOnEnd`).
+        { message: "Parse Error", code: "HPE_INVALID_EOF_STATE" },
+        routed[0]?.id,
+        "Request failed on a connection that can no longer be written"
+      ),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("closes a connection whose client ends its side after a following message failed to parse, while the request in flight is unanswered, and writes nothing, with one line", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    socket.write("GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+    const failed = once(app.server, "clientError");
+    socket.write("TELL /things HTTP/1.1\r\n");
+    await failed;
+
+    socket.end();
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+      timeoutMs: 2_000,
+    });
+    await until(() => lines.warn.mock.calls.length === 1, { description: "the failure's line" });
+
+    expect(received).toEqual([]);
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+        { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+        routed[0]?.id,
+        "Request failed on a connection that can no longer be written"
+      ),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
   it("answers the failure of a following message once, whatever the client sends after it", async () => {
     const lines = recordFailureLines(app);
     const socket = connect({ host: HOST, port });
@@ -1262,4 +1337,76 @@ describe("a client too slow to send its request, on the server createServer buil
     ]);
     expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
   });
+
+  it("ends its side once the client ends its own after the request timeout of a message that follows a request still unanswered, and writes nothing, with one line", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    const timedOut = once(app.server, "clientError");
+    socket.write("GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\nGET /things HTTP/1.1\r\nHo");
+    await timedOut;
+
+    socket.end();
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+      timeoutMs: 2_000,
+    });
+    await until(() => lines.warn.mock.calls.length === 1, { description: "the failure's line" });
+
+    expect(received).toEqual([]);
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_TIMEOUT,
+        { message: "Request timeout", code: "ERR_HTTP_REQUEST_TIMEOUT" },
+        routed[0]?.id,
+        "Request failed on a connection that can no longer be written"
+      ),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it.each([
+    ["a route's path", "GET /things HTTP/1.1\r\nHo"],
+    ["a path that does not decode", "GET /%zz HTTP/1.1\r\nHo"],
+  ])(
+    "answers the request in flight, then the request timeout of the message after it, and never takes that message when it arrives whole too late, for %s",
+    async (_name, timedOutStart) => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      const timedOut = once(app.server, "clientError");
+      socket.write(`GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n${timedOutStart}`);
+      await timedOut;
+      const readLate = once(app.server, "request");
+      socket.write("st: localhost\r\n\r\n");
+      await readLate;
+
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+      const refusal = raw.indexOf("HTTP/1.1 408 Request Timeout");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "408",
+      ]);
+      expect(responseOf(raw.slice(0, refusal)).body).toBe('{"slow":true}');
+      expect(JSON.parse(responseOf(raw.slice(refusal)).body)).toEqual(
+        problemOf(HTTP_ERRORS.REQUEST_TIMEOUT, "Request timeout")
+      );
+      expect(routed).toHaveLength(1);
+      expect(lines.warn.mock.calls).toEqual([
+        followingLine(
+          HTTP_ERRORS.REQUEST_TIMEOUT,
+          { message: "Request timeout", code: "ERR_HTTP_REQUEST_TIMEOUT" },
+          routed[0]?.id
+        ),
+      ]);
+      expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
+    }
+  );
 });
