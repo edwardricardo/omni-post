@@ -234,7 +234,7 @@ const scan = (input: Partial<GateInput> = {}): Promise<Outcome> => {
   gitIn("add", "--all");
   return runGate({
     root,
-    git: createGit(root),
+    git: createGit(root, gitEnvironment()),
     resolveRule: resolverOf(),
     exclusions: EXCLUSIONS,
     options: OPTIONS,
@@ -246,7 +246,7 @@ const scan = (input: Partial<GateInput> = {}): Promise<Outcome> => {
 const record = (input: Partial<RecordInput> = {}): Outcome =>
   recordRow({
     root,
-    git: createGit(root),
+    git: createGit(root, gitEnvironment()),
     date: "2026-11-21",
     slug: "birth",
     exclusions: EXCLUSIONS,
@@ -1012,6 +1012,10 @@ const riseLine = (file: string, head: number, base: number): string =>
   `${PREFIX}${file}: ${RULE} counts ${String(head)} ${head === 1 ? "site" : "sites"}, and the base counts ${String(base)}: a count never rises against the base; ` +
   `fix the sites the change added and run "pnpm exec eslint . --prune-suppressions", or, when they moved from another file of its context, record the move with --moved <from>:${file}:<count>; ` +
   "a renamed file needs no move: the gate reads renames from HEAD, so commit the rename and run again";
+/** S7's verdict on a count that fell where git reports its file unchanged, as `how` says. */
+const fallLine = (file: string, base: number, head: number, how: string): string =>
+  `${PREFIX}${file}: ${RULE} fell from ${String(base)} to ${String(head)} against the base, and ${how}: a count falls only when its file changes; ` +
+  "the gate reads changes from HEAD, so commit the edit that fixed its sites and run again";
 const MISSING_ROW = `${PREFIX}${HISTORY}: the counts differ from the base and the head adds no row: record it with "node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug> --base base"`;
 const TWO_RULES: Exclusions = { [RULE]: LIST, [SECOND]: LIST };
 const TWO_OPTIONS: Options = { [RULE]: OPTIONS[RULE] ?? [], [SECOND]: [] };
@@ -1097,11 +1101,31 @@ describe("S6a to S10: against a base", () => {
     expect(unchanged).toEqual({
       exitCode: 1,
       stdout: [],
-      stderr: [
-        `${PREFIX}${A}: ${RULE} fell from 3 to 2 against the base, and git reports no change of its content: a count falls only when its file changes`,
-      ],
+      stderr: [fallLine(A, 3, 2, "git reports no change of its content")],
     });
     expect(changed.exitCode).toBe(0);
+  });
+
+  it("S7 tells a count lowered in an edit not yet committed to commit the edit, and passes once it is", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const uncommitted = await scan({ base: "base" });
+    const committed = await againstBase();
+
+    expect(uncommitted).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [fallLine(A, 3, 2, "git reports no change of its content")],
+    });
+    expect(committed).toEqual({
+      exitCode: 0,
+      stdout: [`${PREFIX}PASS`, `${PREFIX}4 sites in 2 contexts`, `${PREFIX}base: base`],
+      stderr: [],
+    });
   });
 
   it("S7 takes a deletion as the reason a count fell", async () => {
@@ -1129,7 +1153,12 @@ describe("S6a to S10: against a base", () => {
       `${PREFIX}${A}: renamed to apps/api/tests/unit/a.ts, which the scope of ${RULE} excludes ("apps/*/tests/**", outside-src), while the base counts 3 sites in it`
     );
     expect(outcome.stderr).toContain(
-      `${PREFIX}apps/api/tests/unit/a.ts: ${RULE} fell from 3 to 0 against the base, and git reports ${A} renamed to it with its content unchanged: a count falls only when its file changes`
+      fallLine(
+        "apps/api/tests/unit/a.ts",
+        3,
+        0,
+        `git reports ${A} renamed to it with its content unchanged`
+      )
     );
   });
 
@@ -1202,7 +1231,7 @@ describe("S6a to S10: against a base", () => {
       writeFileSync(path.join(foreign, "foreign.ts"), "export {};\n");
       execFileSync("git", ["add", "--all"], { cwd: foreign, env: gitEnvironment() });
       const git = createGit(root, {
-        ...process.env,
+        ...gitEnvironment(),
         GIT_DIR: path.join(foreign, ".git"),
         GIT_WORK_TREE: foreign,
         GIT_INDEX_FILE: path.join(foreign, ".git", "index"),
@@ -1832,6 +1861,8 @@ describe("the command", () => {
   it.each([
     ["an unknown argument", ["--frobnicate"]],
     ["a date without --record", ["--date", "2026-11-21"]],
+    ["a move without --record", ["--moved", "a.ts:b.ts:1"]],
+    ["a slug without --record", ["--slug", "birth"]],
     ["--record without a slug", ["--record", "--date", "2026-11-21"]],
     ["a date that is no calendar date", ["--record", "--date", "2026-02-30", "--slug", "birth"]],
     ["a slug outside its pattern", ["--record", "--date", "2026-11-21", "--slug", "Birth_1"]],
@@ -1994,10 +2025,15 @@ interface GhDouble {
   readonly calls: string[][];
 }
 
-/** A recording `gh`: it lists the given issues and comments, and fails on the given call. */
+/**
+ * A recording `gh`: it lists the given issues and comments, and fails on the given call. `listing`,
+ * when given, is the issue listing's whole answer in place of `issues`, so a listing that is no
+ * list can be answered.
+ */
 const ghDouble = (
   answers: {
     issues?: readonly Record<string, unknown>[];
+    listing?: unknown;
     comments?: readonly Record<string, unknown>[];
     failsOn?: readonly string[];
   } = {}
@@ -2013,7 +2049,8 @@ const ghDouble = (
     if (args[0] === "api" && endpoint.endsWith("/comments")) {
       return JSON.stringify(answers.comments ?? []);
     }
-    return args[0] === "api" ? JSON.stringify(answers.issues ?? []) : "";
+    if (args[0] !== "api") return "";
+    return JSON.stringify("listing" in answers ? answers.listing : (answers.issues ?? []));
   };
   return { gh, calls };
 };
@@ -2279,6 +2316,36 @@ describe("--stalled --remind: one issue, a comment a day", () => {
       stderr: [...STALL_LINES, `${PREFIX}GitHub: HTTP 502: Bad Gateway`],
     });
   });
+
+  it.each([
+    ["is no list", { listing: { message: "Not Found" } }],
+    [
+      "is a full page of 100 other issues, past which the stall's issue could be",
+      {
+        issues: Array.from({ length: 100 }, (_, index) => ({
+          number: index + 10,
+          title: `Another issue ${String(index)}`,
+          state: "open",
+          created_at: "2026-11-01T00:00:00Z",
+        })),
+      },
+    ],
+  ])("exits 3, opening and commenting nothing, when the issue listing %s", (_label, answers) => {
+    plantClean();
+    const double = ghDouble(answers);
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: [
+        ...STALL_LINES,
+        `${PREFIX}GitHub: listing the ${STALL_LABEL} issues returned no list, or a full page`,
+      ],
+    });
+    expect(double.calls).toEqual([ISSUES_CALL]);
+  });
 });
 
 describe("the stall workflow", () => {
@@ -2287,15 +2354,17 @@ describe("the stall workflow", () => {
       path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
       "utf8"
     );
-    const runs = workflow
-      .split("\n")
-      .filter((line) => line.includes("scripts/testing/error-sites-gate.mjs"));
-    const retries = workflow.split("\n").filter((line) => /\[ "\$status" -eq \d+ \]/.test(line));
+    // Lines are compared trimmed, so the step's indentation is the YAML's and not part of the command.
+    const lines = workflow.split("\n").map((line) => line.trim());
+    const runs = lines.filter(
+      (line) => line.includes("scripts/testing/error-sites-gate.mjs") && line.startsWith("node ")
+    );
+    const retries = lines.filter((line) => /\[ "\$status" -eq \d+ \]/.test(line));
 
-    expect(runs.filter((line) => line.trim().startsWith("node "))).toEqual([
-      "            node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind || status=$?",
+    expect(runs).toEqual([
+      "node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind || status=$?",
     ]);
-    expect(retries.map((line) => line.trim())).toEqual(['[ "$status" -eq 3 ] || break']);
+    expect(retries).toEqual(['[ "$status" -eq 3 ] || break']);
   });
 });
 
@@ -2313,6 +2382,9 @@ describe("--stalled from the command line", () => {
       ["--stalled", "--days", "14", "--record", "--date", "2026-11-21", "--slug", "birth"],
     ],
     ["--stalled with --base", ["--stalled", "--days", "14", "--base", "main"]],
+    ["--stalled with --moved", ["--stalled", "--days", "14", "--moved", "a.ts:b.ts:1"]],
+    ["--stalled with --date", ["--stalled", "--days", "14", "--date", "2026-11-21"]],
+    ["--stalled with --slug", ["--stalled", "--days", "14", "--slug", "birth"]],
     ["--stalled without --days", ["--stalled"]],
     ["--days without --stalled", ["--days", "14"]],
     ["--remind without --stalled", ["--remind"]],
