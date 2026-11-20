@@ -76,43 +76,55 @@ jobs:
       # write back to it, so a divergent artifact cannot be laundered into a
       # fresh cache entry by the probe itself.
       #
-      # COUPLING — the key and the restore-keys expressions MUST stay identical
-      # to the three turbo cache steps in ci.yml (the Lint job's restore step
-      # holds the canonical rationale). GitHub Actions cannot import an
-      # expression across workflow files, so the coupling holds by convention
-      # only: the fitness #34-family checks do NOT cover it, and drift makes
-      # this probe permanently blind (restoring nothing, or a key space CI
-      # does not actually consume). ci.yml carries the mirror of this note.
+      # COUPLING — the key expression MUST stay identical to the three turbo
+      # cache steps in ci.yml, and the prefix restore-key identical to the one
+      # they use off main (the Lint job's restore step holds the canonical
+      # rationale). GitHub Actions cannot import an expression across workflow
+      # files, so the coupling holds by convention only: the fitness #34-family
+      # checks do NOT cover it, and drift makes this probe permanently blind
+      # (restoring nothing, or a key space CI does not actually consume).
+      # ci.yml carries the mirror of this note.
+      #
+      # The restore-keys differ on main on purpose. ci.yml drops the prefix
+      # there so that a CI run on main replays nothing built for an earlier
+      # commit. The probe consumes no entry: it replays one only to compare it
+      # with a cold build, and an earlier commit's entry is one CI still
+      # consumes, because a pull request run with no entry of its own falls
+      # back to the default branch, where the prefix returns the newest entry
+      # created under the same pnpm-lock.yaml + turbo.json. So the probe keeps
+      # the prefix on every ref, main included: when the exact entry for the
+      # commit checked out is missing (its Build Check is still running, was
+      # cancelled or failed), the probe checks the entry a pull request would
+      # replay instead of failing for nothing but the moment the schedule
+      # fired.
       #
       # The bare `${{ runner.os }}-turbo-` catch-all prefix is deliberately
       # absent, mirroring ci.yml: it matched caches produced under other
       # lockfiles, the cross-lockfile poisoning path the audit removed there.
-      # On main, where the scheduled probe runs, there is no prefix key either,
-      # as in ci.yml: the probe restores the entry Build Check saved for the
-      # commit it checks out, the only entry a run on main consumes. Honest
-      # residual (same as ci.yml): on every other ref the prefix restore-key
-      # still matches any commit sharing the same pnpm-lock.yaml + turbo.json
-      # hash.
       - name: Restore Turborepo cache (read-only)
         id: turbo-cache
         uses: actions/cache/restore@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
 
       - name: Gate on restored cache identity
-        # On a scheduled run against the default branch the entry to restore
-        # is the one Build Check saved for the commit checked out, on that
-        # commit's push run. With no prefix key on main there is no earlier
-        # entry to fall back on, so the restore is empty when that Build Check
-        # failed, was cancelled or was still running, when its entry was
-        # evicted, when the key drifted from ci.yml, or when the cache service
-        # failed. None of those is an empty universe to check: the probe
-        # observed nothing. Proceeding would compare two cold builds and
-        # certify nothing while looking green, so a scheduled run fails here
-        # and names the causes. workflow_dispatch is exempted: an operator may legitimately
-        # run the probe right after a cache purge; that run continues as a
+        # A scheduled run on the default branch restores the entry Build Check
+        # saved for the commit checked out or, when that entry is missing, the
+        # newest one Build Check saved there under the same pnpm-lock.yaml +
+        # turbo.json. The restore is empty only when no such entry is left: no
+        # Build Check on the default branch has saved one since either file
+        # last changed (the last one failed, was cancelled or has not
+        # finished), every one was evicted (unused for seven days, or pushed
+        # out once the repository's caches exceed their size limit) or purged,
+        # the key drifted from ci.yml, or the cache service failed. None of
+        # those is an empty universe to check: the probe observed nothing.
+        # Proceeding would compare two cold builds and certify nothing while
+        # looking green, so a scheduled run fails here and names the causes.
+        # workflow_dispatch is exempted: an operator may legitimately run the
+        # probe right after a cache purge; that run continues as a
         # loudly-labeled determinism-only check (cold vs cold) and the replay
         # assertion below is skipped for it.
         env:
@@ -122,7 +134,7 @@ jobs:
           if [ -n "$CACHE_MATCHED_KEY" ]; then
             echo "Probing cache entry: $CACHE_MATCHED_KEY"
           elif [ "$EVENT_NAME" = "schedule" ]; then
-            echo "::error::Probe observed nothing: no cache entry was restored for the commit checked out. On main the probe restores only the entry Build Check saved on that commit's push run, so an empty restore means that Build Check failed, was cancelled or had not finished; its entry was evicted or purged; the restore key drifted from ci.yml; or the cache service failed. Check that commit's CI run first. Refusing to degrade into a meaningless cold-vs-cold green."
+            echo "::error::Probe observed nothing: no cache entry was restored, neither the one Build Check saved for the commit checked out nor an earlier one it saved on the default branch under the same pnpm-lock.yaml + turbo.json. So no Build Check on the default branch has saved an entry since either file last changed (the last one failed, was cancelled or had not finished); every such entry was evicted or purged; the restore key drifted from ci.yml; or the cache service failed. Check the default branch's Build Check runs since either file last changed first. Refusing to degrade into a meaningless cold-vs-cold green."
             exit 1
           else
             echo "::warning::No Turborepo cache entry restored. This manual run proceeds as a DETERMINISM-ONLY check (cold vs cold): a green result proves the build is deterministic for this commit but says nothing about the CI cache, which was not observed."

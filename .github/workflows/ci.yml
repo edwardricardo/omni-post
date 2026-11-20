@@ -61,9 +61,10 @@ jobs:
           #   key — which is why only the gated Build Check job saves and every
           #   other turbo job restores read-only.
           # - Coupled expression: .github/workflows/cache-divergence.yml probes
-          #   this exact key scheme read-only; changing the scheme here without
-          #   changing it there leaves the probe observing a cache CI no longer
-          #   uses.
+          #   this key and this prefix restore-key read-only, and keeps the
+          #   prefix on main on purpose (its coupling note says why); changing
+          #   either here without changing it there leaves the probe observing
+          #   a cache CI no longer uses.
           restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Check formatting
