@@ -26,7 +26,14 @@
  *   the verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
  *   own pino records at level "warn" — the code under test logging on the failure paths its tests
  *   exercise. Those records are counted per message, so a new one is visible without failing the
- *   run.
+ *   run. Pino writes the level in two spellings, and both are that record. The label, as the API's
+ *   logger formats it (`"level":"warn"`): a line that holds that text anywhere is taken for the
+ *   record, whatever else the line says. The number, pino's default, written by every logger that
+ *   sets no level formatter (the packages' loggers, Fastify's own): a line that starts with
+ *   `{"level":40,` and parses as one JSON object, so a numeric record at another level, a line that
+ *   only quotes the record, one that continues after it and one that is cut are read whole. Pino
+ *   writes its own level first, so a record at another level cannot start that way; a logger that
+ *   defined a custom level numbered 40 would, and the repository defines none.
  *
  *   One kind of text is not read: the title of a test block on the line where the record-coverage
  *   gate (`scripts/testing/record-coverage-gate.mjs`) lists that block. A title is data the gate
@@ -100,6 +107,8 @@ const COVERAGE_BLOCK_LINE =
 const COVERAGE_MOVED_LINE =
   /^(record-coverage-gate: moved: [^:]*::).*( \(deletion\): its bodyHash reappears as [^:]*::).*$/;
 const APP_WARN_RECORD = '"level":"warn"';
+/** How pino starts a record at warn when no formatter renames its level: the number, first. */
+const NUMERIC_WARN_RECORD_START = '{"level":40,';
 const APP_WARN_MESSAGE = /"msg":"((?:[^"\\]|\\.)*)/;
 const NO_MESSAGE = "<no msg field>";
 const UNHANDLED_LINE = /Worker exited|Unhandled Error/;
@@ -209,6 +218,23 @@ function readSteps(outDir) {
 }
 
 /**
+ * @param {string} line A line of a step's log.
+ * @returns {boolean} Whether the line is an application record at warn: it holds the level's label,
+ *   or it starts with the level's number and parses as one JSON object, so another tool's text
+ *   before or after the record leaves the line a line to read.
+ */
+function isAppWarnRecord(line) {
+  if (line.includes(APP_WARN_RECORD)) return true;
+  if (!line.startsWith(NUMERIC_WARN_RECORD_START)) return false;
+  try {
+    JSON.parse(line);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * @param {string} line A line carrying an application warn record.
  * @returns {string}
  */
@@ -267,7 +293,7 @@ function scanLogs(outDir, entries) {
       if (run !== null && UNHANDLED_LINE.test(text)) {
         unhandled.set(run, (unhandled.get(run) ?? 0) + 1);
       }
-      if (text.includes(APP_WARN_RECORD)) {
+      if (isAppWarnRecord(text)) {
         total += 1;
         const msg = messageOf(text);
         messages.set(msg, (messages.get(msg) ?? 0) + 1);
