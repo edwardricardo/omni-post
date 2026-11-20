@@ -718,7 +718,7 @@ describe("toProblem", () => {
   });
 
   describe("the http domain", () => {
-    it("holds the twenty-one failures the HTTP boundary raises itself, one per cause, for operators only", () => {
+    it("holds the twenty-three failures the HTTP boundary raises itself, one per cause, for operators only", () => {
       const definitions = Object.values(HTTP_ERRORS);
 
       expect(
@@ -742,12 +742,14 @@ describe("toProblem", () => {
         "DATA_AFTER_REQUEST_UNEXPECTED http validation 400: Data that is not a request follows a complete request: check the body's length against its Content-Length, and send nothing after a request that closes the connection",
         "TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH http validation 400: The request sends both Transfer-Encoding and Content-Length, a shape used to smuggle a request, which the server refuses: send one of them",
         "CONTENT_LENGTH_REPEATED http validation 400: The request sends its Content-Length header more than once, a shape used to smuggle a request, which the server refuses: send it once",
+        "REQUEST_INCOMPLETE http validation 400: The client ended its side of the connection before the request arrived whole: send the whole request before ending the connection's sending side",
         "REQUEST_BODY_ABORTED http validation 400: The connection closed before the request body was received whole",
         "REQUEST_REFUSED http validation 400: The request was refused and the server holds no more specific code for the cause: the status says what was refused",
         "EXPECTATION_UNSUPPORTED http validation 417: The request's Expect header asks for something other than 100-continue, which the server does not support: send the request without it",
         "REQUEST_HEADERS_TOO_LARGE http too_large 431: The request's headers are larger than the server accepts",
         "REQUEST_TIMEOUT http timeout 408: The request was not received in full within the time the server waits for one",
         "SERVER_CLOSING http unavailable 503: The server is shutting down and takes no new request: send it again on a new connection",
+        "CONNECT_NOT_IMPLEMENTED http not_implemented 501: The server opens no tunnel: it is not a proxy, and it does not implement CONNECT",
       ]);
       expect(definitions.map(({ params, fronts }) => [params, fronts])).toEqual(
         definitions.map(() => [{}, []])

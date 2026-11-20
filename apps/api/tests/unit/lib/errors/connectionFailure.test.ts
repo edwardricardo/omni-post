@@ -3,9 +3,10 @@
  * @description `connectionFailure` names the part of the message a connection's error finds wrong,
  *   one code per part. Node's parser code names the part whenever it names one: the request line,
  *   the headers, a Content-Length sent more than once, the body's framing, or data after a message.
- *   llhttp raises `HPE_STRICT`, `HPE_CR_EXPECTED` and `HPE_INVALID_EOF_STATE` in more than one
- *   part, so for those alone the position decides: the body's framing while a request's own body is
- *   read, otherwise the headers, or the request line for `HPE_STRICT`'s reason after the version.
+ *   llhttp raises `HPE_STRICT` and `HPE_CR_EXPECTED` in more than one part, so for those alone the
+ *   position decides: the body's framing while a request's own body is read, otherwise the headers,
+ *   or the request line for `HPE_STRICT`'s reason after the version. A message the client cut by
+ *   ending its side (`HPE_INVALID_EOF_STATE`) answers its own code wherever the cut falls.
  *   The conflict of
  *   Transfer-Encoding with Content-Length, which llhttp raises under either header's code, is told
  *   by its reason. The request timeout and an oversized header keep their own codes anywhere. A
@@ -38,6 +39,7 @@ const REPEATED = "CONTENT_LENGTH_REPEATED";
 const FRAMING = "REQUEST_BODY_FRAMING_NOT_PARSABLE";
 const AFTER = "DATA_AFTER_REQUEST_UNEXPECTED";
 const CONFLICT = "TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH";
+const INCOMPLETE = "REQUEST_INCOMPLETE";
 
 describe("connectionFailure", () => {
   it.each([
@@ -67,7 +69,7 @@ describe("connectionFailure", () => {
     ],
     ["HPE_INVALID_CHUNK_SIZE", undefined, FRAMING],
     ["HPE_CHUNK_EXTENSIONS_OVERFLOW", undefined, FRAMING],
-    ["HPE_INVALID_EOF_STATE", "Invalid EOF state", HEADERS],
+    ["HPE_INVALID_EOF_STATE", "Invalid EOF state", INCOMPLETE],
     ["HPE_CLOSED_CONNECTION", undefined, AFTER],
     ["HPE_HEADER_OVERFLOW", undefined, "REQUEST_HEADERS_TOO_LARGE"],
     ["ERR_HTTP_REQUEST_TIMEOUT", undefined, "REQUEST_TIMEOUT"],
@@ -81,7 +83,7 @@ describe("connectionFailure", () => {
     ["HPE_STRICT", "Invalid character in chunk extensions", FRAMING],
     ["HPE_CR_EXPECTED", "Missing expected CR after chunk data", FRAMING],
     ["HPE_INVALID_CHUNK_SIZE", "Invalid character in chunk size", FRAMING],
-    ["HPE_INVALID_EOF_STATE", "Invalid EOF state", FRAMING],
+    ["HPE_INVALID_EOF_STATE", "Invalid EOF state", INCOMPLETE],
     ["HPE_INVALID_TRANSFER_ENCODING", "Request has invalid `Transfer-Encoding`", HEADERS],
     ["ERR_HTTP_REQUEST_TIMEOUT", "a reason", "REQUEST_TIMEOUT"],
   ])(

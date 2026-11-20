@@ -50,6 +50,8 @@ vi.mock("../../../../src/observability/sentryInit.js", () => ({ captureError: vi
 const HOST = "127.0.0.1";
 const PROBLEM_JSON = "application/problem+json; charset=utf-8";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+/** The message of the line a request read on a connection already refused writes. */
+const NOT_TAKEN = "Request not taken: its connection was already refused";
 /** A value the client sends in its headers, which must reach neither the line nor the answer. */
 const PLANTED = "Bearer planted-token-5be1";
 
@@ -65,6 +67,8 @@ const routed: RoutedRequest[] = [];
 const openStreams: PassThrough[] = [];
 /** What the route `/slow` waits on before it answers. */
 let slowRelease: Deferred<void> = createDeferred<void>();
+/** What the route `/slow2` waits on before it answers. */
+let slow2Release: Deferred<void> = createDeferred<void>();
 /** The ids of the requests whose answers the current case's server has sent, in order. */
 const answered: string[] = [];
 
@@ -96,6 +100,10 @@ function serverAsTheAppBuildsIt(): FastifyInstance {
   app.get("/slow", async () => {
     await slowRelease.promise;
     return { slow: true };
+  });
+  app.get("/slow2", async () => {
+    await slow2Release.promise;
+    return { slow: 2 };
   });
   // Never answers, so a case holds a request in flight for as long as the case lasts.
   app.get("/hang", async () => new Promise<never>(() => undefined));
@@ -369,6 +377,7 @@ beforeEach(() => {
   answered.splice(0);
   openStreams.splice(0);
   slowRelease = createDeferred<void>();
+  slow2Release = createDeferred<void>();
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(fixedClock());
@@ -809,7 +818,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect(received).toEqual([]);
     expect(lines.warn.mock.calls).toEqual([
       followingLine(
-        HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE,
+        HTTP_ERRORS.REQUEST_INCOMPLETE,
         // Node builds the end of data's error without its reason (`socketOnEnd`).
         { message: "Parse Error", code: "HPE_INVALID_EOF_STATE" },
         routed[0]?.id,
@@ -848,6 +857,359 @@ describe("a connection whose request cannot be read, on the server createServer 
       ),
     ]);
     expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("answers CONNECT_NOT_IMPLEMENTED at 501 to a CONNECT request, in one response that closes the connection, with one error line and its report", async () => {
+    const lines = recordFailureLines(app);
+
+    const response = responseOf(
+      await exchange(port, "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n")
+    );
+    const body = JSON.parse(response.body);
+
+    expect(response).toEqual({
+      statusLine: "HTTP/1.1 501 Not Implemented",
+      headers: {
+        "content-type": PROBLEM_JSON,
+        "content-length": String(Buffer.byteLength(response.body)),
+        connection: "close",
+      },
+      body: response.body,
+    });
+    expect(body).toEqual(problemOf(HTTP_ERRORS.CONNECT_NOT_IMPLEMENTED, "Connect not implemented"));
+    expect(lines.error.mock.calls).toEqual([
+      [
+        {
+          code: "CONNECT_NOT_IMPLEMENTED",
+          wireCode: "CONNECT_NOT_IMPLEMENTED",
+          status: 501,
+          source: "registered",
+          correlationId: body.correlationId,
+          method: "CONNECT",
+          url: "example.com:443",
+          ip: HOST,
+          ipSource: "peer",
+          error: {
+            name: "RegisteredError",
+            message: HTTP_ERRORS.CONNECT_NOT_IMPLEMENTED.message,
+            code: "CONNECT_NOT_IMPLEMENTED",
+            stack: expect.any(String),
+          },
+        },
+        "Request failed",
+      ],
+    ]);
+    expect(vi.mocked(captureError).mock.calls).toEqual([
+      [
+        expect.objectContaining({ code: "CONNECT_NOT_IMPLEMENTED" }),
+        {
+          requestId: body.correlationId,
+          correlationId: body.correlationId,
+          code: "CONNECT_NOT_IMPLEMENTED",
+          method: "CONNECT",
+          url: "example.com:443",
+          ip: HOST,
+          ipSource: "peer",
+        },
+      ],
+    ]);
+    expect([lines.warn.mock.calls, routed]).toEqual([[], []]);
+  });
+
+  it("answers a CONNECT request behind a request in flight after that request's answer, then closes, with the request it waited for on its line", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write("GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+    const tunnel = once(app.server, "connect");
+    socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+    await tunnel;
+
+    slowRelease.resolve();
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+    const refusal = raw.indexOf("HTTP/1.1 501 Not Implemented");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "501",
+    ]);
+    expect(responseOf(raw.slice(0, refusal)).body).toBe('{"slow":true}');
+    expect(lines.error.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          code: "CONNECT_NOT_IMPLEMENTED",
+          correlationId: JSON.parse(responseOf(raw.slice(refusal)).body).correlationId,
+          method: "CONNECT",
+          url: "example.com:443",
+          inFlightCorrelationId: routed[0]?.id,
+        }),
+        "Request failed",
+      ],
+    ]);
+    expect(lines.warn.mock.calls).toEqual([]);
+  });
+
+  it("ends its side of a connection whose client ends its own while a CONNECT waits behind a request still unanswered, and writes nothing, with one line", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    socket.write("GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+    const tunnel = once(app.server, "connect");
+    socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+    await tunnel;
+
+    // Bytes after the CONNECT's head that arrive in a later chunk wait in the socket's own buffer,
+    // ahead of the client's end, until something reads them.
+    socket.end("tunnel bytes");
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+    });
+    await until(() => lines.error.mock.calls.length === 1, { description: "the failure's line" });
+
+    expect(received).toEqual([]);
+    expect(lines.error.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          code: "CONNECT_NOT_IMPLEMENTED",
+          method: "CONNECT",
+          url: "example.com:443",
+          inFlightCorrelationId: routed[0]?.id,
+        }),
+        "Request failed on a connection that can no longer be written",
+      ],
+    ]);
+    expect(lines.warn.mock.calls).toEqual([]);
+  });
+
+  it("closes a connection whose client resets it while a CONNECT waits behind a request still unanswered, with one line and no error thrown", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    socket.on("error", () => undefined);
+    socket.write("GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+    const tunnel = once(app.server, "connect");
+    socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+    await tunnel;
+
+    // The server's socket fails with the reset; an error nothing listens for would be thrown.
+    socket.resetAndDestroy();
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+    });
+    await until(() => lines.error.mock.calls.length === 1, { description: "the failure's line" });
+
+    expect(lines.error.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          code: "CONNECT_NOT_IMPLEMENTED",
+          inFlightCorrelationId: routed[0]?.id,
+        }),
+        "Request failed on a connection that can no longer be written",
+      ],
+    ]);
+  });
+
+  it("ends its side of a connection whose client ends its own in the middle of a body behind a request still unanswered, and writes nothing, with the body's one line", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    socket.write(
+      "GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => routed.length === 2, { description: "both requests routed" });
+
+    const failed = once(app.server, "clientError");
+    socket.end();
+    await failed;
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+    });
+    await until(() => lines.warn.mock.calls.length === 1, { description: "the failure's line" });
+
+    expect(received).toEqual([]);
+    expect(lines.warn.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          code: "REQUEST_INCOMPLETE",
+          correlationId: routed[1]?.id,
+          method: "POST",
+          url: "/echo",
+          inFlightCorrelationId: routed[0]?.id,
+        }),
+        "Request failed on a connection that can no longer be written",
+      ],
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("answers at once, naming no request ahead, a request whose body breaks after the request before it on the connection was answered", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write("GET /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => answered.length === 1, { description: "the first answer sent" });
+    socket.write(
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => routed.length === 2, { description: "the second request routed" });
+
+    socket.write("zz\r\n");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(lines.warn.mock.calls).toEqual([
+      requestLine({
+        code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+        definition: HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
+        source: "registered",
+        correlationId: routed[1]?.id,
+        method: "POST",
+        url: "/echo",
+        error: registeredOver(HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE, {
+          message: "Parse Error: Invalid character in chunk size",
+          code: "HPE_INVALID_CHUNK_SIZE",
+        }),
+      }),
+    ]);
+  });
+
+  it("answers a request whose body breaks behind a request still in flight after that request's answer, under its own id, then closes", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => routed.length === 2, { description: "both requests routed" });
+    const failed = once(app.server, "clientError");
+    socket.write("zz\r\n");
+    await failed;
+
+    slowRelease.resolve();
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+    const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(responseOf(raw.slice(0, refusal)).body).toBe('{"slow":true}');
+    expect(JSON.parse(responseOf(raw.slice(refusal)).body)).toEqual({
+      ...problemOf(
+        HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
+        "Request body framing not parsable"
+      ),
+      correlationId: routed[1]?.id,
+    });
+    const [line] = requestLine({
+      code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+      definition: HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
+      source: "registered",
+      correlationId: routed[1]?.id,
+      method: "POST",
+      url: "/echo",
+      error: registeredOver(HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE, {
+        message: "Parse Error: Invalid character in chunk size",
+        code: "HPE_INVALID_CHUNK_SIZE",
+      }),
+    });
+    expect(lines.warn.mock.calls).toEqual([
+      [{ ...(line as object), inFlightCorrelationId: routed[0]?.id }, "Request failed"],
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("answers the oldest of three requests, then the failure of the second, and never reads the third, which follows a body the parser refused", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => routed.length === 2, { description: "both requests routed" });
+    const failed = once(app.server, "clientError");
+    socket.write("zz\r\nGET /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await failed;
+
+    slowRelease.resolve();
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(routed.map(({ raw: message }) => message.url)).toEqual(["/slow", "/echo"]);
+    expect(lines.warn.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+          correlationId: routed[1]?.id,
+          inFlightCorrelationId: routed[0]?.id,
+        }),
+        "Request failed",
+      ],
+    ]);
+  });
+
+  it("answers a request whose body breaks behind two requests in flight after both answers, waiting for the later one", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /slow2 HTTP/1.1\r\nHost: localhost\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => routed.length === 3, { description: "three requests routed" });
+    const failed = once(app.server, "clientError");
+    socket.write("zz\r\n");
+    await failed;
+
+    slowRelease.resolve();
+    await until(() => Buffer.concat(received).toString("utf8").includes('{"slow":true}'), {
+      description: "the first answer",
+    });
+    slow2Release.resolve();
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "200",
+      "400",
+    ]);
+    expect([raw.indexOf('{"slow":true}') < raw.indexOf('{"slow":2}')]).toEqual([true]);
+    expect(lines.warn.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+          correlationId: routed[2]?.id,
+          inFlightCorrelationId: routed[1]?.id,
+        }),
+        "Request failed",
+      ],
+    ]);
   });
 
   it("answers the failure of a following message once, whatever the client sends after it", async () => {
@@ -996,32 +1358,84 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect(lines.error.mock.calls).toEqual([]);
   });
 
-  it("names the headers, by the position, when the client ends its side in the middle of its headers with no request in flight", async () => {
-    const lines = recordFailureLines(app);
-    const socket = connect({ host: HOST, port });
-    const received: Buffer[] = [];
-    socket.on("data", (chunk: Buffer) => received.push(chunk));
-    socket.on("error", () => undefined);
+  it.each([
+    ["its request line", "GET /thi"],
+    ["its headers", "GET /things HTTP/1.1\r\nHost: loc"],
+  ])(
+    "answers REQUEST_INCOMPLETE at 400 when the client ends its side in the middle of %s with no request in flight, an answer it can still read",
+    async (_name, cut) => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.on("error", () => undefined);
 
-    socket.end("GET /things HTTP/1.1\r\nHost: loc");
-    await once(socket, "close");
-    const response = responseOf(Buffer.concat(received).toString("utf8"));
-    const body = JSON.parse(response.body);
+      socket.end(cut);
+      await once(socket, "close");
+      const response = responseOf(Buffer.concat(received).toString("utf8"));
+      const body = JSON.parse(response.body);
 
-    expect(response.statusLine).toBe("HTTP/1.1 400 Bad Request");
-    expect(body).toEqual(
-      problemOf(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, "Request headers not parsable")
-    );
-    expect(lines.warn.mock.calls).toEqual([
-      connectionLine(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, body.correlationId, {
-        name: "Error",
-        // Node builds the end of data's error without its reason (`socketOnEnd`).
-        message: "Parse Error",
-        code: "HPE_INVALID_EOF_STATE",
-      }),
-    ]);
-    expect([lines.error.mock.calls, routed]).toEqual([[], []]);
-  });
+      expect(response.statusLine).toBe("HTTP/1.1 400 Bad Request");
+      expect(body).toEqual(problemOf(HTTP_ERRORS.REQUEST_INCOMPLETE, "Request incomplete"));
+      expect(lines.warn.mock.calls).toEqual([
+        connectionLine(HTTP_ERRORS.REQUEST_INCOMPLETE, body.correlationId, {
+          name: "Error",
+          // Node builds the end of data's error without its reason (`socketOnEnd`).
+          message: "Parse Error",
+          code: "HPE_INVALID_EOF_STATE",
+        }),
+      ]);
+      expect([lines.error.mock.calls, routed]).toEqual([[], []]);
+    }
+  );
+
+  it.each([
+    [
+      "a body of a Content-Length",
+      'POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 10\r\n\r\n{"a"',
+    ],
+    [
+      "a chunk",
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nab",
+    ],
+  ])(
+    "answers REQUEST_INCOMPLETE at 400, under the request's own id, when the client ends its side in the middle of %s",
+    async (_name, cut) => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.on("error", () => undefined);
+      socket.write(cut);
+      await until(() => routed.length === 1, { description: "the request routed" });
+
+      socket.end();
+      await once(socket, "close");
+      await closed(routed[0]);
+      const response = responseOf(Buffer.concat(received).toString("utf8"));
+
+      expect(response.statusLine).toBe("HTTP/1.1 400 Bad Request");
+      expect(JSON.parse(response.body)).toEqual({
+        ...problemOf(HTTP_ERRORS.REQUEST_INCOMPLETE, "Request incomplete"),
+        correlationId: routed[0]?.id,
+      });
+      expect(lines.warn.mock.calls).toEqual([
+        requestLine({
+          code: "REQUEST_INCOMPLETE",
+          definition: HTTP_ERRORS.REQUEST_INCOMPLETE,
+          source: "registered",
+          correlationId: routed[0]?.id,
+          method: "POST",
+          url: "/echo",
+          error: registeredOver(HTTP_ERRORS.REQUEST_INCOMPLETE, {
+            message: "Parse Error",
+            code: "HPE_INVALID_EOF_STATE",
+          }),
+        }),
+      ]);
+      expect(lines.error.mock.calls).toEqual([]);
+    }
+  );
 
   it.each([
     [
@@ -1407,6 +1821,78 @@ describe("a client too slow to send its request, on the server createServer buil
         ),
       ]);
       expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
+    }
+  );
+
+  it.each([
+    [
+      "a route's path, then a request",
+      "/things",
+      "GET /things?after HTTP/1.1\r\nHost: localhost\r\n\r\n",
+      "GET",
+      "/things?after",
+    ],
+    [
+      "a path that does not decode, then a request",
+      "/%zz",
+      "GET /things?after HTTP/1.1\r\nHost: localhost\r\n\r\n",
+      "GET",
+      "/things?after",
+    ],
+    [
+      "a route's path, then a CONNECT",
+      "/things",
+      "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n",
+      "CONNECT",
+      "example.com:443",
+    ],
+  ])(
+    "writes one line for each request read on a connection already refused, the timed-out message read whole and the one after it, naming the refusal: %s",
+    async (_name, timedOutPath, after, afterMethod, afterUrl) => {
+      const lines = recordFailureLines(app);
+      // The framework's request loggers inherit `info` from the server's, so its own request lines
+      // reach the spy too; the case reads the lines of requests not taken.
+      const info = vi.spyOn(app.log, "info").mockImplementation(() => undefined);
+      const notTaken = () => info.mock.calls.filter(([, message]) => message === NOT_TAKEN);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      const timedOut = once(app.server, "clientError");
+      socket.write(
+        `GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET ${timedOutPath} HTTP/1.1\r\nHo`
+      );
+      await timedOut;
+      socket.write(`st: localhost\r\n\r\n${after}`);
+      await until(() => notTaken().length === 2, { description: "both lines" });
+
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+      const refusal = JSON.parse(
+        responseOf(raw.slice(raw.indexOf("HTTP/1.1 408 Request Timeout"))).body
+      );
+      const line = (method: string, url: string) => [
+        {
+          correlationId: expect.stringMatching(UUID),
+          method,
+          url,
+          ip: HOST,
+          ipSource: "peer",
+          refusalCorrelationId: refusal.correlationId,
+        },
+        NOT_TAKEN,
+      ];
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "408",
+      ]);
+      expect(notTaken()).toEqual([line("GET", timedOutPath), line(afterMethod, afterUrl)]);
+      const ids = notTaken().map(([fields]) => (fields as { correlationId: string }).correlationId);
+      expect(new Set([...ids, refusal.correlationId]).size).toBe(3);
+      expect(routed).toHaveLength(1);
+      expect([lines.warn.mock.calls.length, lines.error.mock.calls]).toEqual([1, []]);
     }
   );
 });

@@ -14,7 +14,7 @@
  *   registry is seen; one at 500 or above answers `INTERNAL_ERROR` the same way.
  * @layer infrastructure
  */
-import { STATUS_CODES } from "node:http";
+import { STATUS_CODES, type IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
 import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";
 import { AppError, type Problem } from "@shared/types";
@@ -26,6 +26,7 @@ import { PROBLEM_MEDIA_TYPE, carriedCode, toProblem } from "./problem.js";
 const LOG_MESSAGE = "Request failed";
 const LATE_LOG_MESSAGE = "Request failed after its answer was sent";
 const UNWRITABLE_LOG_MESSAGE = "Request failed on a connection that can no longer be written";
+const NOT_TAKEN_LOG_MESSAGE = "Request not taken: its connection was already refused";
 /** How many causes the line follows: a longer chain, or one that circles, ends there. */
 const MAX_CAUSES = 5;
 
@@ -61,8 +62,8 @@ interface FailedRequest {
   /** The client's address and where it comes from, as `resolveClientAddress` derives them. */
   readonly address: ClientAddress;
   /**
-   * The correlation id of the request in flight on the connection when the failure is a message
-   * that follows it; absent for every other failure.
+   * The correlation id of the request whose answer the failure's answer waited for, the one just
+   * ahead of it on its connection; absent when its answer waited for none.
    */
   readonly inFlightCorrelationId?: string;
 }
@@ -124,11 +125,16 @@ function failureFields(error: unknown, causesLeft = MAX_CAUSES): ErrorFields | V
   };
 }
 
+/** A request's correlation id: the one a hook stamped, or its id when none did. */
+function correlationIdOf(request: FastifyRequest): string {
+  return request.correlationId ?? request.id;
+}
+
 /** A request as its failure's line and report name it. */
 function failedRequestOf(request: FastifyRequest): FailedRequest {
   return {
     requestId: request.id,
-    correlationId: request.correlationId ?? request.id,
+    correlationId: correlationIdOf(request),
     method: request.method,
     url: request.url,
     address: clientAddresses.get(request) ?? resolveClientAddress(request),
@@ -148,6 +154,15 @@ function connectionOf(socket: Socket): FailedRequest {
     // "unknown" when the socket has no peer address.
     address: resolveClientAddress({ ip: socket.remoteAddress ?? "", socket }),
   };
+}
+
+/**
+ * A request Node hands over with its connection instead of to the server's handler, a CONNECT, as
+ * its line names it: an id generated for it, the method and the target Node parsed, and the
+ * connection's peer, since no forwarding header of a request the framework never reads is read.
+ */
+function tunnelRequestOf(socket: Socket, request: IncomingMessage): FailedRequest {
+  return { ...connectionOf(socket), method: request.method ?? null, url: request.url ?? null };
 }
 
 /**
@@ -222,6 +237,58 @@ function httpResponseOf(problem: Problem, headers: Readonly<Record<string, strin
 }
 
 /**
+ * Writes the one line of a request read on a connection already refused, which is not taken: it is
+ * no failure of its own and gets no answer, so the line is at info, beside the framework's own
+ * line for the request, and names the refusal that closes its connection.
+ */
+function writeNotTaken(
+  read: FailedRequest,
+  refusalCorrelationId: string,
+  logger: FastifyBaseLogger
+): void {
+  const { correlationId, method, url } = read;
+  const { ip, source: ipSource } = read.address;
+  logger.info(
+    { correlationId, method, url, ip, ipSource, refusalCorrelationId },
+    NOT_TAKEN_LOG_MESSAGE
+  );
+}
+
+/**
+ * @description Writes the one line of a request the framework read on a connection already refused
+ *   for a failure of its parser, which is not taken: its own correlation id, method, url and
+ *   address, and the correlation id of the refusal that closes its connection.
+ * @param request - The request read after the refusal.
+ * @param refusalCorrelationId - The correlation id of the connection's refusal.
+ * @param logger - The logger the line is written to.
+ */
+export function logRequestNotTaken(
+  request: FastifyRequest,
+  refusalCorrelationId: string,
+  logger: FastifyBaseLogger
+): void {
+  writeNotTaken(failedRequestOf(request), refusalCorrelationId, logger);
+}
+
+/**
+ * @description Writes the one line of a CONNECT request read on a connection already refused for a
+ *   failure of its parser, which is not taken, as `logRequestNotTaken` does for a request the
+ *   framework reads; its id is generated and its address is the connection's peer.
+ * @param socket - The connection Node handed over with the request.
+ * @param request - The CONNECT request.
+ * @param refusalCorrelationId - The correlation id of the connection's refusal.
+ * @param logger - The logger the line is written to.
+ */
+export function logTunnelRequestNotTaken(
+  socket: Socket,
+  request: IncomingMessage,
+  refusalCorrelationId: string,
+  logger: FastifyBaseLogger
+): void {
+  writeNotTaken(tunnelRequestOf(socket, request), refusalCorrelationId, logger);
+}
+
+/**
  * Answers a failure on the socket, as one whole response while the socket can still be written and
  * none when it cannot, the line saying which, and closes the connection once the answer is sent.
  */
@@ -290,6 +357,27 @@ export function sendProblem(
 }
 
 /**
+ * Answers the failure of a request's own message on the socket, unless its own answer has already
+ * started: a second status line inside a response would corrupt it, so no byte is written, the line
+ * says the failure came after the answer, and the connection is destroyed at once, as Node's own
+ * handler does.
+ */
+function answerRequestOnSocket(
+  socket: Socket,
+  error: unknown,
+  failed: FailedRequest,
+  logger: FastifyBaseLogger,
+  reply: FastifyReply
+): void {
+  if (reply.raw.headersSent) {
+    answerFailure(error, failed, logger, LATE_LOG_MESSAGE);
+    socket.destroy();
+    return;
+  }
+  answerOnSocket(socket, error, failed, logger);
+}
+
+/**
  * @description Answers the failure of a connection whose parser failed, where no reply exists, as
  *   Node's documentation of `clientError` asks: on the socket itself, as a whole HTTP response,
  *   only while the socket can still be written, and with the connection closed. With no request
@@ -298,36 +386,44 @@ export function sendProblem(
  *   message failed, the failure is that request's: it is answered once, under its own correlation
  *   id, method, url and address, and `sendProblem` answers nothing more for it, so its body stream's
  *   failure once the connection closes logs nothing again; the connection is closed, so its route's
- *   answer, if it still comes, reaches no client. When that request's answer has already started,
- *   no byte is written, since a second status line inside a response would corrupt it: the line
- *   says the failure came after the answer and the connection is destroyed at once, as Node's own
- *   handler does. A message that follows a complete request is answered by
- *   `sendProblemAfterAnswerInFlight` instead.
+ *   answer, if it still comes, reaches no client. On a connection an answer is never written ahead
+ *   of the answer of a request that arrived before it: when a request arrived before the failing
+ *   one and is still unanswered, the failure's answer waits for that request's answer to end (its
+ *   response's `close`), and its line names that request by `inFlightCorrelationId`; responses on a
+ *   connection end in the order their requests arrived, so the request just ahead is the last to
+ *   end. When the failing request's own answer has already started by the time its failure is
+ *   written, no byte is written: the line says the failure came after the answer and the
+ *   connection is destroyed at once, as Node's own handler does. A message that follows a complete
+ *   request is answered by `sendProblemAfterAnswerInFlight` instead.
  * @param socket - The connection whose parser failed.
  * @param error - The failure, a registered error whose cause is the connection's error.
  * @param logger - The logger the failure's one line is written to.
  * @param inFlight - The request whose own message failed, when there is one.
+ * @param ahead - The request that arrived just before it and is still unanswered, when there is
+ *   one.
+ * @returns The correlation id the failure is answered under.
  */
 export function sendProblemOnSocket(
   socket: Socket,
   error: unknown,
   logger: FastifyBaseLogger,
-  inFlight: RequestInFlight | undefined
-): void {
-  if (inFlight !== undefined) {
-    answeredOnTheirConnection.add(inFlight.request);
-    if (inFlight.reply.raw.headersSent) {
-      answerFailure(error, failedRequestOf(inFlight.request), logger, LATE_LOG_MESSAGE);
-      socket.destroy();
-      return;
-    }
+  inFlight: RequestInFlight | undefined,
+  ahead: RequestInFlight | undefined
+): string {
+  if (inFlight === undefined) {
+    const failed = connectionOf(socket);
+    answerOnSocket(socket, error, failed, logger);
+    return failed.correlationId;
   }
-  answerOnSocket(
-    socket,
-    error,
-    inFlight === undefined ? connectionOf(socket) : failedRequestOf(inFlight.request),
-    logger
-  );
+  answeredOnTheirConnection.add(inFlight.request);
+  const failed: FailedRequest = {
+    ...failedRequestOf(inFlight.request),
+    ...(ahead !== undefined && { inFlightCorrelationId: correlationIdOf(ahead.request) }),
+  };
+  const answer = (): void => answerRequestOnSocket(socket, error, failed, logger, inFlight.reply);
+  if (ahead === undefined) answer();
+  else answerAfter(ahead, answer);
+  return failed.correlationId;
 }
 
 /**
@@ -351,21 +447,58 @@ export function sendProblemOnSocket(
  * @param socket - The connection whose parser failed on the following message.
  * @param error - The failure, a registered error whose cause is the connection's error.
  * @param logger - The logger the failure's one line is written to.
- * @param inFlight - The complete request whose answer is still in flight on the connection.
+ * @param inFlight - The complete request whose answer is still in flight on the connection, the
+ *   latest to arrive, whose answer ends after every earlier one.
+ * @returns The correlation id the failure is answered under.
  */
 export function sendProblemAfterAnswerInFlight(
   socket: Socket,
   error: unknown,
   logger: FastifyBaseLogger,
   inFlight: RequestInFlight
-): void {
-  const { request, reply } = inFlight;
+): string {
   const failed: FailedRequest = {
     ...connectionOf(socket),
-    inFlightCorrelationId: request.correlationId ?? request.id,
+    inFlightCorrelationId: correlationIdOf(inFlight.request),
   };
-  // The request leaves `trackRequestsInFlight`'s map in its `onResponse` hook, which the response's
-  // `finish` runs before Node emits its `close` on the next tick: a complete request still in the
-  // map has a `close` to come.
-  reply.raw.once("close", () => answerOnSocket(socket, error, failed, logger));
+  answerAfter(inFlight, () => answerOnSocket(socket, error, failed, logger));
+  return failed.correlationId;
+}
+
+/**
+ * Runs an answer once the answer of the request in flight ahead of it ends. The request leaves
+ * `trackRequestsInFlight`'s list in its `onResponse` hook, which the response's `finish` runs before
+ * Node emits its `close` on the next tick: a request still in the list has a `close` to come.
+ */
+function answerAfter(ahead: RequestInFlight, answer: () => void): void {
+  ahead.reply.raw.once("close", answer);
+}
+
+/**
+ * @description Answers a CONNECT request, which Node hands over with its connection instead of to
+ *   the server's handler, through the API's one error body on the socket, then closes the
+ *   connection: an id generated for it, the method and the target Node parsed, and the peer's
+ *   address. Behind a request still in flight on the connection, the answer waits for that
+ *   request's answer to end, as every answer on a connection does, and its line names that request
+ *   by `inFlightCorrelationId`.
+ * @param socket - The connection Node handed over with the request.
+ * @param request - The CONNECT request.
+ * @param error - The failure, a registered error.
+ * @param logger - The logger the failure's one line is written to.
+ * @param ahead - The request still in flight on the connection, when there is one.
+ */
+export function sendProblemOnTunnelRequest(
+  socket: Socket,
+  request: IncomingMessage,
+  error: unknown,
+  logger: FastifyBaseLogger,
+  ahead: RequestInFlight | undefined
+): void {
+  const read = tunnelRequestOf(socket, request);
+  if (ahead === undefined) {
+    answerOnSocket(socket, error, read, logger);
+    return;
+  }
+  const failed: FailedRequest = { ...read, inFlightCorrelationId: correlationIdOf(ahead.request) };
+  answerAfter(ahead, () => answerOnSocket(socket, error, failed, logger));
 }

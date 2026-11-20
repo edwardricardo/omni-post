@@ -27,9 +27,12 @@ import { AppError, ErrorCode, isOperationalError } from "./AppError.js";
 import { problemSchema } from "./problem.js";
 import {
   keepClientAddress,
+  logRequestNotTaken,
+  logTunnelRequestNotTaken,
   sendProblem,
   sendProblemAfterAnswerInFlight,
   sendProblemOnSocket,
+  sendProblemOnTunnelRequest,
   type RequestInFlight,
 } from "./sendProblem.js";
 import {
@@ -101,11 +104,12 @@ export function createNotFoundHandler(logger: FastifyBaseLogger) {
 
 /**
  * The connections whose parser failed and that are answered, or whose answer waits for the answer
- * in flight on them. The failed message is the last one such a connection carries: no later failure
- * of it is answered again, and no request read from it afterwards is taken, which can only be the
- * failed message itself, read whole after its request timeout was answered.
+ * in flight on them, each with the correlation id of its refusal. The connection closes after that
+ * refusal: no later failure of it is answered again, and no request read from it afterwards is
+ * taken, whether the failed message read whole after its request timeout was answered or a
+ * request pipelined after it; each such request writes one line that names the refusal.
  */
-const answeredConnections = new WeakSet<Socket>();
+const answeredConnections = new WeakMap<Socket, string>();
 
 /**
  * Ends the server's side of an answered connection once the client has ended its own, as Node ends
@@ -131,9 +135,10 @@ function endWhenTheClientHasEnded(socket: Socket): void {
  *   and no metric, and its correlation id is the request id, as for any failure no hook stamped;
  *   Fastify writes its "incoming request" line for them and no "request completed" line. A failing
  *   async constraint arrives without the constraint's own error, which Fastify does not pass on.
- *   A request read on a connection already answered for a failure of its parser is the failed
- *   message itself, read whole after its request timeout was answered: it is not answered again,
- *   and its reply is hijacked, so nothing is written after the connection's own refusal.
+ *   A request read on a connection already answered for a failure of its parser, the failed message
+ *   read whole after its request timeout was answered or a request pipelined after it, is not
+ *   taken: it is not answered, its reply is hijacked, so nothing is written after the connection's
+ *   own refusal, and it writes one line that names that refusal.
  * @param error - The framework's refusal.
  * @param request - The request Fastify built for the refusal.
  * @param reply - The reply the problem is sent on.
@@ -143,7 +148,9 @@ export function answerFrameworkRefusal(
   request: FastifyRequest,
   reply: FastifyReply
 ): void {
-  if (answeredConnections.has(request.socket)) {
+  const refusal = answeredConnections.get(request.socket);
+  if (refusal !== undefined) {
+    logRequestNotTaken(request, refusal, request.server.log);
     reply.hijack();
     return;
   }
@@ -166,8 +173,9 @@ type MessagePart = (typeof MESSAGE_PART)[keyof typeof MESSAGE_PART];
  * (`src/node_http_parser.cc`), and Node's own `HPE_CHUNK_EXTENSIONS_OVERFLOW`. Each code's reasons
  * in `deps/llhttp/src/llhttp.c` name one part: `HPE_UNEXPECTED_SPACE` is a first header line that
  * starts with a space ("Unexpected space after start line"), so it names the headers. Not here:
- * the codes that have their own answer (`HPE_HEADER_OVERFLOW`, `HPE_UNEXPECTED_CONTENT_LENGTH`), the
- * codes llhttp raises in more than one part (`MULTI_PART_PARSER_CODES`), and the codes no request
+ * the codes that have their own answer (`HPE_HEADER_OVERFLOW`, `HPE_UNEXPECTED_CONTENT_LENGTH`,
+ * `HPE_INVALID_EOF_STATE`), the codes llhttp raises in more than one part
+ * (`MULTI_PART_PARSER_CODES`), and the codes no request
  * makes Node raise: `HPE_INVALID_STATUS` and the response line's reasons (a response parser's),
  * `HPE_INTERNAL`, the `HPE_CB_*` callback errors and `HPE_PAUSED` (Node's callbacks raise none of
  * them), `HPE_PAUSED_UPGRADE`, which Node's binding turns into success before any error is built,
@@ -194,16 +202,11 @@ const MESSAGE_PART_OF_PARSER_CODE: ReadonlyMap<string, MessagePart> = new Map<st
 /**
  * The codes llhttp raises in more than one part of a request, for which the position decides:
  * `HPE_STRICT` after the version ("Expected CRLF after version"), after the headers ("Expected LF
- * after headers") and in a chunk's size, data and extensions; `HPE_CR_EXPECTED` after a header value
- * and in a chunk's size, data and extensions (and after a response line, a response parser's); and
- * `HPE_INVALID_EOF_STATE`, which `llhttp_finish` returns when the client ends its side of the
- * connection in the middle of a message's line, headers or body.
+ * after headers") and in a chunk's size, data and extensions; and `HPE_CR_EXPECTED` after a header
+ * value and in a chunk's size, data and extensions (and after a response line, a response
+ * parser's).
  */
-const MULTI_PART_PARSER_CODES: ReadonlySet<string> = new Set([
-  "HPE_STRICT",
-  "HPE_CR_EXPECTED",
-  "HPE_INVALID_EOF_STATE",
-]);
+const MULTI_PART_PARSER_CODES: ReadonlySet<string> = new Set(["HPE_STRICT", "HPE_CR_EXPECTED"]);
 
 /** llhttp's reasons, as Node sets `error.reason`, that name the request line under such a code. */
 const REQUEST_LINE_REASONS: ReadonlySet<string> = new Set(["Expected CRLF after version"]);
@@ -240,8 +243,12 @@ function messagePartOf(error: ConnectionError, readingBody: boolean): MessagePar
 
 /**
  * @description A connection's failure as the failure the line and the answer name, Node's error its
- *   cause. The request timeout, headers over Node's limit and a Content-Length sent more than once
- *   keep their own codes. A request that declares both Transfer-Encoding and Content-Length is a
+ *   cause. The request timeout, headers over Node's limit, a Content-Length sent more than once and
+ *   a message the client cut by ending its side keep their own codes. That last is
+ *   `HPE_INVALID_EOF_STATE`, which `llhttp_finish` (`deps/llhttp/src/api.c`) returns only when the
+ *   data ends in the middle of a message, between its first byte and its end, and which Node raises
+ *   only when the client ends its side (`socketOnEnd`): wherever the cut falls, in the request line,
+ *   the headers or the body, the cause is the same. A request that declares both Transfer-Encoding and Content-Length is a
  *   smuggling attempt, named on its own when the parser reports the conflict. Otherwise the code
  *   names the part of the message that is wrong, by Node's parser code, and by the position for a
  *   code llhttp raises in more than one part. A code the tables do not name, a parser's or a
@@ -266,6 +273,9 @@ export function connectionFailure(
   if (error.code === "HPE_UNEXPECTED_CONTENT_LENGTH") {
     return RegisteredError.of(HTTP_ERRORS.CONTENT_LENGTH_REPEATED, { cause: error });
   }
+  if (error.code === "HPE_INVALID_EOF_STATE") {
+    return RegisteredError.of(HTTP_ERRORS.REQUEST_INCOMPLETE, { cause: error });
+  }
   const reason = reasonOf(error);
   if (reason !== undefined && LENGTH_CONFLICT_REASONS.has(reason)) {
     return RegisteredError.of(HTTP_ERRORS.TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH, {
@@ -286,20 +296,24 @@ export function connectionFailure(
   }
 }
 
-/** The request each connection is answering, by its socket, while the server answers it. */
-export type RequestsInFlight = WeakMap<Socket, RequestInFlight>;
+/** The requests each connection is answering, by its socket, in the order they arrived. */
+export type RequestsInFlight = WeakMap<Socket, RequestInFlight[]>;
 
 /**
  * @function trackRequestsInFlight
- * @description Keeps, for each connection, the request the server is answering on it: the first
- *   `onRequest` hook records it, with its client's address while the connection can still give it,
- *   and it is forgotten once its answer is sent (its `onResponse` hook) and its own message has been
+ * @description Keeps, for each connection, the requests the server is answering on it, in the
+ *   order they arrived, which is the order their answers are written in: the first `onRequest` hook
+ *   appends each, with its client's address while the connection can still give it, and a request
+ *   leaves the list once its answer is sent (its `onResponse` hook) and its own message has been
  *   read whole, which for a request answered before its body arrived is when that message closes:
- *   until then, a failure of its body is its own. A message that closes before it is whole takes
- *   its connection with it (Node destroys the socket of an aborted message), so a request kept for
- *   one is never read again. The relation is read from the framework's documented request and hooks
- *   and the message's documented `complete` and `close`; the request a parser holds is kept by Node
- *   in fields it does not document.
+ *   until then, a failure of its body is its own. The list holds no more than the requests Node
+ *   itself keeps unanswered on the connection, and is kept by the socket weakly, so it cannot
+ *   outlive its connection; a message that closes before it is whole takes its connection with it
+ *   (Node destroys the socket of an aborted message). The relation is read from the framework's
+ *   documented request and hooks and the message's documented `complete` and `close`; the requests
+ *   a connection holds are kept by Node in fields it does not document. A request read on a
+ *   connection already answered for a failure of its parser is not taken: the hook writes its one
+ *   line and hijacks its reply, so no route and no later hook runs for it and nothing is sent.
  * @param server - The server, before any route is registered on it.
  * @param requestsInFlight - Where the requests are kept.
  */
@@ -308,22 +322,27 @@ export function trackRequestsInFlight(
   requestsInFlight: RequestsInFlight
 ): void {
   server.addHook("onRequest", (request, reply, done) => {
-    if (answeredConnections.has(request.socket)) {
-      // The failed message itself, read whole after its request timeout was answered: a hijacked
-      // reply runs no later hook and no route, and sends nothing after the connection's refusal.
+    const refusal = answeredConnections.get(request.socket);
+    if (refusal !== undefined) {
+      // The failed message read whole after its request timeout was answered, or a request
+      // pipelined after it: a hijacked reply runs no later hook and no route, and sends nothing
+      // after the connection's refusal.
+      logRequestNotTaken(request, refusal, server.log);
       reply.hijack();
       done();
       return;
     }
-    requestsInFlight.set(request.socket, { request, reply });
+    const inFlight = requestsInFlight.get(request.socket);
+    if (inFlight === undefined) requestsInFlight.set(request.socket, [{ request, reply }]);
+    else inFlight.push({ request, reply });
     keepClientAddress(request);
     done();
   });
   server.addHook("onResponse", (request, _reply, done) => {
     const forget = (): void => {
-      if (requestsInFlight.get(request.socket)?.request === request) {
-        requestsInFlight.delete(request.socket);
-      }
+      const inFlight = requestsInFlight.get(request.socket) ?? [];
+      const index = inFlight.findIndex((entry) => entry.request === request);
+      if (index !== -1) inFlight.splice(index, 1);
     };
     if (request.raw.complete) forget();
     else request.raw.once("close", forget);
@@ -336,12 +355,14 @@ export function trackRequestsInFlight(
  * @description Builds the server's `clientErrorHandler` option: a connection whose parser fails is
  *   answered on the server's logger, the instance Fastify binds the option to, with the failure
  *   `connectionFailure` names. Node hands it the connection's error and its socket and no request;
- *   the request the connection is answering, when there is one, is read from what
- *   `trackRequestsInFlight` keeps. With none, or with one whose own message is still being read,
- *   `sendProblemOnSocket` answers at once, the failure that request's own when there is one. With
- *   a request whose message is complete, the failure is the next message's, its own event:
- *   `sendProblemAfterAnswerInFlight` answers it once the answer in flight has ended. A connection
- *   is answered once. Node calls the handler again for a connection it answered in three ways:
+ *   the requests the connection is answering are read from what `trackRequestsInFlight` keeps, in
+ *   the order they arrived. With none, `sendProblemOnSocket` answers at once. When the latest is
+ *   still being read, the failure is that request's own: `sendProblemOnSocket` answers it, at once
+ *   or, when an earlier request is still unanswered, once that request's answer has ended. When the
+ *   latest is complete, the failure is the next message's, its own event:
+ *   `sendProblemAfterAnswerInFlight` answers it once the answer in flight has ended. So an answer
+ *   is never written ahead of the answer of a request that arrived before it. A connection is
+ *   answered once, under the correlation id the handler keeps as its refusal. Node calls the handler again for a connection it answered in three ways:
  *   for each later chunk, since llhttp returns its error again once failed; for the request
  *   timeout of the failed message, which stays among the messages Node times out; and for the end
  *   of data, when the client ends its side in the middle of a message the parser has not failed,
@@ -369,17 +390,74 @@ export function createClientErrorHandler(requestsInFlight: RequestsInFlight) {
       endWhenTheClientHasEnded(socket);
       return;
     }
-    answeredConnections.add(socket);
-    const inFlight = requestsInFlight.get(socket);
-    if (inFlight === undefined) {
-      sendProblemOnSocket(socket, connectionFailure(error, false), this.log, undefined);
-    } else if (inFlight.request.raw.complete) {
-      sendProblemAfterAnswerInFlight(socket, connectionFailure(error, false), this.log, inFlight);
-      endWhenTheClientHasEnded(socket);
+    const inFlight = requestsInFlight.get(socket) ?? [];
+    const latest = inFlight.at(-1);
+    let refusal: string;
+    if (latest === undefined) {
+      refusal = sendProblemOnSocket(
+        socket,
+        connectionFailure(error, false),
+        this.log,
+        undefined,
+        undefined
+      );
+    } else if (latest.request.raw.complete) {
+      refusal = sendProblemAfterAnswerInFlight(
+        socket,
+        connectionFailure(error, false),
+        this.log,
+        latest
+      );
     } else {
-      sendProblemOnSocket(socket, connectionFailure(error, true), this.log, inFlight);
+      refusal = sendProblemOnSocket(
+        socket,
+        connectionFailure(error, true),
+        this.log,
+        latest,
+        inFlight.at(-2)
+      );
     }
+    answeredConnections.set(socket, refusal);
+    // A no-op once an answer written at once has ended the server's side.
+    endWhenTheClientHasEnded(socket);
   };
+}
+
+/**
+ * @function refuseTunnels
+ * @description Answers a CONNECT request with `CONNECT_NOT_IMPLEMENTED` at 501 on its socket, then
+ *   closes the connection. The server is not a proxy and opens no tunnel. Node hands such a request
+ *   to the server's `connect` listener with its socket and the first bytes of the tunnel, and with
+ *   no listener closes the connection with no answer; it removes its own listeners from the socket
+ *   first, so the socket's errors, its end of data and every byte that follows are this listener's.
+ *   The bytes are read and dropped, the head included; an error, which has already destroyed the
+ *   socket, is not thrown; and when the client ends its side the server ends its own, as Node does
+ *   between messages. The answer is written after the answer of the request still in flight on the
+ *   connection, as every answer on a connection is. A CONNECT read on a connection already answered
+ *   for a failure of its parser is not taken and writes its one line, as any request there does.
+ *   An `Upgrade` request is not this case: Node hands it to the server's handler as an ordinary
+ *   request when nothing listens for `upgrade`.
+ * @param server - The server, before it listens.
+ * @param requestsInFlight - The requests the connections are answering.
+ */
+export function refuseTunnels(server: FastifyInstance, requestsInFlight: RequestsInFlight): void {
+  server.server.on("connect", (request: IncomingMessage, socket: Socket) => {
+    socket.on("error", () => undefined);
+    socket.on("end", () => socket.end());
+    socket.resume();
+    const refusal = answeredConnections.get(socket);
+    if (refusal !== undefined) {
+      logTunnelRequestNotTaken(socket, request, refusal, server.log);
+      return;
+    }
+    sendProblemOnTunnelRequest(
+      socket,
+      request,
+      RegisteredError.of(HTTP_ERRORS.CONNECT_NOT_IMPLEMENTED),
+      server.log,
+      requestsInFlight.get(socket)?.at(-1)
+    );
+  });
 }
 
 /**

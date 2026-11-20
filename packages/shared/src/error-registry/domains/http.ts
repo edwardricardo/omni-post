@@ -121,6 +121,14 @@ export const HTTP_ERRORS = defineErrors("http", {
     params: {},
     fronts: [],
   },
+  REQUEST_INCOMPLETE: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "The client ended its side of the connection before the request arrived whole: send the whole request before ending the connection's sending side",
+    params: {},
+    fronts: [],
+  },
   REQUEST_BODY_ABORTED: {
     category: ERROR_CATEGORY.VALIDATION,
     status: 400,
@@ -163,6 +171,13 @@ export const HTTP_ERRORS = defineErrors("http", {
     status: 503,
     message:
       "The server is shutting down and takes no new request: send it again on a new connection",
+    params: {},
+    fronts: [],
+  },
+  CONNECT_NOT_IMPLEMENTED: {
+    category: ERROR_CATEGORY.NOT_IMPLEMENTED,
+    status: 501,
+    message: "The server opens no tunnel: it is not a proxy, and it does not implement CONNECT",
     params: {},
     fronts: [],
   },

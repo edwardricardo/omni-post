@@ -66,6 +66,7 @@ import {
   createNotFoundHandler,
   PROBLEM_OPENAPI_SCHEMA,
   refuseRequestsWhileClosing,
+  refuseTunnels,
   trackRequestsInFlight,
   type RequestsInFlight,
 } from "./lib/errors/errorHandler.js";
@@ -250,6 +251,7 @@ function createServer(): FastifyInstance {
   trackRequestsInFlight(server, requestsInFlight);
   refuseRequestsWhileClosing(server);
   answerUnsupportedExpectations(server);
+  refuseTunnels(server, requestsInFlight);
   return server;
 }
 
