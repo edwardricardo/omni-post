@@ -1,14 +1,14 @@
 /**
  * @file redisConnectionErrorListeners.test.ts
- * @description Pins that the Redis connections and BullMQ queues the composition root builds
- *   log their errors through the throttled listener instead of discarding them or leaving them
- *   unlistened: sites of `setupServices` (the notification broadcaster's connection and the two
- *   rate limiters' connections), of `setupBillingUseCases` (the gateway switch job service's
- *   connection and queue) and of `registerRedisConnections` (the three role connections). Each
- *   factory is run against a container double with Redis, its subscriber duplicate and BullMQ's
- *   Queue stubbed, so no socket opens; the error the stub emits is handed to the listener the
- *   site attached, and the line the `redis` logger receives is the observable result. It also
- *   pins that the connections are still created with the options they had.
+ * @description Pins that every Redis connection and BullMQ queue the composition root builds
+ *   logs its errors through the throttled listener: the ten connections of `setupServices`, the
+ *   connection and queue of `setupBillingUseCases` and the three role connections of
+ *   `registerRedisConnections`. Each factory is run against a container double with Redis, its
+ *   subscriber duplicate and BullMQ's Queue stubbed, so no socket opens. The same error is handed
+ *   twice to the listener the site attached, and the observable result is the lines the `redis`
+ *   logger receives: exactly one, carrying the connection's name, so a site that discards the
+ *   error, or logs it unthrottled, fails. It also pins that the connections keep the options
+ *   they had.
  * @layer infrastructure
  */
 
@@ -36,7 +36,13 @@ vi.mock("../../../../src/lib/logger.js", async (importOriginal) => {
 vi.mock("../../../../src/lib/redis.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../src/lib/redis.js")>();
   const makeConnection = () => {
-    const connection = { on: vi.fn(), psubscribe: vi.fn(), publish: vi.fn(), quit: vi.fn() };
+    const connection = {
+      on: vi.fn(),
+      psubscribe: vi.fn(),
+      subscribe: vi.fn(),
+      publish: vi.fn(),
+      quit: vi.fn(),
+    };
     connections.push(connection);
     return connection;
   };
@@ -97,14 +103,29 @@ function connectionCreatedBy(factories: Map<symbol, Factory>, token: symbol) {
   return connection;
 }
 
-/** Hands `error` to the `error` listener attached to `connection`. */
-function emitError(connection: { on: ReturnType<typeof vi.fn> }, error: Error): void {
+/** Hands `error` to the `error` listener attached to `connection`, twice. */
+function emitErrorTwice(connection: { on: ReturnType<typeof vi.fn> }, error: Error): void {
   const listener = connection.on.mock.calls.find(([event]) => event === "error")?.[1] as
     ((error: unknown) => void) | undefined;
   if (listener === undefined) {
     throw new Error("no error listener attached to the connection");
   }
   listener(error);
+  listener(error);
+}
+
+/** The one line a throttled listener writes for `ERROR` on the connection `name`. */
+function expectOneLine(name: string): void {
+  expect(redisLogger.error.mock.calls).toEqual([
+    [
+      {
+        err: expect.objectContaining({ type: "Error", message: ERROR.message }),
+        connection: name,
+        suppressed: 0,
+      },
+      "Connection error",
+    ],
+  ]);
 }
 
 describe("Redis connection error listeners of the composition root", () => {
@@ -117,35 +138,50 @@ describe("Redis connection error listeners of the composition root", () => {
   it.each([
     [TOKENS.RateLimiterPort, "redis:ai-provider-rate-limiter"],
     [TOKENS.HttpRateLimiter, "redis:http-rate-limiter"],
-  ])("logs an error of a rate limiter's connection (setupServices, %s)", (token, name) => {
+    [TOKENS.RealtimeWebhookBroadcaster, "redis:realtime-webhook-broadcaster"],
+    [TOKENS.ContentVersionManager, "redis:content-version-manager"],
+    [TOKENS.PlatformContentAdapter, "redis:platform-content-adapter"],
+    [TOKENS.SyncEngine, "redis:sync-engine"],
+    [TOKENS.NotificationBroadcaster, "redis:notification-broadcaster"],
+    [TOKENS.AnalyticsStreamBroadcaster, "redis:analytics-stream-broadcaster"],
+    [TOKENS.BruteForceProtectionPort, "redis:brute-force-protection"],
+    [TOKENS.MfaChallengeStore, "redis:mfa-challenge-store"],
+  ])("logs one line for two errors of a setupServices connection (%s)", (token, name) => {
     const { container, factories } = makeContainer();
     setupServices(container);
     const connection = connectionCreatedBy(factories, token);
 
-    emitError(connection, ERROR);
+    emitErrorTwice(connection, ERROR);
 
-    expect(redisLogger.error).toHaveBeenCalledWith(
-      { err: ERROR, connection: name, suppressed: 0 },
-      "Connection error"
-    );
+    expectOneLine(name);
+  });
+
+  it("logs one line for two errors of the gateway switch job service's connection (setupBillingUseCases)", () => {
+    const { container, factories } = makeContainer();
+    setupBillingUseCases(container);
+    const connection = connectionCreatedBy(factories, TOKENS.GatewaySwitchJobService);
+
+    emitErrorTwice(connection, ERROR);
+
+    expectOneLine("redis:gateway-switch-job-service");
   });
 
   it.each([
     [TOKENS.BullMQWorkerConnection, "redis:bullmq-worker"],
     [TOKENS.SagaSubscriberConnection, "redis:saga-subscriber"],
     [TOKENS.AnalyticsRedisConnection, "redis:analytics"],
-  ])("logs an error of a role connection (registerRedisConnections, %s)", (token, name) => {
-    const { container, factories } = makeContainer();
-    registerRedisConnections(container);
-    const connection = connectionCreatedBy(factories, token);
+  ])(
+    "logs one line for two errors of a role connection (registerRedisConnections, %s)",
+    (token, name) => {
+      const { container, factories } = makeContainer();
+      registerRedisConnections(container);
+      const connection = connectionCreatedBy(factories, token);
 
-    emitError(connection, ERROR);
+      emitErrorTwice(connection, ERROR);
 
-    expect(redisLogger.error).toHaveBeenCalledWith(
-      { err: ERROR, connection: name, suppressed: 0 },
-      "Connection error"
-    );
-  });
+      expectOneLine(name);
+    }
+  );
 
   it("still registers each role connection with its options and returns it", () => {
     const { container, factories } = makeContainer();
@@ -165,48 +201,20 @@ describe("Redis connection error listeners of the composition root", () => {
     ]);
   });
 
-  it("logs an error the gateway switch job queue emits instead of leaving it unhandled", () => {
+  it("logs one line for two errors the gateway switch job queue emits", () => {
     const { container, factories } = makeContainer();
     setupBillingUseCases(container);
     factories.get(TOKENS.GatewaySwitchJobService)?.();
     const queue = queues[0];
 
-    expect(() => queue?.emitter.emit("error", ERROR)).not.toThrow();
-    expect(redisLogger.error).toHaveBeenCalledWith(
-      { err: ERROR, connection: "bullmq-queue:gateway-switch", suppressed: 0 },
-      "Connection error"
-    );
+    expect(() => {
+      queue?.emitter.emit("error", ERROR);
+      queue?.emitter.emit("error", ERROR);
+    }).not.toThrow();
+    expectOneLine("bullmq-queue:gateway-switch");
   });
 
-  it("logs an error of the notification broadcaster's connection (setupServices)", () => {
-    const { container, factories } = makeContainer();
-    setupServices(container);
-    const connection = connectionCreatedBy(factories, TOKENS.NotificationBroadcaster);
-    const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
-
-    emitError(connection, error);
-
-    expect(redisLogger.error).toHaveBeenCalledWith(
-      { err: error, connection: "redis:notification-broadcaster", suppressed: 0 },
-      "Connection error"
-    );
-  });
-
-  it("logs an error of the gateway switch job service's connection (setupBillingUseCases)", () => {
-    const { container, factories } = makeContainer();
-    setupBillingUseCases(container);
-    const connection = connectionCreatedBy(factories, TOKENS.GatewaySwitchJobService);
-    const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
-
-    emitError(connection, error);
-
-    expect(redisLogger.error).toHaveBeenCalledWith(
-      { err: error, connection: "redis:gateway-switch-job-service", suppressed: 0 },
-      "Connection error"
-    );
-  });
-
-  it("still creates both connections with the default options", () => {
+  it("still creates the notification and job service connections with the default options", () => {
     const services = makeContainer();
     setupServices(services.container);
     services.factories.get(TOKENS.NotificationBroadcaster)?.();

@@ -52,7 +52,7 @@ function makeScheduler() {
 }
 
 function makeLogger() {
-  return { error: vi.fn() };
+  return { error: vi.fn(), info: vi.fn() };
 }
 
 const makeNotification = (id: string): NotificationEventPayload => ({
@@ -141,7 +141,7 @@ describe("NotificationBroadcaster", () => {
     expect(duplicateForSubscriber).toHaveBeenCalledWith(redis);
   });
 
-  it("logs an error of its subscriber connection through the injected logger", () => {
+  it("logs one line for two errors of its subscriber connection through the injected logger", () => {
     const redis = makeRedis();
     const logger = makeLogger();
     new NotificationBroadcaster(redis as never, makeScheduler() as never, logger);
@@ -152,10 +152,17 @@ describe("NotificationBroadcaster", () => {
     const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
 
     onError(error);
+    onError(error);
 
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: error, connection: "redis:notification-broadcaster-subscriber", suppressed: 0 },
-      "Connection error"
-    );
+    expect(logger.error.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "redis:notification-broadcaster-subscriber",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
   });
 });

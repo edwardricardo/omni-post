@@ -54,19 +54,34 @@ const {
 } = await import("../../../../src/infrastructure/container/registerBootstrapConnections.js");
 
 function makeLogger() {
-  return { error: vi.fn() };
+  return { error: vi.fn(), info: vi.fn() };
 }
 
 const ERROR = new Error("connect ECONNREFUSED 127.0.0.1:6379");
 
-/** Emits `ERROR` on `emitter` and returns whether the emit threw. */
-function emitThrows(emitter: EventEmitter): boolean {
+/** Emits `ERROR` twice on `emitter` and returns whether an emit threw. */
+function emitTwiceThrows(emitter: EventEmitter): boolean {
   try {
+    emitter.emit("error", ERROR);
     emitter.emit("error", ERROR);
     return false;
   } catch {
     return true;
   }
+}
+
+/** The one line a throttled listener writes for two `ERROR`s on the source `name`. */
+function oneLine(name: string) {
+  return [
+    [
+      {
+        err: expect.objectContaining({ type: "Error", message: ERROR.message }),
+        connection: name,
+        suppressed: 0,
+      },
+      "Connection error",
+    ],
+  ];
 }
 
 describe("bootstrap connections", () => {
@@ -76,40 +91,31 @@ describe("bootstrap connections", () => {
     queues.length = 0;
   });
 
-  it("logs an error of the shared API connection", () => {
+  it("logs one line for two errors of the shared API connection", () => {
     const logger = makeLogger();
     createApiRedisConnection(logger);
     const connection = connections[0];
 
-    expect(connection ? emitThrows(connection.emitter) : true).toBe(false);
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: ERROR, connection: "redis:api", suppressed: 0 },
-      "Connection error"
-    );
+    expect(connection ? emitTwiceThrows(connection.emitter) : true).toBe(false);
+    expect(logger.error.mock.calls).toEqual(oneLine("redis:api"));
   });
 
-  it("logs an error of the gateway switch processor's connection", () => {
+  it("logs one line for two errors of the gateway switch processor's connection", () => {
     const logger = makeLogger();
     createGatewaySwitchProcessorConnection(logger);
     const connection = connections[0];
 
-    expect(connection ? emitThrows(connection.emitter) : true).toBe(false);
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: ERROR, connection: "redis:gateway-switch-processor", suppressed: 0 },
-      "Connection error"
-    );
+    expect(connection ? emitTwiceThrows(connection.emitter) : true).toBe(false);
+    expect(logger.error.mock.calls).toEqual(oneLine("redis:gateway-switch-processor"));
   });
 
-  it("logs an error the admin publish queue emits instead of leaving it unhandled", () => {
+  it("logs one line for two errors the admin publish queue emits", () => {
     const logger = makeLogger();
     createAdminPublishQueue(logger);
     const queue = queues[0];
 
-    expect(queue ? emitThrows(queue.emitter) : true).toBe(false);
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: ERROR, connection: "bullmq-queue:admin-publish", suppressed: 0 },
-      "Connection error"
-    );
+    expect(queue ? emitTwiceThrows(queue.emitter) : true).toBe(false);
+    expect(logger.error.mock.calls).toEqual(oneLine("bullmq-queue:admin-publish"));
   });
 
   it("builds each object with the options it had", () => {

@@ -11,7 +11,7 @@
 
 import type { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import { createThrottledErrorListener, type ErrorLogSink } from "@observability/logger";
+import { logConnectionErrors, type ErrorLogSink } from "@observability/logger";
 import { duplicateForSubscriber } from "../lib/redis.js";
 
 const REDIS_CHANNEL_PREFIX = "analytics-stream:";
@@ -78,10 +78,7 @@ export class AnalyticsStreamBroadcaster {
     // entirely so a blocking psubscribe never arms a spurious "Command timed out"
     // timer (see duplicateForSubscriber in lib/redis.ts).
     this.subscriber = duplicateForSubscriber(redis);
-    this.subscriber.on(
-      "error",
-      createThrottledErrorListener(logger, "redis:analytics-stream-broadcaster-subscriber")
-    );
+    logConnectionErrors(this.subscriber, logger, "redis:analytics-stream-broadcaster-subscriber");
     this.scheduler = scheduler;
   }
 

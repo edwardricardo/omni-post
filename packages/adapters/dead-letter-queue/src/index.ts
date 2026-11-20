@@ -9,7 +9,7 @@ import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { createLogger, createThrottledErrorListener } from "@observability/logger";
+import { createLogger, createThrottledWorkerErrorListener } from "@observability/logger";
 
 const logger = createLogger("dead-letter-queue");
 
@@ -326,11 +326,11 @@ export class DeadLetterQueueManager {
       logger.error(`Dead letter job ${job?.id} processing failed: ${error}`);
     });
 
-    // The worker re-emits its connection's errors, like the queue and the queue events above;
-    // it is throttled because it errs on every reconnection attempt while Redis is down.
+    // The worker emits its job-level failures and re-emits its connection's errors here; it is
+    // throttled per error because the connection errs on every reconnection while Redis is down.
     this.worker.on(
       "error",
-      createThrottledErrorListener(logger, `bullmq-worker:${this.config.queueName}`)
+      createThrottledWorkerErrorListener(logger, `bullmq-worker:${this.config.queueName}`)
     );
 
     // The constructor disabled autorun, so the event stream starts here. `run()` resolves only

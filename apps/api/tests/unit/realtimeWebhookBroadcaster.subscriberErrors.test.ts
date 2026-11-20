@@ -40,7 +40,7 @@ describe("RealtimeWebhookBroadcaster subscriber errors", () => {
     subscribers.length = 0;
   });
 
-  it("logs an error of its subscriber connection instead of leaving it unlistened", () => {
+  it("logs one line for two errors of its subscriber connection", () => {
     const broadcaster = new RealtimeWebhookBroadcaster(
       {} as never,
       {} as never,
@@ -49,11 +49,20 @@ describe("RealtimeWebhookBroadcaster subscriber errors", () => {
     const subscriber = subscribers[0];
     const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
 
-    expect(() => subscriber?.emit("error", error)).not.toThrow();
-    expect(webhookLogger.error).toHaveBeenCalledWith(
-      { err: error, connection: "redis:realtime-webhook-broadcaster-subscriber", suppressed: 0 },
-      "Connection error"
-    );
+    expect(() => {
+      subscriber?.emit("error", error);
+      subscriber?.emit("error", error);
+    }).not.toThrow();
+    expect(webhookLogger.error.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "redis:realtime-webhook-broadcaster-subscriber",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
     broadcaster.shutdown();
   });
 });

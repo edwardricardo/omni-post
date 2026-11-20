@@ -52,7 +52,7 @@ function makeScheduler() {
 }
 
 function makeLogger() {
-  return { error: vi.fn() };
+  return { error: vi.fn(), info: vi.fn() };
 }
 
 const makeEvent = (postId: string): AnalyticsStreamEventPayload => ({
@@ -171,7 +171,7 @@ describe("AnalyticsStreamBroadcaster", () => {
     expect(duplicateForSubscriber).toHaveBeenCalledWith(redis);
   });
 
-  it("logs an error of its subscriber connection through the injected logger", () => {
+  it("logs one line for two errors of its subscriber connection through the injected logger", () => {
     const redis = makeRedis();
     const logger = makeLogger();
     new AnalyticsStreamBroadcaster(redis as never, makeScheduler() as never, logger);
@@ -182,10 +182,17 @@ describe("AnalyticsStreamBroadcaster", () => {
     const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
 
     onError(error);
+    onError(error);
 
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: error, connection: "redis:analytics-stream-broadcaster-subscriber", suppressed: 0 },
-      "Connection error"
-    );
+    expect(logger.error.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "redis:analytics-stream-broadcaster-subscriber",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
   });
 });

@@ -185,17 +185,26 @@ describe("DeadLetterQueueManager — connection honesty", { concurrent: false },
     expect(loggerError).toHaveBeenCalled();
   });
 
-  it("routes a Worker error to the logger instead of throwing", async () => {
+  it("routes a Worker error to the logger as one worker-error line for two identical errors", async () => {
     const manager = buildManager();
     await manager.startProcessing();
     const worker = workerInstances[0];
     const error = new Error("connect ECONNREFUSED 127.0.0.1:1");
 
-    expect(() => worker?.emitter.emit("error", error)).not.toThrow();
-    expect(loggerError).toHaveBeenCalledWith(
-      { err: error, connection: "bullmq-worker:test-dlq", suppressed: 0 },
-      "Connection error"
-    );
+    expect(() => {
+      worker?.emitter.emit("error", error);
+      worker?.emitter.emit("error", error);
+    }).not.toThrow();
+    expect(loggerError.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          worker: "bullmq-worker:test-dlq",
+          suppressed: 0,
+        },
+        "Worker error",
+      ],
+    ]);
   });
 
   it("constructs QueueEvents with autorun disabled", () => {

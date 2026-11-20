@@ -52,16 +52,39 @@ describe("GatewaySwitchProcessor", () => {
     workers.length = 0;
   });
 
-  it("logs an error its worker emits instead of leaving it unhandled", () => {
+  it("logs one worker-error line for two identical errors its worker emits", () => {
     buildProcessor();
     const worker = workers[0];
     const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
 
-    expect(() => worker?.emitter.emit("error", error)).not.toThrow();
-    expect(apiLogger.error).toHaveBeenCalledWith(
-      { err: error, connection: "bullmq-worker:gateway-switch", suppressed: 0 },
-      "Connection error"
-    );
+    expect(() => {
+      worker?.emitter.emit("error", error);
+      worker?.emitter.emit("error", error);
+    }).not.toThrow();
+    expect(apiLogger.error.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          worker: "bullmq-worker:gateway-switch",
+          suppressed: 0,
+        },
+        "Worker error",
+      ],
+    ]);
+  });
+
+  it("writes a different job-level error instead of counting it behind a connection error", () => {
+    buildProcessor();
+    const worker = workers[0];
+
+    worker?.emitter.emit("error", new Error("connect ECONNREFUSED 127.0.0.1:6379"));
+    worker?.emitter.emit("error", new Error("Missing lock for job 42. moveToFinished"));
+
+    expect(
+      apiLogger.error.mock.calls.map(
+        ([context]) => (context as { err: { message: unknown } }).err.message
+      )
+    ).toEqual(["connect ECONNREFUSED 127.0.0.1:6379", "Missing lock for job 42. moveToFinished"]);
   });
 
   it("builds its worker on the gateway switch queue with the injected connection", () => {

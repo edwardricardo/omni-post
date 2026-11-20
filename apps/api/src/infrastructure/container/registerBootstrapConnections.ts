@@ -11,7 +11,11 @@
 import { Queue } from "bullmq";
 import type { Redis } from "ioredis";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { createThrottledErrorListener, type ErrorLogSink } from "@observability/logger";
+import {
+  createThrottledErrorListener,
+  logConnectionErrors,
+  type ErrorLogSink,
+} from "@observability/logger";
 import { createRedisConnection, getRedisUrl } from "../../lib/redis.js";
 
 /**
@@ -22,7 +26,7 @@ import { createRedisConnection, getRedisUrl } from "../../lib/redis.js";
  */
 export function createApiRedisConnection(logger: ErrorLogSink): Redis {
   const connection = createRedisConnection();
-  connection.on("error", createThrottledErrorListener(logger, "redis:api"));
+  logConnectionErrors(connection, logger, "redis:api");
   return connection;
 }
 
@@ -34,7 +38,7 @@ export function createApiRedisConnection(logger: ErrorLogSink): Redis {
  */
 export function createGatewaySwitchProcessorConnection(logger: ErrorLogSink): Redis {
   const connection = createRedisConnection({ maxRetriesPerRequest: null });
-  connection.on("error", createThrottledErrorListener(logger, "redis:gateway-switch-processor"));
+  logConnectionErrors(connection, logger, "redis:gateway-switch-processor");
   return connection;
 }
 

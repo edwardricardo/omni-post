@@ -34,7 +34,7 @@ import type { AccountSubscriptionBillingRepository } from "@core/domain/reposito
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { createLogger } from "../../lib/logger.js";
-import { createThrottledErrorListener } from "@observability/logger";
+import { logConnectionErrors } from "@observability/logger";
 
 /**
  * @function setupBillingUseCases
@@ -56,10 +56,7 @@ export function setupBillingUseCases(container: Container): void {
     () => {
       const redisLogger = createLogger("redis");
       const redis = createRedisConnection();
-      redis.on(
-        "error",
-        createThrottledErrorListener(redisLogger, "redis:gateway-switch-job-service")
-      );
+      logConnectionErrors(redis, redisLogger, "redis:gateway-switch-job-service");
       return new GatewaySwitchJobService(redis, redisLogger);
     },
     true // singleton

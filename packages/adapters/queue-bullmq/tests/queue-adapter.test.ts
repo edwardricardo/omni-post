@@ -105,16 +105,25 @@ describe("createBullMQQueueAdapter", () => {
     queueInstances.length = 0;
   });
 
-  it("logs an error the queue emits, with the queue's name, instead of leaving it unhandled", () => {
+  it("logs one line, with the queue's name, for two errors the queue emits", () => {
     createBullMQQueueAdapter({ queueName: "publish", connection: makeConnectionDouble() });
     const queue = queueInstances[0];
     const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
 
-    expect(() => queue?.emit("error", error)).not.toThrow();
-    expect(mockLoggerError).toHaveBeenCalledWith(
-      { err: error, connection: "bullmq-queue:publish", suppressed: 0 },
-      "Connection error"
-    );
+    expect(() => {
+      queue?.emit("error", error);
+      queue?.emit("error", error);
+    }).not.toThrow();
+    expect(mockLoggerError.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "bullmq-queue:publish",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
   });
 
   it("throws identifying the missing connection when none is injected (runtime safety net)", () => {

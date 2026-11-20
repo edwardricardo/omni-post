@@ -8,7 +8,7 @@ import * as WebSocket from "ws";
 import { Redis } from "ioredis";
 import type { PrismaClient, Provider, WebhookEventType } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import { createThrottledErrorListener } from "@observability/logger";
+import { logConnectionErrors } from "@observability/logger";
 import { webhookLogger } from "../lib/logger.js";
 import { duplicateForSubscriber } from "../lib/redis.js";
 
@@ -87,12 +87,17 @@ export class RealtimeWebhookBroadcaster {
   /**
    * @method addConnection
    * @description Registers a WebSocket connection for webhook events and indexes it by account
-   *   and by project.
+   *   and by project. Every connection is indexed under its account, so it receives every
+   *   event of that account whatever its project list; the project list does not narrow that,
+   *   it adds the events that name one of those projects, and nothing checks that those
+   *   projects belong to the account. Only the event-type and provider filters narrow what it
+   *   receives.
    * @param connectionId - Identifier of the connection.
    * @param userId - User who opened the connection.
    * @param accountId - Account whose events the connection receives.
    * @param socket - The WebSocket the events are sent on.
-   * @param config - Filters by project, event type and provider; empty lists match everything.
+   * @param config - Project list, event-type filter and provider filter; an empty filter
+   *   matches every value.
    */
   addConnection(
     connectionId: string,
@@ -338,9 +343,11 @@ export class RealtimeWebhookBroadcaster {
    * @description Sends a system alert (a rate limit, a quota, an API or webhook error) to an
    *   account's connections.
    * @param accountId - The account the alert is for.
-   * @param alertType - Kind of alert; `rate_limit` is sent as a rate-limit event.
+   * @param alertType - Kind of alert: `rate_limit` is sent as a `RATE_LIMIT_REACHED` event and
+   *   every other kind (a quota, an API or a webhook error) as an `API_ERROR` event.
    * @param message - Text of the alert.
-   * @param details - Extra fields; a `provider` field names the event's provider.
+   * @param details - Extra fields; its `provider` names the event's provider, which is `"X"`
+   *   when it is absent.
    */
   async broadcastSystemAlert(
     accountId: string,
@@ -649,10 +656,7 @@ export class RealtimeWebhookBroadcaster {
     const subscriber = duplicateForSubscriber(this.redis);
     // An ioredis client with no `error` listener writes each reconnection error with
     // console.error, outside the structured logger.
-    subscriber.on(
-      "error",
-      createThrottledErrorListener(webhookLogger, "redis:realtime-webhook-broadcaster-subscriber")
-    );
+    logConnectionErrors(subscriber, webhookLogger, "redis:realtime-webhook-broadcaster-subscriber");
 
     subscriber.subscribe("webhook_events", (err) => {
       if (err) {

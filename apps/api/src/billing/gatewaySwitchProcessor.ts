@@ -12,7 +12,7 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { PrismaClient } from "@infra/prisma";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
-import { createThrottledErrorListener } from "@observability/logger";
+import { createThrottledWorkerErrorListener } from "@observability/logger";
 import { logger } from "../lib/logger.js";
 import { getAmbientGucScope } from "../security/tenantContext.js";
 
@@ -58,11 +58,12 @@ export class GatewaySwitchProcessor {
       );
     });
 
-    // BullMQ re-emits its connection's errors from the worker and writes an unlistened one
-    // with console.error, once per reconnection attempt while Redis is down.
+    // The worker emits its job-level failures and re-emits its connection's errors here; with
+    // no listener BullMQ writes each with console.error, once per reconnection while Redis is
+    // down.
     this.worker.on(
       "error",
-      createThrottledErrorListener(logger, `bullmq-worker:${QUEUE_NAMES.GATEWAY_SWITCH}`)
+      createThrottledWorkerErrorListener(logger, `bullmq-worker:${QUEUE_NAMES.GATEWAY_SWITCH}`)
     );
   }
 
