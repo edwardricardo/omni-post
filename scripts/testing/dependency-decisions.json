@@ -290,23 +290,15 @@
     "@fastify/cookie": {
       "status": "kept",
       "grounds": "planned",
-      "utility": "Registered at every API boot (apps/api/src/index.ts:318) for the refreshToken cookie of the API's own /auth/login, /auth/refresh and /auth/logout and of the SAML and OIDC callbacks. No working portal path calls those routes today: the portals sign in through /admin/auth/login and /auth/customer/login, and single sign-on cannot sign a Member in as the code is written.",
+      "utility": "Registered at every API boot (apps/api/src/index.ts:322) for the refreshToken cookie of the API's own /auth/login, /auth/refresh and /auth/logout and of the SAML and OIDC callbacks. No working portal path calls those routes today: the portals sign in through /admin/auth/login and /auth/customer/login, and single sign-on cannot sign a Member in as the code is written.",
       "replacement": "An onRequest hook over the cookie package (about 30 lines; no signed cookie is used) was weighed; the plugin stays with the feature it serves.",
       "decidedOn": "2026-11-13",
       "note": "Plan rows A-TEAM-08 and A-TEAM-09 (single sign-on, docs/product/plan/areas.md) describe its feature and DEF-52 (chain.md) records a defect of its cookie; no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
-    "@fastify/cors": {
-      "status": "kept",
-      "grounds": "in-use",
-      "utility": "Registered by SecurityManager.register (index.ts:525).",
-      "replacement": "None: Fastify's own CORS plugin.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies)."
-    },
     "@fastify/helmet": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Registered by SecurityManager.register (index.ts:525).",
+      "utility": "Registered by SecurityManager.register (index.ts:488).",
       "replacement": "None: Fastify's own security-headers plugin.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/api (dependencies)."
@@ -322,7 +314,7 @@
     "@fastify/swagger": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Dynamic import registered in every boot (index.ts:229): builds the OpenAPI document that pnpm generate:api-types dumps and that registerApiReference serves.",
+      "utility": "Dynamic import registered in every boot (index.ts:233): builds the OpenAPI document that pnpm generate:api-types dumps and that registerApiReference serves.",
       "replacement": "None: the generated API types and the CI drift gate read this document.",
       "decidedOn": "2026-10-26",
       "note": "Declared in apps/api (dependencies). The document is built in every deployment and served only when API_DOCS_ENABLED is set (lib/apiReference.ts, default false), at /docs/json and /docs/openapi.yaml by two routes hidden from it; @scalar/fastify-api-reference, which served it until 2026-10-27, left (DEF-144)."
@@ -450,7 +442,7 @@
     "@sentry/node": {
       "status": "kept",
       "grounds": "single-adapter",
-      "utility": "Sentry.init (index.ts:480, when a DSN is set) and captureException from errorHandler and SagaIntegration.",
+      "utility": "Sentry.init (index.ts:450, when a DSN is set) and captureException from errorHandler and SagaIntegration.",
       "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/api (dependencies)."
@@ -578,7 +570,7 @@
     "fastify-plugin": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Wraps autoCachePlugin (registered index.ts:315) so its hooks apply app-wide. Its other site, apps/api/src/lib/errors/errorPlugin.ts, was imported only by its test and left on 2026-10-25 (deps-remove-2).",
+      "utility": "Wraps autoCachePlugin (registered index.ts:308) so its hooks apply app-wide. Its other site, apps/api/src/lib/errors/errorPlugin.ts, was imported only by its test and left on 2026-10-25 (deps-remove-2).",
       "replacement": "None: the way a Fastify plugin's hooks apply app-wide instead of to one encapsulation context.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/api (dependencies). Its other site, apps/api/src/lib/errors/errorPlugin.ts (33 lines, plus 398 of test), was imported only by its own test; both left on 2026-10-25 (deps-remove-2)."

@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1251  |
+| Files                   | 1252  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1081  |
+| KEEP                    | 1082  |
 | ADJUDICATE              | 97    |
 | unmeasured              | 0     |
-| Machine rows            | 1241  |
+| Machine rows            | 1242  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15562 |
+| Blocks                  | 15556 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -147,7 +147,7 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/sagaIntegration.monitoring.test.ts`             | test  | 6      | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/sagaIntegration.routes.test.ts`                 | test  | 15     | 1          | REWRITE | machine | some-decorative |
 | `apps/api/tests/unit/secureSchemas.query.test.ts`                    | test  | 37     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/securityHeaders.test.ts`                        | test  | 48     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/securityHeaders.test.ts`                        | test  | 44     | 0          | KEEP    | machine | behavioural     |
 
 ## Slice 2.8.2d
 
@@ -1014,13 +1014,14 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/channelCredentialsCrypto.shared.test.ts`                                | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/csrfMiddleware.test.ts`                                                 | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/decryptAuditContext.test.ts`                                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`                                        | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`                                        | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`                                      | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/inputValidation.mutations.test.ts`                                      | test             | 161    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigest.test.ts`                                                     | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestCanonicalize.test.ts`                                         | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestUnicodeTable.test.ts`                                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/noCorsHeaders.test.ts`                                                  | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.parity.test.ts`                                         | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.test.ts`                                                | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/sanitizerOutputs.test.ts`                                               | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
@@ -1031,7 +1032,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/tenantParamPreHandler.test.ts`                                          | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/tenantScopedQueryContract.type-test.ts`                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/security/trustedProxy.test.ts`                                                   | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/seedGuard.test.ts`                                                               | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/seedPasswordHashing.test.ts`                                                     | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts`                                     | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
@@ -1082,7 +1083,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/videoProcessor.codecs-watermark.test.ts`                                         | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.metadata-processing.test.ts`                                      | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 39     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 41     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookDashboardService.test.ts`                                                 | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.processing.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
