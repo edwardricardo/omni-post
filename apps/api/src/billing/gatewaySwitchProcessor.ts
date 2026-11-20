@@ -12,6 +12,7 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { PrismaClient } from "@infra/prisma";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import { createThrottledErrorListener } from "@observability/logger";
 import { logger } from "../lib/logger.js";
 import { getAmbientGucScope } from "../security/tenantContext.js";
 
@@ -56,6 +57,13 @@ export class GatewaySwitchProcessor {
         "Gateway switch job failed"
       );
     });
+
+    // BullMQ re-emits its connection's errors from the worker and writes an unlistened one
+    // with console.error, once per reconnection attempt while Redis is down.
+    this.worker.on(
+      "error",
+      createThrottledErrorListener(logger, `bullmq-worker:${QUEUE_NAMES.GATEWAY_SWITCH}`)
+    );
   }
 
   private async processJob(job: Job<SwitchJobData>): Promise<void> {
@@ -148,6 +156,10 @@ export class GatewaySwitchProcessor {
     }
   }
 
+  /**
+   * @method shutdown
+   * @description Closes the worker; the connection belongs to the bootstrap and stays open.
+   */
   async shutdown(): Promise<void> {
     await this.worker.close();
   }

@@ -144,6 +144,7 @@ import {
   DefaultBackgroundTaskScheduler,
   type BackgroundTaskScheduler,
 } from "@observability/background-scheduler";
+import { createThrottledErrorListener } from "@observability/logger";
 import { env } from "../../config/env.js";
 
 /**
@@ -161,6 +162,10 @@ export function setupServices(
   if (integrationEventPublisher) {
     container.registerInstance(TOKENS.IntegrationEventPublisher, integrationEventPublisher);
   }
+
+  // The connections built below write their errors here, each through a throttled listener:
+  // while Redis is down every connection errs on each reconnection attempt.
+  const redisLogger = createLogger("redis");
 
   // Register BackgroundTaskScheduler (centralised setInterval registry).
   // Singleton — one registry per process, flushed on SIGTERM/SIGINT.
@@ -278,10 +283,16 @@ export function setupServices(
   // ephemeral orchestrator throttles against the same buckets.
   container.register<RateLimiterPort>(
     TOKENS.RateLimiterPort,
-    () =>
-      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+    () => {
+      const redis = createRedisConnection();
+      redis.on(
+        "error",
+        createThrottledErrorListener(redisLogger, "redis:ai-provider-rate-limiter")
+      );
+      return new RedisTokenBucketRateLimiter(redis, {
         capacity: env.AI_PROVIDER_REQUESTS_PER_MIN,
-      }),
+      });
+    },
     true
   );
   // Cross-pod token-bucket limiter for INBOUND HTTP requests (same port +
@@ -290,10 +301,13 @@ export function setupServices(
   // from the rule table passed per call by the HTTP preHandler.
   container.register<RateLimiterPort>(
     TOKENS.HttpRateLimiter,
-    () =>
-      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", createThrottledErrorListener(redisLogger, "redis:http-rate-limiter"));
+      return new RedisTokenBucketRateLimiter(redis, {
         keyPrefix: "http:ratelimit:",
-      }),
+      });
+    },
     true
   );
   // AIRequestExecutor adapter wraps AIProviderFactory + AIOrchestrator so
@@ -607,7 +621,10 @@ export function setupServices(
     TOKENS.RealtimeWebhookBroadcaster,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      redis.on(
+        "error",
+        createThrottledErrorListener(redisLogger, "redis:realtime-webhook-broadcaster")
+      );
       return new RealtimeWebhookBroadcaster(
         container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient),
         redis,
@@ -709,7 +726,7 @@ export function setupServices(
     TOKENS.ContentVersionManager,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      redis.on("error", createThrottledErrorListener(redisLogger, "redis:content-version-manager"));
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
@@ -728,7 +745,10 @@ export function setupServices(
     TOKENS.PlatformContentAdapter,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      redis.on(
+        "error",
+        createThrottledErrorListener(redisLogger, "redis:platform-content-adapter")
+      );
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
@@ -746,7 +766,7 @@ export function setupServices(
     TOKENS.SyncEngine,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      redis.on("error", createThrottledErrorListener(redisLogger, "redis:sync-engine"));
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
@@ -809,10 +829,14 @@ export function setupServices(
     TOKENS.NotificationBroadcaster,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      redis.on(
+        "error",
+        createThrottledErrorListener(redisLogger, "redis:notification-broadcaster")
+      );
       const broadcaster = new NotificationBroadcaster(
         redis,
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        redisLogger
       );
       broadcaster.initialize();
       return broadcaster;
@@ -825,10 +849,14 @@ export function setupServices(
     TOKENS.AnalyticsStreamBroadcaster,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      redis.on(
+        "error",
+        createThrottledErrorListener(redisLogger, "redis:analytics-stream-broadcaster")
+      );
       const broadcaster = new AnalyticsStreamBroadcaster(
         redis,
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        redisLogger
       );
       broadcaster.initialize();
       return broadcaster;

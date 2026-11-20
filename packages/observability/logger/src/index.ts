@@ -117,3 +117,8 @@ export function createLogger(name: string): pino.Logger {
 }
 
 export type { Logger } from "pino";
+export {
+  CONNECTION_ERROR_LOG_WINDOW_MS,
+  createThrottledErrorListener,
+  type ErrorLogSink,
+} from "./throttledErrorListener.js";

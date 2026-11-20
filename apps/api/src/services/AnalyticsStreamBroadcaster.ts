@@ -11,6 +11,7 @@
 
 import type { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { createThrottledErrorListener, type ErrorLogSink } from "@observability/logger";
 import { duplicateForSubscriber } from "../lib/redis.js";
 
 const REDIS_CHANNEL_PREFIX = "analytics-stream:";
@@ -64,13 +65,23 @@ export class AnalyticsStreamBroadcaster {
   private readonly heartbeatTaskId = "analytics-stream-broadcaster-heartbeat";
   private initialized = false;
 
-  constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
+  /**
+   * @description Builds the broadcaster over a publish connection and the subscribe-mode
+   *   duplicate it opens from it.
+   * @param redis - Publish connection; the subscriber is duplicated from it.
+   * @param scheduler - Scheduler that runs the heartbeat.
+   * @param logger - Logger the subscriber connection's errors are written through.
+   */
+  constructor(redis: Redis, scheduler: BackgroundTaskScheduler, logger: ErrorLogSink) {
     this.publisher = redis;
     // Subscribe-mode connection via the canonical helper: it omits commandTimeout
     // entirely so a blocking psubscribe never arms a spurious "Command timed out"
     // timer (see duplicateForSubscriber in lib/redis.ts).
     this.subscriber = duplicateForSubscriber(redis);
-    this.subscriber.on("error", () => {});
+    this.subscriber.on(
+      "error",
+      createThrottledErrorListener(logger, "redis:analytics-stream-broadcaster-subscriber")
+    );
     this.scheduler = scheduler;
   }
 
@@ -150,6 +161,7 @@ export class AnalyticsStreamBroadcaster {
    * @description Returns the set of postIds that currently have at least one live
    *   local subscriber. The metrics poller uses this to query only watched posts
    *   instead of every post in every active account.
+   * @returns The watched postIds, each once.
    */
   getWatchedPostIds(): string[] {
     return Array.from(this.byPost.keys());
@@ -158,6 +170,7 @@ export class AnalyticsStreamBroadcaster {
   /**
    * @method getActiveConnectionCount
    * @description Returns the total number of active SSE subscriptions.
+   * @returns The number of local subscriptions.
    */
   getActiveConnectionCount(): number {
     return this.subscriptions.size;
