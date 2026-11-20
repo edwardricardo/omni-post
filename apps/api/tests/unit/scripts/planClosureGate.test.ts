@@ -544,12 +544,33 @@ describe("the shape of a closed feature's record", () => {
   });
 
   it.each([
+    ["an item", "    **DEF-2**: The endpoint still answers 404."],
+    ["an item with its reference", "    **DEF-2** (MP:12): The endpoint still answers 404."],
+  ])("exits 3 on the continuation of a closed entry that starts like %s", (_what, continuation) => {
+    plantBody(["- **Attached (1):**", "  - **DEF-1**: Closed by #916. Fixed.", continuation]);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${CHAIN}:9, in "Attached (1)" of F-01, reads "${continuation}", the continuation of an entry that starts like an item: an item written as another entry's text cannot be told from that text; write it as its own entry ("  - **<id>**: <text>")`,
+      ],
+    });
+  });
+
+  it("exits 3 on a line whose backticks do not pair, scanning it whole", () => {
+    const line = "- **Today:** the `x and **B**: The endpoint answers 404, see `` y.";
+    plantBody([line, "- **Attached (0):**"]);
+
+    expect(failure(scan())).toEqual({ exitCode: 3, stderr: [unlisted(7, line)] });
+  });
+
+  it.each([
     [
-      "the continuation of an entry that names another item in bold",
+      "a continuation that mentions another item in bold inside its sentence",
       [
         "- **Attached (1):**",
-        "  - **DEF-1**: Closed by #916. The start read the same file as",
-        "    **DEF-2**: the generated environment file.",
+        "  - **DEF-1**: Closed by #916. The start read the same file",
+        "    as **DEF-2**: the generated environment file.",
       ],
     ],
     [
@@ -653,6 +674,41 @@ describe("fenced code blocks", () => {
       exitCode: 3,
       stderr: [
         `plan-closure-gate: ${AREAS}:6 opens a fenced code block that is still open at the end of the file, so no line after it is read as a heading, a table or an item; close the block`,
+      ],
+    });
+  });
+
+  it("exits 3 on a fence the plan opens before its chain section, which it then cannot find", () => {
+    plant([{ id: "F-01", state: "closed" }], [{ id: "F-01", attached: [closedByDecision("A")] }]);
+    write(
+      PLAN,
+      renderPlan([{ id: "F-01", state: "closed" }]).replace("## Rules", "```text\n## Rules")
+    );
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${PLAN} has no "## The chain" section, so no feature's state was read`,
+        `plan-closure-gate: ${PLAN}:3 opens a fenced code block that is still open at the end of the file, so no line after it is read as a heading, a table or an item; close the block`,
+      ],
+    });
+  });
+
+  it("exits 3 on a fence the plan opens after its chain table, which it still reads", () => {
+    plant([{ id: "F-01", state: "closed" }], [{ id: "F-01", attached: [openItem("DEF-29")] }]);
+    write(
+      PLAN,
+      renderPlan([{ id: "F-01", state: "closed" }]).replace(
+        "The order of the Platforms",
+        "```text\nThe order of the Platforms"
+      )
+    );
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${PLAN}:13 opens a fenced code block that is still open at the end of the file, so no line after it is read as a heading, a table or an item; close the block`,
+        `plan-closure-gate: F-01 is closed (${PLAN}:11) and its record holds an open item: DEF-29 (${CHAIN}:12, in "Attached (1)"); ${GRAMMAR_HINT}`,
       ],
     });
   });

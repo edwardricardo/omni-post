@@ -43,9 +43,13 @@
  *   no heading opens, or more than one does; a record with no `Attached (<n>)` list, or whose `<n>`
  *   is not the number of items read under it; an entry of an item list that is neither an item nor a
  *   note; a nested list entry under an entry of an item list, because an item written there could
- *   not be told from prose; any line of the record shaped like an item (a bold text that ends with
- *   neither a colon nor a space, then `: `, anywhere on the line outside an inline code span) that
- *   is read neither as an entry of an item list nor as an entry's continuation: an item at the
+ *   not be told from prose; a continuation of an entry whose text starts like an item (after its
+ *   indentation, a bold id, an optional reference and a colon), because an open item written there
+ *   would read as the entry above it; any line of the record shaped like an item (a bold text that
+ *   ends with neither a colon nor a space, then `: `, anywhere on the line outside an inline code
+ *   span, a span counting only when every backtick run of the line pairs with a later run of the
+ *   same length) that is read neither as an entry of an item list nor as an entry's continuation:
+ *   an item at the
  *   record's top level, after a line that ended its list, inside a note, on a label's line, in a
  *   prose list, or under a label whose colon is outside the bold; and a fenced code block that is
  *   still open at the end of its file, named in the record of the closed feature that opens it, else
@@ -61,9 +65,11 @@
  *   (5) The `Closed by` column of the table is not compared with the items. (6) The areas outside
  *   the chain have no state (`docs/product/PLAN.md`, the header of the table of section
  *   `## Areas outside the chain`), so an area's open rows are never judged; a feature of an area is
- *   judged once it joins the chain table. (7) An item-shaped text written as the continuation of an
- *   entry is that entry's text, and is not read as an item. (8) The item-shape scan can still refuse
- *   valid prose: a line of a closed feature's record, outside a code span and not the continuation
+ *   judged once it joins the chain table. (7) An item-shaped text in the middle of a continuation
+ *   line is that entry's text and is not read; only a continuation that starts like an item is
+ *   refused. (8) The item-shape scan can still refuse valid prose: a line of a closed feature's
+ *   record holding an unpaired backtick run, which is scanned whole, code text included, and a line
+ *   outside a code span and not the continuation
  *   of an entry of an item list, that writes a bold text ending in a letter, a digit or a sign other
  *   than a colon, followed by `: ` (`the role **SUPER_ADMIN**: every permission`). Such a line is
  *   reworded or its bold text put in a code span.
@@ -108,14 +114,15 @@ const ENTRY = /^ {2}- (.*)$/;
 const NESTED = /^\s{4,}(?:[-*+]|\d+[.)])(?:\s|$)/;
 /** A line that continues the entry above it, indented four spaces or more. */
 const CONTINUATION = /^ {4,}\S/;
+/** A continuation whose text starts like an item: a bold id, an optional reference, a colon. */
+const CONTINUATION_ITEM = /^ {4,}\*\*[^*]*[^*:\s]\*\*(?: \([^)]*\))?:(?:\s|$)/;
 const ITEM = /^\*\*([^*]+)\*\*(?: \([^)]*\))?: (\S.*)$/;
 /**
  * Anything shaped like an item, anywhere on a line: a bold text that does not end with a colon or
  * a space, an optional reference, then `: `. A label (`**Who:**`) does not match.
  */
 const ITEM_SHAPED = /\*\*[^*]*[^*:\s]\*\*(?: \([^)]*\))?: /;
-/** An inline code span, whose contents quote text rather than write it. */
-const CODE_SPAN = /(`+).*?\1/g;
+const BACKTICK_RUN = /`+/g;
 const NOTE = /^Note: \S/;
 const CLOSED_BY_PULL_REQUEST = /^Closed by #[1-9]\d*(?!\w)/;
 const CLOSED_BY_DECISION =
@@ -169,6 +176,12 @@ const CLOSURE_LOOKALIKE = /^closed by\b/i;
  * @property {number | null} count The count an `Attached (<n>)` label states, else `null`.
  * @property {number} items
  * @property {number} unreadable Entries of the list that were refused.
+ */
+
+/**
+ * The message for an entry line an item list refuses, from its file, index, list, feature and text.
+ *
+ * @typedef {(file: string, index: number, label: string, id: string, line: string) => string} Refusal
  */
 
 /**
@@ -443,6 +456,49 @@ function unlistedItem(file, index, id, line) {
 }
 
 /**
+ * @param {string} file
+ * @param {number} index
+ * @param {string} label
+ * @param {string} id
+ * @param {string} line
+ * @returns {string}
+ */
+function itemAsContinuation(file, index, label, id, line) {
+  return (
+    `${file}:${String(index + 1)}, in "${label}" of ${id}, reads "${line}", the continuation of an ` +
+    "entry that starts like an item: an item written as another entry's text cannot be told from " +
+    'that text; write it as its own entry ("  - **<id>**: <text>")'
+  );
+}
+
+/**
+ * The line without its inline code spans, whose contents quote text rather than write it. A span
+ * counts only when every backtick run of the line pairs with a later run of the same length; a
+ * line with a run left unpaired is returned whole, so a stray backtick cannot take an item-shaped
+ * text out of the scan.
+ *
+ * @param {string} line
+ * @returns {string}
+ */
+function withoutCodeSpans(line) {
+  const runs = [...line.matchAll(BACKTICK_RUN)];
+  let kept = "";
+  let from = 0;
+  for (let open = 0; open < runs.length;) {
+    const opening = runs[open];
+    const close = runs.findIndex(
+      (run, at) => at > open && run[0].length === (opening?.[0] ?? "").length
+    );
+    const closing = runs[close];
+    if (opening === undefined || closing === undefined) return line;
+    kept += line.slice(from, opening.index);
+    from = closing.index + closing[0].length;
+    open = close + 1;
+  }
+  return kept + line.slice(from);
+}
+
+/**
  * @description The items of a record's item lists, or the reasons the record cannot be read.
  * @param {string} id The feature's id.
  * @param {RecordSpan} record
@@ -463,9 +519,9 @@ function readItems(id, record, today) {
   /** @type {ItemList[]} */
   const attached = [];
   let entryOpen = false;
-  /** @type {(index: number, line: string, current: ItemList, nested: boolean) => void} */
-  const refuse = (index, line, current, nested) => {
-    failures.push((nested ? nestedEntry : unreadableEntry)(file, index, current.label, id, line));
+  /** @type {(index: number, line: string, current: ItemList, why: Refusal) => void} */
+  const refuse = (index, line, current, why) => {
+    failures.push(why(file, index, current.label, id, line));
     accounted.add(index);
     current.unreadable += 1;
   };
@@ -499,9 +555,12 @@ function readItems(id, record, today) {
     if (list === null) continue;
     const entry = ENTRY.exec(line);
     if (entry === null) {
-      if (NESTED.test(line)) refuse(index, line, list, true);
-      else if (entryOpen && CONTINUATION.test(line)) accounted.add(index);
-      else refuse(index, line, list, false);
+      // A continuation is the entry's own text, unless it starts like an item: written there, an
+      // open item would read as the closed entry above it.
+      if (NESTED.test(line)) refuse(index, line, list, nestedEntry);
+      else if (!entryOpen || !CONTINUATION.test(line)) refuse(index, line, list, unreadableEntry);
+      else if (CONTINUATION_ITEM.test(line)) refuse(index, line, list, itemAsContinuation);
+      else accounted.add(index);
       continue;
     }
     const content = entry[1] ?? "";
@@ -519,7 +578,7 @@ function readItems(id, record, today) {
     } else if (NOTE.test(content)) {
       entryOpen = true;
     } else {
-      refuse(index, line, list, false);
+      refuse(index, line, list, unreadableEntry);
       entryOpen = false;
     }
   }
@@ -528,7 +587,7 @@ function readItems(id, record, today) {
   // quotes the grammar rather than writes an item, so its contents are not scanned.
   for (let index = record.start + 1; index < record.end; index += 1) {
     const line = lines[index] ?? "";
-    const written = line.replace(CODE_SPAN, "");
+    const written = withoutCodeSpans(line);
     if (fenced[index] !== true && !accounted.has(index) && ITEM_SHAPED.test(written)) {
       failures.push(unlistedItem(file, index, id, line));
     }

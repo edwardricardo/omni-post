@@ -2248,9 +2248,13 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # list, or whose `<n>` is not the number of items read under it; an entry of an item list that is
 # neither an item nor a note, a mis-indented entry included; a nested list entry under an entry of
 # an item list, whether it holds an item or prose, because an item written there could not be told
-# from prose; any line of the record shaped like an item (a bold text that ends with neither a
-# colon nor a space, then `: `, anywhere on the line outside an inline code span) that an item list
-# reads neither as an entry nor as an entry's continuation: an item at the record's top level, after
+# from prose; a continuation of an entry whose text starts like an item (after its indentation, a
+# bold id, an optional reference and a colon), because an open item written there would read as
+# the entry above it; any line of the record shaped like an item (a bold text that ends with
+# neither a colon nor a space, then `: `, anywhere on the line outside an inline code span, a span
+# counting only when every backtick run of the line pairs with a later run of the same length) that
+# an item list reads neither as an entry nor as an entry's continuation: an item at the record's
+# top level, after
 # a line that ended its list, under a label whose colon is outside the bold, in a prose list, inside
 # a note or on a label's line; and a fenced code block still open at the end of its file, named in
 # the record of the closed feature that opens it, else in its file, because every line after it
@@ -2267,11 +2271,14 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # `State` column, and a feature of an area carries a `Today` verdict, not a state (the
 # `| Feature | Who | Today | Depends on |` tables of docs/product/plan/areas.md), so an area's open
 # rows are never judged; a feature of an area is judged once it joins the chain table; (7) an
-# item-shaped text written as the continuation of an entry is that entry's text, not an item; (8)
-# the one false positive left: a line of a closed feature's record, outside a code span and not the
-# continuation of an entry of an item list, that writes a bold text followed by `: ` (`the role
-# **SUPER_ADMIN**: every permission`) is refused as an unread item; it is reworded, or its bold
-# text put in a code span.
+# item-shaped text in the middle of a continuation line is that entry's text and is not read: only
+# a continuation that starts like an item is refused; (8) the false positives left, both refused on
+# purpose rather than let an item hide: a line of a closed feature's record, outside a code span
+# and not the continuation of an entry of an item list, that writes a bold text followed by `: `
+# (`the role **SUPER_ADMIN**: every permission`), and a line holding an unpaired backtick run,
+# which is scanned whole, its code text included; such a line is reworded, or its backticks
+# paired. An unclosed fence in the plan before `## The chain` hides the section too, so the gate
+# prints both failures; after the chain table it prints the fence's failure, and the table is read.
 # RETIRES WHEN: the plan leaves the tree under the Plan closure rule of CLAUDE.md, or a recorded
 # decision of the Product Owner lets a feature close with an open item.
 node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:

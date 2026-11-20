@@ -44,9 +44,10 @@
    whose record holds an open item, naming the feature and each item. It fails closed, with its own
    message and exit 3, when the plan or a record file cannot be read, when the chain table cannot
    be read, when a closed feature's record is not found or is found twice, and when a record's
-   items cannot be read: an entry that is neither an item nor a note, a nested list entry, any line
-   of the record shaped like an item that no item list reads, wherever it is written, and a fenced
-   code block nothing closes. Fenced code blocks are never read. Only the chain table holds a
+   items cannot be read: an entry that is neither an item nor a note, a nested list entry, an
+   entry's continuation that starts like an item, any line of the record shaped like an item that
+   no item list reads, wherever it is written, and a fenced code block nothing closes. Between
+   refusing valid prose and letting an item hide, the gate refuses. Fenced code blocks are never read. Only the chain table holds a
    state: the table of the areas outside the chain has no `State` column (`docs/product/PLAN.md`,
    line 86 at commit `6bc6482b`), so an area's open rows are not judged until a feature of the
    area joins the chain table. It runs in the `fitness` job of the fitness workflow, a required
@@ -106,9 +107,11 @@
   copy of the plan at commit `72718bb2`: F-05's `Attached (10)` list held no entry, its rows written
   under the next label, and the gate read 177 open items.
 - A record holds no nested list and no item outside its item lists: such a line fails closed while
-  its feature is closed. One false positive is left: a line of a closed record, outside a code
-  span and not an entry's continuation, that writes a bold text followed by `: ` is refused until
-  it is reworded.
+  its feature is closed, and so does a continuation that starts like an item. Two false positives
+  are left, on purpose: a line of a closed record, outside a code span and not an entry's
+  continuation, that writes a bold text followed by `: `, and a line whose backtick runs do not
+  pair, which is scanned whole; each is refused until it is reworded. An item-shaped text in the
+  middle of a continuation line is that entry's text and is not read.
 - The areas outside the chain are not judged: they have no state the gate could read (decision 2).
 - The battery runs one more static step.
 
