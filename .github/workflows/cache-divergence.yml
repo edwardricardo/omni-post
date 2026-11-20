@@ -9,9 +9,12 @@ name: Cache Divergence Probe
 # cache reads disabled — and fails if the emitted dist trees differ.
 #
 # HONEST REACH — what this probe observes and what it structurally cannot:
-# - GitHub Actions cache scoping lets a run restore only caches created on its
-#   own branch or on the default branch. Scheduled runs execute on the default
-#   branch, so they observe ONLY main-scoped cache entries.
+# - GitHub Actions cache scoping lets a run restore caches created on its own
+#   branch or on the default branch; only a pull request run may also restore
+#   those of its base branch, and this probe has no pull_request trigger.
+#   Scheduled runs execute on the default branch, so they observe ONLY
+#   main-scoped cache entries. A manual run observes the entries of the branch
+#   or tag it was dispatched on and those of the default branch.
 # - PR-branch cache entries are therefore structurally out of reach: this
 #   probe detects the corruption CLASS on main and is NOT a detector for
 #   PR-branch instances like the #189 incident, which lived in cache state a
@@ -89,9 +92,10 @@ jobs:
       # there so that a CI run on main replays nothing built for an earlier
       # commit. The probe consumes no entry: it replays one only to compare it
       # with a cold build, and an earlier commit's entry is one CI still
-      # consumes, because a pull request run with no entry of its own falls
-      # back to the default branch, where the prefix returns the newest entry
-      # created under the same pnpm-lock.yaml + turbo.json. So the probe keeps
+      # consumes, because a pull request run with no entry of its own may
+      # restore one created on its base branch or on the default branch, and
+      # on the default branch the prefix returns the newest entry created
+      # under the same pnpm-lock.yaml + turbo.json. So the probe keeps
       # the prefix on every ref, main included: when the exact entry for the
       # commit checked out is missing (its Build Check is still running, was
       # cancelled or failed), the probe checks the entry a pull request would
@@ -114,13 +118,15 @@ jobs:
         # A scheduled run on the default branch restores the entry Build Check
         # saved for the commit checked out or, when that entry is missing, the
         # newest one Build Check saved there under the same pnpm-lock.yaml +
-        # turbo.json. The restore is empty only when no such entry is left: no
-        # Build Check on the default branch has saved one since either file
-        # last changed (the last one failed, was cancelled or has not
-        # finished), every one was evicted (unused for seven days, or pushed
-        # out once the repository's caches exceed their size limit) or purged,
-        # the key drifted from ci.yml, or the cache service failed. None of
-        # those is an empty universe to check: the probe observed nothing.
+        # turbo.json. The restore is empty only when no such entry can be
+        # matched: no Build Check on the default branch has saved one since
+        # either file last changed (each one since then failed, was cancelled
+        # or has not finished), every one was evicted (unused for seven days,
+        # or pushed out once the repository's caches exceed their size limit)
+        # or purged, the key drifted from ci.yml, the cache version differs
+        # from the one Build Check saved (it records the `path` and the
+        # compression tool), or the cache service failed. None of those is an
+        # empty universe to check: the probe observed nothing.
         # Proceeding would compare two cold builds and certify nothing while
         # looking green, so a scheduled run fails here and names the causes.
         # workflow_dispatch is exempted: an operator may legitimately run the
@@ -134,7 +140,7 @@ jobs:
           if [ -n "$CACHE_MATCHED_KEY" ]; then
             echo "Probing cache entry: $CACHE_MATCHED_KEY"
           elif [ "$EVENT_NAME" = "schedule" ]; then
-            echo "::error::Probe observed nothing: no cache entry was restored, neither the one Build Check saved for the commit checked out nor an earlier one it saved on the default branch under the same pnpm-lock.yaml + turbo.json. So no Build Check on the default branch has saved an entry since either file last changed (the last one failed, was cancelled or had not finished); every such entry was evicted or purged; the restore key drifted from ci.yml; or the cache service failed. Check the default branch's Build Check runs since either file last changed first. Refusing to degrade into a meaningless cold-vs-cold green."
+            echo "::error::Probe observed nothing: no cache entry was restored, neither the one Build Check saved for the commit checked out nor an earlier one it saved on the default branch under the same pnpm-lock.yaml + turbo.json. So one of these holds: no Build Check on the default branch has saved an entry since either file last changed (each one since then failed, was cancelled or had not finished); every such entry was evicted or purged; the restore key drifted from ci.yml; the cache version differs from the one Build Check saved (it records the path and the compression tool); or the cache service failed. Check the default branch's Build Check runs since either file last changed first. Refusing to degrade into a meaningless cold-vs-cold green."
             exit 1
           else
             echo "::warning::No Turborepo cache entry restored. This manual run proceeds as a DETERMINISM-ONLY check (cold vs cold): a green result proves the build is deterministic for this commit but says nothing about the CI cache, which was not observed."
@@ -155,6 +161,16 @@ jobs:
         # comparison silently degenerates into two cold builds. Requiring
         # `Cached: N cached` with N > 0 makes a green probe certify an actual
         # REPLAY, not merely a restore.
+        #
+        # An earlier commit's entry makes the cached build a mixed one: tasks
+        # whose inputs changed run, and each `tsc -b` that runs rebuilds from
+        # source every replayed package in its reference graph, because the
+        # .tsbuildinfo of a package sits outside its cached dist/**. A green
+        # run on such an entry certifies only the replayed dist trees that no
+        # such build rewrote. When the root package.json, a workspace package
+        # it depends on or a file in turbo.json's globalDependencies changed
+        # after that entry was saved, every task misses the cache, nothing
+        # replays, and this step fails the run.
         env:
           CACHE_MATCHED_KEY: ${{ steps.turbo-cache.outputs.cache-matched-key }}
         run: |
@@ -168,7 +184,7 @@ jobs:
           # explicit test right after is the real gate — nothing is swallowed.
           cached_tasks=$(grep -oE "Cached:[[:space:]]+[0-9]+ cached" "$RUNNER_TEMP/build-cached.log" | grep -oE "[0-9]+" | head -1 || true)
           if [ -z "$cached_tasks" ] || [ "$cached_tasks" -eq 0 ]; then
-            echo "::error::Probe malfunction: a cache entry was restored ($CACHE_MATCHED_KEY) but the build replayed ${cached_tasks:-an unreported number of} tasks from it. This run degenerated into cold-vs-cold and cannot certify the CI cache."
+            echo "::error::No replay observed: a cache entry was restored ($CACHE_MATCHED_KEY) but the build replayed ${cached_tasks:-an unreported number of} tasks from it. Either the entry is an earlier commit's and the root package.json, a workspace package it depends on or a file in turbo.json's globalDependencies changed since, or the probe malfunctioned. This run degenerated into cold-vs-cold and cannot certify the CI cache."
             exit 1
           fi
           echo "Cached build replayed $cached_tasks tasks from the restored cache entry"
