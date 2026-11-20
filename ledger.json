@@ -27,7 +27,7 @@
       "total": 1251
     },
     "blocks": {
-      "total": 15568,
+      "total": 15570,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15257
+        "BEHAVIOURAL": 15259
       }
     },
     "deleted": {
@@ -71856,7 +71856,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 31,
+      "blockCount": 33,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns GREEN with no reasons when every planned step exits 0 over clean logs",
@@ -71978,99 +71978,113 @@
           "bodyHash": "cb6ce3ca623a7ae20cd0b703b722b7b9c526e6f1e21e8795d122ed0e72695100"
         },
         {
-          "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED over the measured line in another step's log",
+          "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED over %s on the gate's log, read whole",
           "line": 474,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cb6ce3ca623a7ae20cd0b703b722b7b9c526e6f1e21e8795d122ed0e72695100"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED over the measured line in a log whose name differs from the gate's in case",
+          "line": 508,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "024b3e58a398862003b4ec65ff4f9230c62d53b2c7871b7c14caf972257e84d3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED over the measured line in another step's log",
+          "line": 519,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e6c86788eefe7e8613be6938a699ff6cc834aa2d84be026256a79f622f30467"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when fewer steps were recorded than planned",
-          "line": 487,
+          "line": 532,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "68c086bbb50d733f9664098714ac53a899a29565a1b3f465d74cc9455065ebd7"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when steps.tsv is missing",
-          "line": 498,
+          "line": 543,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0de6923731efaf3d60b5bce70c5b2cf32173e7defa4dee5521c72cb7e552045b"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when the log directory does not exist at all",
-          "line": 507,
+          "line": 552,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e55771a7ce5aa5b7847d80175e9e2b3e34bf78bac0c51532a3586b1a55a3b1c1"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when a steps.tsv row is not a name and an exit code",
-          "line": 514,
+          "line": 559,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c59407f8491e281fbb89781d031ad2dfc3f5ee273acebf4c20ba66225a561068"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED with one reason naming a step recorded twice, keeping its first record",
-          "line": 524,
+          "line": 569,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15d5644f2c9f2e464046dc569d12ca2a20fe619ae5d0e4d6e64bfb0a693f7d09"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns one reason for a step recorded three times",
-          "line": 538,
+          "line": 583,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e7e2e7b37b0090214758d4fcefd9d918bc0f9e63d64e8f93ee17ccdcc289441"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when a recorded step left no log",
-          "line": 551,
+          "line": 596,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dee7bcfce7b9bf54c913034a895254644fa26a489baa3a7ebcae50917b6aa9ca"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api run left no JSON report",
-          "line": 561,
+          "line": 606,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf8cb00ff3a70b493eb627181113f8f3be478b01e9367ab45ec28f5907c8aa00"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api report is valid JSON but not a vitest report",
-          "line": 571,
+          "line": 616,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb11cb38f092b79cef32e9619a5c5256239f7ea489d9d173610a6090f804edcd"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api log carries Unhandled Error",
-          "line": 583,
+          "line": 628,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c7b5ba0ab409b411fbb8e725c49370f4bc74e5c9513fc721357d0e481fa4b87"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api log carries Worker exited",
-          "line": 595,
+          "line": 640,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26b0c025ee53428bf353d5a502b8d0503b3aac4a764945e22e99e4061c38b1fe"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api report counts a failed test",
-          "line": 606,
+          "line": 651,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "755b94f2dd8e9a7ae3b73b3a26c6beec90711973c4d9536ad550b3434d2088b1"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when the tree changed during the battery",
-          "line": 619,
+          "line": 664,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bd6ec6cbc4b93a55d69d4c2cb64350e4f92aea890b138d22ca007b5968516ca"

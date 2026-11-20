@@ -31,20 +31,35 @@
  *   One kind of text is not read: the title of a test block on the line where the record-coverage
  *   gate (`scripts/testing/record-coverage-gate.mjs`) lists that block. A title is data the gate
  *   copies from a test, often a block of the base the change's author cannot edit, so a block named
- *   "logs warnings" is not a warning. The exception holds only in `record-coverage.log` and only on
- *   a line of the gate's grammar `record-coverage-gate: <class>: <path>::<title> (<kind>): <detail>`,
- *   with `<class>` one of `refused`, `behaviour change`, `live`, `no-collector` and `moved`, and
- *   `<kind>` `deletion` or `rewrite`. The path holds no `:`, so the title starts after the first
- *   `::`; it runs to the last ` (<kind>): `, which no detail of those classes holds, so a title may
- *   hold any character, `::`, parentheses and the gate's own words included. A `moved` line's detail,
+ *   "logs warnings" is not a warning. The exception holds only in the log named exactly
+ *   `record-coverage.log` at the top of the log directory, and only on a line that is, from its
+ *   first character to its last, the gate's grammar
+ *   `record-coverage-gate: <class>: <path>::<title> (<kind>): <detail>`, with `<class>` one of
+ *   `refused`, `behaviour change`, `live`, `no-collector` and `moved`, and `<kind>` `deletion` or
+ *   `rewrite`. The title starts after the first `::` and runs to the last ` (<kind>): `, so it may
+ *   hold `::`, parentheses and the gate's own words. A `moved` line's detail,
  *   `its bodyHash reappears as <path>::<title>`, names a second block whose title is not read either;
  *   its first title runs to the last ` (deletion): its bodyHash reappears as ` that a colon-free path
- *   and `::` follow, so a second title that itself holds that phrase, a colon-free run and `::`
- *   splits there, and the run is read as a path: a warning word in it still counts. Everything else
- *   on such a line is read (the class, the paths, the detail), and so is every other line of that
- *   log (the gate's summary and its own problems, a runtime warning) and every line of every other
- *   log. A change to the gate's line that the grammar no longer matches turns its titles back into
- *   warning lines: RED, never a waived warning.
+ *   and `::` follow. Everything else on such a line is read (the class, the paths, the detail), and
+ *   so is the gate's grammar written after other text, every other line of that log (the gate's
+ *   summary and its own problems, a runtime warning) and every line of every other log. A change to
+ *   the gate's line that the grammar no longer matches turns its titles back into warning lines:
+ *   RED, never a waived warning.
+ *
+ *   Its residual limits, stated rather than implied. (1) A title may not hold every character: a
+ *   carriage return before the line's end, U+2028 or U+2029 makes the line read whole (RED), and a
+ *   line feed splits it into lines that are each read whole. (2) That a path holds no `:` is
+ *   assumed, never checked: a path holding `::` has the text after its first `::` read as the
+ *   title, and a path holding a single `:` makes the line read whole. (3) No detail is known to hold
+ *   no ` (<kind>): `: a behaviour-change detail lists changed file names and record file names, and
+ *   a refused detail holds a record's verdict, which is free text. When one holds ` (deletion): ` or
+ *   ` (rewrite): `, the detail's text before the last of them is taken for title and not read. What
+ *   is then skipped is data of the tree, never a tool's own warning, and a refused line's step exits
+ *   1, so it is RED anyway. (4) A moved line whose second title itself holds the moved phrase, a
+ *   colon-free run and `::` splits there, and that run is read as a path: a warning word in it still
+ *   counts. (5) The name must match exactly and the walk lists the top level only: a log whose name
+ *   differs from `record-coverage.log` in case is read whole, and a `record-coverage.log` in a
+ *   subdirectory, like every file there, is not read at all.
  * @layer infrastructure
  */
 import { readdirSync, readFileSync } from "node:fs";

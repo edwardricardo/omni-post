@@ -471,6 +471,51 @@ describe("battery verdict", () => {
       expect(verdict.warnings).toEqual([{ log: GATE_LOG, line: 2, text: line }]);
     });
 
+    it.each([
+      [
+        "a block line's grammar after other text",
+        "warning: record-coverage-gate: refused: pkg/tests/a.test.ts::warns once (deletion): no-record",
+      ],
+      [
+        "a moved line's grammar after other text",
+        "warning: record-coverage-gate: moved: pkg/tests/a.test.ts::warns once (deletion): its bodyHash reappears as pkg/tests/b.test.ts::warns once",
+      ],
+      [
+        "a carriage return inside a block line's detail",
+        "record-coverage-gate: behaviour change: pkg/tests/a.test.ts::warns once (deletion): its test imports pkg/src/a\rwarning: x.ts, which this pull request changes",
+      ],
+      [
+        "a carriage return inside a moved line's second title",
+        "record-coverage-gate: moved: pkg/tests/a.test.ts::warns once (deletion): its bodyHash reappears as pkg/tests/b.test.ts::warns\ronce",
+      ],
+      [
+        "a kind with no `: ` after it",
+        "record-coverage-gate: live: pkg/tests/a.test.ts::warns (deletion) counted",
+      ],
+      [
+        "a path holding a single `:`",
+        "record-coverage-gate: refused: pkg/tests/a:b.test.ts::warns once (deletion): no-record",
+      ],
+    ])("returns RED over %s on the gate's log, read whole", async (_limit, line) => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: GATE_LOG, line: 2, text: line }]);
+    });
+
+    it("returns RED over the measured line in a log whose name differs from the gate's in case", async () => {
+      const outDir = makeLogDir({ logs: { "Record-Coverage.log": `ok\n${MEASURED_LINE}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([
+        { log: "Record-Coverage.log", line: 2, text: MEASURED_LINE.slice(0, 220) },
+      ]);
+    });
+
     it("returns RED over the measured line in another step's log", async () => {
       const outDir = makeLogDir({ logs: { "lint.log": `ok\n${MEASURED_LINE}\n` } });
 
