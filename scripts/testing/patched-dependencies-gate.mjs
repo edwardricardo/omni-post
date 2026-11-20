@@ -75,7 +75,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { createGh, remindIssues } from "./lib/issue-reminder.mjs";
+import { createGh, fieldsOf, remindIssues } from "./lib/issue-reminder.mjs";
 import { readTopLevelBlock } from "./workspace-block-reader.mjs";
 
 const GATE = "patched-dependencies-gate";
@@ -144,16 +144,6 @@ const ADR_PATH = /^docs\/technical\/ADR-\d{4}-[^/]+\.md$/;
  */
 function text(value) {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-/**
- * @param {unknown} value
- * @returns {Record<string, unknown>} The value when it is a plain object, otherwise an empty one.
- */
-function fieldsOf(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? /** @type {Record<string, unknown>} */ (value)
-    : {};
 }
 
 /**

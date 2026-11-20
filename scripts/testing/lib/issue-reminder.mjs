@@ -42,10 +42,12 @@ import { execFileSync } from "node:child_process";
 /** @typedef {{ number: number, title: string, state: string, created: string }} Issue */
 
 /**
+ * @description The fields of a parsed JSON value, read without a cast at every call: GitHub's
+ *   answers and a gate's records are both read through it.
  * @param {unknown} value
  * @returns {Record<string, unknown>} The value when it is a plain object, otherwise an empty one.
  */
-function fieldsOf(value) {
+export function fieldsOf(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? /** @type {Record<string, unknown>} */ (value)
     : {};

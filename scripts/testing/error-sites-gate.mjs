@@ -22,11 +22,14 @@
  *     directory out by an entry of kind `outside-src`, and every entry carries what its kind
  *     claims; no JavaScript file lies under a `src` directory outside an excluded root; the
  *     plugin's package exports its `src`, and its `src` imports only relative paths inside itself
- *     and the built-ins the scope allows; and for every tracked file of a rule's scope, ESLint does
- *     not ignore it, the rule is at `error` with exactly the held options, and the plugin ESLint
- *     resolves is the package's own object.
+ *     and the built-ins the scope allows; the rule's `bodyWriter` option is set and names a file git
+ *     tracks; and for every tracked file of a rule's scope, ESLint does not ignore it, the rule is at
+ *     `error` with exactly the held options, the plugin ESLint resolves is the package's own object,
+ *     no processor reads the file, its parser is the very object `@typescript-eslint/parser`
+ *     exports, and its language is ESLint's own JavaScript language.
  *   - S5: no file of the scope holds an `eslint-disable` directive that names an `errors/` rule or
- *     names no rule; no tracked `package.json`, hook under `.husky/` or workflow holds
+ *     names no rule, nor an `eslint` configuration comment that names an `errors/` rule, whatever
+ *     it sets; no tracked `package.json`, hook under `.husky/` or workflow holds
  *     `pass-on-unpruned-suppressions`; the root `lint` script is the one the gate holds.
  *
  *   AGAINST A BASE, the head being `HEAD`. Every comparison reads the base's paths through the
@@ -37,19 +40,38 @@
  *     hold gains an entry, but by the birth of a rule or by a recorded move into it.
  *   - S7: a count falls only where git reports a change of the file's content, or its deletion.
  *   - S8: a file of the base's baseline renamed by the head stays in its rule's scope, and a portal
- *     whose catalogs hold `errorCodes` on the base holds it in every catalog on the head.
+ *     whose catalogs hold `errorCodes` on the base holds it in every catalog on the head. This is
+ *     stricter than the registry gate's R7, which enrols a portal by its default locale's catalog,
+ *     and reads no `routing.ts`: fitness #51 makes every locale of a portal hold the default's keys,
+ *     so on a tree #51 passes the two readings agree, and where #51 fails S8 refuses more.
  *   - S9: when the rule's package, this gate or the scope module differs from the base, no count of
  *     a rule the base's history bore differs from the mapped base.
  *   - S10: every row of the base is on the head unchanged; the head adds exactly one row when a
  *     count, a context's total or a birth differs from the base, and none otherwise; and that row is
  *     what the difference yields: a birth alone, or `fixed` per context as what fell there minus
  *     what moved out of it, with one move across contexts per renamed file that crossed one, and
- *     moves between two files only inside one context.
+ *     moves between two files only inside one context; no row the head adds is dated after today in
+ *     UTC.
  *
  *   `--record` writes one row and never rewrites one. With no base it writes the birth of the one
  *   rule that has entries and no birth; against a base it writes the row the difference yields,
  *   with the moves between two files given as `--moved <from>:<to>:<count>`. It refuses when
- *   nothing differs.
+ *   nothing differs, and a date after today in UTC.
+ *
+ *   WHAT A RUN READS, stated because each is easy to miss. `--record` and S7 read the changes from
+ *   `HEAD` and the list from disk, so a row is recorded after the change is committed: before the
+ *   commit, a rename reads as a rise at the new path. A row that records only a move, or another
+ *   rule's birth, restarts the stall's window although nothing was fixed. The stall issue is never
+ *   closed by the gate. The stall job runs on the runner's own Node, and the script uses nothing
+ *   newer than Node 20. The step of fitness #57 compares with the pull request's base sha, as #37
+ *   does, so a base that lags the merge ref's first parent is a false red and never a silent pass.
+ *   A file deleted and added again, rewritten, under a source root the scope excludes whole leaves
+ *   the list with no conversion, and nothing refuses a backend import of such a package: those
+ *   roots are the fronts (`apps/admin`, `apps/client`, `packages/ui`, `packages/api-errors`,
+ *   `packages/i18n`, `packages/query-client`, `packages/observability/browser-logger`) and the
+ *   tooling packages (`packages/eslint-plugin-testing`, `packages/eslint-plugin-errors`,
+ *   `packages/test-contracts`, `packages/vitest-shared`), the whole-root entries of
+ *   `lib/error-scope.mjs`.
  *
  *   `--stalled --days <n>`, the scheduled half (`error-sites-stall.yml`, the Maintainer's decision
  *   of 2026-11-20): whether the list stopped shrinking. It reads the `errors/` entries of the
@@ -84,9 +106,10 @@
  *   as one; the plugin's imports are read from its syntax, so code that loads a module with no
  *   import and no `require` call (`process.getBuiltinModule`) is not seen; a count is not a line,
  *   so a file that fixes one site and adds another keeps its count; a change of the rule that moves
- *   no count passes S9, and a later change that prunes a file it edited passes S7; S1 to S10 and
- *   `--record` never read the clock, so a row's date is what its author wrote, and `--stalled`
- *   trusts it: a row dated later than the day it was recorded, but not after today, holds the
+ *   no count passes S9, and a later change that prunes a file it edited passes S7; S10 and
+ *   `--record` read the clock only to refuse a date after today, so a row's date is otherwise what
+ *   its author wrote, and `--stalled` trusts it: a row dated later than the day it was recorded,
+ *   but not after today, holds the
  *   window open; the day's comment is found by its text, which holds the counts, so two runs of one
  *   day that read different counts both comment, which takes a change of the list with no row dated
  *   inside the window (a back-dated row, or a push with no pull request); `--stalled` says the list
@@ -126,6 +149,7 @@ import {
   isUnderSource,
   matchesGlob,
 } from "./lib/error-scope.mjs";
+import { gitEnvironment } from "./lib/git-environment.mjs";
 import { createGh, remindIssues } from "./lib/issue-reminder.mjs";
 
 /** ESLint's suppressions file, relative to the root. */
@@ -141,6 +165,10 @@ export const PLUGIN = Object.freeze({
   directory: "packages/eslint-plugin-errors",
   exports: Object.freeze({ ".": "./src/index.js" }),
 });
+/** The parser every file of the scope is read with: the TypeScript parser's package. */
+export const LINT_PARSER = "@typescript-eslint/parser";
+/** The rule whose options name the one file that writes the error body. */
+const BODY_WRITER_RULE = "errors/no-inline-error";
 /** The files whose change is a change of the rule, for S9: a directory ends with `/`. */
 export const RULE_SOURCES = Object.freeze([
   `${PLUGIN.directory}/`,
@@ -185,6 +213,13 @@ const WHOLE_ROOT = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\/\*\*$/;
 const CATALOG = /^apps\/([^/]+)\/messages\/[^/]+\.json$/;
 /** The opener of a disable directive, in a line or a block comment, and its keyword. */
 const DIRECTIVE = /(\/\/|\/\*)[\s*]*eslint-disable(?:-next-line|-line)?(?=[\s*]|$)/g;
+/**
+ * The opener of a configuration comment, `/* eslint <rule>: <value> *\/`, which ESLint reads in a
+ * block comment only. `eslint-disable`, `eslint-enable` and `eslint-env` are other keywords.
+ */
+const INLINE_CONFIG = /\/\*[\s*]*eslint(?=\s)/g;
+/** A rule of the `errors/` plugin named as a key of a configuration comment. */
+const CONFIGURED_RULE = /["']?(errors\/[A-Za-z0-9_-]+)["']?\s*:/g;
 const PASS_UNPRUNED = "pass-on-unpruned-suppressions";
 const KINDS = Object.values(EXCLUSION_KIND);
 const SEVERITY_NAMES = new Map([
@@ -212,6 +247,12 @@ const SEVERITY_VALUES = new Map([
  * @property {Record<string, RuleState>} rules Each rule of the plugin's namespace on the path.
  * @property {boolean} pluginIsPackage True when the plugin of the namespace is the very object
  *   the plugin's package exports.
+ * @property {boolean} processed True when a processor reads the path: what it hands the rule
+ *   need not be the file's text.
+ * @property {boolean} parserIsPackage True when the path's parser is the very object the parser's
+ *   package exports.
+ * @property {boolean} languageIsJavaScript True when the path is linted in ESLint's own
+ *   JavaScript language (`@/js`).
  */
 /** @typedef {(file: string) => Promise<Resolution>} ResolveRule */
 /** @typedef {Map<string, Map<string, number>>} Baseline Path, then rule id, then count. */
@@ -333,15 +374,21 @@ export function contextOf(file) {
 }
 
 /**
- * @description The `git` the gate runs: a synchronous call in the root that never throws.
+ * @description The `git` the gate runs: a synchronous call in the root that never throws, in an
+ *   environment without the variables that point git at another repository
+ *   (`lib/git-environment.mjs`), so it always reads the root's own.
  * @param {string} root The repository root.
+ * @param {NodeJS.ProcessEnv} [environment] The environment to start from; the process's own by
+ *   default.
  * @returns {Git} A function from git's arguments to its exit status and output.
  */
-export function createGit(root) {
+export function createGit(root, environment = process.env) {
+  const env = gitEnvironment(environment);
   return (args) => {
     const result = spawnSync("git", [...args], {
       cwd: root,
       encoding: "utf8",
+      env,
       maxBuffer: 256 * 1024 * 1024,
     });
     if (result.error !== undefined) return { status: -1, stdout: "", stderr: result.error.message };
@@ -360,38 +407,85 @@ function ruleStateOf(value) {
   return { severity: number, options };
 }
 
+/** @type {Resolution} */
+const IGNORED = Object.freeze({
+  ignored: true,
+  rules: {},
+  pluginIsPackage: false,
+  processed: false,
+  parserIsPackage: false,
+  languageIsJavaScript: false,
+});
+
+/**
+ * @param {unknown} loaded What `require` returned for a package.
+ * @returns {unknown} Its default export when it is an ES module, else the value itself.
+ */
+const defaultOf = (loaded) =>
+  isObject(loaded) && "default" in loaded ? loaded["default"] : loaded;
+
 /**
  * @description The `resolveRule` the command runs: ESLint's Node API, loaded from the root, asked
- *   whether it ignores a path and which rules of a namespace it resolves there, with the identity
- *   of the plugin it resolves compared to the object the plugin's package exports.
- * @param {{ root: string, namespace: string, packageName: string }} input The root whose
- *   `eslint.config.ts` is read, the plugin's namespace, and its package's name.
+ *   whether it ignores a path and which rules of a namespace it resolves there, and whether the
+ *   code that reads the path is the code the gate holds: the plugin is the very object its package
+ *   exports, no processor sits in front of the rule, the parser is the very object its package
+ *   exports, and the language is ESLint's own JavaScript language.
+ * @param {object} input
+ * @param {string} input.root The root whose `eslint.config.ts` is read.
+ * @param {string} input.namespace The plugin's namespace.
+ * @param {string} input.packageName The plugin's package's name.
+ * @param {string} input.parserPackage The parser's package's name.
+ * @param {import("eslint").Linter.Config[]} [input.overrideConfig] Blocks ESLint applies after
+ *   `eslint.config.ts`, for a caller that measures what a block does; none by default.
  * @returns {Promise<ResolveRule>} The resolver.
- * @throws {Error} When ESLint or the plugin's package cannot be loaded from the root.
+ * @throws {Error} When ESLint, the plugin's package or the parser's package cannot be loaded from
+ *   the root.
  */
-export async function createEslintResolver({ root, namespace, packageName }) {
+export async function createEslintResolver({
+  root,
+  namespace,
+  packageName,
+  parserPackage,
+  overrideConfig,
+}) {
   const load = createRequire(path.join(root, "package.json"));
   const { ESLint } = /** @type {typeof import("eslint")} */ (load("eslint"));
-  const loaded = /** @type {unknown} */ (load(packageName));
-  const plugin = isObject(loaded) && "default" in loaded ? loaded["default"] : loaded;
-  const eslint = new ESLint({ cwd: root });
+  const plugin = defaultOf(load(packageName));
+  // ESLint's flat configuration imports a CommonJS parser whole, so the object it holds is what
+  // `require` returns, not a `default` member of it.
+  const parser = /** @type {unknown} */ (load(parserPackage));
+  const eslint = new ESLint({
+    cwd: root,
+    ...(overrideConfig === undefined ? {} : { overrideConfig }),
+  });
   const prefix = `${namespace}/`;
   return async (file) => {
     const absolute = path.join(root, file);
     const config = (await eslint.isPathIgnored(absolute))
       ? undefined
-      : /** @type {{ rules?: Record<string, unknown>, plugins?: Record<string, unknown> } | undefined} */ (
-          await eslint.calculateConfigForFile(absolute)
-        );
-    if (config === undefined || config === null) {
-      return { ignored: true, rules: {}, pluginIsPackage: false };
-    }
+      : /**
+         * @type {{ rules?: Record<string, unknown>, plugins?: Record<string, unknown>,
+         *   processor?: unknown, language?: unknown, languageOptions?: { parser?: unknown } }
+         *   | undefined}
+         */ (await eslint.calculateConfigForFile(absolute));
+    if (config === undefined || config === null) return IGNORED;
     /** @type {Record<string, RuleState>} */
     const rules = {};
     for (const [id, value] of Object.entries(config.rules ?? {})) {
       if (id.startsWith(prefix)) rules[id] = ruleStateOf(value);
     }
-    return { ignored: false, rules, pluginIsPackage: config.plugins?.[namespace] === plugin };
+    // `@` is ESLint's core plugin: its `js` language is the one every TypeScript file is read in.
+    const core = config.plugins?.["@"];
+    const languages = isObject(core) ? core["languages"] : undefined;
+    return {
+      ignored: false,
+      rules,
+      pluginIsPackage: config.plugins?.[namespace] === plugin,
+      processed: config.processor !== undefined,
+      parserIsPackage: config.languageOptions?.parser === parser,
+      languageIsJavaScript:
+        config.language !== undefined && isObject(languages) && config.language === languages["js"],
+    };
   };
 }
 
@@ -1014,17 +1108,25 @@ function resolutionProblems(rule, resolution, held) {
       });
     }
   }
-  if (!resolution.pluginIsPackage) {
-    const text = `the ${PLUGIN.namespace} plugin ESLint resolves is not the object ${PLUGIN.packageName} exports`;
-    problems.push({ kind: text, text });
-  }
+  /** @type {[boolean, string][]} */
+  const readers = [
+    [
+      resolution.pluginIsPackage,
+      `the ${PLUGIN.namespace} plugin ESLint resolves is not the object ${PLUGIN.packageName} exports`,
+    ],
+    [!resolution.processed, "a processor reads it, so the rule need not see the file's text"],
+    [resolution.parserIsPackage, `its parser is not the object ${LINT_PARSER} exports`],
+    [resolution.languageIsJavaScript, "it is not linted in ESLint's own JavaScript language"],
+  ];
+  for (const [held, text] of readers) if (!held) problems.push({ kind: text, text });
   return problems;
 }
 
 /**
  * @description S4: for every tracked file of a rule's scope, ESLint does not ignore it, the rule
- *   is at `error` with exactly the held options, and the plugin is the package's own object. Each
- *   problem names at most twenty files, then counts the rest.
+ *   is at `error` with exactly the held options, the plugin and the parser are their packages' own
+ *   objects, no processor reads the file, and its language is ESLint's own JavaScript language.
+ *   Each problem names at most twenty files, then counts the rest.
  * @param {readonly string[]} rules
  * @param {Map<string, Set<string>>} scopes Each rule's tracked files of its scope.
  * @param {ResolveRule} resolveRule
@@ -1069,8 +1171,11 @@ async function checkResolution(rules, scopes, resolveRule, options) {
 
 /**
  * @description S5: no file of a scope holds a disable directive that names an `errors/` rule or
- *   names no rule. The scan reads text: a directive in a line or a block comment, its rule list up
- *   to the end of the line or of the block, before ESLint's `--` description separator.
+ *   names no rule, nor a configuration comment (`/* eslint <rule>: <value> *\/`) that names an
+ *   `errors/` rule, whatever severity or options it gives: either would turn the rule off or change
+ *   what it reports in that file while the configuration S4 reads stays as held. The scan reads
+ *   text: a directive in a line or a block comment, its rule list up to the end of the line or of
+ *   the block, before ESLint's `--` description separator.
  * @param {string} root
  * @param {readonly string[]} files
  * @returns {{ verdicts: string[], unread: string[] }}
@@ -1108,8 +1213,46 @@ function checkDirectives(root, files) {
         `${file}:${String(line)}: an eslint-disable directive that ${what}: no directive turns an errors/ rule off in a file of its scope`
       );
     }
+    for (const match of text.matchAll(INLINE_CONFIG)) {
+      const after = match.index + match[0].length;
+      const close = text.indexOf("*/", after);
+      const body =
+        text.slice(after, close === -1 ? text.length : close).split(/\s-{2,}\s/)[0] ?? "";
+      const named = [...body.matchAll(CONFIGURED_RULE)].map((rule) => rule[1] ?? "");
+      if (named.length === 0) continue;
+      const line = text.slice(0, match.index).split("\n").length;
+      verdicts.push(
+        `${file}:${String(line)}: an eslint configuration comment that configures ${[...new Set(named)].join(", ")}: no comment changes an errors/ rule in a file of its scope`
+      );
+    }
   }
   return { verdicts, unread };
+}
+
+/**
+ * @description S4: the one file the rule lets write the error body, its option `bodyWriter`, is
+ *   set and names a file git tracks. A path that names no file takes nothing out of the rule today,
+ *   and quietly takes the sends of whatever file is later given that name.
+ * @param {RuleOptions} options The held options of every rule.
+ * @param {ReadonlySet<string>} tracked
+ * @returns {string[]} The verdicts.
+ */
+function checkBodyWriter(options, tracked) {
+  const held = options[BODY_WRITER_RULE];
+  if (held === undefined) return [];
+  const [first] = held;
+  const writer = isObject(first) ? first["bodyWriter"] : undefined;
+  if (typeof writer !== "string" || writer === "") {
+    return [
+      `${BODY_WRITER_RULE}: its option "bodyWriter" is not set: the rule must name the one file that writes the error body`,
+    ];
+  }
+  if (!tracked.has(writer)) {
+    return [
+      `${BODY_WRITER_RULE}: its option "bodyWriter" names ${writer}, which git does not track: it must name the file that writes the error body`,
+    ];
+  }
+  return [];
 }
 
 /**
@@ -1568,7 +1711,8 @@ function unexplainedRises(difference, fileMoves) {
 function riseLine({ file, rule, base, head }) {
   return (
     `${file}: ${rule} counts ${counted(head, "site")}, and the base counts ${String(base)}: a count never rises against the base; ` +
-    `fix the sites the change added and run "${PRUNE}", or record their move from another file of its context with --moved <from>:${file}:<count>`
+    `fix the sites the change added and run "${PRUNE}", or, when they moved from another file of its context, record the move with --moved <from>:${file}:<count>; ` +
+    "a renamed file needs no move: the gate reads renames from HEAD, so commit the rename and run again"
   );
 }
 
@@ -1583,9 +1727,10 @@ function riseLine({ file, rule, base, head }) {
  * @param {History} input.history The head's history.
  * @param {BaseState} input.baseState
  * @param {Exclusions} input.exclusions
+ * @param {string} input.today The UTC date of the instant the run reads as now.
  * @returns {{ verdicts: string[], unread: string[] }}
  */
-function checkAgainstBase({ root, tracked, baseline, history, baseState, exclusions }) {
+function checkAgainstBase({ root, tracked, baseline, history, baseState, exclusions, today }) {
   /** @type {string[]} */
   const verdicts = [];
   /** @type {string[]} */
@@ -1698,7 +1843,29 @@ function checkAgainstBase({ root, tracked, baseline, history, baseState, exclusi
       );
   }
   verdicts.push(...newRowProblems(newRows, difference, baseline, baseState.ref));
+  // A row is dated the day it is recorded: one dated later holds the stall's window open until
+  // that day, and makes every run of `--stalled` before it fail on its input.
+  for (const { file } of newRows) {
+    const date = rowDate(file);
+    if (date > today) verdicts.push(futureRowLine(file, date, today));
+  }
   return { verdicts, unread };
+}
+
+/** @type {(file: string) => string} */
+const rowDate = (file) => path.posix.basename(file).slice(0, "YYYY-MM-DD".length);
+
+/** @type {(now: Date) => string} */
+const utcDay = (now) => now.toISOString().slice(0, "YYYY-MM-DD".length);
+
+/**
+ * @param {string} file
+ * @param {string} date
+ * @param {string} today
+ * @returns {string} The verdict on a row dated after today.
+ */
+function futureRowLine(file, date, today) {
+  return `${file}: is dated ${date}, after today, ${today} (UTC): a row is dated the day it is recorded`;
 }
 
 /**
@@ -1843,6 +2010,8 @@ function readInputs(root, git, base) {
  * @param {Exclusions} [input.exclusions] Each held rule's list; the scope module's by default.
  * @param {RuleOptions} [input.options] Each held rule's options; the scope module's by default.
  * @param {string} [input.base] The base S6 to S10 compare against; with none they are skipped.
+ * @param {Date} [input.now] The instant the run reads as now, which dates a new row against today
+ *   in UTC; the current time by default.
  * @returns {Promise<Outcome>} 0 clean, 1 a verdict, 3 an input that could not be read.
  */
 export async function runGate({
@@ -1852,6 +2021,7 @@ export async function runGate({
   exclusions = ERROR_SCOPE_EXCLUSIONS,
   options = ERROR_RULE_OPTIONS,
   base,
+  now = new Date(),
 }) {
   const listed = listTracked(git);
   if ("error" in listed) return unreadOutcome([listed.error]);
@@ -1878,6 +2048,7 @@ export async function runGate({
   for (const rule of rules) collect(checkList(rule, exclusions[rule] ?? [], tracked));
   if (unread.length > 0) return unreadOutcome([...unread, ...verdicts]);
   verdicts.push(...checkJavaScript(tracked, exclusions));
+  verdicts.push(...checkBodyWriter(options, new Set(tracked)));
   collect(checkPluginPackage(root, tracked));
 
   /** @type {Map<string, Set<string>>} */
@@ -1892,7 +2063,17 @@ export async function runGate({
   collect(checkDirectives(root, scoped));
   collect(checkLintRun(root, tracked));
   if (baseState !== undefined) {
-    collect(checkAgainstBase({ root, tracked, baseline, history, baseState, exclusions }));
+    collect(
+      checkAgainstBase({
+        root,
+        tracked,
+        baseline,
+        history,
+        baseState,
+        exclusions,
+        today: utcDay(now),
+      })
+    );
   }
 
   if (unread.length > 0) return unreadOutcome([...unread, ...verdicts]);
@@ -1924,11 +2105,12 @@ export async function runGate({
  * @param {object} input
  * @param {string} input.root The repository root.
  * @param {Git} input.git Runs git in the root.
- * @param {string} input.date The row's date, `YYYY-MM-DD`; the gate never reads the clock.
+ * @param {string} input.date The row's date, `YYYY-MM-DD`, no later than today in UTC.
  * @param {string} input.slug The row's slug.
  * @param {Exclusions} [input.exclusions] Each held rule's list; the scope module's by default.
  * @param {string} [input.base] The base the row is the difference with.
  * @param {readonly Move[]} [input.moves] The moves between two files of one context.
+ * @param {Date} [input.now] The instant the run reads as now; the current time by default.
  * @returns {Outcome} 0 when the row was written, 1 a refusal, 3 an input that could not be read.
  */
 export function recordRow({
@@ -1939,6 +2121,7 @@ export function recordRow({
   exclusions = ERROR_SCOPE_EXCLUSIONS,
   base,
   moves = [],
+  now = new Date(),
 }) {
   const held = heldProblems(exclusions, undefined);
   if (held.length > 0) return unreadOutcome(held);
@@ -1952,6 +2135,8 @@ export function recordRow({
     stderr: lines.map((line) => PREFIX + line),
   });
   const target = `${HISTORY}/${date}-${slug}.json`;
+  const today = utcDay(now);
+  if (date > today) return refuse([futureRowLine(target, date, today)]);
   if (existsSync(path.join(root, target))) {
     return refuse([`${target} already exists: a row is never rewritten, so choose another slug`]);
   }
@@ -2093,8 +2278,8 @@ export function checkStall({ root, days, now, gh }) {
       `${HISTORY} ${history.exists ? "holds no row" : "does not exist"}, so the list of ${counted(total, "site")} cannot be dated: a list above zero is dated by the rows of its history`,
     ]);
   }
-  const date = path.posix.basename(newest.file).slice(0, "YYYY-MM-DD".length);
-  const today = now.toISOString().slice(0, "YYYY-MM-DD".length);
+  const date = rowDate(newest.file);
+  const today = utcDay(now);
   const elapsed = (Date.parse(today) - Date.parse(date)) / DAY_MS;
   if (elapsed < 0) {
     return unreadOutcome([
@@ -2262,6 +2447,7 @@ async function main(argv, environment) {
       root,
       namespace: PLUGIN.namespace,
       packageName: PLUGIN.packageName,
+      parserPackage: LINT_PARSER,
     });
   } catch (error) {
     return unreadOutcome([`ESLint's configuration could not be loaded: ${messageOf(error)}`]);

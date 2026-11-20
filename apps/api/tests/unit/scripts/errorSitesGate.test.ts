@@ -17,6 +17,7 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -29,6 +30,9 @@ type Resolution = {
   ignored: boolean;
   rules: Record<string, RuleState>;
   pluginIsPackage: boolean;
+  processed: boolean;
+  parserIsPackage: boolean;
+  languageIsJavaScript: boolean;
 };
 type ResolveRule = (file: string) => Promise<Resolution>;
 type GitResult = { status: number; stdout: string; stderr: string };
@@ -47,6 +51,7 @@ interface GateInput {
   exclusions?: Exclusions;
   options?: Options;
   base?: string;
+  now?: Date;
 }
 interface Move {
   readonly from: string;
@@ -61,6 +66,7 @@ interface RecordInput {
   exclusions?: Exclusions;
   base?: string;
   moves?: readonly Move[];
+  now?: Date;
 }
 interface Row {
   version: 1;
@@ -86,11 +92,14 @@ type GateModule = {
   HISTORY: string;
   LINT_SCRIPT: string;
   contextOf: (file: string) => string;
-  createGit: (root: string) => Git;
+  LINT_PARSER: string;
+  createGit: (root: string, environment?: NodeJS.ProcessEnv) => Git;
   createEslintResolver: (input: {
     root: string;
     namespace: string;
     packageName: string;
+    parserPackage: string;
+    overrideConfig?: unknown[];
   }) => Promise<ResolveRule>;
   runGate: (input: GateInput) => Promise<Outcome>;
   recordRow: (input: RecordInput) => Outcome;
@@ -105,6 +114,7 @@ const {
   BASELINE,
   HISTORY,
   LINT_SCRIPT,
+  LINT_PARSER,
   contextOf,
   createGit,
   createEslintResolver,
@@ -116,7 +126,8 @@ const {
 } = (await import(GATE_SCRIPT)) as GateModule;
 
 const RULE = "errors/no-inline-error";
-const OPTIONS: Options = { [RULE]: [{ bodyWriter: "apps/api/src/lib/errors/sendProblem.ts" }] };
+const BODY_WRITER = "apps/api/src/lib/errors/sendProblem.ts";
+const OPTIONS: Options = { [RULE]: [{ bodyWriter: BODY_WRITER }] };
 const LIST: readonly Exclusion[] = [
   { glob: "**/*.test.{ts,tsx,mts,cts}", kind: "test-suffix", reason: "Test files by suffix" },
   { glob: "**/*.d.{ts,mts,cts}", kind: "declaration", reason: "No executable code" },
@@ -165,6 +176,7 @@ const plantClean = (): void => {
   write("apps/api/src/types/f.d.ts", "export {};\n");
   write("apps/api/tests/unit/t.test.ts", "// eslint-disable-next-line errors/no-inline-error\n");
   write("scripts/tool.mjs", "export {};\n");
+  write(BODY_WRITER, "export const sendProblem = (): void => {};\n");
   writeJson("packages/eslint-plugin-errors/package.json", {
     name: "@packages/eslint-plugin-errors",
     type: "module",
@@ -193,7 +205,22 @@ const RESOLVED: Resolution = {
   ignored: false,
   rules: { [RULE]: { severity: 2, options: [...(OPTIONS[RULE] ?? [])] } },
   pluginIsPackage: true,
+  processed: false,
+  parserIsPackage: true,
+  languageIsJavaScript: true,
 };
+const IGNORED: Resolution = {
+  ignored: true,
+  rules: {},
+  pluginIsPackage: false,
+  processed: false,
+  parserIsPackage: false,
+  languageIsJavaScript: false,
+};
+/** Every check of the suite runs on this day, so no row of its fixtures is dated after today. */
+const TODAY = new Date("2026-12-01T12:00:00Z");
+/** A day before every run of the command line, which reads the real clock. */
+const PAST_DAY = "2026-11-19";
 
 /** A resolver that answers the clean state for every path but those given. */
 const resolverOf =
@@ -211,6 +238,7 @@ const scan = (input: Partial<GateInput> = {}): Promise<Outcome> => {
     resolveRule: resolverOf(),
     exclusions: EXCLUSIONS,
     options: OPTIONS,
+    now: TODAY,
     ...input,
   });
 };
@@ -222,6 +250,7 @@ const record = (input: Partial<RecordInput> = {}): Outcome =>
     date: "2026-11-21",
     slug: "birth",
     exclusions: EXCLUSIONS,
+    now: TODAY,
     ...input,
   });
 
@@ -255,13 +284,14 @@ describe("a clean tree", () => {
       "apps/api/src/admin/a.ts",
       "apps/api/src/admin/b.ts",
       "apps/api/src/index.ts",
+      BODY_WRITER,
       "packages/core/auth/src/x.ts",
     ]);
   });
 
   it("asserts nothing of an excluded file, even one ESLint ignores", async () => {
     plantClean();
-    const ignored: Resolution = { ignored: true, rules: {}, pluginIsPackage: false };
+    const ignored = IGNORED;
 
     const outcome = await scan({
       resolveRule: resolverOf({
@@ -476,30 +506,37 @@ describe("S3: the history", () => {
 
 describe("S4: ESLint reaches the scope", () => {
   it.each<[string, Resolution, string]>([
-    ["ignored", { ignored: true, rules: {}, pluginIsPackage: false }, "ESLint ignores it"],
-    ["missing", { ignored: false, rules: {}, pluginIsPackage: true }, "the rule is not on"],
+    ["ignored", IGNORED, "ESLint ignores it"],
+    ["missing", { ...RESOLVED, rules: {} }, "the rule is not on"],
     [
       "at warn",
-      {
-        ignored: false,
-        rules: { [RULE]: { severity: 1, options: [...(OPTIONS[RULE] ?? [])] } },
-        pluginIsPackage: true,
-      },
+      { ...RESOLVED, rules: { [RULE]: { severity: 1, options: [...(OPTIONS[RULE] ?? [])] } } },
       "the rule is at warn, not error",
     ],
     [
       "with other options",
-      {
-        ignored: false,
-        rules: { [RULE]: { severity: 2, options: [{ bodyWriter: "a.ts" }] } },
-        pluginIsPackage: true,
-      },
+      { ...RESOLVED, rules: { [RULE]: { severity: 2, options: [{ bodyWriter: "a.ts" }] } } },
       'the rule\'s options are [{"bodyWriter":"a.ts"}], not the held [{"bodyWriter":"apps/api/src/lib/errors/sendProblem.ts"}]',
     ],
     [
       "from a copy of the plugin",
-      { ignored: false, rules: RESOLVED.rules, pluginIsPackage: false },
+      { ...RESOLVED, pluginIsPackage: false },
       "the errors plugin ESLint resolves is not the object @packages/eslint-plugin-errors exports",
+    ],
+    [
+      "behind a processor",
+      { ...RESOLVED, processed: true },
+      "a processor reads it, so the rule need not see the file's text",
+    ],
+    [
+      "read by another parser",
+      { ...RESOLVED, parserIsPackage: false },
+      "its parser is not the object @typescript-eslint/parser exports",
+    ],
+    [
+      "in another language",
+      { ...RESOLVED, languageIsJavaScript: false },
+      "it is not linted in ESLint's own JavaScript language",
     ],
   ])("refuses a file of the scope with the rule %s", async (_label, resolution, problem) => {
     plantClean();
@@ -512,11 +549,41 @@ describe("S4: ESLint reaches the scope", () => {
     expect(outcome.stderr).toEqual([`${PREFIX}apps/api/src/admin/b.ts: ${RULE}: ${problem}`]);
   });
 
+  it("holds the rule's bodyWriter to a set option naming a tracked file", async () => {
+    plantClean();
+    const held = (options: readonly unknown[]): Promise<Outcome> =>
+      scan({
+        options: { [RULE]: options },
+        resolveRule: () =>
+          Promise.resolve({
+            ...RESOLVED,
+            rules: { [RULE]: { severity: 2, options: [...options] } },
+          }),
+      });
+
+    const right = await held([{ bodyWriter: BODY_WRITER }]);
+    const unset = await held([{}]);
+    const none = await held([]);
+    const untracked = await held([{ bodyWriter: "apps/api/src/lib/errors/elsewhere.ts" }]);
+
+    expect(right.exitCode).toBe(0);
+    const unsetLine = `${PREFIX}${RULE}: its option "bodyWriter" is not set: the rule must name the one file that writes the error body`;
+    expect(unset).toEqual({ exitCode: 1, stdout: [], stderr: [unsetLine] });
+    expect(none).toEqual({ exitCode: 1, stdout: [], stderr: [unsetLine] });
+    expect(untracked).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${RULE}: its option "bodyWriter" names apps/api/src/lib/errors/elsewhere.ts, which git does not track: it must name the file that writes the error body`,
+      ],
+    });
+  });
+
   it("names at most twenty files per problem, then counts the rest", async () => {
     plantClean();
     for (let index = 0; index < 23; index += 1)
       write(`apps/api/src/many/f${String(index).padStart(2, "0")}.ts`, "");
-    const ignored: Resolution = { ignored: true, rules: {}, pluginIsPackage: false };
+    const ignored = IGNORED;
     const overrides = Object.fromEntries(
       Array.from({ length: 23 }, (_, index) => [
         `apps/api/src/many/f${String(index).padStart(2, "0")}.ts`,
@@ -729,6 +796,47 @@ describe("S5: nothing turns the rule off", () => {
     ]);
   });
 
+  it.each([
+    ["turns it off", '/* eslint errors/no-inline-error: "off" */\n'],
+    [
+      "overrides its options",
+      '/* eslint "errors/no-inline-error": ["error", { "replyHelpers": [] }] */\n',
+    ],
+    [
+      "configures it beside another rule",
+      '/* eslint no-console: "off", errors/no-inline-error: 0 */\n',
+    ],
+  ])(
+    "refuses an eslint configuration comment in a file of the scope that %s",
+    async (_label, text) => {
+      plantClean();
+      write("apps/api/src/admin/a.ts", `export const a = 1;\n${text}`);
+
+      const outcome = await scan();
+
+      expect(outcome).toEqual({
+        exitCode: 1,
+        stdout: [],
+        stderr: [
+          `${PREFIX}apps/api/src/admin/a.ts:2: an eslint configuration comment that configures errors/no-inline-error: no comment changes an errors/ rule in a file of its scope`,
+        ],
+      });
+    }
+  );
+
+  it("lets a configuration comment of another plugin's rule stand in the same file", async () => {
+    plantClean();
+    write(
+      "apps/api/src/admin/a.ts",
+      'export const a = 1;\n/* eslint no-console: "off", "@typescript-eslint/no-explicit-any": "warn" */\n'
+    );
+
+    const outcome = await scan();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+  });
+
   it.each(["packages/core/auth/package.json", ".husky/pre-commit", ".github/workflows/ci.yml"])(
     "refuses pass-on-unpruned-suppressions in %s",
     async (file) => {
@@ -902,15 +1010,15 @@ const B = "apps/api/src/admin/b.ts";
 const X = "packages/core/auth/src/x.ts";
 const riseLine = (file: string, head: number, base: number): string =>
   `${PREFIX}${file}: ${RULE} counts ${String(head)} ${head === 1 ? "site" : "sites"}, and the base counts ${String(base)}: a count never rises against the base; ` +
-  `fix the sites the change added and run "pnpm exec eslint . --prune-suppressions", or record their move from another file of its context with --moved <from>:${file}:<count>`;
+  `fix the sites the change added and run "pnpm exec eslint . --prune-suppressions", or, when they moved from another file of its context, record the move with --moved <from>:${file}:<count>; ` +
+  "a renamed file needs no move: the gate reads renames from HEAD, so commit the rename and run again";
 const MISSING_ROW = `${PREFIX}${HISTORY}: the counts differ from the base and the head adds no row: record it with "node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug> --base base"`;
 const TWO_RULES: Exclusions = { [RULE]: LIST, [SECOND]: LIST };
 const TWO_OPTIONS: Options = { [RULE]: OPTIONS[RULE] ?? [], [SECOND]: [] };
 const bothRules: ResolveRule = () =>
   Promise.resolve({
-    ignored: false,
+    ...RESOLVED,
     rules: { ...RESOLVED.rules, [SECOND]: { severity: 2, options: [] } },
-    pluginIsPackage: true,
   });
 
 describe("S6a to S10: against a base", () => {
@@ -1023,6 +1131,92 @@ describe("S6a to S10: against a base", () => {
     expect(outcome.stderr).toContain(
       `${PREFIX}apps/api/tests/unit/a.ts: ${RULE} fell from 3 to 0 against the base, and git reports ${A} renamed to it with its content unchanged: a count falls only when its file changes`
     );
+  });
+
+  it("S6a carries a count with its file through a rename inside one context that also fixes sites: no move, the fix recorded", async () => {
+    const lines = Array.from(
+      { length: 12 },
+      (_, index) => `export const line${String(index)} = ${String(index)};`
+    );
+    plantClean();
+    write(A, `${lines.join("\n")}\n`);
+    commitBase();
+    move(A, "apps/api/src/admin/c.ts");
+    write("apps/api/src/admin/c.ts", `${[...lines, "export const fixed = true;"].join("\n")}\n`);
+    setCounts({ [A]: { [RULE]: 0 }, "apps/api/src/admin/c.ts": { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+  });
+
+  it("S10 refuses a row the head adds dated after today in UTC, and takes one dated today", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-12-02-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const ahead = await againstBase();
+    remove(`${HISTORY}/2026-12-02-admin.json`);
+    addRow("2026-12-01-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+    const today = await againstBase();
+
+    expect(ahead).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${HISTORY}/2026-12-02-admin.json: is dated 2026-12-02, after today, 2026-12-01 (UTC): a row is dated the day it is recorded`,
+      ],
+    });
+    expect(today.exitCode).toBe(0);
+  });
+
+  it("S8 counts a portal as enrolled when any of its catalogs holds errorCodes on the base, stricter than R7's default locale", async () => {
+    plantClean();
+    write("apps/admin/i18n/routing.ts", 'export const routing = { defaultLocale: "en" };\n');
+    writeJson("apps/admin/messages/en.json", { title: "Admin" });
+    writeJson("apps/admin/messages/fr.json", {
+      errorCodes: { NOT_FOUND: "Introuvable" },
+      title: "Admin",
+    });
+    commitBase();
+    writeJson("apps/admin/messages/fr.json", { title: "Admin" });
+
+    const outcome = await againstBase();
+
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}apps/admin/messages/en.json: holds no "errorCodes" while the portal's catalogs hold it on the base: a portal never leaves the registry's check by removing its namespace`,
+      `${PREFIX}apps/admin/messages/fr.json: holds no "errorCodes" while the portal's catalogs hold it on the base: a portal never leaves the registry's check by removing its namespace`,
+    ]);
+  });
+
+  it("reads the root's own repository even when GIT_DIR, GIT_WORK_TREE or GIT_INDEX_FILE points elsewhere", () => {
+    plantClean();
+    gitIn("add", "--all");
+    const foreign = mkdtempSync(path.join(tmpdir(), "error-sites-gate-foreign-"));
+    try {
+      execFileSync("git", ["init", "--quiet"], { cwd: foreign, env: gitEnvironment() });
+      writeFileSync(path.join(foreign, "foreign.ts"), "export {};\n");
+      execFileSync("git", ["add", "--all"], { cwd: foreign, env: gitEnvironment() });
+      const git = createGit(root, {
+        ...process.env,
+        GIT_DIR: path.join(foreign, ".git"),
+        GIT_WORK_TREE: foreign,
+        GIT_INDEX_FILE: path.join(foreign, ".git", "index"),
+      });
+
+      const listed = git(["ls-files"])
+        .stdout.split("\n")
+        .filter((file) => file !== "");
+
+      expect(listed).toContain(A);
+      expect(listed).not.toContain("foreign.ts");
+    } finally {
+      rmSync(foreign, { recursive: true, force: true });
+    }
   });
 
   it("S6a carries a count with its file: a rename inside one context needs no row", async () => {
@@ -1352,6 +1546,30 @@ describe("--record against a base", () => {
     expect((await againstBase()).stderr).toEqual([]);
   });
 
+  it("refuses a date after today in UTC, with no base and against one, and writes nothing", () => {
+    plantClean();
+    remove("scripts/testing/error-sites-history");
+    const birth = record({ date: "2026-12-02" });
+    writeJson(ROW, BIRTH);
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    commit("head");
+    const fix = record({ base: "base", date: "2026-12-02", slug: "admin" });
+
+    expect(birth).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${HISTORY}/2026-12-02-birth.json: is dated 2026-12-02, after today, 2026-12-01 (UTC): a row is dated the day it is recorded`,
+      ],
+    });
+    expect(fix.stderr).toEqual([
+      `${PREFIX}${HISTORY}/2026-12-02-admin.json: is dated 2026-12-02, after today, 2026-12-01 (UTC): a row is dated the day it is recorded`,
+    ]);
+    expect(existsSync(path.join(root, HISTORY, "2026-12-02-admin.json"))).toBe(false);
+  });
+
   it("refuses when nothing differs from the base, and when the head already adds a row", () => {
     plantClean();
     commitBase();
@@ -1410,17 +1628,7 @@ describe("--record against a base", () => {
     const command = (args: readonly string[]) =>
       spawnSync(
         process.execPath,
-        [
-          GATE_SCRIPT,
-          "--record",
-          "--date",
-          "2026-11-21",
-          "--slug",
-          "split",
-          "--root",
-          root,
-          ...args,
-        ],
+        [GATE_SCRIPT, "--record", "--date", PAST_DAY, "--slug", "split", "--root", root, ...args],
         {
           cwd: root,
           encoding: "utf8",
@@ -1438,7 +1646,7 @@ describe("--record against a base", () => {
     expect(malformed).toEqual([2, 2, 2]);
     expect(written.status).toBe(0);
     expect(written.stdout).toBe(
-      `${PREFIX}recorded ${HISTORY}/2026-11-21-split.json: 0 sites fixed in 0 contexts, 1 move\n`
+      `${PREFIX}recorded ${HISTORY}/${PAST_DAY}-split.json: 0 sites fixed in 0 contexts, 1 move\n`
     );
   });
 });
@@ -1640,46 +1848,55 @@ describe("the command", () => {
     remove("scripts/testing/error-sites-history");
     gitIn("add", "--all");
 
-    const unresolved = run(
-      ["--record", "--date", "2026-11-21", "--slug", "birth", "--root", root],
-      {
-        FITNESS_BASE_REF: "no-such-ref",
-      }
-    );
-    const written = run(["--record", "--date", "2026-11-21", "--slug", "birth", "--root", root]);
+    const unresolved = run(["--record", "--date", PAST_DAY, "--slug", "birth", "--root", root], {
+      FITNESS_BASE_REF: "no-such-ref",
+    });
+    const written = run(["--record", "--date", PAST_DAY, "--slug", "birth", "--root", root]);
 
     expect(unresolved.status).toBe(3);
     expect(unresolved.stderr).toMatch(/the base "no-such-ref" could not be resolved/);
     expect(written.status).toBe(0);
     expect(written.stdout).toBe(
-      `${PREFIX}recorded ${HISTORY}/2026-11-21-birth.json: the birth of ${RULE}, 5 sites in 2 contexts\n`
+      `${PREFIX}recorded ${HISTORY}/${PAST_DAY}-birth.json: the birth of ${RULE}, 5 sites in 2 contexts\n`
     );
   });
 });
 
 describe("the ESLint wiring, on this repository", () => {
-  it("reads a rule's severity and options, the plugin's identity, and an ignored path", async () => {
+  it("reads a rule's severity and options, the identity of the plugin and the parser, the processor, the language, and an ignored path", async () => {
     const resolve = await createEslintResolver({
       root: REPO_ROOT,
       namespace: "testing",
       packageName: "@packages/eslint-plugin-testing",
+      parserPackage: LINT_PARSER,
     });
 
     const testFile = await resolve("apps/api/tests/unit/scripts/errorSitesGate.test.ts");
     const sourceFile = await resolve("apps/api/src/index.ts");
+    const script = await resolve("scripts/testing/error-sites-gate.mjs");
     const ignored = await resolve("apps/api/dist/index.ts");
 
     expect(testFile.ignored).toBe(false);
     expect(testFile.pluginIsPackage).toBe(true);
     expect(testFile.rules["testing/no-empty-test"]).toEqual({ severity: 2, options: [] });
-    expect(sourceFile.ignored).toBe(false);
-    expect(sourceFile.rules["testing/no-empty-test"]).toBeUndefined();
-    expect(ignored).toEqual({ ignored: true, rules: {}, pluginIsPackage: false });
+    // The testing plugin's block reads test files only, so a source file resolves no such plugin.
+    expect(sourceFile).toEqual({
+      ignored: false,
+      rules: {},
+      pluginIsPackage: false,
+      processed: false,
+      parserIsPackage: true,
+      languageIsJavaScript: true,
+    });
+    expect(script.parserIsPackage).toBe(false);
+    expect(script.languageIsJavaScript).toBe(true);
+    expect(ignored).toEqual(IGNORED);
 
     const vitest = await createEslintResolver({
       root: REPO_ROOT,
       namespace: "vitest",
       packageName: "@vitest/eslint-plugin",
+      parserPackage: LINT_PARSER,
     });
     const withOptions = await vitest("apps/api/tests/unit/scripts/errorSitesGate.test.ts");
     expect(withOptions.rules["vitest/expect-expect"]?.severity).toBe(2);
@@ -1689,6 +1906,57 @@ describe("the ESLint wiring, on this repository", () => {
         additionalTestBlockFunctions: [],
       },
     ]);
+  }, 60_000);
+
+  it("sees a block that adds a processor, swaps the parser or swaps the language, which the rule's own settings never show", async () => {
+    const load = createRequire(path.join(REPO_ROOT, "package.json"));
+    const { ESLint } = load("eslint") as {
+      ESLint: new (options: { cwd: string }) => {
+        calculateConfigForFile: (file: string) => Promise<{ plugins: Record<string, unknown> }>;
+      };
+    };
+    const core = (
+      await new ESLint({ cwd: REPO_ROOT }).calculateConfigForFile(
+        path.join(REPO_ROOT, "apps/api/src/index.ts")
+      )
+    ).plugins["@"] as { languages: { js: object } };
+    const file = "apps/api/src/index.ts";
+    const withBlock = async (block: Record<string, unknown>): Promise<Resolution> =>
+      (
+        await createEslintResolver({
+          root: REPO_ROOT,
+          namespace: "testing",
+          packageName: "@packages/eslint-plugin-testing",
+          parserPackage: LINT_PARSER,
+          overrideConfig: [{ files: [file], ...block }],
+        })
+      )(file);
+
+    const processed = await withBlock({
+      processor: {
+        preprocess: (text: string) => [text],
+        postprocess: (messages: unknown[][]) => messages.flat(),
+      },
+    });
+    const reparsed = await withBlock({
+      languageOptions: { parser: { meta: { name: "another-parser" }, parse: () => ({}) } },
+    });
+    const relanguaged = await withBlock({
+      plugins: { another: { languages: { js: { ...core.languages.js } } } },
+      language: "another/js",
+    });
+
+    expect([
+      processed.processed,
+      processed.parserIsPackage,
+      processed.languageIsJavaScript,
+    ]).toEqual([true, true, true]);
+    expect([reparsed.processed, reparsed.parserIsPackage, reparsed.languageIsJavaScript]).toEqual([
+      false,
+      false,
+      true,
+    ]);
+    expect([relanguaged.processed, relanguaged.languageIsJavaScript]).toEqual([false, false]);
   }, 60_000);
 });
 
@@ -2010,6 +2278,24 @@ describe("--stalled --remind: one issue, a comment a day", () => {
       stdout: [],
       stderr: [...STALL_LINES, `${PREFIX}GitHub: HTTP 502: Bad Gateway`],
     });
+  });
+});
+
+describe("the stall workflow", () => {
+  it("runs the exact command of the stall mode and retries only exit 3", () => {
+    const workflow = readFileSync(
+      path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
+      "utf8"
+    );
+    const runs = workflow
+      .split("\n")
+      .filter((line) => line.includes("scripts/testing/error-sites-gate.mjs"));
+    const retries = workflow.split("\n").filter((line) => /\[ "\$status" -eq \d+ \]/.test(line));
+
+    expect(runs.filter((line) => line.trim().startsWith("node "))).toEqual([
+      "            node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind || status=$?",
+    ]);
+    expect(retries.map((line) => line.trim())).toEqual(['[ "$status" -eq 3 ] || break']);
   });
 });
 
