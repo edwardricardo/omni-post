@@ -6,8 +6,10 @@
  *              single-use password, so it is never retried, and it types passwords into the
  *              browser, so the run keeps no trace, no screenshot and no video, reports through
  *              `list` and `github` only, which print no fill step, and writes no snapshot of the
- *              page of a failed test. A run that overrides this configuration on the command line,
- *              with `--trace on` or `--reporter html` for example, is not guarded.
+ *              page of a failed test. Two runs are not guarded: one that overrides this
+ *              configuration on the command line, with `--trace on` or `--reporter html` for
+ *              example, and one under Playwright's debug log (`DEBUG=pw:api` or `DEBUG=pw:*`),
+ *              which writes each fill with its value to stderr.
  * @layer infrastructure
  */
 import { defineConfig, devices } from "@playwright/test";

@@ -359,7 +359,9 @@ export default defineConfig([
   // locator matcher that fails attaches an aria snapshot of the page, which holds the value of
   // every input, to the error context Playwright writes to a file; `expect.poll` over a value
   // attaches none. The names are every method of `PageAssertions` and `LocatorAssertions` in
-  // Playwright's own types; no value matcher has one of them.
+  // Playwright's own types; no value matcher has one of them. The rule reads names: it does not
+  // see a matcher called by a computed name, and it leaves value assertions alone, so one over an
+  // input's value or over an aria snapshot still prints that value when it fails.
   {
     files: ["apps/admin/e2e/first-administrator/**"],
     rules: {
