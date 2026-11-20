@@ -17,6 +17,8 @@ import { PROBLEM_MEDIA_TYPE, toProblem } from "./problem.js";
 
 const LOG_MESSAGE = "Request failed";
 const LATE_LOG_MESSAGE = "Request failed after its answer was sent";
+/** How many causes the line follows: a longer chain, or one that circles, ends there. */
+const MAX_CAUSES = 5;
 
 /** What the log line says of an `Error`. */
 interface ErrorFields {
@@ -24,6 +26,7 @@ interface ErrorFields {
   readonly message: string;
   readonly stack?: string;
   readonly isOperational?: boolean;
+  readonly cause?: ErrorFields | ValueFields;
 }
 
 /** What the log line says of a raised value that is not an `Error`: its type, never its content. */
@@ -36,15 +39,19 @@ interface ValueFields {
  * a value's other fields can hold a secret (an `AppError`'s details, a provider's response, a Prisma
  * error's meta), and pino's error serializer walks every enumerable field and raises on a frozen one.
  * `name`, `message` and `stack` tell what failed and where; `isOperational` tells whether an
- * `AppError` was an expected failure. The code the value carries is the line's own `code`.
+ * `AppError` was an expected failure. The code the value carries is the line's own `code`. An
+ * error's `cause` is carried the same way, as its own projection, for up to `MAX_CAUSES` causes: a
+ * use case's failure names the infrastructure error under it, which is what an operator reads.
  */
-function failureFields(error: unknown): ErrorFields | ValueFields {
+function failureFields(error: unknown, causesLeft = MAX_CAUSES): ErrorFields | ValueFields {
   if (!(error instanceof Error)) return { type: error === null ? "null" : typeof error };
   return {
     name: error.name,
     message: error.message,
     ...(typeof error.stack === "string" && { stack: error.stack }),
     ...(error instanceof AppError && { isOperational: error.isOperational }),
+    ...(error.cause !== undefined &&
+      causesLeft > 0 && { cause: failureFields(error.cause, causesLeft - 1) }),
   };
 }
 

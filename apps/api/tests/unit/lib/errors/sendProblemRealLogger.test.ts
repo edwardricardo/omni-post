@@ -95,6 +95,22 @@ describe("sendProblem on the real pino logger", () => {
       // A raised value that is not an Error, as a library can raise one.
       throw RAISED_TEXT;
     });
+    app.get("/caused", async () => {
+      const root = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed", true, {
+        password: PASSWORD,
+      });
+      throw UseCaseError.of(COMMON_ERRORS.INTERNAL_ERROR, {
+        cause: new Error("The query failed", { cause: root }),
+      });
+    });
+    app.get("/caused/by-a-value", async () => {
+      throw new Error("The call failed", { cause: RAISED_TEXT });
+    });
+    app.get("/caused/in-a-circle", async () => {
+      const first = new Error("first");
+      first.cause = new Error("second", { cause: first });
+      throw first;
+    });
     await app.ready();
   });
 
@@ -204,4 +220,51 @@ describe("sendProblem on the real pino logger", () => {
       expect(secrets.filter((secret) => everything.includes(secret))).toEqual([]);
     }
   );
+
+  it("logs each cause of the failure as its own projection, and none of a cause's other fields", async () => {
+    const response = await app.inject({ method: "GET", url: "/caused" });
+    const everything = `${written.join("")}${response.body}`;
+
+    expect([response.statusCode, response.json().code]).toEqual([500, "INTERNAL_ERROR"]);
+    expect(failureLines()).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        url: "/caused",
+        error: projectionOf("UseCaseError", response.json().detail, {
+          cause: projectionOf("Error", "The query failed", {
+            cause: projectionOf("Error", "Validation failed", { isOperational: true }),
+          }),
+        }),
+      }),
+    ]);
+    expect(everything.includes(PASSWORD)).toBe(false);
+  });
+
+  it("logs a cause that is not an Error as its type, never its content", async () => {
+    const response = await app.inject({ method: "GET", url: "/caused/by-a-value" });
+
+    expect(response.statusCode).toBe(500);
+    expect(failureLines()).toEqual([
+      expect.objectContaining({
+        error: projectionOf("Error", "The call failed", { cause: { type: "string" } }),
+      }),
+    ]);
+    expect(`${written.join("")}${response.body}`.includes(RAISED_TEXT)).toBe(false);
+  });
+
+  it("follows five causes and no more, so a chain that circles ends the line", async () => {
+    const response = await app.inject({ method: "GET", url: "/caused/in-a-circle" });
+    const [line] = failureLines();
+    const messages: unknown[] = [];
+    for (
+      let failure = line?.["error"];
+      typeof failure === "object" && failure !== null;
+      failure = (failure as Record<string, unknown>)["cause"]
+    ) {
+      messages.push((failure as Record<string, unknown>)["message"]);
+    }
+
+    expect(response.statusCode).toBe(500);
+    expect(messages).toEqual(["first", "second", "first", "second", "first", "second"]);
+  });
 });
