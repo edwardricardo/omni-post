@@ -27,7 +27,8 @@
  *              that calls `startXxxWorker()` with default options.
  *
  *              Health server: exposes 4 endpoints aligned with the API canon
- *              de facto (`apps/api/src/health/healthRoutes.ts`):
+ *              de facto (`apps/api/src/health/healthRoutes.ts`), answered by
+ *              `health/healthRequestHandler.ts`:
  *              `/health`, `/health/live`, `/health/ready`, `/health/detailed`,
  *              plus `/metrics` aggregating the publish worker's prom-client
  *              registry with the global one used by health-checks. Port 3300
@@ -53,11 +54,8 @@ import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { env } from "./config/env.js";
-import {
-  evaluateReadiness,
-  publishConsumerDependencyName,
-  reportStatusCode,
-} from "./health/readiness.js";
+import { publishConsumerDependencyName } from "./health/readiness.js";
+import { createHealthRequestHandler } from "./health/healthRequestHandler.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
 const logger = createLogger("workers-bootstrap");
@@ -140,112 +138,14 @@ async function main(): Promise<void> {
 
   const metricsPort = env.METRICS_PORT ?? 3300;
 
-  const healthServer = http.createServer(async (req, res) => {
-    try {
-      const url = req.url || "/";
-
-      if (url === "/metrics") {
-        res.setHeader("Content-Type", metricsRegistry.contentType);
-        res.end(await metricsRegistry.metrics());
-        return;
-      }
-
-      if (url === "/health/live") {
-        res.setHeader("Content-Type", "application/json");
-        res.statusCode = 200;
-        res.end(
-          JSON.stringify({
-            status: "alive",
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-          })
-        );
-        return;
-      }
-
-      if (url === "/health/ready") {
-        // Asked one name at a time, NOT by filtering a whole-report scan: a
-        // critical name with no registered checker contributes zero entries to
-        // such a filter, and zero unhealthy entries reads as ready — a 200 over
-        // a dependency nobody checked. Per-name lookup makes that a NOT_FOUND,
-        // so the gate fails closed on its own wiring mistakes.
-        const { ready, unhealthyDependencies } = await evaluateReadiness(
-          healthManager,
-          criticalDependencies
-        );
-
-        res.setHeader("Content-Type", "application/json");
-        if (ready) {
-          res.statusCode = 200;
-          res.end(
-            JSON.stringify({
-              status: "ready",
-              timestamp: new Date().toISOString(),
-            })
-          );
-        } else {
-          res.statusCode = 503;
-          res.end(
-            JSON.stringify({
-              status: "not ready",
-              timestamp: new Date().toISOString(),
-              message: `Unhealthy critical dependencies: ${unhealthyDependencies.join(", ")}`,
-              unhealthyDependencies,
-            })
-          );
-        }
-        return;
-      }
-
-      if (url === "/health/detailed") {
-        const report = await healthManager.checkAll();
-        res.setHeader("Content-Type", "application/json");
-        res.statusCode = reportStatusCode(report.overall);
-        res.end(
-          JSON.stringify({
-            ok: report.overall !== "unhealthy",
-            status: report.overall,
-            score: report.score,
-            timestamp: report.timestamp.toISOString(),
-            uptime: report.uptime,
-            dependencies: report.dependencies.map((dep) => ({
-              name: dep.name,
-              type: dep.type,
-              status: dep.status,
-              latency: dep.latency,
-              message: dep.message,
-              critical: dep.critical,
-            })),
-            metrics: report.metrics,
-            alerts: report.alerts,
-          })
-        );
-        return;
-      }
-
-      if (url === "/health") {
-        const cached = healthManager.getCurrentStatus();
-        const status = cached ?? (await healthManager.checkAll());
-        res.setHeader("Content-Type", "application/json");
-        res.statusCode = reportStatusCode(status.overall);
-        res.end(
-          JSON.stringify({
-            status: status.overall,
-            timestamp: status.timestamp.toISOString(),
-            uptime: status.uptime,
-          })
-        );
-        return;
-      }
-
-      res.statusCode = 404;
-      res.end();
-    } catch (err) {
-      logger.error({ err, url: req.url }, "Health endpoint handler failed");
-      res.statusCode = 500;
-      res.end();
-    }
-  });
+  const healthServer = http.createServer(
+    createHealthRequestHandler({
+      manager: healthManager,
+      criticalDependencies,
+      metrics: metricsRegistry,
+      logger,
+    })
+  );
 
   healthServer.listen(metricsPort, () => {
     healthManager.start();

@@ -6,13 +6,8 @@
  * @layer infrastructure
  */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
+import { DEGRADED_LATENCY_MS } from "../thresholds.js";
 import type { RepoPort } from "@ports/core";
-
-/** Above this latency the database still answers, slowly, and the report says degraded. */
-const DEGRADED_LATENCY_MS = 1000;
-
-/** Above this latency the database is reported unhealthy. */
-const UNHEALTHY_LATENCY_MS = 5000;
 
 export class DatabaseHealthChecker implements HealthChecker {
   /**
@@ -23,7 +18,8 @@ export class DatabaseHealthChecker implements HealthChecker {
   /**
    * @method check
    * @description Pings the database once and grades the answer by its latency: healthy up to one
-   *   second, degraded above it, unhealthy above five seconds or when the ping fails.
+   *   second, degraded above it, and unhealthy when the ping fails. A ping slower than the
+   *   manager's timeout never reaches this grading: the manager reports it unhealthy first.
    * @returns The status, the latency in milliseconds, a message and the report's details.
    */
   async check(): Promise<HealthCheckResult> {
@@ -46,10 +42,7 @@ export class DatabaseHealthChecker implements HealthChecker {
       let status: HealthCheckResult["status"] = "healthy";
       let message = "Database is healthy";
 
-      if (latency > UNHEALTHY_LATENCY_MS) {
-        status = "unhealthy";
-        message = `Database response time too high: ${latency}ms`;
-      } else if (latency > DEGRADED_LATENCY_MS) {
+      if (latency > DEGRADED_LATENCY_MS) {
         status = "degraded";
         message = `Database response time elevated: ${latency}ms`;
       }
@@ -58,13 +51,9 @@ export class DatabaseHealthChecker implements HealthChecker {
         status,
         latency,
         message,
-        // The port exposes neither the pool's size nor the server's version; the two fields keep
-        // the report's shape for its readers.
         details: {
           responseTime: latency,
-          poolConnections: 0,
           engine: "postgresql",
-          version: "unknown",
         },
       };
     } catch (error: unknown) {
@@ -80,11 +69,6 @@ export class DatabaseHealthChecker implements HealthChecker {
         },
       };
     }
-  }
-
-  private async getDatabaseVersion(): Promise<string> {
-    // Database version not accessible through RepoPort interface
-    return "unknown";
   }
 }
 

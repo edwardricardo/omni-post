@@ -2,8 +2,8 @@
  * @file databaseHealthChecker.test.ts
  * @description Pins what `DatabaseHealthChecker` asks the database and how it grades the answer.
  *              The check is one cheap question, so its latency measures the connection and never
- *              the size of a table; the one-second degraded threshold and the report's fields stay
- *              what every reader of `/health/detailed` already parses.
+ *              the size of a table; the one-second degraded threshold and the fields of the report
+ *              are pinned as `/health/detailed` passes them on.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -67,7 +67,7 @@ describe("DatabaseHealthChecker", () => {
     });
   });
 
-  it("keeps the report's fields: latency, message and the four details", async () => {
+  it("reports its latency, its message and the response time and engine in its details", async () => {
     const result = await new DatabaseHealthChecker(makeDatabase(ok(undefined), 12)).check();
 
     expect(result).toEqual({
@@ -76,9 +76,7 @@ describe("DatabaseHealthChecker", () => {
       message: "Database is healthy",
       details: {
         responseTime: 12,
-        poolConnections: 0,
         engine: "postgresql",
-        version: "unknown",
       },
     });
   });

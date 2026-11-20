@@ -9,6 +9,7 @@ import { ok, err, type Result } from "@shared/types";
 import * as pino from "pino";
 import * as client from "prom-client";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { DEGRADED_LATENCY_MS } from "./thresholds.js";
 import type {
   HealthStatus,
   DependencyHealth,
@@ -60,8 +61,8 @@ const DEFAULT_HEALTH_CHECK_CONFIG: HealthCheckConfig = {
   interval: HEALTHY_REFRESH_INTERVAL_MS,
   unhealthyInterval: UNHEALTHY_REFRESH_INTERVAL_MS,
   alertThresholds: {
-    degradedLatency: 1000,
-    unhealthyLatency: 5000,
+    degradedLatency: DEGRADED_LATENCY_MS,
+    unhealthyLatency: HEALTH_CHECK_TIMEOUT_MS,
     criticalFailureCount: 3,
   },
 };
@@ -171,6 +172,8 @@ export class HealthCheckManager {
       );
 
       this.results.set(name, result);
+      // The report `/health` serves now holds this result, so its refresh follows it too.
+      this.rearmRefresh(this.calculateOverallHealth(Array.from(this.results.values())).overall);
       return ok(result);
     } catch (error: unknown) {
       timer({ status: "error" });
@@ -228,6 +231,7 @@ export class HealthCheckManager {
 
     // Calculate overall health
     const { overall, score } = this.calculateOverallHealth(dependencies);
+    this.rearmRefresh(overall);
 
     // Update system health metric
     systemHealth.set(score);
@@ -304,10 +308,9 @@ export class HealthCheckManager {
     logger.info("Health check manager stopped");
   }
 
-  /** One refresh: check every dependency, then arm the next refresh for what the report says. */
+  /** One refresh: check every dependency; `checkAll` arms the next refresh for the report. */
   private readonly refresh = async (): Promise<void> => {
-    const report = await this.checkAll();
-    this.rearmRefresh(report.overall);
+    await this.checkAll();
   };
 
   private readonly onRefreshError = (err: unknown): void => {
@@ -315,9 +318,11 @@ export class HealthCheckManager {
   };
 
   /**
-   * Registers the refresh again under its id when the report calls for the other interval; the
-   * scheduler replaces a task registered twice under one id. An unchanged interval keeps the
-   * running task and its phase, and a stopped manager is never re-armed.
+   * Registers the refresh again under its id when the report calls for the other interval, after
+   * every check that records results, a refresh or a check on demand, since either moves the
+   * report `/health` serves. The scheduler replaces a task registered twice under one id. An
+   * unchanged interval keeps the running task and its phase, and a stopped manager is never
+   * re-armed.
    */
   private rearmRefresh(overall: HealthStatus): void {
     const intervalMs =
