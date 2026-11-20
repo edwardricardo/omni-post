@@ -718,7 +718,7 @@ describe("toProblem", () => {
   });
 
   describe("the http domain", () => {
-    it("holds the twenty failures the HTTP boundary raises itself, one per cause, for operators only", () => {
+    it("holds the twenty-one failures the HTTP boundary raises itself, one per cause, for operators only", () => {
       const definitions = Object.values(HTTP_ERRORS);
 
       expect(
@@ -740,7 +740,8 @@ describe("toProblem", () => {
         "REQUEST_HEADERS_NOT_PARSABLE http validation 400: A request header could not be read: check each header's name and value, and that Content-Length is a number",
         "REQUEST_BODY_FRAMING_NOT_PARSABLE http validation 400: The request body's framing could not be read: check its chunk sizes and extensions, and that the body is sent whole",
         "DATA_AFTER_REQUEST_UNEXPECTED http validation 400: Data that is not a request follows a complete request: check the body's length against its Content-Length, and send nothing after a request that closes the connection",
-        "TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH http validation 400: The request sends both Transfer-Encoding and Content-Length, which HTTP/1.1 refuses as a way to smuggle a request: send one of them",
+        "TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH http validation 400: The request sends both Transfer-Encoding and Content-Length, a shape used to smuggle a request, which the server refuses: send one of them",
+        "CONTENT_LENGTH_REPEATED http validation 400: The request sends its Content-Length header more than once, a shape used to smuggle a request, which the server refuses: send it once",
         "REQUEST_BODY_ABORTED http validation 400: The connection closed before the request body was received whole",
         "REQUEST_REFUSED http validation 400: The request was refused and the server holds no more specific code for the cause: the status says what was refused",
         "EXPECTATION_UNSUPPORTED http validation 417: The request's Expect header asks for something other than 100-continue, which the server does not support: send the request without it",

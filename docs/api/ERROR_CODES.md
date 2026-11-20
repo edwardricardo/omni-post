@@ -10,9 +10,9 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 | ---------- | ----- |
 | `auth`     | 33    |
 | `common`   | 10    |
-| `http`     | 20    |
+| `http`     | 21    |
 | `platform` | 2     |
-| **Total**  | 65    |
+| **Total**  | 66    |
 
 ## Domain `auth`
 
@@ -72,6 +72,7 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 | Code                                              | Category    | Status | Message                                                                                                                                                                | Parameters | Portals   |
 | ------------------------------------------------- | ----------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
 | `BODY_LENGTH_MISMATCH`                            | validation  | 400    | The request body, as a hook's stream delivered it, is not the length its Content-Length header declares                                                                | none       | logs only |
+| `CONTENT_LENGTH_REPEATED`                         | validation  | 400    | The request sends its Content-Length header more than once, a shape used to smuggle a request, which the server refuses: send it once                                  | none       | logs only |
 | `CONTENT_TYPE_MISSING`                            | validation  | 400    | A request of this method must declare the content type of its body                                                                                                     | none       | logs only |
 | `DATA_AFTER_REQUEST_UNEXPECTED`                   | validation  | 400    | Data that is not a request follows a complete request: check the body's length against its Content-Length, and send nothing after a request that closes the connection | none       | logs only |
 | `EXPECTATION_UNSUPPORTED`                         | validation  | 417    | The request's Expect header asks for something other than 100-continue, which the server does not support: send the request without it                                 | none       | logs only |
@@ -89,7 +90,7 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 | `ROUTE_NOT_FOUND`                                 | not\_found  | 404    | No route matches this method and path                                                                                                                                  | none       | logs only |
 | `ROUTE_PARAMETER_TOO_LONG`                        | too\_large  | 414    | A parameter of the request's path is longer than the router accepts                                                                                                    | none       | logs only |
 | `SERVER_CLOSING`                                  | unavailable | 503    | The server is shutting down and takes no new request: send it again on a new connection                                                                                | none       | logs only |
-| `TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH` | validation  | 400    | The request sends both Transfer-Encoding and Content-Length, which HTTP/1.1 refuses as a way to smuggle a request: send one of them                                    | none       | logs only |
+| `TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH` | validation  | 400    | The request sends both Transfer-Encoding and Content-Length, a shape used to smuggle a request, which the server refuses: send one of them                             | none       | logs only |
 | `UNSUPPORTED_MEDIA_TYPE`                          | validation  | 415    | The request's content type is not one this route accepts                                                                                                               | none       | logs only |
 
 ## Domain `platform`

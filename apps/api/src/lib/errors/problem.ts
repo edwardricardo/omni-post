@@ -4,11 +4,11 @@
  *   turns any failure into that body. A registered code answers its registry entry, worded by the
  *   registry and never by the error's own message; an internal or configuration code reaches the
  *   wire as `INTERNAL_ERROR` and keeps its own code for the log. The framework's refusals answer
- *   the `http` code of their own cause. A failure nobody registered keeps its status: an
- *   `AppError` its own status and code, and any other carrier of a failure status that status with
- *   `REQUEST_REFUSED`'s text below 500 and `INTERNAL_ERROR`'s at 500 or above. Every answer at 500 or above, and every answer the registry does not
- *   classify, is logged at error; a refusal of the client's request at warn. Pure: no logger, no
- *   clock, no request.
+ *   the `http` code of their own cause, when one names it. A failure nobody registered keeps its
+ *   status: an `AppError` its own status and code, and any other carrier of a failure status that
+ *   status with `REQUEST_REFUSED`'s text below 500 and `INTERNAL_ERROR`'s at 500 or above. Every
+ *   answer at 500 or above, and every answer the registry does not classify, is logged at error; a
+ *   refusal of the client's request at warn. Pure: no logger, no clock, no request.
  * @layer infrastructure
  */
 import { z } from "zod";

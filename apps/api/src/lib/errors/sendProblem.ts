@@ -7,9 +7,11 @@
  *   connection whose parser failed, where Node hands over no reply. A route answers a failure
  *   through it, the global error handler answers through it what is raised, and the server's
  *   `frameworkErrors` and `clientErrorHandler` options and its hooks for a closing server and an
- *   unsupported expectation answer through it what never reaches a route. A framework refusal whose
- *   cause no `http` code names, such as a plugin's 401 or 406, answers `INTERNAL_ERROR` at its
- *   status and logs at error severity, so the framework's own message does not reach the client.
+ *   unsupported expectation answer through it what never reaches a route. A refusal below 500 that
+ *   no registered code names, such as a plugin's 401 or 406, answers `REQUEST_REFUSED` at its own
+ *   status and logs at error severity under the code it carries, or under `REQUEST_REFUSED` when
+ *   it carries none, so the framework's own message does not reach the client and the gap in the
+ *   registry is seen; one at 500 or above answers `INTERNAL_ERROR` the same way.
  * @layer infrastructure
  */
 import { STATUS_CODES } from "node:http";
@@ -47,9 +49,9 @@ interface ValueFields {
 
 /**
  * The request a failure answers, as its line and its report name it. A connection whose parser
- * failed with no request in flight has none: its `method` and `url` are null, since no request
- * reached the server's handler, and the id generated for the answer is both its request id and its
- * correlation id.
+ * failed on a message no request was read from, with no request in flight or after a complete one,
+ * has none: its `method` and `url` are null, since no request reached the server's handler, and the
+ * id generated for the answer is both its request id and its correlation id.
  */
 interface FailedRequest {
   readonly requestId: string;
@@ -58,6 +60,11 @@ interface FailedRequest {
   readonly url: string | null;
   /** The client's address and where it comes from, as `resolveClientAddress` derives them. */
   readonly address: ClientAddress;
+  /**
+   * The correlation id of the request in flight on the connection when the failure is a message
+   * that follows it; absent for every other failure.
+   */
+  readonly inFlightCorrelationId?: string;
 }
 
 /**
@@ -128,7 +135,7 @@ function failedRequestOf(request: FastifyRequest): FailedRequest {
   };
 }
 
-/** A connection with no request in flight, as its failure's line names it. */
+/** A connection whose failed message no request was read from, as its failure's line names it. */
 function connectionOf(socket: Socket): FailedRequest {
   const id = createCorrelationId();
   return {
@@ -154,10 +161,11 @@ function answerFailure(
   message: string,
   bodyStreamError?: Error | null
 ) {
-  const { requestId, correlationId, method, url } = failed;
+  const { requestId, correlationId, method, url, inFlightCorrelationId } = failed;
   // The address never travels without its source: `ip` alone reads alike for a client a trusted
   // proxy reported and for the proxy itself.
   const { ip, source: ipSource } = failed.address;
+  const precededBy = inFlightCorrelationId === undefined ? {} : { inFlightCorrelationId };
   const answer = toProblem(error, {
     correlationId,
     now: new Date(),
@@ -174,6 +182,7 @@ function answerFailure(
     url,
     ip,
     ipSource,
+    ...precededBy,
     error: failureFields(error),
   };
   if (answer.severity === "error") {
@@ -186,6 +195,7 @@ function answerFailure(
       url,
       ip,
       ipSource,
+      ...precededBy,
     });
   } else {
     logger.warn(fields, message);
@@ -209,6 +219,27 @@ function httpResponseOf(problem: Problem, headers: Readonly<Record<string, strin
     ...Object.entries(headers).map(([name, value]) => `${name}: ${value}`),
   ];
   return `${head.join("\r\n")}\r\n\r\n${body}`;
+}
+
+/**
+ * Answers a failure on the socket, as one whole response while the socket can still be written and
+ * none when it cannot, the line saying which, and closes the connection once the answer is sent.
+ */
+function answerOnSocket(
+  socket: Socket,
+  error: unknown,
+  failed: FailedRequest,
+  logger: FastifyBaseLogger
+): void {
+  const writable = socket.writable;
+  const { problem, headers } = answerFailure(
+    error,
+    failed,
+    logger,
+    writable ? LOG_MESSAGE : UNWRITABLE_LOG_MESSAGE
+  );
+  if (writable) socket.write(httpResponseOf(problem, headers));
+  socket.destroySoon();
 }
 
 /**
@@ -263,18 +294,19 @@ export function sendProblem(
  *   Node's documentation of `clientError` asks: on the socket itself, as a whole HTTP response,
  *   only while the socket can still be written, and with the connection closed. With no request
  *   in flight, the answer is stamped with an id generated for it, null for the method and the url,
- *   and the peer's address, the one address the connection has. With a request in flight, the
- *   failure is that request's: it is answered once, under its own correlation id, method, url and
- *   address, and `sendProblem` answers nothing more for it, so its body stream's failure once the
- *   connection closes logs nothing again; the connection is closed, so its route's answer, if it
- *   still comes, reaches no client. When that request's
- *   answer has already started, no byte is written, since a second status line inside a response
- *   would corrupt it: the line says the failure came after the answer and the connection is
- *   destroyed at once, as Node's own handler does.
+ *   and the peer's address, the one address the connection has. With a request in flight whose own
+ *   message failed, the failure is that request's: it is answered once, under its own correlation
+ *   id, method, url and address, and `sendProblem` answers nothing more for it, so its body stream's
+ *   failure once the connection closes logs nothing again; the connection is closed, so its route's
+ *   answer, if it still comes, reaches no client. When that request's answer has already started,
+ *   no byte is written, since a second status line inside a response would corrupt it: the line
+ *   says the failure came after the answer and the connection is destroyed at once, as Node's own
+ *   handler does. A message that follows a complete request is answered by
+ *   `sendProblemAfterAnswerInFlight` instead.
  * @param socket - The connection whose parser failed.
  * @param error - The failure, a registered error whose cause is the connection's error.
  * @param logger - The logger the failure's one line is written to.
- * @param inFlight - The request the connection is answering, when there is one.
+ * @param inFlight - The request whose own message failed, when there is one.
  */
 export function sendProblemOnSocket(
   socket: Socket,
@@ -290,13 +322,47 @@ export function sendProblemOnSocket(
       return;
     }
   }
-  const writable = socket.writable;
-  const { problem, headers } = answerFailure(
+  answerOnSocket(
+    socket,
     error,
     inFlight === undefined ? connectionOf(socket) : failedRequestOf(inFlight.request),
-    logger,
-    writable ? LOG_MESSAGE : UNWRITABLE_LOG_MESSAGE
+    logger
   );
-  if (writable) socket.write(httpResponseOf(problem, headers));
-  socket.destroySoon();
+}
+
+/**
+ * @description Answers the failure of a message that follows a complete request still in flight on
+ *   its connection, as its own event: the request in flight is not failed by what follows it, so it
+ *   is answered by its route and logs nothing for it, and the failure gets an id generated for it,
+ *   null for the method and the url, the peer's address, and on its line the correlation id of the
+ *   request in flight. Responses on a reused connection are matched to requests by their order
+ *   alone, as Node's documentation of `http.Agent` says, so the failure's answer waits for the
+ *   answer in flight to end (its response's `close` event, "the response is completed, or its
+ *   underlying connection was terminated prematurely") and is written after its last byte, never
+ *   between or over it, then the connection is closed. When the connection can no longer be written by then
+ *   (the answer in flight closed it, or the client went away), nothing is written, the line says
+ *   so, and the connection is closed. The id and the address are taken when the failure arrives,
+ *   while the connection can still give its peer's address. Nothing but that answer's end bounds
+ *   the wait: no timer is added, and the request in flight is held as long whether or not a message
+ *   follows it.
+ * @param socket - The connection whose parser failed on the following message.
+ * @param error - The failure, a registered error whose cause is the connection's error.
+ * @param logger - The logger the failure's one line is written to.
+ * @param inFlight - The complete request whose answer is still in flight on the connection.
+ */
+export function sendProblemAfterAnswerInFlight(
+  socket: Socket,
+  error: unknown,
+  logger: FastifyBaseLogger,
+  inFlight: RequestInFlight
+): void {
+  const { request, reply } = inFlight;
+  const failed: FailedRequest = {
+    ...connectionOf(socket),
+    inFlightCorrelationId: request.correlationId ?? request.id,
+  };
+  // The request leaves `trackRequestsInFlight`'s map in its `onResponse` hook, which the response's
+  // `finish` runs before Node emits its `close` on the next tick: a complete request still in the
+  // map has a `close` to come.
+  reply.raw.once("close", () => answerOnSocket(socket, error, failed, logger));
 }

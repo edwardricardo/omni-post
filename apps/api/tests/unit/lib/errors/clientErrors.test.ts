@@ -4,16 +4,20 @@
  *   server `createServer` builds, over a real socket, since an inject goes past Node's parser. With
  *   no request in flight: a request line the parser refuses answers `REQUEST_LINE_NOT_PARSABLE`, a
  *   header `REQUEST_HEADERS_NOT_PARSABLE`, both Transfer-Encoding and Content-Length
- *   `TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH`, headers over Node's limit
- *   `REQUEST_HEADERS_TOO_LARGE`, a client too slow `REQUEST_TIMEOUT`, and a parser code the table
- *   does not name `REQUEST_REFUSED`; each is one whole HTTP response that closes the connection,
- *   with one line whose method and url are null and whose cause carries Node's code and none of the
- *   bytes the client sent. With a request in flight, the answer is that request's, under its own
- *   id, method and url, and its body's later failure writes no second line: a chunked framing that
- *   breaks, a body that does not arrive in time, data after a complete request; when its answer
- *   has started, no byte is written and the line says so. A connection that can no longer be
- *   written gets the line and no bytes, one the client reset gets neither, and an upload the client
- *   resets logs `REQUEST_BODY_ABORTED` under its request's id. An `Expect` header other than
+ *   `TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH` in either order, a Content-Length sent twice
+ *   `CONTENT_LENGTH_REPEATED`, headers over Node's limit `REQUEST_HEADERS_TOO_LARGE`, a client too
+ *   slow `REQUEST_TIMEOUT`, and a parser code the table does not name `REQUEST_REFUSED`; each is one
+ *   whole HTTP response that closes the connection, with one line whose method and url are null and
+ *   whose cause carries Node's code and none of the bytes the client sent. llhttp's reasons that
+ *   decide a code are pinned on real sockets. With a request in flight whose own message fails, the
+ *   answer is that request's, under its own id, method and url, and its body's later failure writes
+ *   no second line: a chunked framing that breaks, a body that does not arrive in time, a body that
+ *   breaks after an early answer; when its answer has started, no byte is written and the line says
+ *   so. A message that fails after a complete request in flight is its own event: the request is
+ *   answered by its route, then the failure under its own id with the request in flight named on
+ *   its line, in that order, and the connection closes. A connection that can no longer be written
+ *   gets the line and no bytes, one the client reset gets neither, and an upload the client resets
+ *   logs `REQUEST_BODY_ABORTED` under its request's id. An `Expect` header other than
  *   `100-continue` answers `EXPECTATION_UNSUPPORTED` at 417, and `100-continue` still answers
  *   `100 Continue`. A QUERY request with no content type, which the inject's types do not take,
  *   answers `CONTENT_TYPE_MISSING` at 400. The server's logger is held at `warn` and its two
@@ -27,7 +31,13 @@ import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { HTTP_ERRORS } from "@shared/types";
-import { FIXED_CLOCK_ISO, fixedClock, until } from "@packages/vitest-shared/determinism";
+import {
+  FIXED_CLOCK_ISO,
+  createDeferred,
+  fixedClock,
+  until,
+  type Deferred,
+} from "@packages/vitest-shared/determinism";
 import { captureError } from "../../../../src/observability/sentryInit.js";
 import { createServer } from "../../../../src/index.js";
 import {
@@ -51,6 +61,12 @@ interface RoutedRequest {
 
 /** The requests the current case's server routed, in order. */
 const routed: RoutedRequest[] = [];
+/** The streams the current case's streamed answers write, for the case to end. */
+const openStreams: PassThrough[] = [];
+/** What the route `/slow` waits on before it answers. */
+let slowRelease: Deferred<void> = createDeferred<void>();
+/** The ids of the requests whose answers the current case's server has sent, in order. */
+const answered: string[] = [];
 
 /** One HTTP response read off the socket. */
 interface RawResponse {
@@ -74,10 +90,42 @@ function serverAsTheAppBuildsIt(): FastifyInstance {
   app.get("/stream", (_request, reply) => {
     const stream = new PassThrough();
     stream.write("first chunk");
+    openStreams.push(stream);
     return reply.send(stream);
   });
+  app.get("/slow", async () => {
+    await slowRelease.promise;
+    return { slow: true };
+  });
+  app.post(
+    "/stream-early",
+    {
+      // Answers before the body is read, so the answer has started while the body still arrives.
+      onRequest: (_request, reply) => {
+        const stream = new PassThrough();
+        stream.write("first chunk");
+        openStreams.push(stream);
+        reply.send(stream);
+      },
+    },
+    async () => ({})
+  );
+  app.post(
+    "/answer-early",
+    {
+      // Answers whole before the body is read, so the body still arrives once the answer is sent.
+      onRequest: (_request, reply) => {
+        reply.send({ early: true });
+      },
+    },
+    async () => ({})
+  );
   app.addHook("onRequest", (request, _reply, done) => {
     routed.push({ id: request.id, raw: request.raw });
+    done();
+  });
+  app.addHook("onResponse", (request, _reply, done) => {
+    answered.push(request.id);
     done();
   });
   return app;
@@ -218,6 +266,39 @@ async function closed(request: RoutedRequest | undefined): Promise<void> {
 }
 
 /**
+ * @description The one line of a message that failed after a request in flight on its connection:
+ *   its own generated id, null method and url, and the request in flight named by its id.
+ * @param definition - The code answered.
+ * @param cause - Node's error: its message and its code.
+ * @param inFlightCorrelationId - The correlation id of the request in flight.
+ * @param message - The line's message.
+ * @returns The line's fields and message.
+ */
+function followingLine(
+  definition: HttpCode,
+  cause: { message: string; code: string },
+  inFlightCorrelationId: unknown,
+  message = "Request failed"
+) {
+  return [
+    {
+      code: definition.code,
+      wireCode: definition.code,
+      status: definition.status,
+      source: "registered",
+      correlationId: expect.stringMatching(UUID),
+      method: null,
+      url: null,
+      ip: HOST,
+      ipSource: "peer",
+      inFlightCorrelationId,
+      error: registeredOver(definition, cause),
+    },
+    message,
+  ];
+}
+
+/**
  * @description The one line of a failure of a request the server routed: its own id, method, url
  *   and address.
  * @param fields - The code logged, the code answered, the source, the request and the failure.
@@ -272,6 +353,9 @@ function registeredOver(definition: HttpCode, cause: { message: string; code: st
 
 beforeEach(() => {
   routed.splice(0);
+  answered.splice(0);
+  openStreams.splice(0);
+  slowRelease = createDeferred<void>();
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(fixedClock());
@@ -559,7 +643,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
   });
 
-  it("answers a complete request followed by data that is not a request once, under its own id, with DATA_AFTER_REQUEST_UNEXPECTED and no answer of its route", async () => {
+  it("answers a complete request as if nothing followed it, and logs the data after it as its own event, which a connection the request closes can no longer carry", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(
@@ -568,36 +652,29 @@ describe("a connection whose request cannot be read, on the server createServer 
         "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}x"
       )
     );
-    await closed(routed[0]);
-    const body = JSON.parse(response.body);
-
-    expect([response.statusLine, response.headers["content-type"]]).toEqual([
-      "HTTP/1.1 400 Bad Request",
-      PROBLEM_JSON,
-    ]);
-    expect(body).toEqual({
-      ...problemOf(HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED, "Data after request unexpected"),
-      correlationId: routed[0]?.id,
+    await until(() => lines.warn.mock.calls.length === 1, {
+      description: "the line of the data after the request",
+      timeoutMs: 2_000,
     });
+
+    expect([response.statusLine, response.body]).toEqual(["HTTP/1.1 200 OK", '{"body":{}}']);
     expect(lines.warn.mock.calls).toEqual([
-      requestLine({
-        code: "DATA_AFTER_REQUEST_UNEXPECTED",
-        definition: HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED,
-        source: "registered",
-        correlationId: routed[0]?.id,
-        method: "POST",
-        url: "/echo",
-        error: registeredOver(HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED, {
-          message: "Parse Error: Data after `Connection: close`",
-          code: "HPE_CLOSED_CONNECTION",
-        }),
-      }),
+      followingLine(
+        HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED,
+        { message: "Parse Error: Data after `Connection: close`", code: "HPE_CLOSED_CONNECTION" },
+        routed[0]?.id,
+        "Request failed on a connection that can no longer be written"
+      ),
     ]);
+    expect(lines.warn.mock.calls[0]?.[0]).not.toEqual(
+      expect.objectContaining({ correlationId: routed[0]?.id })
+    );
     expect(lines.error.mock.calls).toEqual([]);
   });
 
-  it("writes no byte to a connection whose answer has started, and one line saying the failure came after it", async () => {
+  it("lets a streamed answer finish when the next message fails, then answers that message on its own, in order", async () => {
     const lines = recordFailureLines(app);
+    const failed = once(app.server, "clientError");
     const socket = connect({ host: HOST, port });
     const received: Buffer[] = [];
     socket.on("data", (chunk: Buffer) => received.push(chunk));
@@ -609,27 +686,161 @@ describe("a connection whose request cannot be read, on the server createServer 
     });
 
     socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await failed;
+    openStreams[0]?.end("last chunk");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+    const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+
+    expect([raw.startsWith("HTTP/1.1 200 OK\r\n"), raw.indexOf("last chunk") < refusal]).toEqual([
+      true,
+      true,
+    ]);
+    expect(raw.slice(refusal - 5, refusal)).toBe("0\r\n\r\n");
+    expect(JSON.parse(responseOf(raw.slice(refusal)).body)).toEqual(
+      problemOf(HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE, "Request line not parsable")
+    );
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+        { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+        routed[0]?.id
+      ),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it.each([
+    [
+      "an invalid method",
+      "TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n",
+      HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+      "Request line not parsable",
+      { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+    ],
+    [
+      "an invalid header",
+      "GET /things HTTP/1.1\r\nHost: localhost\r\nBad Header: v\r\n\r\n",
+      HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE,
+      "Request headers not parsable",
+      { message: "Parse Error: Invalid header token", code: "HPE_INVALID_HEADER_TOKEN" },
+    ],
+    [
+      "Transfer-Encoding with Content-Length",
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\nTransfer-Encoding: chunked\r\n\r\n",
+      HTTP_ERRORS.TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH,
+      "Transfer encoding conflicts with content length",
+      {
+        message: "Parse Error: Transfer-Encoding can't be present with Content-Length",
+        code: "HPE_INVALID_TRANSFER_ENCODING",
+      },
+    ],
+    [
+      "a repeated Content-Length",
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\nContent-Length: 3\r\n\r\n",
+      HTTP_ERRORS.CONTENT_LENGTH_REPEATED,
+      "Content length repeated",
+      { message: "Parse Error: Duplicate Content-Length", code: "HPE_UNEXPECTED_CONTENT_LENGTH" },
+    ],
+  ])(
+    "answers a request in flight as if nothing followed it, then %s after it on its own, in order, and closes",
+    async (_name, following, definition, title, cause) => {
+      const lines = recordFailureLines(app);
+      const failed = once(app.server, "clientError");
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write("GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n");
+      await until(() => routed.length === 1, { description: "the first request routed" });
+
+      socket.write(following);
+      await failed;
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+      const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+      const first = responseOf(raw.slice(0, refusal));
+      const second = responseOf(raw.slice(refusal));
+
+      expect([first.statusLine, first.body]).toEqual(["HTTP/1.1 200 OK", '{"slow":true}']);
+      expect(second.headers).toEqual({
+        "content-type": PROBLEM_JSON,
+        "content-length": String(Buffer.byteLength(second.body)),
+        connection: "close",
+      });
+      expect(JSON.parse(second.body)).toEqual(problemOf(definition, title));
+      expect(JSON.parse(second.body).correlationId).not.toBe(routed[0]?.id);
+      expect(lines.warn.mock.calls).toEqual([followingLine(definition, cause, routed[0]?.id)]);
+      expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
+    }
+  );
+
+  it("answers the failure of a following message once, whatever the client sends after it", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write("GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+
+    const failed = once(app.server, "clientError");
+    socket.write("TELL /things HTTP/1.1\r\n");
+    await failed;
+    // The parser stays failed, so Node raises its error again for each chunk that follows.
+    const failedAgain = once(app.server, "clientError");
+    socket.write("still not a request\r\n");
+    await failedAgain;
+    slowRelease.resolve();
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+        { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+        routed[0]?.id
+      ),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("writes no byte to a connection whose answer started before its own body failed, and one line saying the failure came after it", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    socket.write(
+      "POST /stream-early HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => Buffer.concat(received).toString("utf8").includes("first chunk"), {
+      description: "the streamed answer's first chunk",
+      timeoutMs: 2_000,
+    });
+
+    socket.write("zz\r\n");
     await once(socket, "close");
     const raw = Buffer.concat(received).toString("utf8");
 
     expect(raw.startsWith("HTTP/1.1 200 OK\r\n")).toBe(true);
-    expect([
-      raw.includes("first chunk"),
-      raw.includes("problem+json"),
-      raw.includes("400"),
-    ]).toEqual([true, false, false]);
+    expect([raw.includes("first chunk"), raw.includes("problem+json")]).toEqual([true, false]);
     expect(lines.warn.mock.calls).toEqual([
       requestLine(
         {
-          code: "DATA_AFTER_REQUEST_UNEXPECTED",
-          definition: HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED,
+          code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+          definition: HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
           source: "registered",
           correlationId: routed[0]?.id,
-          method: "GET",
-          url: "/stream",
-          error: registeredOver(HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED, {
-            message: "Parse Error: Invalid method encountered",
-            code: "HPE_INVALID_METHOD",
+          method: "POST",
+          url: "/stream-early",
+          error: registeredOver(HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE, {
+            message: "Parse Error: Invalid character in chunk size",
+            code: "HPE_INVALID_CHUNK_SIZE",
           }),
         },
         "Request failed after its answer was sent"
@@ -637,6 +848,177 @@ describe("a connection whose request cannot be read, on the server createServer 
     ]);
     expect(lines.error.mock.calls).toEqual([]);
   });
+
+  it("names the headers, by Node's code, when a Transfer-Encoding the parser refuses is found once the request is in flight", async () => {
+    const lines = recordFailureLines(app);
+
+    const response = responseOf(
+      await exchange(
+        port,
+        "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: gzip\r\n\r\n{}"
+      )
+    );
+    await closed(routed[0]);
+    const body = JSON.parse(response.body);
+
+    expect(body).toEqual({
+      ...problemOf(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, "Request headers not parsable"),
+      correlationId: routed[0]?.id,
+    });
+    expect(lines.warn.mock.calls).toEqual([
+      requestLine({
+        code: "REQUEST_HEADERS_NOT_PARSABLE",
+        definition: HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE,
+        source: "registered",
+        correlationId: routed[0]?.id,
+        method: "POST",
+        url: "/echo",
+        error: registeredOver(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, {
+          message: "Parse Error: Request has invalid `Transfer-Encoding`",
+          code: "HPE_INVALID_TRANSFER_ENCODING",
+        }),
+      }),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("names the body's framing, by the position, when a body breaks after its request was answered whole, and writes no byte after that answer", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+    socket.write(
+      "POST /answer-early HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => answered.length === 1, { description: "the early answer sent" });
+
+    socket.write("2;a\x01\r\n");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect([raw.startsWith("HTTP/1.1 200 OK\r\n"), raw.endsWith('{"early":true}')]).toEqual([
+      true,
+      true,
+    ]);
+    expect(lines.warn.mock.calls).toEqual([
+      requestLine(
+        {
+          code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+          definition: HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
+          source: "registered",
+          correlationId: routed[0]?.id,
+          method: "POST",
+          url: "/answer-early",
+          error: registeredOver(HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE, {
+            message: "Parse Error: Invalid character in chunk extensions name",
+            code: "HPE_STRICT",
+          }),
+        },
+        "Request failed after its answer was sent"
+      ),
+    ]);
+    expect(lines.error.mock.calls).toEqual([]);
+  });
+
+  it("names the headers, by the position, when the client ends its side in the middle of its headers with no request in flight", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.on("error", () => undefined);
+
+    socket.end("GET /things HTTP/1.1\r\nHost: loc");
+    await once(socket, "close");
+    const response = responseOf(Buffer.concat(received).toString("utf8"));
+    const body = JSON.parse(response.body);
+
+    expect(response.statusLine).toBe("HTTP/1.1 400 Bad Request");
+    expect(body).toEqual(
+      problemOf(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, "Request headers not parsable")
+    );
+    expect(lines.warn.mock.calls).toEqual([
+      connectionLine(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, body.correlationId, {
+        name: "Error",
+        // Node builds the end of data's error without its reason (`socketOnEnd`).
+        message: "Parse Error",
+        code: "HPE_INVALID_EOF_STATE",
+      }),
+    ]);
+    expect([lines.error.mock.calls, routed]).toEqual([[], []]);
+  });
+
+  it.each([
+    [
+      "a repeated Content-Length",
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\nContent-Length: 3\r\n\r\n{}",
+      HTTP_ERRORS.CONTENT_LENGTH_REPEATED,
+      "Content length repeated",
+      {
+        name: "Error",
+        message: "Parse Error: Duplicate Content-Length",
+        code: "HPE_UNEXPECTED_CONTENT_LENGTH",
+      },
+    ],
+    [
+      "a first header line that starts with a space",
+      "GET /things HTTP/1.1\r\n Foo: bar\r\nHost: localhost\r\n\r\n",
+      HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE,
+      "Request headers not parsable",
+      {
+        name: "Error",
+        message: "Parse Error: Unexpected space after start line",
+        code: "HPE_UNEXPECTED_SPACE",
+      },
+    ],
+    [
+      "a version followed by a CR alone, the request line told by llhttp's reason",
+      "GET /things HTTP/1.1\rX\r\nHost: localhost\r\n\r\n",
+      HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+      "Request line not parsable",
+      { name: "Error", message: "Parse Error: Expected CRLF after version", code: "HPE_STRICT" },
+    ],
+    [
+      "Transfer-Encoding before Content-Length, the conflict told by llhttp's reason",
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\nContent-Length: 2\r\n\r\n0\r\n\r\n",
+      HTTP_ERRORS.TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH,
+      "Transfer encoding conflicts with content length",
+      {
+        name: "Error",
+        message: "Parse Error: Content-Length can't be present with Transfer-Encoding",
+        code: "HPE_INVALID_CONTENT_LENGTH",
+      },
+    ],
+    [
+      "a Transfer-Encoding the parser refuses before it reads the Content-Length",
+      "POST /echo HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked, gzip\r\nContent-Length: 2\r\n\r\n{}",
+      HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE,
+      "Request headers not parsable",
+      {
+        name: "Error",
+        message: "Parse Error: Invalid `Transfer-Encoding` header value",
+        code: "HPE_INVALID_TRANSFER_ENCODING",
+      },
+    ],
+  ])(
+    "answers %s with the code its cause has, in one response that closes the connection",
+    async (_name, bytes, definition, title, cause) => {
+      const lines = recordFailureLines(app);
+
+      const response = responseOf(await exchange(port, bytes));
+      const body = JSON.parse(response.body);
+
+      expect([response.statusLine, response.headers["content-type"]]).toEqual([
+        "HTTP/1.1 400 Bad Request",
+        PROBLEM_JSON,
+      ]);
+      expect(body).toEqual(problemOf(definition, title));
+      expect(lines.warn.mock.calls).toEqual([
+        connectionLine(definition, body.correlationId, cause),
+      ]);
+      expect([lines.error.mock.calls, routed]).toEqual([[], []]);
+    }
+  );
 
   it("answers EXPECTATION_UNSUPPORTED at 417 to an Expect header other than 100-continue, with one warn line under the request's id", async () => {
     const lines = recordFailureLines(app);

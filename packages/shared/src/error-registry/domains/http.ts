@@ -109,7 +109,15 @@ export const HTTP_ERRORS = defineErrors("http", {
     category: ERROR_CATEGORY.VALIDATION,
     status: 400,
     message:
-      "The request sends both Transfer-Encoding and Content-Length, which HTTP/1.1 refuses as a way to smuggle a request: send one of them",
+      "The request sends both Transfer-Encoding and Content-Length, a shape used to smuggle a request, which the server refuses: send one of them",
+    params: {},
+    fronts: [],
+  },
+  CONTENT_LENGTH_REPEATED: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "The request sends its Content-Length header more than once, a shape used to smuggle a request, which the server refuses: send it once",
     params: {},
     fronts: [],
   },
