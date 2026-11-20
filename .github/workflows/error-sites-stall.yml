@@ -1,0 +1,71 @@
+name: Error Sites Stall
+
+# Watches the list of existing error sites until it is empty (ADR-0047; the Maintainer's decision of
+# 2026-11-20). Fitness #57 keeps the list from growing, and nothing in a pull request makes it
+# shrink, so this run reads the calendar. Once a day it reads the errors/ entries of
+# eslint-suppressions.json and the dates of their history rows and, when the list is above zero and
+# no row was added in the last 14 days, opens one issue (label error-sites-stalled), comments on it
+# once a day while it stays open, reopens it when it is closed while the list still stalls, and
+# fails the run. An input the gate cannot read (the suppressions file, the history or a GitHub call)
+# is retried, three attempts 30 s then 60 s apart, and then fails the run under its own title, so a
+# transient failure never reads as a stalled list; the gate opens no second issue and posts no
+# second comment on the same day, so a retry repeats nothing it already did.
+# This mode reads tracked files only, so the job installs nothing. The rest of the same gate is
+# fitness #57 (fitness.yml, Dependency Consistency job) and the battery step errors; this half stays
+# out of pull-request CI, so the calendar never blocks unrelated work. Pinned by
+# apps/api/tests/unit/scripts/errorSitesGate.test.ts.
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: error-sites-stall
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  stall:
+    name: Has the list of existing error sites stopped shrinking?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Read the history and remind
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Exit codes of the mode: 0 the list is empty, or a history row was added inside the
+          # window; 1 the list is above zero and no row was added in 14 days (the signal); 2 a usage
+          # error; 3 an input could not be read (the suppressions file, the history or GitHub).
+          # Only 3 is retried: an API hiccup gets three attempts, 30 s then 60 s apart, so a
+          # transient failure and a stalled list never share a verdict or a title.
+          # --stalled compares the newest history row's date with today, in UTC; --remind then opens
+          # the issue, comments on it once a day and reopens it if closed, and makes no API call
+          # otherwise.
+          status=0
+          for attempt in 1 2 3; do
+            status=0
+            node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind || status=$?
+            [ "$status" -eq 3 ] || break
+            [ "$attempt" -eq 3 ] || sleep $((attempt * 30))
+          done
+          case "$status" in
+            0) ;;
+            1)
+              echo "::error title=Error sites stalled::The list of existing error sites is above zero and no history row was added in the last 14 days. The error-sites-gate lines above give the total, the count per context and the date of the newest row; the issue labelled error-sites-stalled carries the same. Sweep the next context (convert its sites to the registry and record the change with node scripts/testing/error-sites-gate.mjs --record), or record the Maintainer's decision on the pace in the issue."
+              exit 1
+              ;;
+            *)
+              echo "::error title=Error sites gate could not read its inputs::The gate exited $status. Exit 3, after 3 attempts 30 s then 60 s apart, means the suppressions file, the history or a GitHub call could not be read; exit 2 is a usage error in this step. Neither says the list stalled: read the lines above and re-run the workflow."
+              exit "$status"
+              ;;
+          esac
