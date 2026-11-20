@@ -31,7 +31,11 @@
  *   one checked here ends the run in one line that names the variable. `--wait-seconds` bounds
  *   each service: a query still running when
  *   it runs out is stopped, and an attempt on a port that says nothing ends at most two seconds
- *   after it.
+ *   after it. A line names each service as it answers.
+ *
+ *   SERVICES ONLY. `--services-only`, which `pnpm db:up` runs, ends the run once both services
+ *   answer: the environment file is kept or written as above, no app's port is read, nothing is
+ *   migrated and no app is started, so a migration can follow.
  *
  *   MIGRATION. `pnpm --filter @infra/prisma run migrate`, the script CI runs (`prisma migrate
  *   deploy`), in the checkout. Prisma's configuration loads the checkout's environment file and
@@ -80,10 +84,10 @@
  *   workers' own default, and an empty value in the shell or in the file gives 3300 too. A value
  *   that is not a port is refused, and so is a port equal to the API's, both with the other
  *   problems, before anything is written or started; the run says which port they take. The
- *   workers load the checkout's environment file themselves, and they choose it by `NODE_ENV`
- *   (`.env.test` when it is `test`), so they receive the API's environment without `NODE_ENV` as
- *   well: a calling shell's `NODE_ENV=test` would send them to another file, which a clean checkout
- *   lacks, while the run generated and checked `.env`. The API still receives it.
+ *   workers name the checkout's `.env` on Node's command line, as the API does, and their code
+ *   lays `.env.test` over it, for the variables `.env` does not set, when `NODE_ENV` is `test`;
+ *   they receive the API's environment without `NODE_ENV`, so they read the `.env` the run
+ *   generated and checked and nothing else. The API still receives it.
  *
  *   ADMINISTRATION PORTAL. Once the workers answer, `pnpm --filter @apps/admin dev` starts the
  *   administration portal from source, detached, in the same stage again. Its port is the one its
@@ -184,9 +188,11 @@
  *   Exit codes: 0 both services accept connections, the database is migrated, the API answers
  *   `/health` with 200, the workers answer `/health/ready` with 200 and the administration portal
  *   and then the client portal answer `/api/health`, `/en/login` and `/api/backend/health` with
- *   200; 1 a step failed, each cause on its own line; 2 a usage error.
+ *   200, or, with `--services-only`, both services answer; 1 a step failed, each cause on its own
+ *   line; 2 a usage error.
  *
- *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]`
+ *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]
+ *   [--services-only]`
  * @layer infrastructure
  */
 import { spawn, spawnSync } from "node:child_process";
@@ -223,7 +229,7 @@ import {
 
 const NAME = "platform-start";
 
-const USAGE = `usage: node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]
+const USAGE = `usage: node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>] [--services-only]
 
 Takes a checkout to a generated environment, to Postgres and Redis accepting connections, to a
 migrated database, to an API running from source that answers /health with 200 and then to
@@ -233,12 +239,16 @@ Last come the administration portal and the client portal, each held to answer t
   --root <dir>         the checkout to start (default: the one this script is in)
   --wait-seconds <n>   how long each service may take to accept a connection, Prisma's proof
                        of the database to answer and the API to answer /health (default: 60)
+  --services-only      start Postgres and Redis, wait until each answers, and stop there:
+                       nothing is migrated and no app is started (pnpm db:up)
   --help               print this text
 
 A checkout with no ${ENVIRONMENT_FILE} file receives one, its secrets random; an existing file is
 never written, and the run fails naming each required variable it lacks. POSTGRES_HOST_PORT and
 REDIS_HOST_PORT, set when the file is generated, choose the host ports the compose file publishes
-Postgres and Redis on.
+Postgres and Redis on. A line names each service as it answers. With --services-only the run
+ends there, with the environment file kept or written alike and no app's port read, so a
+migration can follow (pnpm db:migrate).
 
 The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pnpm must be on PATH,
 and only after Prisma proves, through the connection the migration will use, that it reaches the
@@ -259,8 +269,8 @@ The workers are started next, once the API answers, the same way, with
 \`pnpm --filter @apps/workers dev\`, and left running; --wait-seconds bounds their answer on
 /health/ready too. Their port is METRICS_PORT, of the calling shell or else of the file, else 3300
 (an empty METRICS_PORT gives 3300), and the run refuses one that is not a port or that is the API's.
-They receive the API's environment without NODE_ENV, so that they read the checkout's .env and not
-.env.test. Their pnpm process's id and their log are under .tmp/ as well, and the run prints a stop
+They receive the API's environment without NODE_ENV, so that they read the checkout's .env with no
+.env.test laid over it. Their pnpm process's id and their log are under .tmp/ as well, and the run prints a stop
 line of their own: each stop line ends one app's session, so stopping the API leaves the workers
 running. A run whose start of the workers fails ends their session alone; the API stays up.
 
@@ -463,11 +473,10 @@ const WORKERS = /** @type {const} */ ({
     one: "ones",
   },
   pnpm: ["--filter", "@apps/workers", "dev"],
-  // The workers pick the environment file they load by NODE_ENV (`apps/workers/src/config/env.ts`
-  // loads `.env.test` when it is `test`), and their `dev` script names no file, so a calling
-  // shell's NODE_ENV=test would send them to another file than the `.env` this run generated or
-  // checked: one a clean checkout lacks, or one that names another database and Redis. Without it
-  // they read `.env`. The API names its file on its command line, and keeps the shell's NODE_ENV.
+  // The workers' `dev` script names `.env` on Node's command line, as the API's does, and their
+  // code (`apps/workers/src/config/env.ts`) lays `.env.test` over it when NODE_ENV is `test`, for
+  // every variable `.env` does not set. Without NODE_ENV they read the `.env` this run generated
+  // or checked and nothing else. The API keeps the shell's NODE_ENV.
   without: ["NODE_ENV"],
   record: ".tmp/workers.pid",
   log: ".tmp/workers.log",
@@ -707,23 +716,17 @@ function readIfPresent(file) {
 }
 
 /**
- * @function prepareEnvironment
- * @description Writes the environment file when the checkout has none; otherwise checks the one it
- *   has, without writing it. Every cause of a refusal is collected before the run fails, so one run
- *   names them all. Nothing asks whether the file exists before acting on it: the file is read, a
- *   missing one reads as absent, and the write creates it only if nothing is there, so it never
- *   replaces a file that appeared meanwhile and never writes through a link.
+ * @function readServicesEnvironment
+ * @description Reads the environment file, when there is one, and settles the host port each
+ *   service is published on. Every problem is collected and returned rather than thrown, so the
+ *   caller adds its own and one run names them all. Nothing asks whether the file exists before
+ *   acting on it: the file is read, and a missing one reads as absent.
  * @param {string} file - The environment file's path.
- * @param {ReadonlyArray<{ app: Omit<App, "port">, manifest: string, port: number | null,
- *   problem: string | null }>} portals - Each portal, in the order the run starts them, with its
- *   package relative to the checkout and the port that package fixes (`manifestPort`), or the
- *   problem that kept it from being read: each problem is refused with the others, and each port is
- *   held distinct from the API's, the workers' and the other portal's.
- * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number },
- *   api: number, workers: number }} What the file holds, the host port each service is published
- *   on, the port the API takes and the port the workers take.
+ * @returns {{ values: Record<string, string> | null, ports: { Postgres: number, Redis: number },
+ *   problems: string[] }} What the file holds (`null` when there is no file), the host port each
+ *   service is published on, and the problems found.
  */
-function prepareEnvironment(file, portals) {
+function readServicesEnvironment(file) {
   const text = readIfPresent(file);
   const values = text === null ? null : readEnvironment(text);
   const problems = values === null ? [] : missingKeys(values).map((key) => `${file} lacks ${key}`);
@@ -748,6 +751,75 @@ function prepareEnvironment(file, portals) {
       `Postgres and Redis are both published on host port ${ports.Postgres}: give each its own`
     );
   }
+  return { values, ports, problems };
+}
+
+/**
+ * @function settleEnvironment
+ * @description Keeps an existing environment file as it is, or writes the one a checkout lacks,
+ *   its secrets random and its host ports those settled, and says which. The write creates the
+ *   file only if nothing is there, so it never replaces a file that appeared meanwhile and never
+ *   writes through a link.
+ * @param {string} file - The environment file's path.
+ * @param {Record<string, string> | null} values - What the file holds, `null` when there is none.
+ * @param {{ Postgres: number, Redis: number }} ports - The host port each service is published on.
+ * @param {string} settled - The lines that say what else the run settled, printed after the file's.
+ * @returns {Record<string, string>} What the file holds.
+ */
+function settleEnvironment(file, values, ports, settled) {
+  if (values !== null) {
+    process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
+    process.stdout.write(settled);
+    return values;
+  }
+  const entries = generateEnvironment({
+    randomBytes,
+    ...(ports.Postgres !== DEFAULT_POSTGRES_HOST_PORT && { postgresHostPort: ports.Postgres }),
+    ...(ports.Redis !== DEFAULT_REDIS_HOST_PORT && { redisHostPort: ports.Redis }),
+  });
+  try {
+    writeFileSync(file, renderEnvironmentFile(entries), { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    throw startFailureFor(error, file);
+  }
+  process.stdout.write(
+    `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
+  );
+  process.stdout.write(settled);
+  return Object.fromEntries(entries);
+}
+
+/**
+ * @function prepareServicesEnvironment
+ * @description The environment of a run that starts the two services alone: the file is kept or
+ *   written as for the whole sequence, with the same host ports, and no app's port is read.
+ * @param {string} file - The environment file's path.
+ * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number } }} What
+ *   the file holds and the host port each service is published on.
+ */
+function prepareServicesEnvironment(file) {
+  const { values, ports, problems } = readServicesEnvironment(file);
+  if (problems.length > 0) throw new StartFailure(problems);
+  return { values: settleEnvironment(file, values, ports, ""), ports };
+}
+
+/**
+ * @function prepareEnvironment
+ * @description Writes the environment file when the checkout has none; otherwise checks the one it
+ *   has, without writing it. The apps' ports are settled with the services' host ports, and every
+ *   cause of a refusal is collected before the run fails, so one run names them all.
+ * @param {string} file - The environment file's path.
+ * @param {ReadonlyArray<{ app: Omit<App, "port">, manifest: string, port: number | null,
+ *   problem: string | null }>} portals - Each portal, in the order the run starts them, with its
+ *   package relative to the checkout and the port that package fixes (`manifestPort`), or the
+ *   problem that kept it from being read: each problem is refused with the others, and each port is
+ *   held distinct from the API's, the workers' and the other portal's.
+ * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number },
+ *   api: number, workers: number }} What the file holds, the host port each service is published
+ *   on, the port the API takes and the port the workers take.
+ */
+function prepareEnvironment(file, portals) {
+  const { values, ports, problems } = readServicesEnvironment(file);
   const api = apiPort(process.env.PORT, values?.PORT);
   if (api === null) problems.push(`PORT=${process.env.PORT ?? values?.PORT} is not a port`);
   const workers = workersPort(process.env.METRICS_PORT, values?.METRICS_PORT);
@@ -777,27 +849,7 @@ function prepareEnvironment(file, portals) {
   }
   if (problems.length > 0 || api === null || workers === null) throw new StartFailure(problems);
   const settled = `${NAME}: the API takes port ${api}\n${NAME}: the workers take port ${workers}\n`;
-
-  if (values !== null) {
-    process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
-    process.stdout.write(settled);
-    return { values, ports, api, workers };
-  }
-  const entries = generateEnvironment({
-    randomBytes,
-    ...(ports.Postgres !== DEFAULT_POSTGRES_HOST_PORT && { postgresHostPort: ports.Postgres }),
-    ...(ports.Redis !== DEFAULT_REDIS_HOST_PORT && { redisHostPort: ports.Redis }),
-  });
-  try {
-    writeFileSync(file, renderEnvironmentFile(entries), { flag: "wx", mode: 0o600 });
-  } catch (error) {
-    throw startFailureFor(error, file);
-  }
-  process.stdout.write(
-    `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
-  );
-  process.stdout.write(settled);
-  return { values: Object.fromEntries(entries), ports, api, workers };
+  return { values: settleEnvironment(file, values, ports, settled), ports, api, workers };
 }
 
 /**
@@ -850,7 +902,7 @@ async function waitFor(failure, seconds, probe) {
 /**
  * @function startServices
  * @description Starts Postgres and Redis from the compose file and waits until both accept a
- *   connection.
+ *   connection, Postgres first, printing one line for each as it answers.
  * @param {string} root - The checkout, where `docker-compose.yml` and the environment file are.
  * @param {string} file - The environment file's path, for the messages.
  * @param {Record<string, string>} values - What the environment file holds.
@@ -939,16 +991,14 @@ async function startServices(root, file, values, ports, waitSeconds) {
       return select.status === 0;
     }
   );
+  process.stdout.write(`${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} answers a query\n`);
   await waitFor(
     `Redis did not answer PING on ${LOOPBACK}:${ports.Redis} within ${waitSeconds} s ` +
       `(\`docker compose logs redis\`)`,
     waitSeconds,
     () => answers(ports.Redis, "PING\r\n", (reply) => reply.startsWith("+PONG"))
   );
-  process.stdout.write(
-    `${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} and Redis on ${LOOPBACK}:${ports.Redis} ` +
-      `accept connections\n`
-  );
+  process.stdout.write(`${NAME}: Redis on ${LOOPBACK}:${ports.Redis} answers PING\n`);
   return answered;
 }
 
@@ -1688,12 +1738,14 @@ async function startApp(root, app, waitSeconds) {
 
 /**
  * @param {string[]} argv - The command's arguments.
- * @returns {{ root: string, waitSeconds: number, help: boolean } | null} `null` on a usage error.
+ * @returns {{ root: string, waitSeconds: number, servicesOnly: boolean, help: boolean } | null}
+ *   `null` on a usage error.
  */
 function parseOptions(argv) {
   const options = {
     root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.."),
     waitSeconds: 60,
+    servicesOnly: false,
     help: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -1701,6 +1753,8 @@ function parseOptions(argv) {
     const value = argv[index + 1];
     if (flag === "--help") {
       options.help = true;
+    } else if (flag === "--services-only") {
+      options.servicesOnly = true;
     } else if (flag === "--root" && value !== undefined) {
       options.root = path.resolve(value);
       index += 1;
@@ -1731,12 +1785,21 @@ async function main(argv) {
 
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
+    if (options.servicesOnly) {
+      const { values, ports } = prepareServicesEnvironment(file);
+      await startServices(options.root, file, values, ports, options.waitSeconds);
+      return 0;
+    }
     const portals = PORTALS.map(({ app, manifest }) => {
       const at = path.join(options.root, manifest);
       return { app, manifest, at, ...manifestPort(at) };
     });
     const { values, ports, api, workers } = prepareEnvironment(file, portals);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
+    process.stdout.write(
+      `${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} and Redis on ${LOOPBACK}:${ports.Redis} ` +
+        `accept connections\n`
+    );
     migrateDatabase(options.root, file, answered, options.waitSeconds);
     await startApp(options.root, { ...API, port: api }, options.waitSeconds);
     await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);
