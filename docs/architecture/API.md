@@ -613,11 +613,12 @@ The route runs the sign-in's checks on the e-mail, the current password and the 
 | 401    | `MFA_INVALID`                  | The `mfaToken` is wrong                                                                                                                                                    |
 | 403    | `ACCOUNT_LOCKED`               | The brute-force gate locked the account, or its `lockedUntil` is in the future                                                                                             |
 | 403    | `ACCOUNT_INACTIVE`             | The account is inactive                                                                                                                                                    |
+| 403    | `IP_NOT_ALLOWED`               | The IP allowlist of the security settings is on and the caller's address is not in it: the sign-in is exempt from it, this route is not                                    |
 | 409    | `PASSWORD_CHANGE_NOT_REQUIRED` | The credentials are right and the password is not marked to be changed                                                                                                     |
 | 409    | `CONCURRENT_MODIFICATION`      | The administrator changed between the read and the write; nothing was written                                                                                              |
 | 429    | `RATE_LIMIT_EXCEEDED`          | The brute-force gate refuses the attempt for a reason other than a locked account, besides the request limit above                                                         |
 
-Any other code answers 500.
+Any other code answers 500. `IP_NOT_ALLOWED` comes from the allowlist's hook, before the route, in the body `{ "ok": false, "error": { "code": "IP_NOT_ALLOWED", "message": "Access denied: IP not in allowlist" } }` (`apps/api/src/security/ipAllowlistMiddleware.ts`); why the sign-in and the reset paths are exempt and this one is not is the plan item `ADMIN-AUTH-ROUTES-EXEMPT-FROM-THE-IP-ALLOWLIST-WITHOUT-A-REASON`.
 
 ### Dashboard Statistics
 
