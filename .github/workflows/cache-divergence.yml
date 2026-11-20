@@ -102,13 +102,16 @@ jobs:
           restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Gate on restored cache identity
-        # On a scheduled run against the default branch there is an entry for
-        # the commit checked out: the push run of that commit saved it under
-        # this key. An empty restore is therefore a probe malfunction (key
-        # drift from ci.yml, purged caches, or a cache-service failure) — NOT
-        # an empty universe to check. Proceeding would compare two cold builds
-        # and certify nothing while looking green, so a scheduled run fails
-        # here. workflow_dispatch is exempted: an operator may legitimately
+        # On a scheduled run against the default branch the entry to restore
+        # is the one Build Check saved for the commit checked out, on that
+        # commit's push run. With no prefix key on main there is no earlier
+        # entry to fall back on, so the restore is empty when that Build Check
+        # failed, was cancelled or was still running, when its entry was
+        # evicted, when the key drifted from ci.yml, or when the cache service
+        # failed. None of those is an empty universe to check: the probe
+        # observed nothing. Proceeding would compare two cold builds and
+        # certify nothing while looking green, so a scheduled run fails here
+        # and names the causes. workflow_dispatch is exempted: an operator may legitimately
         # run the probe right after a cache purge; that run continues as a
         # loudly-labeled determinism-only check (cold vs cold) and the replay
         # assertion below is skipped for it.
@@ -119,7 +122,7 @@ jobs:
           if [ -n "$CACHE_MATCHED_KEY" ]; then
             echo "Probing cache entry: $CACHE_MATCHED_KEY"
           elif [ "$EVENT_NAME" = "schedule" ]; then
-            echo "::error::Probe malfunction: no cache restored — the probe observed nothing. A scheduled run on the default branch always has a predecessor cache entry from the last main push; an empty restore means the restore key drifted from ci.yml, the caches were purged, or the cache service failed. Refusing to degrade into a meaningless cold-vs-cold green."
+            echo "::error::Probe observed nothing: no cache entry was restored for the commit checked out. On main the probe restores only the entry Build Check saved on that commit's push run, so an empty restore means that Build Check failed, was cancelled or had not finished; its entry was evicted or purged; the restore key drifted from ci.yml; or the cache service failed. Check that commit's CI run first. Refusing to degrade into a meaningless cold-vs-cold green."
             exit 1
           else
             echo "::warning::No Turborepo cache entry restored. This manual run proceeds as a DETERMINISM-ONLY check (cold vs cold): a green result proves the build is deterministic for this commit but says nothing about the CI cache, which was not observed."
