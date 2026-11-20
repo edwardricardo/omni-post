@@ -8,6 +8,12 @@ import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import vitestPlugin from "@vitest/eslint-plugin";
 import prettierConfig from "eslint-config-prettier";
 import testingPlugin from "@packages/eslint-plugin-testing";
+import errorsPlugin from "@packages/eslint-plugin-errors";
+import {
+  ERROR_RULE_OPTIONS,
+  ERROR_SCOPE_EXCLUSIONS,
+  ERROR_SCOPE_FILES,
+} from "./scripts/testing/lib/error-scope.mjs";
 
 // Files a test runner collects, or loads as test code beside them.
 const testFiles = [
@@ -354,6 +360,22 @@ export default defineConfig([
     ],
     plugins: { testing: testingPlugin },
     rules: { "testing/no-child-process-in-unit": "error" },
+  },
+  // An error the code raises or answers takes its code and its text from the error registry
+  // (ADR-0047): errors/no-inline-error reports one written in place. Its scope and its options
+  // have one home, scripts/testing/lib/error-scope.mjs, and the block is built from it: every file
+  // of the four TypeScript extensions but the rule's named list. The sites gate
+  // (scripts/testing/error-sites-gate.mjs) holds ESLint's resolved configuration of every tracked
+  // file to that list and those options, so this block cannot narrow what the list says. The sites
+  // the tree held when the rule was turned on are listed in eslint-suppressions.json, which may
+  // only shrink, as the test-block rules' entries do.
+  {
+    files: [...ERROR_SCOPE_FILES],
+    ignores: ERROR_SCOPE_EXCLUSIONS["errors/no-inline-error"].map((entry) => entry.glob),
+    plugins: { errors: errorsPlugin },
+    rules: {
+      "errors/no-inline-error": ["error", ...ERROR_RULE_OPTIONS["errors/no-inline-error"]],
+    },
   },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,
