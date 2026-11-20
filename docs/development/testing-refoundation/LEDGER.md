@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1239  |
+| Files                   | 1240  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
 | KEEP                    | 1071  |
-| ADJUDICATE              | 95    |
+| ADJUDICATE              | 96    |
 | unmeasured              | 0     |
-| Machine rows            | 1229  |
+| Machine rows            | 1230  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15446 |
+| Blocks                  | 15452 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -108,22 +108,22 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 
 Deleted: 0 files, 55 blocks. Floors lowered: functions from 60.4 to 60.3, branches from 50 to 49.9.
 
-| Path                                                               | Shape | Blocks | Decorative | Verdict | Status  | Basis           |
-| ------------------------------------------------------------------ | ----- | ------ | ---------- | ------- | ------- | --------------- |
-| `apps/api/tests/unit/aiService.test.ts`                            | test  | 22     | 1          | REWRITE | machine | some-decorative |
-| `apps/api/tests/unit/apiMetrics.http.test.ts`                      | test  | 13     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/approvalWorkflowUseCases.test.ts`             | test  | 15     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/auditLogger.test.ts`                          | test  | 37     | 1          | REWRITE | machine | some-decorative |
-| `apps/api/tests/unit/auditService.query.test.ts`                   | test  | 14     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/auditService.stats.test.ts`                   | test  | 17     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts` | test  | 7      | 1          | REWRITE | machine | some-decorative |
-| `apps/api/tests/unit/cacheStatsRoutes.test.ts`                     | test  | 22     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/correlationMiddleware.test.ts`                | test  | 9      | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/fileUploadValidator.test.ts`                  | test  | 32     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/healthRoutes.test.ts`                         | test  | 13     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/metricsMiddleware.test.ts`                    | test  | 35     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/optimizedPostsRoutes.test.ts`                 | test  | 17     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/performanceMonitor.init.test.ts`              | test  | 23     | 5          | REWRITE | machine | some-decorative |
+| Path                                                               | Shape | Blocks | Decorative | Verdict    | Status  | Basis           |
+| ------------------------------------------------------------------ | ----- | ------ | ---------- | ---------- | ------- | --------------- |
+| `apps/api/tests/unit/aiService.test.ts`                            | test  | 22     | 1          | REWRITE    | machine | some-decorative |
+| `apps/api/tests/unit/apiMetrics.http.test.ts`                      | test  | 13     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/approvalWorkflowUseCases.test.ts`             | test  | 15     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/auditLogger.test.ts`                          | test  | 37     | 1          | REWRITE    | machine | some-decorative |
+| `apps/api/tests/unit/auditService.query.test.ts`                   | test  | 14     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/auditService.stats.test.ts`                   | test  | 17     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts` | test  | 7      | 1          | REWRITE    | machine | some-decorative |
+| `apps/api/tests/unit/cacheStatsRoutes.test.ts`                     | test  | 22     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/correlationMiddleware.test.ts`                | test  | 9      | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/fileUploadValidator.test.ts`                  | test  | 32     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/healthRoutes.test.ts`                         | test  | 18     | 0          | ADJUDICATE | machine | opaque          |
+| `apps/api/tests/unit/metricsMiddleware.test.ts`                    | test  | 35     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/optimizedPostsRoutes.test.ts`                 | test  | 17     | 0          | KEEP       | machine | behavioural     |
+| `apps/api/tests/unit/performanceMonitor.init.test.ts`              | test  | 23     | 5          | REWRITE    | machine | some-decorative |
 
 ## Slice 2.8.2c
 
@@ -780,6 +780,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/health/databaseHealthChecker.test.ts`                                            | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/healthCheckManager.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/queueHealthChecker.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/health/usableStatus.test.ts`                                                     | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/helpers/InMemoryAdminUserRepository.ts`                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditEmitter.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditLogRepository.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |

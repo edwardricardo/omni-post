@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1239,
+      "total": 1240,
       "byShape": {
-        "test": 996,
+        "test": 997,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
@@ -17,17 +17,17 @@
         "DELETE": 19,
         "REWRITE": 54,
         "KEEP": 1071,
-        "ADJUDICATE": 95,
+        "ADJUDICATE": 96,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1229,
+      "machine": 1230,
       "confirmed": 10,
-      "total": 1239
+      "total": 1240
     },
     "blocks": {
-      "total": 15446,
+      "total": 15452,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15135
+        "BEHAVIOURAL": 15141
       }
     },
     "deleted": {
@@ -50473,6 +50473,30 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/health/usableStatus.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/usableStatus.test.ts::counts healthy and degraded as usable, and unhealthy or an unknown status as not",
+          "line": 12,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "861369a4cbbd9697d2a45680ed21a2b6cdc3bcdd63d3bce4ced536d5435b7e6e"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/healthMetrics.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -50702,7 +50726,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 13,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 with healthy status",
@@ -50794,10 +50818,45 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ab15ca62e80c419075207fddf4b0370a99ab2249af5b0c921d35ca9a1231a0e"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 425,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "89f971228c4b2979c27a876b94d9b544f446d94044e385126bcd7fd1b138da4d"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health/ready with ready for healthy or degraded critical dependencies and 503 for unhealthy ones",
+          "line": 450,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "09740fa5c3bf243507b0fa275c5b979dbbc7c810dba9010d3b5af3b7e3522629"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::names, on /health/ready, only the critical dependency that cannot serve",
+          "line": 464,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f7e155c81d61b0c3d8e9ef6d7a4db64997e74c335ddcb5a6e661005618927eb1"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health/detailed with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 474,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3e4683e9e207054e1517035a172f0957a792210e13d07b98a1127d71489902d3"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health/dependency/:name with 200 for a healthy or degraded dependency and 503 for an unhealthy one",
+          "line": 488,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cef75861dcefdeaad0f8fed60a5393226195ab186314c3989eeb6d5bf9b9d83a"
         }
       ],
-      "verdict": "KEEP",
-      "basis": "behavioural",
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
       "status": "machine",
       "sliceId": "2.8.2b",
       "subject": {
