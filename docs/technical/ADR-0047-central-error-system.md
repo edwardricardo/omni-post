@@ -1,0 +1,262 @@
+# ADR-0047: One registry holds every error code, the API answers one error body, each front words a code in its own catalogs, and a lint rule with two checks keeps an error message out of feature code
+
+- **Status**: Proposed (the design is approved; it is accepted once the open forks of its last Decision section are answered)
+- **Date**: 2026-11-20
+- **Decision-makers**: Maintainer ([GOVERNANCE.md](../GOVERNANCE.md))
+- **Consulted**: —
+- **Informed**: Product Owner
+- **Supersedes**: —
+- **Superseded by**: —
+- **Related**: [ADR-0006](ADR-0006-result-type-over-throws.md) (the `Result` type stays, and its "single canonical error-mapping path" is what decision 2 builds; the first open fork decides whether this record amends its rule on raising in a route); [ADR-0013](ADR-0013-three-logger-factory-model.md) (the logger an answered error is written through); [ADR-0045](ADR-0045-instruction-context-budget.md) (the byte budget the new check's line must fit); ADR-0046 (the plan-closure check, fitness #56, that decision 8 joins)
+
+## Context
+
+1. **No single place holds the errors or their messages.** Measured on `main` at `55fecbe5c` on 2026-11-20, by static counts over production source (tests, stories and generated code left out):
+   - about 12 vocabularies of error codes hold about 200 distinct code strings. `USE_CASE_ERRORS` holds 10 of them (`packages/core/application/src/UseCase.ts:66-104`), the `ErrorCode` enum 23 (`packages/shared/src/errors.ts:7-46`), the administrators' sign-in 23 (`apps/api/src/admin/auth/adminAuthTypes.ts:416-444`), and 123 exist only as string literals passed to `err("…")`;
+   - the API answers a failure in 6 body shapes. `BaseRouteHandler.sendError` writes `{ ok: false, error: "<sentence or code>" }` from 1,035 call sites (`apps/api/src/lib/route-handler/BaseRouteHandler.ts:273-286`), and the global handler writes `{ ok: false, error: { code, message, requestId, timestamp } }` (`apps/api/src/lib/errors/errorHandler.ts:84-101`);
+   - about 100 places turn a code into a status, and three codes answer with two statuses each (`INVALID_TOKEN`, `MFA_INVALID`, `RATE_LIMIT_EXCEEDED`);
+   - core and API hold about 500 distinct inline English sentences: 636 of the 751 `new UseCaseError(` calls pass a literal text, and 804 `sendError` calls pass a literal sentence;
+   - the administration portal's catalogs word 13 codes (`apps/admin/lib/auth/types.ts:97-112`) and the client portal's word none. The client shows the API's English `message` first at 34 sites and its catalog only as a fallback.
+2. **The canon already asks for one path, and the code contradicts it three times.** The coding standard asks for a single global handler and for every error body to carry `statusCode`, `message`, `correlationId` and `timestamp`; ADR-0006 asks for "a single canonical error-mapping path" and names `USE_CASE_ERRORS` the single source of application error codes. No body shape carries the four fields, the mapping is copied about 100 times, and 123 codes live outside the single source.
+3. **The global handler maps by status only.** `getStatusCode` reads a `statusCode` property and otherwise answers 500 (`packages/shared/src/errors.ts:261-278`), so a raised `DomainError` or `UseCaseError` answers 500, and so does a raised Zod error, with the code `VALIDATION_ERROR`.
+4. **A failure that names no reason made the gap visible.** The first-administrator command prints that it "could not be set up in this environment" and names no variable when the environment module refuses to load, and prints the text of a transaction of unknown outcome when the database cannot be reached, although no transaction began. The Maintainer decided on 2026-11-20 that its environment failures name the refused variables, names never values, and that it checks the connection before the transaction, with its own message. That repair is this system's first consumer.
+5. **What a design must respect.** The core imports no framework and raises nothing (fitness #2 and #4), so its failures stay values in `Result`. Product text lives in each portal's locale catalogs, which fitness #51 holds complete and valid ICU, and the API reads no `Accept-Language`. The commands, the workers' persisted failures and the logs read errors too. The error body is a contract with many readers.
+6. **What the tree already has that this decision reuses.** An in-house ESLint plugin with `RuleTester` suites (`packages/eslint-plugin-testing/src/index.js:1-9`); ESLint's own bulk suppressions, already a list that may only shrink (`eslint.config.ts:288-294`); a per-file baseline held in both directions (`scripts/testing/artifact-language-gate.mjs:15-21`); and a generated API contract with a drift gate (`.github/workflows/ci.yml:226-234`).
+
+## Decision
+
+Eight decisions. Each names what can be checked and the check that holds it. The exact types, file paths and unit split of the first slice are the contracts the writers build to; this record holds what is decided.
+
+### 1. One registry of error codes in the shared kernel
+
+1. **Home.** `packages/shared/src/error-registry/`, exported by `@shared/types`. It is plain constants with no import outside its own directory, so the domain, the application core, both portals and a Node script can all read it. One file per domain under `domains/`, and a file's name is its domain.
+2. **An entry** is written once, as a key of its domain's table, and holds: its code (the key itself), its domain, its category, its HTTP status, an English message for operators and developers, its parameters, and the portals that can receive it.
+3. **Code grammar.** `^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, at most 63 characters, unique across every domain. A code names its subject first (`ADMINISTRATOR_ALREADY_EXISTS`, `ENV_VARIABLES_REFUSED`). A generic condition is one code of the `common` domain, never one code per context.
+4. **A code's string never changes.** A rename is a new code: one change adds it, moves every site that raises the old one, and removes the old entry with its catalog keys. A code a front reads today keeps its string until the change that moves that front. Two meanings under one string are split: the meaning the fronts read keeps the string and the other takes a new code.
+5. **Categories.** Twelve, a closed set. A category allows a fixed set of statuses, and an entry's status must be one of them; the compiler refuses any other, and so does the check.
+
+   | Category          | Statuses      | Meaning                                                           |
+   | ----------------- | ------------- | ----------------------------------------------------------------- |
+   | `validation`      | 400, 415, 422 | The request is malformed, or breaks a rule its caller can correct |
+   | `authentication`  | 401           | No valid identity                                                 |
+   | `permission`      | 403           | The identity may not do this                                      |
+   | `not_found`       | 404           | The subject does not exist for this caller                        |
+   | `conflict`        | 409           | The subject's state refuses the operation                         |
+   | `too_large`       | 413           | The request, or what it would touch, exceeds a bound              |
+   | `rate_limit`      | 429           | Too many requests                                                 |
+   | `not_implemented` | 501           | The operation is not available                                    |
+   | `upstream`        | 502, 504      | A provider or another service failed                              |
+   | `unavailable`     | 503           | A failure that a retry may pass                                   |
+   | `configuration`   | 500           | The installation is misconfigured                                 |
+   | `internal`        | 500           | A defect, or a failure nothing classified                         |
+
+6. **Message.** English, one sentence a developer or an operator can act on. Its `{name}` placeholders are exactly the entry's declared parameters. It says nothing the code does not: no value of a secret, no personal data.
+7. **Parameters.** Declared by name and kind (`string`, `number`, `boolean`, `string[]`), and typed from that declaration at every site that builds the error. A parameter holds a name, an identifier, a count or a limit; it never holds prose, a secret or personal data.
+8. **The existing types join it; none is replaced.** `Result`, `ok` and `err` are unchanged. `UseCaseError` gains `UseCaseError.of(definition, params)`, which accepts only a definition the registry built: a definition cannot be written by hand, because its type carries a mark only `defineErrors` can give, and `defineErrors` is refused in production source outside the registry's `domains/` (a test file may call it, since production cannot import test code). The ten `USE_CASE_ERRORS` become the `common` domain with their strings unchanged, `USE_CASE_ERRORS` now derived from it. `DomainError` gains the same `of` when its context is swept. An error raised outside the core is a `RegisteredError`, the kernel's own class. The constructors that take a message stay until the sweep ends and are then removed, so the compiler holds what the lint rule held.
+9. **Class identity is not the test.** A consumer recognizes an error by its `code`, compared by value, never by `instanceof`: the core's dual conditional export puts two constructors in one process (`packages/core/domain/src/errors/DomainError.ts:121-131`).
+
+Held by: `pnpm check:errors` (grammar, uniqueness, category and status, message and parameters, file and domain) and a type test of the registry.
+
+### 2. One API error body
+
+1. **RFC 9457, `application/problem+json`.** Its members, and no other:
+
+   | Member          | Type     | Required | Holds                                                                                  |
+   | --------------- | -------- | -------- | -------------------------------------------------------------------------------------- |
+   | `type`          | string   | yes      | `https://omnipost.app/problems/<CODE>`, the identifier RFC 9457 asks for               |
+   | `title`         | string   | yes      | The code in words (`Administrator already exists`), the same for every occurrence      |
+   | `status`        | integer  | yes      | The entry's status                                                                     |
+   | `detail`        | string   | yes      | The entry's message with this occurrence's parameters                                  |
+   | `code`          | string   | yes      | The registered code                                                                    |
+   | `correlationId` | string   | yes      | The request's correlation id, or its request id when none was set                      |
+   | `timestamp`     | string   | yes      | The instant the body was built, ISO 8601 in UTC                                        |
+   | `params`        | object   | no       | The declared parameters and their values; absent when the entry declares none          |
+   | `issues`        | object[] | no       | For a request that fails validation: each problem's part, pointer, issue code and text |
+
+2. **One function writes it.** `toProblem` builds the body from any failure and one function sends it, for the global error handler and for the path no route matches alike. No other code sets a status and a body for a failure. Whether a route reaches that function by calling it or by raising to the global handler is the first open fork; whether the body also carries two members of the old bodies for the length of the sweep is the second.
+3. **A front never shows an error's own message.** The body's text is the registry's message for the error's code, and a command prints the same; what an error object carries as `message` goes to the log. So a text the registry does not hold cannot reach a front on this path, however the error was built.
+4. **An error with no registered code answers `INTERNAL_ERROR`.** It is logged in full with the correlation id. A request that fails validation answers `VALIDATION_FAILED` with `issues`; a request the framework refuses, known by the framework's own error codes, answers the `http` domain's code for its status; a path no route matches answers `ROUTE_NOT_FOUND` in the same body.
+5. **A failure of category `internal` or `configuration` answers as `INTERNAL_ERROR` on the wire.** Its own code and message go to the log and to the operator's command, never to an HTTP client.
+6. **Only declared parameters are serialized.** A value the entry does not declare is dropped. A response header a failure needs (`Retry-After`, `WWW-Authenticate`) is derived from the entry's category and a declared parameter, never set where the failure is raised.
+7. **The classes not yet swept keep the status they answer today.** An `AppError` whose code is not registered answers in the same body with its own status, code and message, and any other error that carries an HTTP status keeps that status and is otherwise `INTERNAL_ERROR`. Two functions hold this, and each is removed when the class it serves has no construction site left. These are the one exception to point 3, and every site that reaches them is in the baseline of decision 8.
+8. **The generated contract publishes it once**, as the component schema `Problem`. `code` is a string of the code grammar, not an enumeration: the catalog of codes is the reference page of decision 4, so adding a code does not regenerate the contract. Every operation declares it as its `default` response in the change that closes the sweep, when that is true of every route.
+
+Held by: the handler's suites, the contract drift gate, and the lint rule of decision 4, which refuses a hand-written reply.
+
+### 3. User-facing text lives in each front's catalogs, keyed by code
+
+1. **A portal's text for a code is the catalog message `errorCodes.<CODE>`**, in every locale that portal declares, formatted with the body's `params`. The namespace holds registered codes and nothing else.
+2. **The API never sends user-facing prose as the contract.** `title` and `detail` are English, for developers. A portal renders its own text for the code and falls back to one generic message, outside the namespace, for a code it does not know.
+3. **An operator front reads the registry.** A command and a log line show the entry's English message with its parameters; they have no locale.
+4. **A portal is held to the registry from the change that gives it the namespace.** From then on every code that names the portal has its key, no key is left without a code, each message uses only declared parameters, and the namespace cannot be removed.
+
+Held by: `pnpm check:i18n` (fitness #51: every locale holds the default locale's keys and argument names, and every message is valid ICU) and `pnpm check:errors` (the two directions between registry and catalog, and the parameters).
+
+### 4. Enforcement in three layers
+
+1. **A lint rule at `error`: `errors/no-inline-error`**, in a new workspace package `@packages/eslint-plugin-errors`, built and tested as the existing in-house plugin is. It is syntactic and needs no type information. Its scope is every TypeScript source file of the tree but a named list of exclusions (test files, tooling, and the fronts, which get their own rule), so a new package is in scope the day it is created; a file under a source directory never leaves the scope by its name or its extension. An error class is an identifier that starts with an upper-case letter and ends in `Error`. The rule reports:
+   - an error built outside the registry path: `new <Name>Error(…)` for any class but the runtime's own; a call of any static member of such a class but `of`; any other use of such a class as a value, so an alias cannot hide it; and a class that extends `Error` directly;
+   - a registry path that does not start at the registry: a first argument of `of` that is not a member of a registry table imported from the shared kernel, and any use of `defineErrors` outside the registry's `domains/`;
+   - a failure answered by hand: any use of a legacy reply helper, and a `send` on a reply whose status is not a literal below 400 or whose body is an object literal with an `error` key or `ok: false`, anywhere but in the one file of the function that writes the body, which the rule's options name;
+   - a code or a message written as a literal where a failure is returned: `err("…")`.
+
+   The registry path is `<Class>.of(<TABLE>.<CODE>, params)`, which takes no text. The sites the tree holds today are listed in `eslint-suppressions.json`, per file and per rule, by ESLint itself. For each shape the contracts list the ways around it and what stops each; what no rule can see is stopped by decision 2.3 or is stated there as a limit.
+
+2. **An integrity check, `pnpm check:errors`, fitness #57**, which runs two scripts. The registry gate holds decisions 1 and 3 and the reference page. The sites gate holds decision 8.
+3. **A generated reference page, `docs/api/ERROR_CODES.md`**: every code with its domain, category, status, message, parameters and portals, and the trend of decision 8. The registry gate fails when the committed page is not what the registry yields.
+4. **The boundary fails closed.** The body is built from the registry by the error's code, compared by value; what does not resolve answers `INTERNAL_ERROR`. So on the registry path no status and no text reach a client that the registry does not hold, whatever the lint rule missed. The exception is decision 2.7, for the length of the sweep: an `AppError` still answers with its own status, code and message, and its sites are counted.
+
+Each gate is born with its red path shown on the real tree (a planted violation, a non-zero exit, a byte-exact restore) and with the condition under which it dies:
+
+| Gate                                          | Dies when                                                                                                                               |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| The baseline, its history and their gate      | Every count is zero: the history is deleted, and the sites gate keeps only "no entry of an `errors/` rule" and its scope check          |
+| The rule's reports of an error class          | No error class of the tree has a public constructor or a factory that takes a message: the compiler then refuses what the rule reported |
+| The rule's other reports                      | Never while a route can reach the reply object: no type refuses a hand-written reply                                                    |
+| The two functions of decision 2.7             | The class each serves has no construction site                                                                                          |
+| The per-portal start of the catalog rule      | Both portals hold the `errorCodes` namespace: the rule is then unconditional                                                            |
+| The registry gate and the reference page      | Never while the registry exists                                                                                                         |
+| The scope check on the resolved configuration | With the rule                                                                                                                           |
+
+### 5. The sweep of what exists
+
+1. **One definition of a site.** The inventory lists every site the lint rule reports, read from ESLint's own output, and adds to each row what the TypeScript compiler API reads at that position: the text, the code, the status and the interpolated values. No second matcher exists that could disagree with the rule.
+2. **An adjudication table** assigns each row to a code: an existing one, a merged one or a new one. It also lists what no rule sees: a vocabulary declared as a type or an enum, and text a command writes without an error value.
+3. **A rewrite per context.** One change per context converts its sites, removes its entries from the baseline, and adds a row to the history. A context is a fixed function of a file's path.
+4. **Order.** The administrators' sign-in first, then by the plan's order of features. The change that empties the last context removes the constructors that take a message, the legacy reply helpers, the `ErrorCode` enum with `AppError`, and the history.
+
+### 6. No new dependency
+
+No RFC 9457 plugin, no `neverthrow`, no `effect`, no codemod tool. The rule package is a workspace package. The gates use what the root already declares: `eslint`, `@typescript-eslint/parser`, `typescript`, `jiti` and `@formatjs/icu-messageformat-parser`.
+
+### 7. Slices
+
+| Slice | Holds                                                                                                                                                                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | This record                                                                                                                                                                                                                                  |
+| 1     | The registry, `UseCaseError.of` and `RegisteredError`, the handler's body, the lint rule with its baseline, `pnpm check:errors` with the reference page, and the first consumers: the first-administrator command and the use cases it calls |
+| 2     | The administration portal, then the client portal: each gains the `errorCodes` namespace and reads the body, in the change that moves the routes it reads                                                                                    |
+| 3     | The inventory, the adjudication table, and the plan items of decision 8                                                                                                                                                                      |
+| 4 on  | The sweep, one context per change, the administrators' sign-in first                                                                                                                                                                         |
+| Last  | Zero: decision 5.4                                                                                                                                                                                                                           |
+
+The codes of the required password change are answered by the sign-in module and read by the administration portal (`apps/api/src/admin/auth/adminAuthTypes.ts:437-444`, `apps/admin/lib/auth/types.ts:80-84`), so they move with slice 2 and the sign-in context, not with slice 1.
+
+### 8. The list of existing sites is verified to shrink
+
+The baseline is the set of entries of the `errors/` rules in `eslint-suppressions.json`. Seven things hold it, and each is a check that exits non-zero:
+
+1. **Per file, in both directions.** ESLint holds each file's count: a file with more sites than its entry fails `pnpm lint`, a file with fewer fails it until the entry is pruned, and a file with no entry must hold none. ESLint looks only at the files it lints, so the sites gate closes what that leaves: an entry whose file git no longer tracks fails, and so does an entry whose file the rule no longer reaches.
+2. **The rule reaches every file it should, as ESLint resolves it.** For every tracked TypeScript file the sites gate asks ESLint itself for the effective configuration: a file inside a rule's scope has that rule at `error`, with the options the gate holds, run by the very plugin the rule package exports, and is not ignored; a file outside it is on the named list of exclusions for that rule, which has one home and which the configuration is built from. Widening a list of test files, a global ignore, a later block that turns the rule off, a changed option or a copy of the plugin all fail here, whatever the text of the configuration says. No `eslint-disable` directive names an `errors/` rule, and none names no rule at all.
+3. **Against the base, on every pull request, per file and rule.** Renamed files are first read under their old paths. Then the head's count is at most the base's; a file the base does not list has no entry; a file whose count fell has changed content, or is deleted; and a file the base lists that was renamed is still inside the scope. A count rises in one case only, a recorded move.
+4. **A change of the rule and a change of a count never share a pull request.** When the rule package, the scope list or the sites gate differs from the base, every count of a rule the base holds is unchanged. A rule weakened so that counts fall therefore cannot land: the lint run demands a prune, and the prune is the change of a count this refuses. A rule changed to find more sites lands with those sites fixed, or as a new rule, whose entries are its birth. **This does not close the matter.** A rule weakened in a way that moves no count today passes, and a later pull request can then lower a count through it; no check of this record stops those two in a row. Who may change the rule is the sixth question below.
+5. **A history, one row per change, that adds up to the tree.** `scripts/testing/error-sites-history/` holds one file per row: the birth of a rule with its totals per context, or the sites a change fixed per context and the moves it made. The births minus everything fixed equal what the baseline yields, per context. On a pull request, counts that differ from the base's require exactly one new row, and the row is what the difference yields; equal counts add none; and no earlier row is edited. A row only ever subtracts, so the totals of the reference page only fall. Rows are separate files that add up in any order, so two changes of the sweep do not collide.
+6. **A rename is not a change of count, and a move is recorded.** A file git reports as renamed keeps its count under its new path and needs no row; when the rename crosses two contexts the row records it as a move. A move between two different files is allowed inside one context, as a row that names the file that loses the sites and the file that gains them.
+7. **No feature closes over its contexts.** From slice 3, each context with a count above zero is an item of the feature that owns it, in the plan's own item format, open while the count is above zero; the sites gate fails when the item is missing or marked closed. Fitness #56 then refuses to close that feature. Until slice 3 the plan's existing item on the error bodies tracks the whole sweep.
+
+What these verify, said plainly, each with its bound: a count never rises; a count falls only when its file changed under a rule and a scope that did not change in that same pull request, which says nothing of two pull requests in a row (the sixth question); the history adds up to the tree; no feature closes over a context above zero, from slice 3 and with fitness #56 in the branch, not before. What they do not verify: that the list moves at all. Nothing above turns red when nobody sweeps, which is the fifth question below.
+
+Three more limits stay, stated rather than closed. A count is not a line: a change that fixes one site of a file and adds another keeps the count. A site rewritten into a shape the rule does not see (its list is in the contracts) lowers the count while the legacy answer stays; on the registry path decision 2.3 keeps its text from a front. And a push straight to the main branch has no base to compare with: branch protection is what stops it.
+
+This adopts the reading the Maintainer's request was given, with three changes for the same guarantee. The per-file baseline is ESLint's own file and not a second one, because a second count needs a second matcher or a second run of the rule, and either can disagree with `pnpm lint`. "A pull request of the sweep lowers the total" is stated as a property of every pull request, since no check can tell which pull request is "of the sweep": any change of the counts is a row, and a row only subtracts. And a move between two files of one context is allowed when it is recorded, so a refactor of a route file is not forced to convert it.
+
+### Open forks and questions for the Maintainer
+
+Six. This record is accepted once each has its answer. The contracts hold both options of the first two to the point where either can be built, name the units that wait for each, and state what stays open under each answer to the sixth.
+
+| #   | Fork                                                               | Options                                                                                                                                                                                                                                                                                   | Recommended                                                                                                                                           |
+| --- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | How a route answers a failure                                      | A: it raises the error to the global handler, and this record amends ADR-0006 and the coding standard. B: it calls the one reply function, and ADR-0006 stands                                                                                                                            | B: ADR-0006 rejected "Throw + global error handler" for stated reasons, and B needs no amendment                                                      |
+| 2   | The readers of a raised error's body                               | A: the body keeps `ok` and `message` until both portals read it. B: three readers gain a fallback to `detail` in slice 1                                                                                                                                                                  | B: the frontend adjusts to the backend, and the body is one shape from its first day                                                                  |
+| 3   | Whether the runtime's own `Error` needs a registered code          | A: yes. B: no                                                                                                                                                                                                                                                                             | B: its text reaches a log only, by decision 2.3; A adds 334 sites in 148 files                                                                        |
+| 4   | Whether unswept sites may move between two files                   | A: no, only a rename. B: yes, inside one context, recorded                                                                                                                                                                                                                                | B: a route refactor is otherwise forced to convert what it moves                                                                                      |
+| 5   | Whether a list that stops shrinking fails anything by the calendar | A: no. B: a scheduled run opens an issue when no row was added in a set number of days while the total is above zero                                                                                                                                                                      | B: without it nothing verifies that the list moves; it is an alarm, not a gate, and blocks no merge                                                   |
+| 6   | Who may change the rule that counts the sites                      | A: the rule package, the scope list and the sites gate become a guarded path that only the Maintainer's window opens, as the workflows and the hooks are. B: the sites gate holds a hash of the package's content, changed only with a recorded reason. C: neither, with the limit stated | A: the threat is a session that lowers a count by changing what counts, which the hooks exist for; under B the author of the change writes its reason |
+
+The origin of `type` is `https://omnipost.app`, as the SAML entity id already uses it (`packages/core/auth/src/ConfigureSamlUseCase.ts:49`), and the codes of the required password change belong to slice 2: both are decided, not open.
+
+## Rationale
+
+- **A code is the contract and the text is not.** RFC 9457 makes `type` the primary identifier and tells consumers not to parse `detail`. Google's AIP-193 makes the pair of domain and reason the machine identifier and keeps the message developer-facing. Azure's guidelines make the code string the contract and nothing else of the body. The W3C asks protocols for "language independent identifiers for errors". Every one of them separates the identifier from the wording, which is what lets each front own its wording.
+- **A front words the code.** The frontend adjusts to the backend, the API negotiates no language, and fitness #51 already holds the catalogs. A server-side localized message would add a second home for product text.
+- **One list, checked, as the compilers do it.** rustc's tidy check holds every error code to an explanation, a test and an emission; PostgreSQL generates its headers and its documentation table from one file. The registry gate and the generated page are the same two ideas.
+- **Defined per domain, identified globally.** AIP-193 partitions reasons by domain, and Evans asks that a shared kernel stay small. One file per domain keeps a change local, and the kernel holds the definitions only, never behaviour.
+- **Codes by value, not classes.** The tree's own comment on `VERSION_CONFLICT_CODE` records that `instanceof` fails across the core's two module instances. A registry of codes makes the by-value comparison the only one.
+- **The lint rule during the sweep, the compiler after it.** A syntactic rule cannot prove a code is registered; a constructor that takes only a definition can. While both constructors exist the rule refuses the old one, and when the old one is deleted the type system replaces the rule's main report.
+- **ESLint's suppressions as the baseline.** The tree already uses them as a shrink-only list. They count with the rule itself, so the baseline cannot disagree with the lint run, and they fail in both directions for every file ESLint lints; the sites gate holds the files it does not (`node_modules/eslint/lib/services/suppressions-service.js:83-124` prunes by lint results and by missing files only).
+- **Internal failures collapse on the wire.** OWASP's error-handling guidance is that details are logged server-side and not returned. The operator still reads the specific code, in the log and in the command.
+
+## Alternatives Considered
+
+- **A baseline file of our own, on the model of fitness #53.** Rejected: the gate would re-run the rule over the tree or count with a matcher of its own. The first doubles the cost of `pnpm lint`; the second is a second definition of a site.
+- **`no-restricted-syntax` selectors instead of a rule package.** Rejected: every selector shares one rule id, so the baseline's entries could not be told from any other restricted syntax, no `RuleTester` suite pins a selector, and a selector cannot express "inside the class's own `of`" or "imported from the shared kernel".
+- **Pinning the text of the rule's block in `eslint.config.ts`**, as fitness #49 pins its rules. Rejected: a list of test files or a global ignore outside the block changes what the rule reaches without touching it. The sites gate asks ESLint for the resolved configuration of each file instead (`ESLint#calculateConfigForFile` and `ESLint#isPathIgnored`, verified on ESLint 9.39.5).
+- **One history file with a row of totals per change.** Rejected: two changes of the sweep made in parallel both append to the same array and both state totals the other makes stale. Rows that only subtract, one file each, add up in any order.
+- **A type-aware rule that proves the argument is a registry definition.** Rejected for now: type-aware linting is limited to three directories because the full project runs out of memory (`eslint.config.ts:23-33`). The typed `of` gives the same proof at compile time.
+- **The server localizes the message** (RFC 9457's `Accept-Language`, AIP-193's `LocalizedMessage`). Rejected: decision 3's rationale.
+- **A composite code, `<domain>.<REASON>`.** Rejected: every code a front reads today is a flat string, and a comparison by code alone would become ambiguous.
+- **A code enumeration in the generated contract.** Rejected: every new code would regenerate a file every unit shares; the portals import the registry itself.
+- **The registry in the application core.** Rejected: the portals cannot import the core, and a port may use only the vocabulary of `@core/application/UseCase`.
+- **`neverthrow`, `effect`, an RFC 9457 plugin.** Rejected: `neverthrow` has had no release since February 2025; `effect` 4 is seven weeks old; the Fastify organization has no RFC 9457 plugin and the third-party ones have 227 and 14 weekly downloads. The body is one function.
+- **One code per failure the handler cannot name.** Rejected: RFC 9457 advises against a problem type for what a status already says.
+
+## Consequences
+
+- The coding standard's rule on the error body is amended by this record: the four fields become the body of decision 2. `statusCode` is `status`, `message` is `detail`, and `requestId` gives way to `correlationId`.
+- The body of every raised error changes shape in slice 1: a failure the global handler answers, a request a route's schema refuses, and a path no route matches. A route that answers through a legacy helper is untouched. The readers, measured in both portals and the packages they share: the shared reader takes the code from the top level already and loses the server's sentence for a 4xx that is neither 401 nor 403 (`packages/api-errors/src/ApiError.ts:89-90`, `:101-125`); the client's request function builds its error from `message || error`, which is an object today and is nothing after, so its 34 screens would show an empty text (`apps/client/lib/api/clients/request.ts:50-53`, `:90-93`); the client's sign-in reader and the other readers of the form `error ?? message ?? <text>` show their own text, where today they are handed an object (`apps/client/lib/auth/authApi.ts:25`), and a reader of `message ?? <text>` alone shows its own text before and after (`apps/client/hooks/api/useBrandVoice.ts:52`); and the administrators' sign-in reader shows its generic text before and after (`apps/admin/lib/auth/backend-client.ts:132-145`). The second open fork decides how the first two are kept whole; the contracts list every reader.
+- Until its context is swept, a route keeps the body it answers today. Two families of body coexist for the length of the sweep, and the baseline is the list of where.
+- `eslint-suppressions.json` grows by one entry per file that holds a site, and falls from then on.
+- A change that adds a site to a file that holds some already fails `pnpm lint` for the whole file, not for the new line: ESLint reports every site of a file whose count is exceeded.
+- A use case that returned a generic code returns a specific one once converted, so a caller that compared with `USE_CASE_ERRORS.CONFLICT` compares the category or the specific code. The first-administrator command is the first such caller.
+- The debt this record names for the sweep: the `ErrorCode` enum and `AppError`, the legacy reply helpers, twelve copies of `mapErrorCode`, the vocabularies declared as types, `packages/api-errors`' own English messages, and the twelve free-text error columns of the schema, which hold a message where a code belongs.
+
+## Legal impact
+
+`none for the register today — the body adds no personal data, cookie, recipient or retention period; decision 1.7 forbids personal data in a parameter, and the change that first logs or persists an error's parameters updates the register if one holds any`
+
+## Support impact
+
+`docs/support/first-administrator.md — updated by the first consumers' change: the failures the command prints and where to look. Every later context's change updates its own page. The reference page docs/api/ERROR_CODES.md is where a ticket's code is looked up`
+
+## Deployment impact
+
+`none — no repository variable or secret, runtime variable, external account or post-deployment check is added, changed or retired; the origin in type is a fixed string, not a variable`
+
+## Revisit if
+
+- An external consumer reads the API: a code then needs a deprecation period before it is removed, and decision 1.4 is amended.
+- The API negotiates a language for another reason: server-side text for `title` becomes cheap, and decision 3.2 can be reopened.
+- TypeScript's new compiler API replaces the one the inventory uses before slice 3 is built.
+- ESLint changes the suppressions file's format, its exit codes or what its Node API answers for a file's configuration: decisions 8.1 and 8.2 rest on them.
+- The registry passes about 500 codes or a domain file passes about 60: the reference page and the files are then reviewed for a split.
+- A portal other than the two is added, or a front that has a locale and is not a portal: decision 3.4's discovery of portals is then extended.
+
+## Risks and Mitigations
+
+| Risk                                                                                             | Mitigation                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The registry grows a second vocabulary of synonyms                                               | The adjudication table merges before a context is swept; a generic condition is one `common` code                                                                                                                                                          |
+| A parameter carries prose, and the message becomes a pass-through                                | The registry gate refuses a message that is only a placeholder; review holds the rest, and the reference page shows it                                                                                                                                     |
+| A count is swapped: one site fixed, another added in the same file                               | A stated residual of every count baseline; ESLint prints every site of a file whose count is exceeded, never fewer                                                                                                                                         |
+| An entry says a portal cannot receive a code that it does receive                                | The portal shows its generic text and logs the code; the adjudication of slice 3 assigns the portals from the route table                                                                                                                                  |
+| The baseline is regenerated to hide a rise                                                       | Decision 8.3 compares with the base, per file and per rule                                                                                                                                                                                                 |
+| A count falls without a conversion: a weakened rule, a widened ignore, a file moved out of reach | Decisions 8.2 to 8.4: the resolved configuration, changed content for every fall, and no change of the rule beside a change of a count. Not closed: a rule weakened without moving a count, then used by a later pull request, which is the sixth question |
+| Text printed by a command is not an error value, so the rule does not see it                     | The first consumer converts by contract; the inventory lists such text separately                                                                                                                                                                          |
+| Two units change the shared generated records at once                                            | One owner regenerates them between units: the suppressions file, the history, the reference page and the contract                                                                                                                                          |
+| The two body families confuse a reader for the length of the sweep                               | The reference page states which contexts are swept, from the history                                                                                                                                                                                       |
+
+## References
+
+- RFC 9457, Problem Details for HTTP APIs: <https://www.rfc-editor.org/rfc/rfc9457.html>
+- Google AIP-193, Errors: <https://google.aip.dev/193>, and its registry of reasons: <https://github.com/googleapis/googleapis/blob/master/google/api/error_reason.proto>
+- Microsoft Azure REST API Guidelines, Handling Errors: <https://raw.githubusercontent.com/microsoft/api-guidelines/vNext/azure/Guidelines.md>
+- W3C, Internationalization Best Practices for Spec Developers, section 10.7.1: <https://www.w3.org/TR/international-specs/>
+- Stripe, error codes: <https://docs.stripe.com/error-codes>
+- rustc's tidy check of error codes: <https://raw.githubusercontent.com/rust-lang/rust/master/src/tools/tidy/src/error_codes.rs>
+- PostgreSQL, `errcodes.txt`: <https://raw.githubusercontent.com/postgres/postgres/master/src/backend/utils/errcodes.txt>
+- OWASP Error Handling Cheat Sheet: <https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html>
+- Eric Evans, Domain-Driven Design Reference, Shared Kernel and Anticorruption Layer: <https://www.domainlanguage.com/wp-content/uploads/2016/05/DDD_Reference_2015-03.pdf>
+- ESLint, custom rules and `no-restricted-syntax`: <https://eslint.org/docs/latest/extend/custom-rules>, <https://eslint.org/docs/latest/rules/no-restricted-syntax>
+- Software Engineering at Google, chapter 22, Large-Scale Changes: <https://abseil.io/resources/swe-book/html/ch22.html>
+- [The coding standard](../development/CODING_STANDARDS.md), section Error Handling; [the architecture canon](../architecture/ARCHITECTURE_CANON.md); [the fitness reference](../development/FITNESS_FUNCTIONS.md), blocks #49, #51 and #53
+- The measurement of the tree: `main` at `55fecbe5c`, 2026-11-20; the base of the first slice is `e036d0ec`
