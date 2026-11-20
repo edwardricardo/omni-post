@@ -4,8 +4,9 @@
  *   `createStoryPreview` returns: the theme and locale the decorator renders a story in, for a
  *   valid and an unknown global; the catalog it hands the intl provider, found by the file name's
  *   ending, or an empty one; the initial globals; and the theme and locale toolbars. It also pins
- *   `tokenColor`, which the portals' stories run in Chromium and which jsdom resolves too. The
- *   suite sits in the admin's unit suite because `@packages/ui`, the package that owns the
+ *   `tokenColor`, which the portals' stories run in Chromium: jsdom resolves custom properties
+ *   too and, as the specification requires, leaves a probe whose token holds no colour on the
+ *   colour it inherits, so the refusal of such a token is pinned here as well. The suite sits in the admin's unit suite because `@packages/ui`, the package that owns the
  *   module, has no unit runner of its own.
  * @layer infrastructure
  */
@@ -145,18 +146,26 @@ describe("createStoryPreview", () => {
 });
 
 describe("tokenColor", () => {
-  const renderScope = (): HTMLElement => {
+  const renderScope = (labelColor = "rgb(0, 0, 255)"): HTMLElement => {
     render(
       <div data-testid="scope">
-        <span style={{ color: "rgb(0, 0, 255)" }}>label</span>
+        <span style={{ color: labelColor }}>label</span>
       </div>
     );
-    screen.getByTestId("scope").style.setProperty("--error", "rgb(200, 0, 0)");
+    const scope = screen.getByTestId("scope");
+    scope.style.setProperty("--error", "rgb(200, 0, 0)");
+    scope.style.setProperty("--size", "12px");
     return screen.getByText("label");
   };
 
   it("returns the colour a token resolves to where the element renders, not the element's own", () => {
     const label = renderScope();
+
+    expect(tokenColor(label, "--error")).toBe("rgb(200, 0, 0)");
+  });
+
+  it("returns the token's colour when the element is drawn in that same colour", () => {
+    const label = renderScope("rgb(200, 0, 0)");
 
     expect(tokenColor(label, "--error")).toBe("rgb(200, 0, 0)");
   });
@@ -176,5 +185,22 @@ describe("tokenColor", () => {
     expect(() => tokenColor(label, "--missing")).toThrow(
       "The token --missing is not defined where the element renders"
     );
+  });
+
+  it("throws naming the token when the token's value is not a colour", () => {
+    const label = renderScope();
+
+    expect(() => tokenColor(label, "--size")).toThrow(
+      "The token --size does not hold a colour where the element renders"
+    );
+  });
+
+  it("leaves the element's content as it found it after refusing a token that holds no colour", () => {
+    const label = renderScope();
+
+    expect(() => tokenColor(label, "--size")).toThrow();
+
+    expect(label.childNodes).toHaveLength(1);
+    expect(label.textContent).toBe("label");
   });
 });

@@ -85,11 +85,23 @@ const nativeLanguageLabel = (locale: string): string => {
 };
 
 /**
+ * The colour of the wrapper `tokenColor` reads a token in. A token that yields no colour leaves
+ * the probe inside on this colour, never on the element's own, so the refusal can tell them apart.
+ */
+const TOKEN_PROBE_SENTINEL = "rgb(1, 2, 3)";
+
+/**
  * @description The colour a CSS custom property resolves to where an element renders, as the
  *              browser computes it, so a story asserts that an element is drawn in a token's
- *              colour without restating the token's value. A token that is not defined there
- *              is an error: its probe would inherit the element's own colour, and a comparison
- *              with the element would pass whatever the element is drawn in.
+ *              colour without restating the token's value. The returned colour is always one
+ *              the token itself yields, never one the probe inherited, so a comparison with the
+ *              element cannot pass by itself: the token is read on a probe inside a wrapper drawn
+ *              in a sentinel colour, and a token that is not defined there, or whose value is no
+ *              colour (invalid at computed-value time, so the probe inherits the wrapper's
+ *              colour), is an error. The sentinel's limit: a token whose value is the sentinel,
+ *              `rgb(1, 2, 3)`, or `currentcolor`, which takes the wrapper's colour, is refused
+ *              too. Whatever was appended to the element is removed before the function returns
+ *              or throws.
  * @param element - The element whose theme scope resolves the token
  * @param token - The custom property's name, such as `--error`
  * @returns The computed colour, in the form `getComputedStyle` reports a colour
@@ -98,12 +110,21 @@ export function tokenColor(element: HTMLElement, token: string): string {
   if (getComputedStyle(element).getPropertyValue(token).trim() === "") {
     throw new Error(`The token ${token} is not defined where the element renders`);
   }
+  const wrapper = document.createElement("span");
+  wrapper.style.color = TOKEN_PROBE_SENTINEL;
   const probe = document.createElement("span");
   probe.style.color = `var(${token})`;
-  element.append(probe);
-  const color = getComputedStyle(probe).color;
-  probe.remove();
-  return color;
+  wrapper.append(probe);
+  element.append(wrapper);
+  try {
+    const color = getComputedStyle(probe).color;
+    if (color === getComputedStyle(wrapper).color) {
+      throw new Error(`The token ${token} does not hold a colour where the element renders`);
+    }
+    return color;
+  } finally {
+    wrapper.remove();
+  }
 }
 
 /**
