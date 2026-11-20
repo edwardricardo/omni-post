@@ -27,7 +27,7 @@
       "total": 1242
     },
     "blocks": {
-      "total": 15460,
+      "total": 15463,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15149
+        "BEHAVIOURAL": 15152
       }
     },
     "deleted": {
@@ -10123,28 +10123,35 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::leaves no row of an administration role whose permissions fail partway on a first run",
-          "line": 217,
+          "line": 218,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c9e4ee7c4d7298ffe9e34a788d2cab56f2980635a5b79e20b8fedd1081d32855"
         },
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::leaves no row of a customer role whose permissions fail partway on a first run",
-          "line": 244,
+          "line": 245,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bb32e5be383a65bd88251bcf443d84a9cbe11e6d8e93c81ead0b01821771d7d"
         },
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::keeps every row and the description a role held when a rerun fails partway through it",
-          "line": 272,
+          "line": 273,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d2c60bc5de4aec212e0eac87923690914515c88304dc06c024fa011584df8196"
+        },
+        {
+          "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::removes a stale permission and restores the description when a rerun completes",
+          "line": 318,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c27fcba7ca4886f3f84b66df762bac0a05e7817dda65055a938f3e3a7ea7731f"
         }
       ],
       "verdict": "ADJUDICATE",
@@ -19762,7 +19769,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 200 with a message, without a session, and hands the service the normalized e-mail and both passwords",
@@ -19842,29 +19849,36 @@
           "bodyHash": "5bd28103625d5fb26934349b57ff0563b2ba59a9f89ab02a34f889aa9af0e79e"
         },
         {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::refuses to start, naming the route, rather than serving it unvalidated",
+          "line": 331,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "42a318b2ed3b224c1e3d2502c30bf5693421aeb8c111d53ece53cade1f949e0b"
+        },
+        {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 200 with the profile and the tokens, and hands the service the normalized e-mail",
-          "line": 370,
+          "line": 389,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47748bd2b3cec074e2372c34f32be1b97219c7bfb36f6a33ebabe13093556d6e"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with %i and the code #2",
-          "line": 382,
+          "line": 401,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41e137f937fef2a00d03a42fbf62179e09c86b592632dbed62321fca80e5e509"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers a missing second factor with 200 and a body that asks for it",
-          "line": 397,
+          "line": 416,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b9b254b2987e18fa52c5a1b0e966870bc2c4642970bef16af1f448a65791b94"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::keys the sign-in and the change by the sign-in's pattern when the routes are registered under a prefix",
-          "line": 406,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a54d3b08348772f59a7d62a03238e545b8820e220f267e58f9f4797b929c830"
@@ -51033,39 +51047,46 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "apps/api/tests/unit/helpers/processState.test.ts::raises, saying the suite needs procfs, where there is no procfs",
-          "line": 49,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70aa1200e4185b748e4138bc2fbab5ecf96036eedc868e2cd72ad616da18144d"
         },
         {
           "id": "apps/api/tests/unit/helpers/processState.test.ts::returns true when the process's entry is gone from a procfs",
-          "line": 57,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7c7cb7815ec15cf39ec49610cfef322ede971cc41563cbc620bc97f279c2c689"
         },
         {
           "id": "apps/api/tests/unit/helpers/processState.test.ts::returns true when the process's state is %s",
-          "line": 61,
+          "line": 63,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6914b24af652bb337ec158ff71359079eda06e7ed87b9ede19b93b95b01bef4c"
         },
         {
           "id": "apps/api/tests/unit/helpers/processState.test.ts::returns false when the process runs, reading the state after the last parenthesis",
-          "line": 65,
+          "line": 67,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "509041a4e7bd61294b3a112cf2b89a3d0853cb775b72d8e4c7667442e426a44f"
         },
         {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::raises the read's own error when the process's entry cannot be read",
+          "line": 71,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "189df9477e9368fc51889b66701ef9683b912f196c37b890c80cd1b8ea61477d"
+        },
+        {
           "id": "apps/api/tests/unit/helpers/processState.test.ts::returns false for this process, read from the real procfs",
-          "line": 69,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "00231f9678977f318f571fcb590c0cf0541afdba1deeb88730231f055e00a756"

@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1232  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15460 |
+| Blocks                  | 15463 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -479,7 +479,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/sagaTenantIsolation.integration.test.ts`                                  | integration-test | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/scheduledReportTenantIsolation.integration.test.ts`                       | integration-test | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/security-endpoints.live.test.ts`                                          | live-test        | 11     | 11         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
-| `apps/api/tests/integration/seedRoleWrites.integration.test.ts`                                       | integration-test | 3      | 0          | ADJUDICATE | machine                     | opaque               |
+| `apps/api/tests/integration/seedRoleWrites.integration.test.ts`                                       | integration-test | 4      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/integration/sendReplyGuardrail.live.test.ts`                                          | live-test        | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/sentryPayload.integration.test.ts`                                        | integration-test | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/shareOfVoice.integration.test.ts`                                         | integration-test | 4      | 0          | KEEP       | machine                     | behavioural          |
@@ -552,7 +552,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/admin/secretsRotationRoutes.test.ts`                                             | test             | 4      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/webhookAdminRoutes.test.ts`                                                | test             | 8      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/adminAuthMiddleware.rateLimit.test.ts`                                           | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts`                                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -791,7 +791,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/helpers/mockAuthMiddleware.ts`                                                   | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/mockPrisma.ts`                                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/prismaKnownRequestErrors.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/helpers/processState.test.ts`                                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/helpers/processState.test.ts`                                                    | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/helpers/processState.ts`                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/seedCustomerRoles.ts`                                                    | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/seedPrismaClient.resolution.test.ts`                                     | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
