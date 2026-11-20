@@ -69,10 +69,14 @@
  *   is missing or holds no `<name>.ts`; the barrel or a domain file cannot be loaded;
  *   `ERROR_TABLES` is missing, not an array or empty; the history's reader fails or reports a row
  *   that is not the format of its rows; the page cannot be read for a reason other than its
- *   absence; `git ls-files` fails or lists no source file of the scope; a tracked file of the scope
- *   cannot be read; the command cannot load the sites gate's reader. A check that needs an input
- *   that was not read is skipped, never run on part of it, and the page is never written from one.
- *   Every printed path is relative to the root.
+ *   absence, cannot be rendered, or, under `--write`, cannot be written; `git ls-files` fails or
+ *   lists no source file of the scope; a tracked file of the scope cannot be read; the command
+ *   cannot load the sites gate's reader; and any other failure of the command's run, which it
+ *   prints as `error-registry-gate: the run failed before reaching a verdict: <reason>` rather than
+ *   exit 1, the code Node gives a rejection. A check that needs an input that was not read is
+ *   skipped, never run on part of it, and the page is never written from one. Every path the gate
+ *   names is relative to the root; the reason of a failure the run does not name is that failure's
+ *   own first line.
  *
  *   RESIDUAL LIMITS. R8 proves a reference, not an emission. A domain file's type-only export
  *   leaves nothing at run time, so R1 cannot see it. R10 reads text, so a name assembled from parts
@@ -114,7 +118,14 @@ import {
 } from "@formatjs/icu-messageformat-parser";
 import { createJiti } from "jiti";
 import ts from "typescript";
-import { PAGE, renderReferencePage, WRITE_COMMAND } from "./lib/error-reference-page.mjs";
+import {
+  HISTORY_DIRECTORY,
+  PAGE,
+  REGISTRY_GATE,
+  renderReferencePage,
+  SITES_GATE,
+  WRITE_COMMAND,
+} from "./lib/error-reference-page.mjs";
 import {
   ERROR_SCOPE_EXCLUSIONS,
   EXCLUSION_KIND,
@@ -130,9 +141,11 @@ export const RULE_ID = "errors/no-inline-error";
 
 const GATE = "error-registry-gate";
 const PREFIX = `${GATE}: `;
-const USAGE = "usage: node scripts/testing/error-registry-gate.mjs [--write] [--root <dir>]";
+const USAGE = `usage: node ${REGISTRY_GATE} [--write] [--root <dir>]`;
 const SCOPE_MODULE = "scripts/testing/lib/error-scope.mjs";
-const DEFAULT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+/** The repository this file lives in, as a URL the paths relative to the root resolve against. */
+const ROOT_URL = new URL("../../", import.meta.url);
+const DEFAULT_ROOT = fileURLToPath(ROOT_URL);
 const DOMAINS_DIRECTORY = `${REGISTRY_DIRECTORY}/domains`;
 const INDEX = `${REGISTRY_DIRECTORY}/index.ts`;
 
@@ -182,8 +195,6 @@ const TABLE_NAME = /_ERRORS$/;
 /** The word as an identifier would end it, so `redefineErrorsOnce` is another word. */
 const DEFINE_ERRORS = /(?<![\w$])defineErrors(?![\w$])/;
 
-/** The history of existing sites, which the sites gate reads and the reference page shows. */
-const HISTORY_DIRECTORY = "scripts/testing/error-sites-history";
 /** A portal's namespace of error texts, keyed by code, in each of its catalogs. */
 const NAMESPACE = "errorCodes";
 /** The routing's `defaultLocale` line, read as fitness #51 reads it: one line, one literal. */
@@ -647,46 +658,62 @@ function readSites(root, history, unread) {
 
 /**
  * @description R9: renders the reference page from what was read and, with `write`, writes it, or
- *   else holds the committed page to it byte for byte.
+ *   else holds the committed page to it byte for byte. A page that cannot be rendered, or written,
+ *   is an input the gate could not handle, never a verdict.
  * @param {string} root The tree's root.
  * @param {Domain[]} domains The domains read.
  * @param {PageSites | null} sites The history's state, or null when there is no history.
  * @param {boolean} write Whether to write the page instead of checking it.
  * @param {{ r9: string[], unread: string[], stdout: string[] }} out Where the findings, what could
- *   not be read and the line that reports a write go.
+ *   not be read, rendered or written, and the line that reports a write go.
  * @returns {Promise<void>}
  */
 async function judgePage(root, domains, sites, write, out) {
-  const page = await renderReferencePage({
-    domains: domains.flatMap((domain) =>
-      domain.table === null
-        ? []
-        : [
-            {
-              name: domain.name,
-              codes: Object.entries(domain.table).flatMap(([code, definition]) =>
-                isRecord(definition)
-                  ? [
-                      {
-                        code,
-                        category: definition.category,
-                        status: definition.status,
-                        message: definition.message,
-                        params: definition.params,
-                        fronts: definition.fronts,
-                      },
-                    ]
-                  : []
-              ),
-            },
-          ]
-    ),
-    sites,
-  });
+  /** @type {string} */
+  let page;
+  try {
+    page = await renderReferencePage({
+      domains: domains.flatMap((domain) =>
+        domain.table === null
+          ? []
+          : [
+              {
+                name: domain.name,
+                codes: Object.entries(domain.table).flatMap(([code, definition]) =>
+                  isRecord(definition)
+                    ? [
+                        {
+                          code,
+                          category: definition.category,
+                          status: definition.status,
+                          message: definition.message,
+                          params: definition.params,
+                          fronts: definition.fronts,
+                        },
+                      ]
+                    : []
+                ),
+              },
+            ]
+      ),
+      sites,
+    });
+  } catch (error) {
+    out.unread.push(
+      `${PAGE}: could not be rendered, so R9 did not ${write ? "write" : "compare"} it: ` +
+        reasonOf(error)
+    );
+    return;
+  }
   const target = path.join(root, PAGE);
   if (write) {
-    mkdirSync(path.dirname(target), { recursive: true });
-    writeFileSync(target, page);
+    try {
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, page);
+    } catch (error) {
+      out.unread.push(`${PAGE}: could not be written: ${reasonOf(error)}`);
+      return;
+    }
     out.stdout.push(`${PREFIX}wrote ${PAGE}`);
     return;
   }
@@ -1431,16 +1458,15 @@ function parseArguments(argv) {
  * @returns {Promise<HistoryReader | string>} The reader, or why it could not be loaded.
  */
 async function loadHistoryReader() {
-  const source = "scripts/testing/error-sites-gate.mjs";
   try {
-    const sites = await import(new URL("./error-sites-gate.mjs", import.meta.url).href);
+    const sites = await import(new URL(SITES_GATE, ROOT_URL).href);
     const { readHistory, stateOf } = sites;
     if (typeof readHistory !== "function" || typeof stateOf !== "function") {
-      return `${source}: exports no readHistory and stateOf, so the history of existing sites cannot be read`;
+      return `${SITES_GATE}: exports no readHistory and stateOf, so the history of existing sites cannot be read`;
     }
     return { read: readHistory, stateOf };
   } catch (error) {
-    return `${source}: could not be loaded, so the history of existing sites cannot be read: ${reasonOf(error)}`;
+    return `${SITES_GATE}: could not be loaded, so the history of existing sites cannot be read: ${reasonOf(error)}`;
   }
 }
 
@@ -1492,4 +1518,13 @@ function invokedAsScript() {
   }
 }
 
-if (invokedAsScript()) process.exitCode = await main(process.argv.slice(2));
+if (invokedAsScript()) {
+  // Node exits 1 on a rejection, the code of a verdict: a failure the run does not name is an input
+  // the gate could not handle, so it exits with the code of one.
+  try {
+    process.exitCode = await main(process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`${PREFIX}the run failed before reaching a verdict: ${reasonOf(error)}\n`);
+    process.exitCode = EXIT_UNREAD;
+  }
+}

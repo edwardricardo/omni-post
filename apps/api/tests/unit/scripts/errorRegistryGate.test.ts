@@ -31,12 +31,13 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -75,6 +76,7 @@ type GateModule = {
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const GATE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/error-registry-gate.mjs");
+const SITES_GATE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/error-sites-gate.mjs");
 const { REGISTRY_DIRECTORY, RULE_ID, runGate } = (await import(GATE_SCRIPT)) as GateModule;
 
 const REGISTRY = "packages/shared/src/error-registry";
@@ -1298,6 +1300,74 @@ describe("R9: the reference page is what the registry and the history yield", ()
       ),
     });
   });
+
+  it("exits 3 when the page cannot be read for a reason other than its absence", async () => {
+    plant();
+    mkdirSync(path.join(root, PAGE), { recursive: true });
+
+    const outcome = await check();
+
+    expect(outcome).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: lines(`${PAGE}: could not be read, so R9 did not compare it: EISDIR`),
+    });
+  });
+
+  it.each([
+    [
+      "its directory is a file",
+      () => write("docs/api", "A file where the page's directory goes.\n"),
+      "EEXIST",
+    ],
+    ["it is a directory", () => mkdirSync(path.join(root, PAGE), { recursive: true }), "EISDIR"],
+  ])(
+    "exits 3 under --write when the page cannot be written because %s, naming the page",
+    async (_what, block, reason) => {
+      plant();
+      block();
+
+      const outcome = await runGate({ root, exclusions: EXCLUSIONS, history, write: true });
+
+      expect(outcome).toEqual({
+        exitCode: 3,
+        stdout: [],
+        stderr: lines(`${PAGE}: could not be written: ${reason}`),
+      });
+    }
+  );
+
+  it("exits 3 when the page cannot be rendered, writes nothing, and still prints the verdict", async () => {
+    plant({
+      domains: [
+        COMMON,
+        {
+          ...AUTH,
+          // A message JSON cannot write: R5 names it, and the page's cell for it cannot be rendered.
+          source: [
+            'import { defineErrors } from "../definition.js";',
+            "",
+            'export const AUTH_ERRORS = defineErrors("auth", {',
+            '  ADMINISTRATOR_ALREADY_EXISTS: { category: "conflict", status: 409, message: 409n, params: {}, fronts: [] },',
+            "});",
+            "",
+          ].join("\n"),
+        },
+      ],
+    });
+
+    const outcome = await runGate({ root, exclusions: EXCLUSIONS, history, write: true });
+
+    expect(outcome).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: lines(
+        `${PAGE}: could not be rendered, so R9 did not write it: Do not know how to serialize a BigInt`,
+        "ADMINISTRATOR_ALREADY_EXISTS: its message is a bigint, not a string (R5)"
+      ),
+    });
+    expect(existsSync(path.join(root, PAGE))).toBe(false);
+  });
 });
 
 describe("R8: every code is referenced in the rule's scope, outside the registry", () => {
@@ -1617,6 +1687,26 @@ describe("fail-closed", () => {
     });
   });
 
+  it("exits 3 when a portal's routing file cannot be read", async () => {
+    plant();
+    const routing = path.join(root, "apps/admin/i18n/routing.ts");
+    unlinkSync(routing);
+    // A regular file no read can return: the reading process's own memory, whose first page is
+    // never mapped, so a read from its start fails with EIO. A file mode would not stop a suite
+    // that runs as the root user.
+    symlinkSync("/proc/self/mem", routing);
+
+    const outcome = await scan();
+
+    expect(outcome).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: lines(
+        "apps/admin/i18n/routing.ts: could not be read, so admin's enrolment was not read: EIO"
+      ),
+    });
+  });
+
   it("exits 3 when domains/ does not exist", async () => {
     const outcome = await failure({ domains: [] });
 
@@ -1738,10 +1828,103 @@ describe("fail-closed", () => {
 });
 
 describe("the process", () => {
-  const run = (args: readonly string[]): { status: number; stdout: string; stderr: string } => {
-    const result = spawnSync(process.execPath, [GATE_SCRIPT, ...args], { encoding: "utf8" });
+  const run = (
+    args: readonly string[],
+    nodeOptions: readonly string[] = []
+  ): { status: number; stdout: string; stderr: string } => {
+    const result = spawnSync(process.execPath, [...nodeOptions, GATE_SCRIPT, ...args], {
+      encoding: "utf8",
+    });
     return { status: result.status ?? -1, stdout: result.stdout, stderr: result.stderr };
   };
+
+  /**
+   * Node's options that resolve the sites gate, which the command imports its reader of the history
+   * from, to the module at `standIn` instead, through a resolve hook loaded before the command.
+   */
+  const sitesGateReplacedBy = (standIn: string): string[] => {
+    const hooks = path.join(root, "hooks.mjs");
+    writeFileSync(
+      hooks,
+      [
+        'import { registerHooks } from "node:module";',
+        "",
+        `const SITES_GATE = ${JSON.stringify(pathToFileURL(SITES_GATE_SCRIPT).href)};`,
+        `const STAND_IN = ${JSON.stringify(pathToFileURL(standIn).href)};`,
+        "",
+        "registerHooks({",
+        "  resolve(specifier, context, nextResolve) {",
+        "    const resolved = nextResolve(specifier, context);",
+        "    return resolved.url === SITES_GATE ? { url: STAND_IN, shortCircuit: true } : resolved;",
+        "  },",
+        "});",
+        "",
+      ].join("\n")
+    );
+    return ["--import", pathToFileURL(hooks).href];
+  };
+
+  it("exits 3 when the sites gate, whose reader of the history it uses, cannot be loaded", () => {
+    const result = run(["--root", root], sitesGateReplacedBy(path.join(root, "absent.mjs")));
+
+    expect(result.status).toBe(3);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(
+      /^error-registry-gate: scripts\/testing\/error-sites-gate\.mjs: could not be loaded, so the history of existing sites cannot be read: \S+\n$/
+    );
+  });
+
+  it.each([
+    ["neither function", "export const unrelated = 1;\n"],
+    ["readHistory alone", "export function readHistory() {}\n"],
+    ["stateOf alone", "export function stateOf() {}\n"],
+  ])("exits 3 when the sites gate exports %s of its reader", (_what, source) => {
+    const standIn = path.join(root, "stand-in.mjs");
+    writeFileSync(standIn, source);
+
+    const result = run(["--root", root], sitesGateReplacedBy(standIn));
+
+    expect(result).toEqual({
+      status: 3,
+      stdout: "",
+      stderr:
+        "error-registry-gate: scripts/testing/error-sites-gate.mjs: exports no readHistory and stateOf, so the history of existing sites cannot be read\n",
+    });
+  });
+
+  it("exits 3, not as a verdict, when --write cannot write the page, naming it", () => {
+    plant();
+    write("docs/api", "A file where the page's directory goes.\n");
+
+    const result = run(["--write", "--root", root]);
+
+    expect(result).toEqual({
+      status: 3,
+      stdout: "",
+      stderr: `error-registry-gate: ${PAGE}: could not be written: EEXIST\n`,
+    });
+  });
+
+  it("exits 3, not as a verdict, when the run fails on an input no rule names", () => {
+    plant({
+      domains: [
+        COMMON,
+        {
+          ...AUTH,
+          source:
+            'export const AUTH_ERRORS = { get ADMINISTRATOR_ALREADY_EXISTS() { throw new Error("unreadable entry"); } };\n',
+        },
+      ],
+    });
+
+    const result = run(["--root", root]);
+
+    expect(result).toEqual({
+      status: 3,
+      stdout: "",
+      stderr: "error-registry-gate: the run failed before reaching a verdict: unreadable entry\n",
+    });
+  });
 
   it.each([
     [["--root"]],

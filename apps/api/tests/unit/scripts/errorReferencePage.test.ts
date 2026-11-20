@@ -1,7 +1,8 @@
 /**
  * @file errorReferencePage.test.ts
  * @description Pins `scripts/testing/lib/error-reference-page.mjs`, the renderer of
- *   `docs/api/ERROR_CODES.md`: the header that says the page is generated and by which commands,
+ *   `docs/api/ERROR_CODES.md`: the paths it names, the history being the one the sites gate reads,
+ *   the header that says the page is generated and by which commands,
  *   one table per domain with every code's category, status, message, parameters and portals, the
  *   summary per domain, the existing sites per context at the birth and now, and the rows of their
  *   history. Each case renders from data it builds, as the registry gate hands it over, and reads
@@ -9,7 +10,7 @@
  *   padding; one case pins that the page is already what Prettier writes.
  * @layer infrastructure
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
@@ -42,6 +43,9 @@ interface PageSites {
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type PageModule = {
   PAGE: string;
+  REGISTRY_GATE: string;
+  SITES_GATE: string;
+  HISTORY_DIRECTORY: string;
   WRITE_COMMAND: string;
   renderReferencePage: (input: {
     domains: readonly { name: string; codes: readonly PageCode[] }[];
@@ -50,9 +54,10 @@ type PageModule = {
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
-const { PAGE, WRITE_COMMAND, renderReferencePage } = (await import(
-  path.join(REPO_ROOT, "scripts/testing/lib/error-reference-page.mjs")
-)) as PageModule;
+const { PAGE, REGISTRY_GATE, SITES_GATE, HISTORY_DIRECTORY, WRITE_COMMAND, renderReferencePage } =
+  (await import(
+    path.join(REPO_ROOT, "scripts/testing/lib/error-reference-page.mjs")
+  )) as PageModule;
 
 const code = (name: string, fields: Partial<PageCode> = {}): PageCode => ({
   code: name,
@@ -158,6 +163,14 @@ describe("the page's identity", () => {
   it("is docs/api/ERROR_CODES.md, written by the gate's --write", () => {
     expect(PAGE).toBe("docs/api/ERROR_CODES.md");
     expect(WRITE_COMMAND).toBe("node scripts/testing/error-registry-gate.mjs --write");
+  });
+
+  it("names the history the sites gate reads, and the two gates as files this repository holds", async () => {
+    const sites = (await import(path.join(REPO_ROOT, SITES_GATE))) as { HISTORY: string };
+
+    expect(HISTORY_DIRECTORY).toBe(sites.HISTORY);
+    expect(existsSync(path.join(REPO_ROOT, REGISTRY_GATE))).toBe(true);
+    expect(existsSync(path.join(REPO_ROOT, SITES_GATE))).toBe(true);
   });
 
   it("is checked by a script of the root manifest that runs the registry gate and then the sites gate, so either one's exit fails it", () => {
