@@ -24,6 +24,7 @@ import type {
   ReissueAdministratorPasswordInput,
   ReissueAdministratorPasswordOutput,
 } from "@core/auth";
+import { DEFAULT_LOCKOUT_DURATION_MINUTES } from "../infrastructure/adapters/bruteForceDefaults.js";
 
 /** A stream the command writes text to. */
 interface CommandOutput {
@@ -81,11 +82,12 @@ Without --reissue it creates an administrator once: once an administrator exists
 later run without --reissue is refused.
 
 With --reissue it prints a new single-use password for the administrator with that e-mail
-instead, for when the first administrator's password was never seen: only for an administrator
-who has never signed in and is still marked to change the password. The new password replaces
-the old one, which no longer works, every session of the administrator is ended, and the mark
-stays, so the new password too must be changed at the first sign-in. Any other administrator is
-refused and nothing is changed.
+instead, for when its single-use password was never seen. It serves any active administrator,
+not only the first, who has never signed in and is still marked to change the password. The new
+password replaces the old one, which no longer works, every session of the administrator is
+ended, and the mark stays, so the new password too must be changed at the first sign-in. Any
+other administrator is refused and nothing is changed; a deactivated one must be reactivated
+first.
 
 Options:
   --email <address>  The e-mail of the administrator to create, or whose single-use password
@@ -109,7 +111,8 @@ Where it runs:
 Exit codes:
   0  The administrator was created, or its single-use password was re-issued.
   1  Refused (an administrator exists, or the administration role is held; with --reissue, no
-     administrator has the e-mail, it has signed in, or it is not marked) or failed.
+     administrator has the e-mail, it has signed in, it is not marked, it is deactivated, or it
+     changed between the read and the write) or failed.
   2  The arguments are wrong, the sign-in refuses the e-mail, or standard output is not a terminal.
 `;
 
@@ -229,6 +232,15 @@ function createdBlock(created: CreateFirstAdministratorOutput): string {
   ].join("\n");
 }
 
+/**
+ * What a re-issue does not change: a lock that failed sign-ins set on the address. The command
+ * opens no Redis connection, so it neither reads nor clears that lock. The minutes are the default
+ * the brute-force adapter applies as the API composes it, read from the module both share, which
+ * imports nothing: the adapter's own module loads the logger and the API's environment, and the
+ * command loads nothing before its arguments and its terminal are right.
+ */
+const LOCK_LINE = `If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within ${String(DEFAULT_LOCKOUT_DURATION_MINUTES)} minutes.`;
+
 /** The block written when the password is re-issued; the password appears in it once. */
 function reissuedBlock(reissued: ReissueAdministratorPasswordOutput): string {
   return [
@@ -240,6 +252,7 @@ function reissuedBlock(reissued: ReissueAdministratorPasswordOutput): string {
     "The password is shown this once and is stored nowhere: only its hash is kept.",
     "The previous single-use password no longer works, and every session of this administrator was ended.",
     "Sign in with it now and change it at once.",
+    LOCK_LINE,
     "",
   ].join("\n");
 }

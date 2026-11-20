@@ -51,6 +51,10 @@ function makeScheduler() {
   return { register: vi.fn(), unregister: vi.fn() };
 }
 
+function makeLogger() {
+  return { error: vi.fn(), info: vi.fn() };
+}
+
 const makeEvent = (postId: string): AnalyticsStreamEventPayload => ({
   timestamp: "2026-05-23T00:00:00.000Z",
   postId,
@@ -62,7 +66,11 @@ describe("AnalyticsStreamBroadcaster", () => {
   let broadcaster: AnalyticsStreamBroadcaster;
 
   beforeEach(() => {
-    broadcaster = new AnalyticsStreamBroadcaster(makeRedis() as never, makeScheduler() as never);
+    broadcaster = new AnalyticsStreamBroadcaster(
+      makeRedis() as never,
+      makeScheduler() as never,
+      makeLogger()
+    );
   });
 
   it("delivers a broadcast event to a subscriber watching that post", async () => {
@@ -147,7 +155,11 @@ describe("AnalyticsStreamBroadcaster", () => {
 
   it("publishes to the post's Redis channel on broadcast (cross-pod fan-out)", async () => {
     const redis = makeRedis();
-    const b = new AnalyticsStreamBroadcaster(redis as never, makeScheduler() as never);
+    const b = new AnalyticsStreamBroadcaster(
+      redis as never,
+      makeScheduler() as never,
+      makeLogger()
+    );
     await b.broadcast(makeEvent("post-9"), "post-9");
     expect(redis.publish).toHaveBeenCalledTimes(1);
     expect(redis.publish.mock.calls[0]?.[0]).toBe("analytics-stream:post-9");
@@ -155,7 +167,32 @@ describe("AnalyticsStreamBroadcaster", () => {
 
   it("builds its subscriber connection via the canonical duplicateForSubscriber helper", () => {
     const redis = makeRedis();
-    new AnalyticsStreamBroadcaster(redis as never, makeScheduler() as never);
+    new AnalyticsStreamBroadcaster(redis as never, makeScheduler() as never, makeLogger());
     expect(duplicateForSubscriber).toHaveBeenCalledWith(redis);
+  });
+
+  it("logs one line for two errors of its subscriber connection through the injected logger", () => {
+    const redis = makeRedis();
+    const logger = makeLogger();
+    new AnalyticsStreamBroadcaster(redis as never, makeScheduler() as never, logger);
+    const subscriber = redis.duplicate.mock.results[0]?.value as StubRedis;
+    const onError = subscriber.on.mock.calls.find(([event]) => event === "error")?.[1] as (
+      error: unknown
+    ) => void;
+    const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
+
+    onError(error);
+    onError(error);
+
+    expect(logger.error.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "redis:analytics-stream-broadcaster-subscriber",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
   });
 });

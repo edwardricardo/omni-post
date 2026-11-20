@@ -81,22 +81,38 @@ export class CacheMetricsCollector {
     lastReset: new Date(),
   };
 
+  /**
+   * @method recordHit
+   * @description Counts a read the cache answered.
+   */
   recordHit(): void {
     this.metrics.hits++;
     this.metrics.totalRequests++;
     this.updateHitRate();
   }
 
+  /**
+   * @method recordMiss
+   * @description Counts a read the cache could not answer.
+   */
   recordMiss(): void {
     this.metrics.misses++;
     this.metrics.totalRequests++;
     this.updateHitRate();
   }
 
+  /**
+   * @method recordError
+   * @description Counts a cache operation that failed.
+   */
   recordError(): void {
     this.metrics.errors++;
   }
 
+  /**
+   * @method recordInvalidation
+   * @description Counts a cache entry removed after a write.
+   */
   recordInvalidation(): void {
     this.metrics.invalidations++;
   }
@@ -107,10 +123,19 @@ export class CacheMetricsCollector {
     }
   }
 
+  /**
+   * @method getMetrics
+   * @description Returns a copy of the counters, so a caller cannot change them.
+   * @returns The hits, misses, errors, hit rate, request count, invalidations and last reset.
+   */
   getMetrics(): CacheMetrics {
     return { ...this.metrics };
   }
 
+  /**
+   * @method reset
+   * @description Sets every counter back to zero and stamps the reset time.
+   */
   reset(): void {
     this.metrics = {
       hits: 0,
@@ -124,6 +149,15 @@ export class CacheMetricsCollector {
   }
 }
 
+/**
+ * @function createCachedRepositoryAdapter
+ * @description Wraps a repository port so its reads are served from Redis when cached and its
+ *   writes invalidate the keys they make stale. The ping is never cached: it asks the base
+ *   repository whether the database answers now.
+ * @param baseRepo - The repository the reads fall through to, with its health metrics.
+ * @param config - Overrides of the default time-to-live per entity and of the key prefix.
+ * @returns The cached repository port, with its cache metrics and an invalidation entry point.
+ */
 export function createCachedRepositoryAdapter(
   baseRepo: RepoPort & { getDatabaseHealthMetrics(): DatabaseHealthMetrics },
   config: Partial<CacheConfiguration> = {}
@@ -303,11 +337,6 @@ export function createCachedRepositoryAdapter(
       }
 
       return result;
-    },
-
-    async listAccounts(): Promise<Result<Account[], "DATABASE_ERROR">> {
-      // Don't cache list operations as they change frequently and can be large
-      return baseRepo.listAccounts();
     },
 
     // Project management methods
@@ -602,6 +631,10 @@ export function createCachedRepositoryAdapter(
       }
 
       return result;
+    },
+
+    async ping(): Promise<Result<void, "DATABASE_ERROR">> {
+      return baseRepo.ping();
     },
 
     // Extended methods

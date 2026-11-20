@@ -27,7 +27,8 @@
  *              that calls `startXxxWorker()` with default options.
  *
  *              Health server: exposes 4 endpoints aligned with the API canon
- *              de facto (`apps/api/src/health/healthRoutes.ts`):
+ *              de facto (`apps/api/src/health/healthRoutes.ts`), answered by
+ *              `health/healthRequestHandler.ts`:
  *              `/health`, `/health/live`, `/health/ready`, `/health/detailed`,
  *              plus `/metrics` aggregating the publish worker's prom-client
  *              registry with the global one used by health-checks. Port 3300
@@ -39,9 +40,7 @@
 
 import http from "http";
 import client from "prom-client";
-import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
-import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   createHealthCheckManager,
   ConsumerPresenceHealthChecker,
@@ -53,8 +52,11 @@ import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { env } from "./config/env.js";
-import { evaluateReadiness, publishConsumerDependencyName } from "./health/readiness.js";
+import { publishConsumerDependencyName } from "./health/readiness.js";
+import { createHealthRequestHandler } from "./health/healthRequestHandler.js";
+import { createHealthRedisConnection } from "./healthConnection.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
+import { createWorkerTaskScheduler } from "./lib/workerScheduler.js";
 
 const logger = createLogger("workers-bootstrap");
 
@@ -68,35 +70,18 @@ async function main(): Promise<void> {
   });
 
   // --- Health check manager + scheduler ---
-  // The HealthCheckManager runs registered checkers periodically (interval
-  // 30s). Workers' critical deps are database + redis; queue + provider
-  // checkers can be added later if needed.
-  const healthScheduler = new DefaultBackgroundTaskScheduler({
-    logger: {
-      error: (msg, data) => logger.error({ data }, msg),
-      info: (msg, data) => logger.info({ data }, msg),
-      debug: (msg, data) => logger.debug({ data }, msg),
-    },
-  });
+  // The HealthCheckManager refreshes its report on this scheduler every 30 s,
+  // and every 5 s while the last report is unhealthy, each check in one
+  // attempt. The critical dependencies are the database, Redis and one
+  // consumer per publish-pipeline queue (below).
+  const healthScheduler = createWorkerTaskScheduler(logger);
 
   // Dedicated Redis client for the RedisHealthChecker — does not share
   // the publish worker's saga notifyRedis (different connection lifecycle).
   // Uses env.REDIS_URL — no fallback (SECURITY_CANON §Secrets, CWE-798).
-  const healthRedis = new Redis(env.REDIS_URL, {
-    lazyConnect: true,
-    maxRetriesPerRequest: 1,
-    enableReadyCheck: false,
-    commandTimeout: 5_000,
-    connectTimeout: 5_000,
-  });
-  healthRedis.on("error", () => {
-    // Errors surface via the checker's PING failure path.
-  });
+  const healthRedis = createHealthRedisConnection(env.REDIS_URL, logger);
 
-  const healthManager = createHealthCheckManager(
-    { timeout: 5000, interval: 30000, retries: 3 },
-    healthScheduler
-  );
+  const healthManager = createHealthCheckManager(undefined, healthScheduler);
   healthManager.register("database", new DatabaseHealthChecker(publishHandle.repo), {
     type: "database",
     critical: true,
@@ -138,114 +123,14 @@ async function main(): Promise<void> {
 
   const metricsPort = env.METRICS_PORT ?? 3300;
 
-  const healthServer = http.createServer(async (req, res) => {
-    try {
-      const url = req.url || "/";
-
-      if (url === "/metrics") {
-        res.setHeader("Content-Type", metricsRegistry.contentType);
-        res.end(await metricsRegistry.metrics());
-        return;
-      }
-
-      if (url === "/health/live") {
-        res.setHeader("Content-Type", "application/json");
-        res.statusCode = 200;
-        res.end(
-          JSON.stringify({
-            status: "alive",
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-          })
-        );
-        return;
-      }
-
-      if (url === "/health/ready") {
-        // Asked one name at a time, NOT by filtering a whole-report scan: a
-        // critical name with no registered checker contributes zero entries to
-        // such a filter, and zero unhealthy entries reads as ready — a 200 over
-        // a dependency nobody checked. Per-name lookup makes that a NOT_FOUND,
-        // so the gate fails closed on its own wiring mistakes.
-        const { ready, unhealthyDependencies } = await evaluateReadiness(
-          healthManager,
-          criticalDependencies
-        );
-
-        res.setHeader("Content-Type", "application/json");
-        if (ready) {
-          res.statusCode = 200;
-          res.end(
-            JSON.stringify({
-              status: "ready",
-              timestamp: new Date().toISOString(),
-            })
-          );
-        } else {
-          res.statusCode = 503;
-          res.end(
-            JSON.stringify({
-              status: "not ready",
-              timestamp: new Date().toISOString(),
-              message: `Unhealthy critical dependencies: ${unhealthyDependencies.join(", ")}`,
-              unhealthyDependencies,
-            })
-          );
-        }
-        return;
-      }
-
-      if (url === "/health/detailed") {
-        const report = await healthManager.checkAll();
-        const statusCode = report.overall === "unhealthy" ? 503 : 200;
-        res.setHeader("Content-Type", "application/json");
-        res.statusCode = statusCode;
-        res.end(
-          JSON.stringify({
-            ok: report.overall !== "unhealthy",
-            status: report.overall,
-            score: report.score,
-            timestamp: report.timestamp.toISOString(),
-            uptime: report.uptime,
-            dependencies: report.dependencies.map((dep) => ({
-              name: dep.name,
-              type: dep.type,
-              status: dep.status,
-              latency: dep.latency,
-              message: dep.message,
-              critical: dep.critical,
-            })),
-            metrics: report.metrics,
-            alerts: report.alerts,
-          })
-        );
-        return;
-      }
-
-      if (url === "/health") {
-        const cached = healthManager.getCurrentStatus();
-        const status = cached ?? (await healthManager.checkAll());
-        const isHealthy = status.overall === "healthy";
-        res.setHeader("Content-Type", "application/json");
-        res.statusCode = isHealthy ? 200 : 503;
-        res.end(
-          JSON.stringify({
-            status: status.overall,
-            timestamp: status.timestamp.toISOString(),
-            uptime: status.uptime,
-          })
-        );
-        return;
-      }
-
-      res.statusCode = 404;
-      res.end();
-    } catch (err) {
-      logger.error({ err, url: req.url }, "Health endpoint handler failed");
-      res.statusCode = 500;
-      res.end();
-    }
-  });
+  const healthServer = http.createServer(
+    createHealthRequestHandler({
+      manager: healthManager,
+      criticalDependencies,
+      metrics: metricsRegistry,
+      logger,
+    })
+  );
 
   healthServer.listen(metricsPort, () => {
     healthManager.start();

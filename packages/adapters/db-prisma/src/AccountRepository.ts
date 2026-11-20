@@ -1,6 +1,6 @@
 /**
  * @file AccountRepository.ts
- * @description Prisma-backed repository for Account entities — create, update, list, and get
+ * @description Prisma-backed repository for Account entities — create, get, update and delete
  *              operations with subscription-tier and status handling.
  * @layer infrastructure
  */
@@ -193,29 +193,6 @@ export function createAccountRepository(
           return err("NOT_FOUND");
         }
         logger.error({ err: error }, "deleteAccount error");
-        return err("DATABASE_ERROR");
-      }
-    },
-
-    async listAccounts(): Promise<Result<Account[], "DATABASE_ERROR">> {
-      try {
-        const accounts = await prisma.account.findMany({
-          orderBy: { createdAt: "desc" },
-        });
-
-        const result: Account[] = accounts.map((account) => ({
-          id: account.id,
-          email: account.email,
-          name: account.name,
-
-          maxProjects: account.maxProjects,
-          createdAt: account.createdAt,
-          updatedAt: account.updatedAt,
-        }));
-
-        return ok(result);
-      } catch (error) {
-        logger.error({ err: error }, "listAccounts error");
         return err("DATABASE_ERROR");
       }
     },

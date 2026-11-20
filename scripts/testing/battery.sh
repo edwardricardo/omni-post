@@ -71,7 +71,7 @@ set -uo pipefail
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly. A full
 # run hands it to battery-state.mjs as --expected-steps, at the end of this file.
-PLANNED_STEPS=36
+PLANNED_STEPS=37
 
 USAGE="usage: scripts/testing/battery.sh [--static] [--list] [<worktree>]"
 usage() {
@@ -218,6 +218,9 @@ battery_steps() {
   # the rules, equal .claude/instruction-manifest.json and fit its byte budget, and each moved record
   # keeps a live path-scoped rule and is never loaded. It reads git's listing and the files only.
   step static instruction-context pnpm check:instruction-context
+  # Fitness #56: no feature the chain table of docs/product/PLAN.md marks closed holds an open item
+  # under its record. It reads the plan's files only.
+  step static plan-closure pnpm check:plan-closure
   # Every story of a portal as a vitest browser test in headless Chromium: it renders,
   # its play function runs, and axe at `error` and the console contract can fail it.
   # The preflight turns a missing browser into a one-line verdict instead of a

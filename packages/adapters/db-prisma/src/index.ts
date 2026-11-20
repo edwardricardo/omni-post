@@ -12,6 +12,7 @@ import {
   type DatabaseHealthMetrics,
 } from "./resilience.js";
 import type { PrismaClient } from "@infra/prisma";
+import { ok, err, type Result } from "@shared/types";
 import { createLogger } from "@observability/logger";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
@@ -75,6 +76,16 @@ export {
   type PrismaTweetStatus,
 } from "./mappers.js";
 
+/**
+ * @function createPrismaRepoAdapter
+ * @description Builds the Prisma implementation of `RepoPort` over an injected client: the
+ *   sub-repositories, their circuit breakers, the connection monitor (on the scheduler when one is
+ *   given) and the ping the database health check asks.
+ * @param options - The Prisma client, the optional scheduler for the connection monitor, and the
+ *   optional decryptor of channel credentials.
+ * @returns The repository port, with its health metrics and a `close` that stops the monitor and
+ *   disconnects the client.
+ */
 export function createPrismaRepoAdapter(options: {
   prisma: PrismaClient;
   scheduler?: BackgroundTaskScheduler;
@@ -161,6 +172,14 @@ export function createPrismaRepoAdapter(options: {
   const threadRepo = createThreadRepository(options.prisma);
 
   return {
+    // One attempt and no circuit breaker: the health check asks whether the database answers
+    // now, and its next refresh is the retry.
+    async ping(): Promise<Result<void, "DATABASE_ERROR">> {
+      return (await checkDatabaseConnection(options.prisma))
+        ? ok(undefined)
+        : err("DATABASE_ERROR");
+    },
+
     // Account methods
     ...accountRepo,
 

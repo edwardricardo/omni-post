@@ -4,14 +4,15 @@
  *              owner channel and migrated from empty with the script CI and the start command
  *              run. Most cases call the command's function in this process, with the composition
  *              root built on a client of that database and a standard output that says it is a
- *              terminal; each case starts from the tables the command writes (`Role`,
- *              `RolePermission`, `AdminUser`, `AdminSession`, `AuditLog`) emptied. The cases of
- *              `--reissue` create the administrator with the command first.
+ *              terminal; each case starts from the database emptied back to the state the
+ *              migration left, every table but the migrations' own. The cases of `--reissue`
+ *              create the administrator with the command first.
  *
  *              The cases of runs at once do not leave the interleaving to chance: a third
  *              connection holds what both runs need (an uncommitted `Role` row on the empty
  *              database, the `Role` row's lock where the role exists, the `AdminUser` row's lock
- *              for two re-issues), waits until both runs are blocked on it, observed in
+ *              for two re-issues, or that row deactivated and not yet committed against one
+ *              re-issue), waits until the runs are blocked on it, observed in
  *              `pg_stat_activity` and not guessed with a sleep, and only then lets them go.
  *
  *              The two process cases run the command, once creating and once re-issuing, with its
@@ -23,14 +24,18 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFile, spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { until } from "@packages/vitest-shared/determinism";
 import { createTestPrismaClient, type Prisma, type PrismaClient } from "@infra/prisma";
 import { SUPER_ADMIN_ROLE } from "@infra/prisma/adminSystemRoles.js";
-import { assertSeedChannelConfigured, resolveSeedDatabaseUrl } from "./helpers/seedPrismaClient.js";
+import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
+import {
+  createMigratedScratchDatabase,
+  type MigratedScratchDatabase,
+} from "./helpers/migratedScratchDatabase.js";
 import { runFirstAdministratorCommand } from "../../src/cli/firstAdministratorCommand.js";
 import {
   composeCreateFirstAdministrator,
@@ -41,15 +46,11 @@ import { PasswordService } from "../../src/admin/auth/PasswordService.js";
 
 assertSeedChannelConfigured();
 
-const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const API_DIR = fileURLToPath(new URL("../../", import.meta.url));
-
-/** Long enough for every migration on a loaded runner; a hung migration still ends the suite. */
-const MIGRATION_TIMEOUT_MS = 120_000;
 
 /**
  * Budget for every test and hook in this file, passed to each call: the runner's `--test-timeout`
- * binds every test and every hook. The migration in `before` blocks for up to its own limit.
+ * binds every test and every hook. The migration in `before` runs for up to its own limit.
  */
 const TIMING = { timeout: 180_000 } as const;
 
@@ -72,8 +73,10 @@ const REFUSALS = {
     "Refused: This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued\n",
   notMarked:
     "Refused: This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued\n",
+  deactivated:
+    "Refused: This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued\n",
   changedSinceRead:
-    "Refused: The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now\n",
+    "Refused: The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now\n",
 } as const;
 
 /** The arguments that switch the command to re-issuing the single-use password. */
@@ -94,13 +97,6 @@ interface CommandRun {
   readonly code: number;
   readonly stdout: string;
   readonly stderr: string;
-}
-
-/** The connection string of another database on the same server, with the same credentials. */
-function urlOfDatabase(ownerUrl: string, database: string): string {
-  const url = new URL(ownerUrl);
-  url.pathname = `/${database}`;
-  return url.toString();
 }
 
 /** The block the command writes on success. */
@@ -128,6 +124,7 @@ function reissuedBlock(email: string, password: string): string {
     "The password is shown this once and is stored nowhere: only its hash is kept.",
     "The previous single-use password no longer works, and every session of this administrator was ended.",
     "Sign in with it now and change it at once.",
+    "If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within 30 minutes.",
     "",
   ].join("\n");
 }
@@ -174,37 +171,22 @@ async function readState(client: PrismaClient) {
 }
 
 describe("The first-administrator command on a migrated database", { concurrency: 1 }, () => {
-  const database = `omnipost_first_admin_${randomBytes(6).toString("hex")}`;
   const hasher = new Argon2PasswordHasher();
-  let owner: PrismaClient | undefined;
+  let database: MigratedScratchDatabase | undefined;
   let scratch: PrismaClient | undefined;
   let scratchUrl = "";
-  let migration: SpawnSyncReturns<string> | undefined;
 
   /**
-   * The migrated database with the command's three tables emptied, or a failed assertion that
-   * carries the migration's own output. The verdict is asserted here and not in `before`,
-   * because node:test reports a failing hook by cancelling every case instead of failing one
-   * with the reason.
+   * The migrated database emptied back to the state the migration left, every table but the
+   * migrations' own, or a failed assertion that carries the migration's own output. The verdict
+   * is asserted here and not in `before`, because node:test reports a failing hook by cancelling
+   * every case instead of failing one with the reason.
    */
   async function emptyDatabase(): Promise<PrismaClient> {
-    assert.ok(migration, `the migration of ${database} ran`);
-    const outcome = [
-      `status ${String(migration.status)}`,
-      ...(migration.signal ? [`signal ${migration.signal}`] : []),
-      ...(migration.error ? [migration.error.message] : []),
-    ].join(", ");
-    const output = [migration.stdout, migration.stderr].filter(Boolean).join("\n");
-    assert.equal(
-      migration.status,
-      0,
-      `the migration of ${database} ended with ${outcome}:\n${output}`
-    );
-    assert.ok(scratch, `a client of ${database} was built`);
-    await scratch.auditLog.deleteMany({});
-    await scratch.adminSession.deleteMany({});
-    await scratch.adminUser.deleteMany({});
-    await scratch.role.deleteMany({});
+    assert.ok(database, "the scratch database was created");
+    database.assertMigrated();
+    assert.ok(scratch, `a client of ${database.name} was built`);
+    await database.empty();
     return scratch;
   }
 
@@ -302,14 +284,14 @@ describe("The first-administrator command on a migrated database", { concurrency
 
   /** Resolves once at least `count` backends of the test's database wait on a lock. */
   async function waitUntilBlocked(count: number): Promise<void> {
-    assert.ok(owner, "the owner client was built");
-    const observer = owner;
+    assert.ok(database, "the scratch database was created");
+    const { owner: observer, name } = database;
     await until(
       async () => {
         const rows = await observer.$queryRaw<{ waiting: bigint }[]>`
           SELECT count(*) AS waiting
           FROM pg_stat_activity
-          WHERE datname = ${database} AND cardinality(pg_blocking_pids(pid)) > 0
+          WHERE datname = ${name} AND cardinality(pg_blocking_pids(pid)) > 0
         `;
         return Number(rows[0]?.waiting ?? 0) >= count;
       },
@@ -443,32 +425,14 @@ describe("The first-administrator command on a migrated database", { concurrency
   }
 
   before(async () => {
-    const ownerUrl = resolveSeedDatabaseUrl();
-    owner = createTestPrismaClient(ownerUrl);
-    await owner.$executeRawUnsafe(`CREATE DATABASE "${database}"`);
-    scratchUrl = urlOfDatabase(ownerUrl, database);
-    migration = spawnSync("pnpm", ["--filter", "@infra/prisma", "run", "migrate"], {
-      cwd: REPOSITORY_ROOT,
-      env: {
-        ...process.env,
-        MIGRATE_DATABASE_URL: scratchUrl,
-        // Prisma refuses an empty shadow URL, and one that names the database it migrates,
-        // although applying migrations never opens the shadow database.
-        SHADOW_DATABASE_URL:
-          process.env.SHADOW_DATABASE_URL || urlOfDatabase(ownerUrl, `${database}_shadow`),
-      },
-      encoding: "utf8",
-      timeout: MIGRATION_TIMEOUT_MS,
-    });
+    database = await createMigratedScratchDatabase("omnipost_first_admin");
+    scratchUrl = database.url;
     scratch = createTestPrismaClient(scratchUrl);
   }, TIMING);
 
   after(async () => {
     await scratch?.$disconnect();
-    if (owner) {
-      await owner.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
-      await owner.$disconnect();
-    }
+    await database?.drop();
   }, TIMING);
 
   it(
@@ -636,6 +600,36 @@ describe("The first-administrator command on a migrated database", { concurrency
   );
 
   it(
+    "activates the SUPER_ADMIN role with its definition's permissions and creates the administrator, when the role was deactivated and no administrator exists",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      await client.role.create({
+        data: {
+          id: SUPER_ADMIN_ROLE.id,
+          name: SUPER_ADMIN_ROLE.name,
+          description: SUPER_ADMIN_ROLE.description,
+          level: SUPER_ADMIN_ROLE.level,
+          isSystem: SUPER_ADMIN_ROLE.isSystem,
+          isActive: false,
+          permissions: { create: [{ permission: "user:read" }] },
+        },
+      });
+
+      const run = await runCommand(client, "first.admin@example.com");
+
+      assert.equal(run.code, 0, run.stderr);
+      const state = await readState(client);
+      assert.deepEqual(state.roles, [SUPER_ADMIN_ROW]);
+      assert.equal(state.permissionRows, SUPER_ADMIN_ROLE.permissions.length);
+      assert.deepEqual(
+        state.administrators.map(({ roleId }) => roleId),
+        [SUPER_ADMIN_ROLE.id]
+      );
+    }
+  );
+
+  it(
     "refuses with the message of a lasting refusal and creates nothing, when a role of that name holds another id",
     TIMING,
     async () => {
@@ -783,8 +777,11 @@ describe("The first-administrator command on a migrated database", { concurrency
       );
       assert.equal(state.sessions.length, 2);
       assert.deepEqual(
-        state.sessions.map((session) => session.isActive),
-        [false, false]
+        state.sessions.map((session) => [session.isActive, session.revokeReason]),
+        [
+          [false, "PASSWORD_REISSUED"],
+          [false, "PASSWORD_REISSUED"],
+        ]
       );
       assert.deepEqual(
         state.auditRecords.map((record) => ({
@@ -892,6 +889,67 @@ describe("The first-administrator command on a migrated database", { concurrency
 
       assert.deepEqual(run, { code: 1, stdout: "", stderr: REFUSALS.notMarked });
       assert.deepEqual(await readState(client), initial);
+    }
+  );
+
+  it(
+    "refuses a re-issue and changes nothing, when the administrator is deactivated",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      await client.adminUser.update({
+        where: { id: created.administrator.id },
+        data: { isActive: false },
+      });
+      await openSession(client, created.administrator.id);
+      const initial = await readState(client);
+
+      const run = await runCommand(client, email, REISSUE);
+
+      assert.deepEqual(run, { code: 1, stdout: "", stderr: REFUSALS.deactivated });
+      assert.deepEqual(await readState(client), initial);
+    }
+  );
+
+  it(
+    "refuses a re-issue as changed since its read and changes nothing more, when the administrator is deactivated between the read and the write",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      await openSession(client, created.administrator.id);
+
+      // The deactivation holds the administrator's row lock uncommitted: the re-issue reads the
+      // row as active, which a plain read does not wait for, and then waits in its guarded write;
+      // once the deactivation commits, the write re-checks the row and matches nothing.
+      const [run] = await runWhileHeld(
+        client,
+        (tx) =>
+          tx.adminUser.update({
+            where: { id: created.administrator.id },
+            data: { isActive: false },
+          }),
+        "commit",
+        [() => runWithOwnClient(email, REISSUE)]
+      );
+
+      assert.deepEqual(run, { code: 1, stdout: "", stderr: REFUSALS.changedSinceRead });
+      const state = await readState(client);
+      const [administrator] = state.administrators;
+      assert.ok(administrator);
+      assert.equal(administrator.isActive, false);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), true);
+      assert.deepEqual(
+        state.sessions.map((session) => [session.isActive, session.revokeReason]),
+        [[true, null]]
+      );
+      assert.deepEqual(
+        state.auditRecords.map((record) => record.action),
+        ["FIRST_ADMINISTRATOR_CREATED"]
+      );
     }
   );
 

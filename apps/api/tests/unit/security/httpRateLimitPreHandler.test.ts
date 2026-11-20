@@ -18,6 +18,7 @@ import {
   STANDARD_ROUTE_RULES,
   EXPENSIVE_ENDPOINT_RULES,
 } from "../../../src/security/httpRateLimitPreHandler.js";
+import { InMemoryTokenBucketRateLimiter } from "../../../src/ai/providers/InMemoryTokenBucketRateLimiter.js";
 
 interface FakeReqOptions {
   readonly xff?: string;
@@ -401,6 +402,61 @@ describe("createHttpRateLimitPreHandler behind Fastify's router", () => {
     for (const call of calls) {
       expect(call.opts?.capacity).toBe(RateLimitConfigs.STANDARD.maxRequests);
     }
+  });
+});
+
+describe("createHttpRateLimitPreHandler on an OPTIONS request", () => {
+  // The API registers no OPTIONS route, so a preflight reaches the not-found context,
+  // whose instance hooks run: the limiter must charge it like any unrouted request.
+  const DEFAULT_RULE = { windowMs: 60_000, maxRequests: 3 };
+  const PREFLIGHT = {
+    origin: "https://foreign.example",
+    "access-control-request-method": "POST",
+  };
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    // A frozen clock: no bucket refills while the case runs.
+    const limiter = new InMemoryTokenBucketRateLimiter({ now: () => 0 });
+    app = Fastify({ logger: false });
+    app.addHook(
+      "preHandler",
+      createHttpRateLimitPreHandler(limiter, {
+        defaultConfig: DEFAULT_RULE,
+        rules: [...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES],
+      })
+    );
+    app.get("/posts/:id", async () => ({ ok: true }));
+    app.delete("/posts/:id", async () => ({ ok: true }));
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("charges an OPTIONS request to the unrouted bucket under the default rule, apart from the routed one, and answers 429 past it", async () => {
+    const preflights = [];
+    for (const url of ["/posts/123", "/posts/123", "/posts/456"]) {
+      preflights.push(await app.inject({ method: "OPTIONS", url, headers: PREFLIGHT }));
+    }
+    const routed = await app.inject({ method: "GET", url: "/posts/123" });
+    const pastTheLimit = await app.inject({
+      method: "OPTIONS",
+      url: "/posts/123",
+      headers: PREFLIGHT,
+    });
+
+    expect(preflights.map((r) => [r.statusCode, r.headers["x-ratelimit-remaining"]])).toEqual([
+      [404, "2"],
+      [404, "1"],
+      [404, "0"],
+    ]);
+    expect(routed.statusCode).toBe(200);
+    expect(routed.headers["x-ratelimit-remaining"]).toBe("2");
+    expect(pastTheLimit.statusCode).toBe(429);
+    expect(pastTheLimit.headers["retry-after"]).toBe("20");
+    expect(pastTheLimit.json()).toMatchObject({ ok: false, error: "RATE_LIMIT_EXCEEDED" });
   });
 });
 

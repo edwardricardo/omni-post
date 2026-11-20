@@ -1,10 +1,12 @@
 /**
  * @file seedGuard.test.ts
  * @description Pins `evaluateSeedEnvironment` (`infra/prisma/src/seedGuard.ts`), the pure guard
- *   the development seed runs once its env file is loaded, before it builds its database client: a
- *   `NODE_ENV` that is `production` once trimmed and lower-cased is refused with the guard's reason,
- *   so a mistyped casing fails closed, and every other value, the absent and the empty included, is
- *   allowed. Each case asserts the whole verdict, the reason's text included.
+ *   the development seed runs once its env file is loaded, before it loads its database client: the
+ *   seed runs only when `NODE_ENV` is exactly `development` or `test`, or is absent, which counts as
+ *   development. Every other value is refused, `production`, `staging`, the empty value, an unknown
+ *   one and a different casing or surrounding whitespace of an accepted one alike, with a reason
+ *   that names the value it met, quoted, and the two it accepts. Each case asserts the whole
+ *   verdict, the reason's text included.
  *
  *   It also pins `evaluateAdminPassword`, the second rule the seed runs at the same place: the seed
  *   creates an administrator and takes no default password, so an `ADMIN_PASSWORD` that is absent,
@@ -20,15 +22,16 @@ import {
   evaluateSeedEnvironment,
 } from "../../../../infra/prisma/src/seedGuard.js";
 
-/** The verdict a production environment receives, reason included. */
-const REFUSED_UNDER_PRODUCTION = {
-  allowed: false,
-  reason:
-    "The development seed does not run under a production environment: NODE_ENV is production.",
-} as const;
-
-/** The verdict every other environment receives. */
+/** The verdict an allowed environment receives. */
 const ALLOWED = { allowed: true } as const;
+
+/** The verdict a refused environment receives, whose reason shows the value as `shown`. */
+function refusedWith(shown: string): { allowed: false; reason: string } {
+  return {
+    allowed: false,
+    reason: `The development seed runs only when NODE_ENV is development or test, or is unset: NODE_ENV is ${shown}.`,
+  };
+}
 
 /** An environment that sets `NODE_ENV` to `value`, or leaves it out when `value` is undefined. */
 function environmentWith(value?: string): { NODE_ENV?: string } {
@@ -36,38 +39,52 @@ function environmentWith(value?: string): { NODE_ENV?: string } {
 }
 
 describe("evaluateSeedEnvironment", () => {
-  it("refuses the seed with the production reason when NODE_ENV is production", () => {
-    assert.deepStrictEqual(
-      evaluateSeedEnvironment(environmentWith("production")),
-      REFUSED_UNDER_PRODUCTION
-    );
+  it("allows the seed when NODE_ENV is development", () => {
+    assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith("development")), ALLOWED);
   });
 
-  it.each(["Production", "PRODUCTION", " production", "production ", "\tPrOdUcTiOn\n"])(
-    "refuses the seed with the production reason when NODE_ENV is %j, production by casing or surrounding whitespace",
-    (value) => {
-      assert.deepStrictEqual(
-        evaluateSeedEnvironment(environmentWith(value)),
-        REFUSED_UNDER_PRODUCTION
-      );
-    }
-  );
-
-  it.each(["development", "test"])("allows the seed when NODE_ENV is %j", (value) => {
-    assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith(value)), ALLOWED);
+  it("allows the seed when NODE_ENV is test", () => {
+    assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith("test")), ALLOWED);
   });
 
-  it("allows the seed when NODE_ENV is absent", () => {
+  it("allows the seed when NODE_ENV is absent, which counts as development", () => {
     assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith()), ALLOWED);
   });
 
-  it("allows the seed when NODE_ENV is empty", () => {
-    assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith("")), ALLOWED);
+  it("refuses the seed with a reason naming the value when NODE_ENV is production", () => {
+    assert.deepStrictEqual(
+      evaluateSeedEnvironment(environmentWith("production")),
+      refusedWith('"production"')
+    );
   });
 
-  it("allows the seed when NODE_ENV only contains production inside a longer value", () => {
-    assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith("preproduction")), ALLOWED);
+  it("refuses the seed with a reason naming the value when NODE_ENV is staging", () => {
+    assert.deepStrictEqual(
+      evaluateSeedEnvironment(environmentWith("staging")),
+      refusedWith('"staging"')
+    );
   });
+
+  it("refuses the seed with a reason naming the empty value when NODE_ENV is empty", () => {
+    assert.deepStrictEqual(evaluateSeedEnvironment(environmentWith("")), refusedWith('""'));
+  });
+
+  it("refuses the seed with a reason naming the value when NODE_ENV is an unknown value", () => {
+    assert.deepStrictEqual(
+      evaluateSeedEnvironment(environmentWith("preproduction")),
+      refusedWith('"preproduction"')
+    );
+  });
+
+  it.each(["Development", "TEST", " test", "development\n"])(
+    "refuses the seed with a reason naming the value when NODE_ENV is %j, an accepted value by another casing or whitespace",
+    (value) => {
+      assert.deepStrictEqual(
+        evaluateSeedEnvironment(environmentWith(value)),
+        refusedWith(JSON.stringify(value))
+      );
+    }
+  );
 });
 
 /** The verdict an environment with no usable administrator password receives, reason included. */

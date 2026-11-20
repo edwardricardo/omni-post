@@ -1,19 +1,23 @@
 /**
  * @file ReissueAdministratorPasswordUseCase.ts
  * @description Issues a new single-use password to an administrator whose single-use password
- *   nobody saw: one that exists, has never signed in and must still change the password. Every
- *   other administrator is refused and nothing is written. In one transaction the new hash
- *   replaces the one that was read and a pending password reset is cleared, every session of the
- *   administrator ends, and a system audit record of the re-issue is written. The mark to change
- *   the password, the sign-in date and the password history are left as they are, so the new
- *   password must be changed at the first sign-in as the old one had to be. The single-use
- *   password leaves the use case once, in its output.
+ *   nobody saw: one that exists, has never signed in, must still change the password and is
+ *   active. Every other administrator is refused and nothing is written. In one transaction the
+ *   new hash replaces the one that was read and a pending password reset is cleared, every
+ *   session of the administrator ends with the re-issue as its reason, and a system audit record
+ *   of the re-issue is written. The mark to change the password, the sign-in date and the
+ *   password history are left as they are, so the new password must be changed at the first
+ *   sign-in as the old one had to be. The single-use password leaves the use case once, in its
+ *   output.
  * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
+import {
+  ADMIN_SESSION_REVOKE_REASONS,
+  type AdminSessionRepository,
+} from "@core/domain/repositories/AdminSessionRepository.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AdminUserCredentialsDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -35,10 +39,12 @@ const MESSAGES = {
     "This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued",
   notMarked:
     "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
+  deactivated:
+    "This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued",
   readFailed: "Reading the administrator failed",
   replaceFailed: "Replacing the single-use password failed",
   changedSinceRead:
-    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
+    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now",
   revokeFailed: "Ending the administrator's sessions failed",
   auditFailed: "Writing the audit record of the re-issue failed",
   transactionFailed:
@@ -80,13 +86,14 @@ export type ReissueSessionRepository = Pick<AdminSessionRepository, "revokeAllFo
 
 /**
  * @class ReissueAdministratorPasswordUseCase
- * @description Re-issues the single-use password of an administrator who has never signed in and
- *   must still change the password. The administrator is read before the transaction; what
- *   decides the outcome is the write, which lands only while the row is still what was read, so
- *   of two re-issues at once, or of a re-issue and the administrator's own change of the
- *   password, exactly one wins and the other writes nothing. The Unit of Work is required: the
- *   sessions and the audit record are written only with the password they go with. The use case
- *   takes no logger, and the single-use password appears in no error and no message.
+ * @description Re-issues the single-use password of an administrator who has never signed in,
+ *   must still change the password and is active. The administrator is read before the
+ *   transaction; what decides the outcome is the write, which lands only while the row is still
+ *   what was read, so of two re-issues at once, or of a re-issue and the administrator's own
+ *   change of the password, exactly one wins and the other writes nothing, and a re-issue whose
+ *   administrator was deactivated after the read writes nothing either. The Unit of Work is
+ *   required: the sessions and the audit record are written only with the password they go with.
+ *   The use case takes no logger, and the single-use password appears in no error and no message.
  */
 export class ReissueAdministratorPasswordUseCase implements UseCase<
   ReissueAdministratorPasswordInput,
@@ -105,14 +112,15 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
   /**
    * @method execute
    * @description Normalizes the e-mail, reads the administrator with it and refuses unless it
-   *   exists, has never signed in and must still change the password; draws and hashes the new
-   *   password outside the transaction, then in one transaction replaces the hash only where the
-   *   row is still what was read, ends every session of the administrator and writes the system
-   *   audit record of the re-issue.
+   *   exists, has never signed in, must still change the password and is active; draws and
+   *   hashes the new password outside the transaction, then in one transaction replaces the hash
+   *   only where the row is still what was read, ends every session of the administrator with the
+   *   re-issue as the reason and writes the system audit record of the re-issue.
    * @param input - The e-mail of the administrator
    * @returns The administrator's id and stored e-mail with the new single-use password on success;
    *   NOT_FOUND when no administrator has the e-mail; CONFLICT when the administrator has signed
-   *   in, is not marked to change the password, or changed between the read and the write;
+   *   in, is not marked to change the password, is deactivated, or changed between the read and
+   *   the write;
    *   INTERNAL_ERROR carrying the original error when the read, the generator, the hasher, a
    *   repository, the audit log or the transaction fails
    */
@@ -138,7 +146,9 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
 
   /**
    * Reads the administrator and refuses, with one message per reason, unless it exists, has never
-   * signed in and must still change the password.
+   * signed in, must still change the password and is active. The deactivation is checked last:
+   * its message tells the operator to reactivate the administrator first, which is true only of an
+   * administrator the re-issue would otherwise serve.
    */
   private async readEligibleAdministrator(
     email: string
@@ -159,6 +169,9 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     }
     if (!found.value.mustChangePassword) {
       return err(new UseCaseError(MESSAGES.notMarked, USE_CASE_ERRORS.CONFLICT));
+    }
+    if (!found.value.isActive) {
+      return err(new UseCaseError(MESSAGES.deactivated, USE_CASE_ERRORS.CONFLICT));
     }
     return found;
   }
@@ -195,7 +208,10 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     // A session can exist while the sign-in date is still empty, and it must not outlive the
     // password it was opened with.
     try {
-      await this.sessions.revokeAllForUser(administrator.id);
+      await this.sessions.revokeAllForUser(
+        administrator.id,
+        ADMIN_SESSION_REVOKE_REASONS.PASSWORD_REISSUED
+      );
     } catch (error: unknown) {
       return err(
         new UseCaseError(MESSAGES.revokeFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))

@@ -249,15 +249,17 @@ jobs:
       fail-fast: false
 
     env:
-      # The portals inline their browser Sentry DSN at `next build` (DEF-86): it
-      # comes from the repository variable NEXT_PUBLIC_SENTRY_DSN — a public DSN,
-      # not a secret — and only the two portal Dockerfiles declare the ARG, so the
-      # api and workers builds receive none (an unconsumed build-arg would only
-      # warn, but a warning nobody reads is noise). Unset, the ARG default "" keeps
-      # the browser SDK disabled, exactly as before. The server DSN stays a runtime
-      # variable. Computed once here so the scanned build and the push below pass
-      # the same argument.
-      SENTRY_DSN_BUILD_ARG: ${{ (matrix.service == 'admin' || matrix.service == 'client') && format('NEXT_PUBLIC_SENTRY_DSN={0}', vars.NEXT_PUBLIC_SENTRY_DSN) || '' }}
+      # The portals inline their browser Sentry DSN at `next build` (DEF-86). Each
+      # portal reads its own repository variable, ADMIN_NEXT_PUBLIC_SENTRY_DSN or
+      # CLIENT_NEXT_PUBLIC_SENTRY_DSN, so the two portals report to two Sentry
+      # projects; either is a public DSN, not a secret. Both reach the image under
+      # the one name the portals read, NEXT_PUBLIC_SENTRY_DSN. Only the two portal
+      # Dockerfiles declare the ARG, so the api and workers builds receive none (an
+      # unconsumed build-arg would only warn, but a warning nobody reads is noise).
+      # Unset, the ARG default "" keeps the browser SDK disabled. The server DSN
+      # stays a runtime variable. Computed once here so the scanned build and the
+      # push below pass the same argument.
+      SENTRY_DSN_BUILD_ARG: ${{ matrix.service == 'admin' && format('NEXT_PUBLIC_SENTRY_DSN={0}', vars.ADMIN_NEXT_PUBLIC_SENTRY_DSN) || matrix.service == 'client' && format('NEXT_PUBLIC_SENTRY_DSN={0}', vars.CLIENT_NEXT_PUBLIC_SENTRY_DSN) || '' }}
 
     steps:
       - name: Checkout repository

@@ -2,12 +2,12 @@
  * @file adminRequiredPasswordChange.integration.test.ts
  * @description `POST /admin/auth/password/change-required` and the two password sign-ins of an
  *              administrator, `POST /admin/auth/login` and `POST /auth/login`, against a database
- *              of its own, migrated from empty. Each case empties the administrators' tables and
- *              creates the first administrator through the composition the operator command
- *              uses, so the administrator holds a single-use password and must change it. The
- *              routes run over the real `AdminAuthService` and `AuthService` on a client of that
- *              database, without Redis; the brute-force port allows every attempt and records
- *              nothing, since the subject is the stored rows. Both sign-ins refuse the
+ *              of its own, migrated from empty. Each case empties that database back to the state
+ *              the migration left and creates the first administrator through the composition the
+ *              operator command uses, so the administrator holds a single-use password and must
+ *              change it. The routes run over the real `AdminAuthService` and `AuthService` on a
+ *              client of that database, without Redis; the brute-force port allows every attempt
+ *              and records nothing, since the subject is the stored rows. Both sign-ins refuse the
  *              single-use password with one audit row of the refusal, no session and no
  *              `lastLoginAt`; once the password is changed, the administrator signs in with the
  *              new one at both, and the old one is refused.
@@ -27,6 +27,7 @@ import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
+import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { ok } from "@shared/types";
 import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
@@ -140,22 +141,28 @@ describe("The required password change on a migrated database", { concurrency: 1
     return scratch;
   }
 
-  /** Empties the administrators' tables and creates the first administrator as the command does. */
+  /**
+   * Empties the database back to the state the migration left, every table but the migrations'
+   * own, and creates the first administrator as the command does.
+   */
   async function firstAdministrator(): Promise<FirstAdministrator> {
     const client = migrated();
-    await client.auditLog.deleteMany({});
-    await client.adminSession.deleteMany({});
-    await client.adminUser.deleteMany({});
-    await client.role.deleteMany({});
+    assert.ok(database, "the scratch database was created");
+    await database.empty();
     const created = await composeCreateFirstAdministrator(client).execute({ email: ADMIN_EMAIL });
     assert.ok(created.ok, "the first administrator was created");
     return { id: created.value.id, email: created.value.email, password: created.value.password };
   }
 
-  /** The routes over the real services on the application's client of the scratch database. */
+  /**
+   * The routes over the real services on the application's client of the scratch database, on an
+   * app with the Zod compilers `createApp()` sets.
+   */
   async function buildApp() {
     assert.ok(appClient, "an application client of the scratch database was built");
     const app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
     const container = new Container();
     container.registerInstance(
       TOKENS.AdminAuthService,

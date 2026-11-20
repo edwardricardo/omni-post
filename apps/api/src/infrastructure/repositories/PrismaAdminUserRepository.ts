@@ -1,7 +1,9 @@
 /**
  * @file PrismaAdminUserRepository.ts
  * @description Prisma adapter implementing AdminUserRepositoryPort.
- *              Receives PrismaClient via constructor injection.
+ *              Receives PrismaClient via constructor injection. Every query, read
+ *              or write, runs on the Unit of Work's transaction client when a
+ *              transaction is open, so a read inside it sees what it wrote.
  * @layer infrastructure
  */
 
@@ -97,7 +99,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
     identifier: string,
     type: "email" | "id" = "id"
   ): Promise<Result<AdminUserDto, "NOT_FOUND" | "USER_INACTIVE">> {
-    const user = await this.prisma.adminUser.findUnique({
+    const user = await this.getClient().adminUser.findUnique({
       where: type === "email" ? { email: normalizeEmail(identifier) } : { id: identifier },
       include: { role: true },
     });
@@ -115,7 +117,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
    * @returns Ok(user) when found, Err("NOT_FOUND") otherwise
    */
   async findById(id: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
-    const user = await this.prisma.adminUser.findUnique({
+    const user = await this.getClient().adminUser.findUnique({
       where: { id },
       include: { role: true },
     });
@@ -132,7 +134,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
    * @returns Ok(user) when found, Err("NOT_FOUND") otherwise
    */
   async findByEmail(email: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
-    const user = await this.prisma.adminUser.findUnique({
+    const user = await this.getClient().adminUser.findUnique({
       where: { email: normalizeEmail(email) },
       include: { role: true },
     });
@@ -149,7 +151,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
    * @returns Ok(user with credentials) when found, Err("NOT_FOUND") otherwise
    */
   async findCredentialsById(id: string): Promise<Result<AdminUserCredentialsDto, "NOT_FOUND">> {
-    const user = await this.prisma.adminUser.findUnique({
+    const user = await this.getClient().adminUser.findUnique({
       where: { id },
       include: { role: true },
     });
@@ -169,7 +171,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async findCredentialsByEmail(
     email: string
   ): Promise<Result<AdminUserCredentialsDto, "NOT_FOUND">> {
-    const user = await this.prisma.adminUser.findUnique({
+    const user = await this.getClient().adminUser.findUnique({
       where: { email: normalizeEmail(email) },
       include: { role: true },
     });
@@ -200,7 +202,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
    * @returns The matching users mapped to AdminUserDto, order not guaranteed
    */
   async findManyByIds(ids: string[]): Promise<AdminUserDto[]> {
-    const users = await this.prisma.adminUser.findMany({
+    const users = await this.getClient().adminUser.findMany({
       where: { id: { in: ids } },
       include: { role: true },
     });
@@ -291,14 +293,15 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
 
   /**
    * @method replaceSingleUsePassword
-   * @description Replaces the single-use password of an administrator who has never signed in
-   *   and must still change it, on the Unit of Work's client, and clears a pending password
-   *   reset as the reset's confirmation does, so a link issued before no longer sets the
-   *   password. The predicate names the id, the hash and the reset token as read, the mark and
-   *   the empty sign-in date, so the database decides whether the row is still the one that was
-   *   read: under Read Committed a concurrent committed writer makes the update re-check these
-   *   columns, and the loser matches no row. The mark, the sign-in date, the password history
-   *   and the hash's algorithm are not written.
+   * @description Replaces the single-use password of an active administrator who has never
+   *   signed in and must still change it, on the Unit of Work's client, and clears a pending
+   *   password reset as the reset's confirmation does, so a link issued before no longer sets
+   *   the password. The predicate names the id, the hash and the reset token as read, the mark,
+   *   the empty sign-in date and the active flag, so the database decides whether the row is
+   *   still the one that was read: under Read Committed a concurrent committed writer, a
+   *   deactivation included, makes the update re-check these columns, and the loser matches no
+   *   row. The mark, the sign-in date, the password history and the hash's algorithm are not
+   *   written.
    * @param replacement - The administrator, the hash and the reset token as read, and the new
    *   hash
    * @returns Ok(true) when one row was written, Ok(false) when none matched, or
@@ -315,6 +318,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
           passwordResetToken: replacement.currentPasswordResetToken,
           mustChangePassword: true,
           lastLoginAt: null,
+          isActive: true,
         },
         data: {
           passwordHash: replacement.passwordHash,
@@ -337,7 +341,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
    * @returns All admin users mapped to AdminUserDto
    */
   async findAll(): Promise<AdminUserDto[]> {
-    const users = await this.prisma.adminUser.findMany({
+    const users = await this.getClient().adminUser.findMany({
       include: { role: true },
       orderBy: { createdAt: "asc" },
     });
@@ -351,7 +355,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
    * @returns Matching users mapped to AdminUserDto, ordered by createdAt desc
    */
   async findByRoleId(roleId: string): Promise<AdminUserDto[]> {
-    const users = await this.prisma.adminUser.findMany({
+    const users = await this.getClient().adminUser.findMany({
       where: { roleId },
       include: { role: true },
       orderBy: { createdAt: "desc" },

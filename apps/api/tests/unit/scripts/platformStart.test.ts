@@ -53,6 +53,8 @@ import { promisify } from "node:util";
 import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
+import { evaluateAdminPassword } from "../../../../../infra/prisma/src/seedGuard.js";
+import { hasProcessEnded } from "../helpers/processState.js";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -139,6 +141,50 @@ const SECRETS = [
   "PLATFORM_ENCRYPTION_KEY",
   "OAUTH_ENCRYPTION_KEY",
   "DELETION_NAME_DIGEST_KEY_RING",
+  "ADMIN_PASSWORD",
+];
+
+/** Lowercase hex of `bytes` random bytes: two characters per byte. */
+const hexOf = (bytes: number): RegExp => new RegExp(`^[0-9a-f]{${String(bytes * 2)}}$`);
+
+/** The value a secret is held to, read off the generated environment. */
+type SecretReading = (values: Record<string, string | undefined>) => string;
+
+/** The variable's own value. */
+const own =
+  (key: string): SecretReading =>
+  (values) =>
+    values[key] ?? "";
+
+/**
+ * Every generated secret with the value it is held to and its size and alphabet, as the generator
+ * draws it: each password 24 random bytes in hex, each key and HMAC secret 32 in hex, the platform
+ * encryption key 32 in base64, and the key ring one entry of 32 in hex under generation 1.
+ */
+const SECRET_SHAPES: ReadonlyArray<[string, SecretReading, RegExp]> = [
+  ["POSTGRES_PASSWORD", own("POSTGRES_PASSWORD"), hexOf(24)],
+  ["GF_SECURITY_ADMIN_PASSWORD", own("GF_SECURITY_ADMIN_PASSWORD"), hexOf(24)],
+  ["MINIO_ROOT_PASSWORD", own("MINIO_ROOT_PASSWORD"), hexOf(24)],
+  ["JWT_ACCESS_SECRET", own("JWT_ACCESS_SECRET"), hexOf(32)],
+  ["JWT_REFRESH_SECRET", own("JWT_REFRESH_SECRET"), hexOf(32)],
+  ["CUSTOMER_JWT_SECRET", own("CUSTOMER_JWT_SECRET"), hexOf(32)],
+  ["ADMIN_JWT_ACCESS_SECRET", own("ADMIN_JWT_ACCESS_SECRET"), hexOf(32)],
+  ["ADMIN_JWT_REFRESH_SECRET", own("ADMIN_JWT_REFRESH_SECRET"), hexOf(32)],
+  ["COOKIE_SECRET", own("COOKIE_SECRET"), hexOf(32)],
+  ["PLATFORM_ENCRYPTION_KEY", own("PLATFORM_ENCRYPTION_KEY"), /^[A-Za-z0-9+/]{43}=$/],
+  ["OAUTH_ENCRYPTION_KEY", own("OAUTH_ENCRYPTION_KEY"), hexOf(32)],
+  [
+    "DELETION_NAME_DIGEST_KEY_RING",
+    (values) =>
+      JSON.stringify(Object.keys(JSON.parse(values.DELETION_NAME_DIGEST_KEY_RING ?? "{}"))),
+    /^\["1"\]$/,
+  ],
+  [
+    "DELETION_NAME_DIGEST_KEY_RING's entry",
+    (values) => String(JSON.parse(values.DELETION_NAME_DIGEST_KEY_RING ?? "{}")["1"] ?? ""),
+    hexOf(32),
+  ],
+  ["ADMIN_PASSWORD", own("ADMIN_PASSWORD"), hexOf(24)],
 ];
 
 /** Which database a connection reached, as the command asks a server for it. */
@@ -580,19 +626,9 @@ function signal(target: number, name: NodeJS.Signals): boolean {
   return true;
 }
 
-/**
- * Whether a process is running. An orphan that has ended can stay a zombie until its new parent
- * reaps it, and the system still answers for it, so the state the kernel reports decides first.
- */
+/** Whether a process is running, by the shared probe: it raises where there is no procfs. */
 function alive(pid: number): boolean {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    return stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3) !== "Z";
-  } catch (error) {
-    // A process that ends while it is read can fail the read with ESRCH instead of ENOENT.
-    if (!["ENOENT", "ESRCH"].includes(String((error as NodeJS.ErrnoException).code))) throw error;
-    return false;
-  }
+  return !hasProcessEnded(pid);
 }
 
 /**
@@ -877,6 +913,39 @@ describe("the generated environment", () => {
     );
   });
 
+  it("holds what the platform requires and, besides it, what the development tools need", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    expect(core.REQUIRED_KEYS).not.toContain("ADMIN_PASSWORD");
+    expect(Object.keys(values).sort()).toEqual([...core.REQUIRED_KEYS, "ADMIN_PASSWORD"].sort());
+  });
+
+  it("requires nothing of an existing file that only the development tools read", () => {
+    const values = Object.fromEntries(
+      core.generateEnvironment({ randomBytes }).filter(([key]) => key !== "ADMIN_PASSWORD")
+    );
+
+    expect(core.missingKeys(values)).toEqual([]);
+  });
+
+  it("gives the development seed an ADMIN_PASSWORD its password rule accepts", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    expect(evaluateAdminPassword(values)).toEqual({
+      allowed: true,
+      password: values.ADMIN_PASSWORD,
+    });
+  });
+
+  it.each(SECRET_SHAPES)(
+    "draws %s at the size and in the alphabet the generator means",
+    (_name, read, shape) => {
+      const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+      expect(read(values)).toMatch(shape);
+    }
+  );
+
   it("gives the platform encryption key exactly 32 bytes, written in base64", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
     const key = Buffer.from(values.PLATFORM_ENCRYPTION_KEY ?? "", "base64");
@@ -946,7 +1015,7 @@ describe("the start sequence", () => {
     expect(statSync(staged.file).mode & 0o777).toBe(0o600);
     expect(core.missingKeys(values)).toEqual([]);
     expect(new URL(values.DATABASE_URL ?? "").port).toBe(staged.ports.POSTGRES_HOST_PORT);
-    expect(result.stdout).toContain(`wrote ${staged.file} with 21 variables`);
+    expect(result.stdout).toContain(`wrote ${staged.file} with 22 variables`);
     expect(SECRETS.filter((key) => result.stdout.includes(values[key] ?? "unset"))).toEqual([]);
   });
 
@@ -963,6 +1032,32 @@ describe("the start sequence", () => {
     expect(result.stdout).toContain(
       `Postgres on 127.0.0.1:${listening.postgres} and Redis on 127.0.0.1:${listening.redis}`
     );
+  });
+
+  it("keeps the ADMIN_PASSWORD an existing file holds, and shows it nowhere", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const kept = "fake-admin-password-the-developer-chose";
+    const before = `${writeEnvironment(staged.file, ["ADMIN_PASSWORD"], listening)}ADMIN_PASSWORD=${kept}\n`;
+    writeFileSync(staged.file, before);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+    expect(result.stdout.includes(kept)).toBe(false);
+  });
+
+  it("starts with an existing file that lacks ADMIN_PASSWORD, and leaves the file as it was", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const before = writeEnvironment(staged.file, ["ADMIN_PASSWORD"], listening);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+    expect(result.stdout).toContain(`${staged.file} holds every required variable`);
   });
 
   it("fails naming each variable an existing file lacks, and leaves the file as it was", async () => {
@@ -3928,5 +4023,154 @@ describe("the stop of a failed start, driven in this process", () => {
     expect(sent.map(({ name }) => name)).toEqual(["SIGTERM", "SIGKILL"]);
     expect(Number(sent[1]?.at) - Number(sent[0]?.at)).toBeGreaterThanOrEqual(timing.graceMs);
     expect(line).toContain(`SIGKILL to ${pid} (/bin/sleep 60), still running 1 s later`);
+  });
+});
+
+describe("db:up, the services alone (--services-only)", () => {
+  /** Every call the pnpm stand-in logged: the proof, the migration and each app. */
+  const pnpmCalls = (staged: Stage): string[] =>
+    ["", ".api", ".workers", ".admin", ".client"].flatMap((suffix) =>
+      loggedCalls(`${staged.pnpmLog}${suffix}`)
+    );
+
+  it("starts both services, waits until each answers, and stops there: nothing migrated, no app", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const before = writeEnvironment(staged.file, [], listening);
+
+    const result = await start(["--root", staged.root, "--services-only"], staged.env);
+
+    expect(result).toEqual({
+      code: 0,
+      stdout:
+        `platform-start: ${staged.file} holds every required variable\n` +
+        `platform-start: Postgres on 127.0.0.1:${listening.postgres} answers a query\n` +
+        `platform-start: Redis on 127.0.0.1:${listening.redis} answers PING\n`,
+      stderr: "",
+    });
+    expect(dockerCalls(staged)).toEqual([
+      `compose version|${staged.root}`,
+      `${COMPOSE} up -d postgres redis|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c ${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE} || ' ' || ${INITIAL_DATABASE}"|${staged.root}`,
+    ]);
+    expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
+    expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
+    expect(pnpmCalls(staged)).toEqual([]);
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+  });
+
+  it("writes the environment a checkout lacks, as the start does, and starts nothing else", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--services-only"], {
+      ...staged.env,
+      POSTGRES_HOST_PORT: staged.ports.POSTGRES_HOST_PORT,
+      REDIS_HOST_PORT: staged.ports.REDIS_HOST_PORT,
+    });
+
+    expect({
+      code: result.code,
+      firstLine: result.stdout.split("\n")[0],
+      missing: core.missingKeys(core.readEnvironment(readFileSync(staged.file, "utf8"))),
+      pnpm: pnpmCalls(staged),
+    }).toEqual({
+      code: 0,
+      firstLine: `platform-start: wrote ${staged.file} with 22 variables, its secrets random`,
+      missing: [],
+      pnpm: [],
+    });
+  });
+
+  it("does not read the apps' ports: a PORT that is not a port refuses only the full start", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+
+    const result = await start(["--root", staged.root, "--services-only"], {
+      ...staged.env,
+      PORT: "70000",
+    });
+
+    expect({ code: result.code, stderr: result.stderr }).toEqual({ code: 0, stderr: "" });
+  });
+
+  it("fails naming Redis when it never answers PING, after saying Postgres answered", async () => {
+    const staged = await stage({ redis: await listen(null) });
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+
+    const result = await start(
+      ["--root", staged.root, "--services-only", "--wait-seconds", "1"],
+      staged.env
+    );
+
+    expect({
+      code: result.code,
+      postgres: result.stdout.includes(`Postgres on 127.0.0.1:${staged.postgres.port} answers`),
+      stderr: result.stderr,
+      pnpm: pnpmCalls(staged),
+    }).toEqual({
+      code: 1,
+      postgres: true,
+      stderr: `platform-start: Redis did not answer PING on 127.0.0.1:${staged.redis.port} within 1 s (\`docker compose logs redis\`)\n`,
+      pnpm: [],
+    });
+  });
+
+  it("fails naming Postgres when it never answers, before Redis is asked", async () => {
+    const staged = await stage({ postgres: await listen(null) });
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+
+    const result = await start(
+      ["--root", staged.root, "--services-only", "--wait-seconds", "1"],
+      staged.env
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      redisAsked: staged.redis.received.length,
+    }).toEqual({
+      code: 1,
+      stderr: `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`,
+      redisAsked: 0,
+    });
+  });
+
+  it("says in the usage that --services-only starts the two services and stops once they answer", async () => {
+    const { root } = makeRoot();
+
+    const result = await start(["--root", root, "--help"]);
+
+    expect(result.stdout).toContain(
+      "  --services-only      start Postgres and Redis, wait until each answers, and stop there:\n" +
+        "                       nothing is migrated and no app is started (pnpm db:up)\n"
+    );
+  });
+
+  it("is what pnpm db:up runs, from the repository's root", () => {
+    const manifest = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string | undefined>;
+    };
+
+    expect(manifest.scripts["db:up"]).toBe("node scripts/start/platform-start.mjs --services-only");
+  });
+});
+
+describe("the services step of the full start", () => {
+  it("says in one line that both services accept connections, naming neither on a line of its own", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect({
+      code: result.code,
+      services: result.stdout
+        .split("\n")
+        .filter((line) => /^platform-start: (Postgres|Redis) on /.test(line)),
+    }).toEqual({
+      code: 0,
+      services: [
+        `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} and Redis on 127.0.0.1:${staged.redis.port} accept connections`,
+      ],
+    });
   });
 });
