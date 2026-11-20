@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1260  |
+| Files                   | 1262  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1091  |
-| ADJUDICATE              | 96    |
+| KEEP                    | 1092  |
+| ADJUDICATE              | 97    |
 | unmeasured              | 0     |
-| Machine rows            | 1248  |
+| Machine rows            | 1250  |
 | Confirmed rows          | 12    |
-| Blocks                  | 15613 |
+| Blocks                  | 15619 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -357,6 +357,7 @@ Deleted: 0 files, 31 blocks.
 
 | Path                                                                                                  | Shape            | Blocks | Decorative | Verdict    | Status                          | Basis                |
 | ----------------------------------------------------------------------------------------------------- | ---------------- | ------ | ---------- | ---------- | ------------------------------- | -------------------- |
+| `apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts`                              | spec             | 1      | 0          | ADJUDICATE | machine                         | opaque               |
 | `apps/admin/lib/http/__tests__/forwardedFor.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/admin/lib/stores/__tests__/notificationStore.test.ts`                                           | test             | 12     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/admin/tests/e2e/a11y.spec.ts`                                                                   | spec             | 1      | 0          | ADJUDICATE | machine                         | opaque               |
@@ -1398,6 +1399,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/test-contracts/tests/vitest-collector.test.ts`                                              | test             | 13     | 0          | KEEP       | machine                         | behavioural          |
 | `packages/vitest-shared/tests/defineWorkspaceVitestConfig.test.ts`                                    | test             | 15     | 0          | KEEP       | machine                         | behavioural          |
 | `packages/vitest-shared/tests/determinism.test.ts`                                                    | test             | 34     | 0          | KEEP       | machine                         | behavioural          |
+| `packages/vitest-shared/tests/pseudoTerminal.test.ts`                                                 | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
 | `packages/vitest-shared/tests/workspaceReporters.test.ts`                                             | test             | 10     | 0          | KEEP       | machine                         | behavioural          |
 | `performance/k6/config/endurance-test-config.js`                                                      | helper           | 0      | 0          | DELETE     | machine                         | dead-helper          |
 | `performance/k6/config/load-test-config.js`                                                           | helper           | 0      | 0          | DELETE     | machine                         | dead-helper          |

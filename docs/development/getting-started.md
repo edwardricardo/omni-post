@@ -52,6 +52,17 @@ pnpm db:seed
 
 What support needs to know about the command: [first-administrator.md](../support/first-administrator.md).
 
+#### The first administrator's journey in a browser
+
+A Playwright spec of the administration portal (`apps/admin/e2e/first-administrator/`) runs the command itself, in a pseudo-terminal, then signs in with the single-use password, sets a new one on `/en/login/change-password` and signs in with it. It needs the API and the administration portal running on a database that holds no administrator, so run it right after `pnpm start:platform` on an empty database, before the seed:
+
+```bash
+pnpm --filter @apps/admin exec playwright install chromium   # once per Playwright version
+pnpm --filter @apps/admin run test:first-administrator
+```
+
+The command reads the root `.env`, as the API does. A second run fails, because the command refuses once an administrator exists: start again from an empty database first. The run is never retried and keeps no trace, screenshot, video or step report, since it types passwords. The CI job `Platform Start` runs it after its empty-database check.
+
 ## Environment Configuration
 
 `pnpm start:platform` generates the root `.env` with the variables Docker Compose and the API require. `.env.example` at the repository root lists every variable, each marked `(required)` or `(optional)`; the root `.env` is the only env file for development, and `.env.test` (from `.env.test.example`) the only one for tests. The API validates its variables at boot through `apps/api/src/config/env.ts` and refuses to start when a required one is missing or malformed; every variable, with its default and the schema that reads it, is in [ENVIRONMENT_VARIABLES.md](../deployment/ENVIRONMENT_VARIABLES.md). Rules for adding a variable: [SECURITY_CANON.md §Secrets and Environment](../security/SECURITY_CANON.md#secrets-and-environment).
