@@ -27,7 +27,7 @@
 - **When.** A new component lands with its story in the same change. An existing component without one gets it through the backfill: `packages/ui` first, then the client, then admin.
 - **What it imports.** `import type { Meta, StoryObj } from "@storybook/react"` in a package, `from "@storybook/nextjs-vite"` in an app; a `play` function takes `expect`, `userEvent`, `within` and `fn` from `storybook/test`. The file carries the canon header (`@file`, `@description`, `@layer infrastructure`).
 - **What it covers.** The component's meaningful states — default, disabled, loading, error, empty — not only its first render. A state the component does not have is named as absent in the file's header, so the absence reads as a decision.
-- **What runs it.** The client Storybook collects its own stories and those of `packages/ui` through the globs of `apps/client/.storybook/main.ts`; `packages/ui` runs no Storybook of its own. The admin Storybook, re-created on 2026-11-20 on the same framework and runner, collects the stories of `apps/admin/components` through `apps/admin/.storybook/main.ts`. Both previews are built by `createStoryPreview` of `@packages/ui/storybook` (`packages/ui/src/storybook/index.tsx`), each with its own intl provider, catalogs, styles and default theme: light for the client, dark for the admin, the theme each app renders in.
+- **What runs it.** The client Storybook collects its own stories and those of `packages/ui` through the globs of `apps/client/.storybook/main.ts`; `packages/ui` runs no Storybook of its own. The admin Storybook, re-created on 2026-11-20 on the same framework and runner, collects the stories of `apps/admin/components` through `apps/admin/.storybook/main.ts`. Both previews are built by `createStoryPreview` of `@packages/ui/storybook` (`packages/ui/src/storybook/index.tsx`), each with its own intl provider, catalogs, styles and default theme: light for the client, dark for the admin, the theme each portal starts in.
 
 ## When a story passes
 
@@ -55,7 +55,7 @@ It runs in a real browser because jsdom cannot evaluate colour contrast: axe-cor
 - **Below the baseline:** a story landed and the baseline is stale. The gate exits 1 and prints the new count; lower that root's number to it in the same change.
 - **Every count at 0:** the gate asks for the baseline file to be deleted in that change, and from then on it requires 0 in every root.
 
-It runs in the battery step `stories-gate` and in the `code-quality` job of `ci.yml`; the stories themselves run in the battery steps `stories` (client and `packages/ui`) and `stories-admin`, and the client's in the CI job `Storybook Stories`. The count is not a ledger: a change that adds one story and one uncovered component in the same root keeps the count and passes, so review reads the printed list.
+It runs in the battery step `stories-gate` and in the `code-quality` job of `ci.yml`; the stories themselves run in the battery steps `stories` (client and `packages/ui`) and `stories-admin`, and both portals' in the CI job `Storybook Stories`. The count is not a ledger: a change that adds one story and one uncovered component in the same root keeps the count and passes, so review reads the printed list.
 
 ## How to extend
 
