@@ -23,7 +23,7 @@ const CONFIG = createRequire(import.meta.url)(
   path.join(REPO_ROOT, ".dependency-cruiser.cjs")
 ) as Config;
 
-// The three constants the config itself names, mirrored so each rule below reads like the config.
+// The five constants the config itself names, mirrored so each rule below reads like the config.
 const FRAMEWORKS =
   "(^|/)node_modules/(prisma|@prisma/[^/]+|fastify|@fastify/[^/]+|ioredis|redis|@redis/[^/]+|bullmq|next)/";
 const WORKSPACE_PACKAGES = "^(packages|infra)/";
@@ -31,6 +31,8 @@ const ROUTE_MODULES = {
   path: "^apps/api/src/.*([Rr]outes|Handlers)\\.ts$",
   pathNot: "\\.test\\.ts$",
 };
+const TEST_FILE = "\\.(test|spec)\\.[cm]?[jt]sx?$";
+const TESTS_BESIDE_SOURCE = "^(apps/[^/]+|packages/[^/]+|packages/[^/]+/[^/]+)/tests/";
 
 /** Each rule: its severity, `from` and `to`; `null` pins the severity alone. */
 const POLICY: Record<string, [string, object | null, object | null]> = {
@@ -154,6 +156,11 @@ const POLICY: Record<string, [string, object | null, object | null]> = {
   ],
   "workers-no-api": ["error", { path: "^apps/workers/src/" }, { path: "^apps/api/" }],
   "api-no-workers": ["error", { path: "^apps/api/" }, { path: "^apps/workers/" }],
+  "production-imports-no-test-code": [
+    "error",
+    { path: "(^|/)src/", pathNot: TEST_FILE },
+    { path: [TEST_FILE, TESTS_BESIDE_SOURCE] },
+  ],
 };
 
 describe("the policy of the architecture gate (.dependency-cruiser.cjs)", () => {
