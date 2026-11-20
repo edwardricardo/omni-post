@@ -124,6 +124,20 @@ function endWhenTheClientHasEnded(socket: Socket): void {
 }
 
 /**
+ * The request whose answer a refusal waits for, when that answer has not ended; `undefined` when it
+ * has, or when there is none, so the refusal is written at once. A request stays in
+ * `trackRequestsInFlight`'s list after its answer ended while its own message is still read, until
+ * that message closes, and its message can complete in the same chunk as the message that fails
+ * after it, before it closes; a response then has no `close` still to come. The answer's own state
+ * decides, read from Node's documented `writableFinished`: "true if all data has been flushed to the
+ * underlying system, immediately before the 'finish' event is emitted". While it is false, the
+ * answer's `close` is still to come, after its `finish` or when its connection ends.
+ */
+function answerStillToEnd(entry: RequestInFlight | undefined): RequestInFlight | undefined {
+  return entry !== undefined && !entry.reply.raw.writableFinished ? entry : undefined;
+}
+
+/**
  * @function answerFrameworkRefusal
  * @description The server's `frameworkErrors` option: a request the framework refuses before it
  *   routes it is answered through `sendProblem`, on the server's logger, the one the error and
@@ -356,13 +370,15 @@ export function trackRequestsInFlight(
  *   answered on the server's logger, the instance Fastify binds the option to, with the failure
  *   `connectionFailure` names. Node hands it the connection's error and its socket and no request;
  *   the requests the connection is answering are read from what `trackRequestsInFlight` keeps, in
- *   the order they arrived. With none, `sendProblemOnSocket` answers at once. When the latest is
- *   still being read, the failure is that request's own: `sendProblemOnSocket` answers it, at once
- *   or, when an earlier request is still unanswered, once that request's answer has ended. When the
- *   latest is complete, the failure is the next message's, its own event:
- *   `sendProblemAfterAnswerInFlight` answers it once the answer in flight has ended. So an answer
- *   is never written ahead of the answer of a request that arrived before it. A connection is
- *   answered once, under the correlation id the handler keeps as its refusal. Node calls the handler again for a connection it answered in three ways:
+ *   the order they arrived. When the latest is still being read, the failure is that request's own:
+ *   `sendProblemOnSocket` answers it, at once, or once the answer of the request just ahead of it
+ *   has ended when that answer has not ended yet. Otherwise the failure is a message no request was
+ *   read from, its own event: `sendProblemAfterAnswerInFlight` answers it once the answer of the
+ *   latest request has ended when that answer has not ended yet, and `sendProblemOnSocket` at once
+ *   when no answer is still to end, as with no request in flight. So an answer is never written
+ *   ahead of the answer of a request that arrived before it, and never waits for one that has
+ *   already ended. A connection is answered once, under the correlation id the handler keeps as its
+ *   refusal. Node calls the handler again for a connection it answered in three ways:
  *   for each later chunk, since llhttp returns its error again once failed; for the request
  *   timeout of the failed message, which stays among the messages Node times out; and for the end
  *   of data, when the client ends its side in the middle of a message the parser has not failed,
@@ -393,29 +409,31 @@ export function createClientErrorHandler(requestsInFlight: RequestsInFlight) {
     const inFlight = requestsInFlight.get(socket) ?? [];
     const latest = inFlight.at(-1);
     let refusal: string;
-    if (latest === undefined) {
-      refusal = sendProblemOnSocket(
-        socket,
-        connectionFailure(error, false),
-        this.log,
-        undefined,
-        undefined
-      );
-    } else if (latest.request.raw.complete) {
-      refusal = sendProblemAfterAnswerInFlight(
-        socket,
-        connectionFailure(error, false),
-        this.log,
-        latest
-      );
-    } else {
+    if (latest !== undefined && !latest.request.raw.complete) {
       refusal = sendProblemOnSocket(
         socket,
         connectionFailure(error, true),
         this.log,
         latest,
-        inFlight.at(-2)
+        answerStillToEnd(inFlight.at(-2))
       );
+    } else {
+      const ahead = answerStillToEnd(latest);
+      refusal =
+        ahead === undefined
+          ? sendProblemOnSocket(
+              socket,
+              connectionFailure(error, false),
+              this.log,
+              undefined,
+              undefined
+            )
+          : sendProblemAfterAnswerInFlight(
+              socket,
+              connectionFailure(error, false),
+              this.log,
+              ahead
+            );
     }
     answeredConnections.set(socket, refusal);
     // A no-op once an answer written at once has ended the server's side.
@@ -433,7 +451,8 @@ export function createClientErrorHandler(requestsInFlight: RequestsInFlight) {
  *   The bytes are read and dropped, the head included; an error, which has already destroyed the
  *   socket, is not thrown; and when the client ends its side the server ends its own, as Node does
  *   between messages. The answer is written after the answer of the request still in flight on the
- *   connection, as every answer on a connection is. A CONNECT read on a connection already answered
+ *   connection when that answer has not ended, as every answer on a connection is, and at once
+ *   otherwise. A CONNECT read on a connection already answered
  *   for a failure of its parser is not taken and writes its one line, as any request there does.
  *   An `Upgrade` request is not this case: Node hands it to the server's handler as an ordinary
  *   request when nothing listens for `upgrade`.
@@ -455,7 +474,7 @@ export function refuseTunnels(server: FastifyInstance, requestsInFlight: Request
       request,
       RegisteredError.of(HTTP_ERRORS.CONNECT_NOT_IMPLEMENTED),
       server.log,
-      requestsInFlight.get(socket)?.at(-1)
+      answerStillToEnd(requestsInFlight.get(socket)?.at(-1))
     );
   });
 }

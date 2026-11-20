@@ -466,9 +466,9 @@ export function sendProblemAfterAnswerInFlight(
 }
 
 /**
- * Runs an answer once the answer of the request in flight ahead of it ends. The request leaves
- * `trackRequestsInFlight`'s list in its `onResponse` hook, which the response's `finish` runs before
- * Node emits its `close` on the next tick: a request still in the list has a `close` to come.
+ * Runs an answer once the answer of the request in flight ahead of it ends. Its caller passes only
+ * a request whose answer has not ended (`writableFinished` false), so its response's `close` is
+ * still to come: after its `finish`, or when its connection ends.
  */
 function answerAfter(ahead: RequestInFlight, answer: () => void): void {
   ahead.reply.raw.once("close", answer);

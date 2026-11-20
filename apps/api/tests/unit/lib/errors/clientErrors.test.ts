@@ -25,7 +25,7 @@
  * @layer infrastructure
  */
 import { once } from "node:events";
-import type { IncomingMessage } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { connect, type AddressInfo, type Socket } from "node:net";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,6 +69,12 @@ const openStreams: PassThrough[] = [];
 let slowRelease: Deferred<void> = createDeferred<void>();
 /** What the route `/slow2` waits on before it answers. */
 let slow2Release: Deferred<void> = createDeferred<void>();
+/** What the route `/late` waits on before it answers. */
+let lateRelease: Deferred<void> = createDeferred<void>();
+/** Settled once the route `/late` has written its answer. */
+let lateWritten: Deferred<void> = createDeferred<void>();
+/** The responses the route `/hijack-stream` writes on, for the case to end. */
+const hijackedStreams: ServerResponse[] = [];
 /** The ids of the requests whose answers the current case's server has sent, in order. */
 const answered: string[] = [];
 
@@ -104,6 +110,22 @@ function serverAsTheAppBuildsIt(): FastifyInstance {
   app.get("/slow2", async () => {
     await slow2Release.promise;
     return { slow: 2 };
+  });
+  app.get("/late", async (_request, reply) => {
+    await lateRelease.promise;
+    reply.send({ late: true });
+    lateWritten.resolve();
+    return reply;
+  });
+  app.get("/hijack-ended", (_request, reply) => {
+    reply.hijack();
+    reply.raw.end("hijacked");
+  });
+  app.get("/hijack-stream", (_request, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "text/plain" });
+    reply.raw.write("first chunk");
+    hijackedStreams.push(reply.raw);
   });
   // Never answers, so a case holds a request in flight for as long as the case lasts.
   app.get("/hang", async () => new Promise<never>(() => undefined));
@@ -378,6 +400,9 @@ beforeEach(() => {
   openStreams.splice(0);
   slowRelease = createDeferred<void>();
   slow2Release = createDeferred<void>();
+  lateRelease = createDeferred<void>();
+  lateWritten = createDeferred<void>();
+  hijackedStreams.splice(0);
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(fixedClock());
@@ -1210,6 +1235,195 @@ describe("a connection whose request cannot be read, on the server createServer 
         "Request failed",
       ],
     ]);
+  });
+
+  it("answers at once, as with no request in flight, a message that fails in the chunk that completes a request answered before its body", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "POST /answer-early HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => answered.length === 1, { description: "the early answer sent" });
+
+    // One write: the end of the first request's body and a message the parser refuses.
+    socket.write("0\r\n\r\nTELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+    const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+    const body = JSON.parse(responseOf(raw.slice(refusal)).body);
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(body).toEqual(
+      problemOf(HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE, "Request line not parsable")
+    );
+    expect(body.correlationId).not.toBe(routed[0]?.id);
+    expect(lines.warn.mock.calls).toEqual([
+      connectionLine(HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE, body.correlationId, {
+        name: "Error",
+        message: "Parse Error: Invalid method encountered",
+        code: "HPE_INVALID_METHOD",
+      }),
+    ]);
+  });
+
+  it("answers at once, under its own id and naming no request ahead, a body that breaks in the chunk that completes a request answered before its body", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "POST /answer-early HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => answered.length === 1, { description: "the early answer sent" });
+
+    socket.write(
+      "0\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n"
+    );
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(lines.warn.mock.calls).toEqual([
+      requestLine({
+        code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+        definition: HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
+        source: "registered",
+        correlationId: routed[1]?.id,
+        method: "POST",
+        url: "/echo",
+        error: registeredOver(HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE, {
+          message: "Parse Error: Invalid character in chunk size",
+          code: "HPE_INVALID_CHUNK_SIZE",
+        }),
+      }),
+    ]);
+  });
+
+  it("answers at once, naming no request ahead, a CONNECT in the chunk that completes a request answered before its body", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "POST /answer-early HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+    );
+    await until(() => answered.length === 1, { description: "the early answer sent" });
+
+    socket.write("0\r\n\r\nCONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "501",
+    ]);
+    expect(lines.error.mock.calls).toEqual([
+      [expect.not.objectContaining({ inFlightCorrelationId: expect.anything() }), "Request failed"],
+    ]);
+    expect(lines.error.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ code: "CONNECT_NOT_IMPLEMENTED", method: "CONNECT" })
+    );
+  });
+
+  it("forgets a request whose route hijacked its reply and ended it, so a failure after it is answered at once", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write("GET /hijack-ended HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => answered.length === 1, { description: "the hijacked answer's onResponse" });
+
+    socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+    const body = JSON.parse(responseOf(raw.slice(raw.indexOf("HTTP/1.1 400"))).body);
+
+    expect(answered).toEqual([routed[0]?.id]);
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "400",
+    ]);
+    expect(lines.warn.mock.calls).toEqual([
+      connectionLine(HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE, body.correlationId, {
+        name: "Error",
+        message: "Parse Error: Invalid method encountered",
+        code: "HPE_INVALID_METHOD",
+      }),
+    ]);
+  });
+
+  it("waits for a hijacked reply still streaming, then answers the failure after its last byte", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write("GET /hijack-stream HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await until(() => Buffer.concat(received).toString("utf8").includes("first chunk"), {
+      description: "the hijacked stream's first chunk",
+    });
+    const failed = once(app.server, "clientError");
+    socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await failed;
+
+    hijackedStreams[0]?.end("last chunk");
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+    const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+
+    expect([raw.indexOf("last chunk") < refusal, raw.slice(refusal - 5, refusal)]).toEqual([
+      true,
+      "0\r\n\r\n",
+    ]);
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+        { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+        routed[0]?.id
+      ),
+    ]);
+  });
+
+  it("writes nothing more when the route of a request in flight answers after the server ended its side for the client's end", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    socket.on("error", () => undefined);
+    socket.write("GET /late HTTP/1.1\r\nHost: localhost\r\n\r\nGET /things HTTP/1.1\r\nHo");
+    await until(() => routed.length === 1, { description: "the first request routed" });
+    const failed = once(app.server, "clientError");
+    socket.end();
+    await failed;
+    await until(async () => (await connectionsOf(app)) === 0, {
+      description: "the server's connection closed",
+    });
+    await until(() => lines.warn.mock.calls.length === 1, { description: "the failure's line" });
+
+    lateRelease.resolve();
+    await lateWritten.promise;
+    // An error a write on a closed connection raised would be emitted on a later turn.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_INCOMPLETE,
+        { message: "Parse Error", code: "HPE_INVALID_EOF_STATE" },
+        routed[0]?.id,
+        "Request failed on a connection that can no longer be written"
+      ),
+    ]);
+    expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
+    expect(await connectionsOf(app)).toBe(0);
   });
 
   it("answers the failure of a following message once, whatever the client sends after it", async () => {
