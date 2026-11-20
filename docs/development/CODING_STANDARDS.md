@@ -432,7 +432,7 @@ export function CampaignList({ accountId, includeArchived = false, onChange }: C
 }
 ```
 
-Storybook note: Next.js App Router components that use `useRouter` from `next/navigation` need `parameters.nextjs.appDirectory: true` in the Storybook `preview.tsx` (the client Storybook sets it). Autodocs pages are not generated: `@storybook/addon-docs` left on 2026-10-25 (deps-remove-2), so no story carries `tags: ["autodocs"]`.
+Storybook note: Next.js App Router components that use `useRouter` from `next/navigation` need `parameters.nextjs.appDirectory: true` in the Storybook preview (`@packages/ui/storybook` sets it for both portals). Autodocs pages are not generated: `@storybook/addon-docs` left on 2026-10-25 (deps-remove-2), so no story carries `tags: ["autodocs"]`.
 
 ### Storybook port convention
 
