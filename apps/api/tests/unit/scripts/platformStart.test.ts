@@ -4075,7 +4075,7 @@ describe("db:up, the services alone (--services-only)", () => {
       pnpm: pnpmCalls(staged),
     }).toEqual({
       code: 0,
-      firstLine: `platform-start: wrote ${staged.file} with 21 variables, its secrets random`,
+      firstLine: `platform-start: wrote ${staged.file} with 22 variables, its secrets random`,
       missing: [],
       pnpm: [],
     });
