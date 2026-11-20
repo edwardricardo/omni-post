@@ -53,6 +53,8 @@ import { promisify } from "node:util";
 import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
+import { evaluateAdminPassword } from "../../../../../infra/prisma/src/seedGuard.js";
+import { hasProcessEnded } from "../helpers/processState.js";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -139,6 +141,50 @@ const SECRETS = [
   "PLATFORM_ENCRYPTION_KEY",
   "OAUTH_ENCRYPTION_KEY",
   "DELETION_NAME_DIGEST_KEY_RING",
+  "ADMIN_PASSWORD",
+];
+
+/** Lowercase hex of `bytes` random bytes: two characters per byte. */
+const hexOf = (bytes: number): RegExp => new RegExp(`^[0-9a-f]{${String(bytes * 2)}}$`);
+
+/** The value a secret is held to, read off the generated environment. */
+type SecretReading = (values: Record<string, string | undefined>) => string;
+
+/** The variable's own value. */
+const own =
+  (key: string): SecretReading =>
+  (values) =>
+    values[key] ?? "";
+
+/**
+ * Every generated secret with the value it is held to and its size and alphabet, as the generator
+ * draws it: each password 24 random bytes in hex, each key and HMAC secret 32 in hex, the platform
+ * encryption key 32 in base64, and the key ring one entry of 32 in hex under generation 1.
+ */
+const SECRET_SHAPES: ReadonlyArray<[string, SecretReading, RegExp]> = [
+  ["POSTGRES_PASSWORD", own("POSTGRES_PASSWORD"), hexOf(24)],
+  ["GF_SECURITY_ADMIN_PASSWORD", own("GF_SECURITY_ADMIN_PASSWORD"), hexOf(24)],
+  ["MINIO_ROOT_PASSWORD", own("MINIO_ROOT_PASSWORD"), hexOf(24)],
+  ["JWT_ACCESS_SECRET", own("JWT_ACCESS_SECRET"), hexOf(32)],
+  ["JWT_REFRESH_SECRET", own("JWT_REFRESH_SECRET"), hexOf(32)],
+  ["CUSTOMER_JWT_SECRET", own("CUSTOMER_JWT_SECRET"), hexOf(32)],
+  ["ADMIN_JWT_ACCESS_SECRET", own("ADMIN_JWT_ACCESS_SECRET"), hexOf(32)],
+  ["ADMIN_JWT_REFRESH_SECRET", own("ADMIN_JWT_REFRESH_SECRET"), hexOf(32)],
+  ["COOKIE_SECRET", own("COOKIE_SECRET"), hexOf(32)],
+  ["PLATFORM_ENCRYPTION_KEY", own("PLATFORM_ENCRYPTION_KEY"), /^[A-Za-z0-9+/]{43}=$/],
+  ["OAUTH_ENCRYPTION_KEY", own("OAUTH_ENCRYPTION_KEY"), hexOf(32)],
+  [
+    "DELETION_NAME_DIGEST_KEY_RING",
+    (values) =>
+      JSON.stringify(Object.keys(JSON.parse(values.DELETION_NAME_DIGEST_KEY_RING ?? "{}"))),
+    /^\["1"\]$/,
+  ],
+  [
+    "DELETION_NAME_DIGEST_KEY_RING's entry",
+    (values) => String(JSON.parse(values.DELETION_NAME_DIGEST_KEY_RING ?? "{}")["1"] ?? ""),
+    hexOf(32),
+  ],
+  ["ADMIN_PASSWORD", own("ADMIN_PASSWORD"), hexOf(24)],
 ];
 
 /** Which database a connection reached, as the command asks a server for it. */
@@ -580,19 +626,9 @@ function signal(target: number, name: NodeJS.Signals): boolean {
   return true;
 }
 
-/**
- * Whether a process is running. An orphan that has ended can stay a zombie until its new parent
- * reaps it, and the system still answers for it, so the state the kernel reports decides first.
- */
+/** Whether a process is running, by the shared probe: it raises where there is no procfs. */
 function alive(pid: number): boolean {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    return stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3) !== "Z";
-  } catch (error) {
-    // A process that ends while it is read can fail the read with ESRCH instead of ENOENT.
-    if (!["ENOENT", "ESRCH"].includes(String((error as NodeJS.ErrnoException).code))) throw error;
-    return false;
-  }
+  return !hasProcessEnded(pid);
 }
 
 /**
@@ -877,6 +913,39 @@ describe("the generated environment", () => {
     );
   });
 
+  it("holds what the platform requires and, besides it, what the development tools need", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    expect(core.REQUIRED_KEYS).not.toContain("ADMIN_PASSWORD");
+    expect(Object.keys(values).sort()).toEqual([...core.REQUIRED_KEYS, "ADMIN_PASSWORD"].sort());
+  });
+
+  it("requires nothing of an existing file that only the development tools read", () => {
+    const values = Object.fromEntries(
+      core.generateEnvironment({ randomBytes }).filter(([key]) => key !== "ADMIN_PASSWORD")
+    );
+
+    expect(core.missingKeys(values)).toEqual([]);
+  });
+
+  it("gives the development seed an ADMIN_PASSWORD its password rule accepts", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    expect(evaluateAdminPassword(values)).toEqual({
+      allowed: true,
+      password: values.ADMIN_PASSWORD,
+    });
+  });
+
+  it.each(SECRET_SHAPES)(
+    "draws %s at the size and in the alphabet the generator means",
+    (_name, read, shape) => {
+      const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+      expect(read(values)).toMatch(shape);
+    }
+  );
+
   it("gives the platform encryption key exactly 32 bytes, written in base64", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
     const key = Buffer.from(values.PLATFORM_ENCRYPTION_KEY ?? "", "base64");
@@ -946,7 +1015,7 @@ describe("the start sequence", () => {
     expect(statSync(staged.file).mode & 0o777).toBe(0o600);
     expect(core.missingKeys(values)).toEqual([]);
     expect(new URL(values.DATABASE_URL ?? "").port).toBe(staged.ports.POSTGRES_HOST_PORT);
-    expect(result.stdout).toContain(`wrote ${staged.file} with 21 variables`);
+    expect(result.stdout).toContain(`wrote ${staged.file} with 22 variables`);
     expect(SECRETS.filter((key) => result.stdout.includes(values[key] ?? "unset"))).toEqual([]);
   });
 
@@ -963,6 +1032,32 @@ describe("the start sequence", () => {
     expect(result.stdout).toContain(
       `Postgres on 127.0.0.1:${listening.postgres} and Redis on 127.0.0.1:${listening.redis}`
     );
+  });
+
+  it("keeps the ADMIN_PASSWORD an existing file holds, and shows it nowhere", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const kept = "fake-admin-password-the-developer-chose";
+    const before = `${writeEnvironment(staged.file, ["ADMIN_PASSWORD"], listening)}ADMIN_PASSWORD=${kept}\n`;
+    writeFileSync(staged.file, before);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+    expect(result.stdout.includes(kept)).toBe(false);
+  });
+
+  it("starts with an existing file that lacks ADMIN_PASSWORD, and leaves the file as it was", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const before = writeEnvironment(staged.file, ["ADMIN_PASSWORD"], listening);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+    expect(result.stdout).toContain(`${staged.file} holds every required variable`);
   });
 
   it("fails naming each variable an existing file lacks, and leaves the file as it was", async () => {

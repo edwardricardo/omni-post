@@ -12,6 +12,7 @@ import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adm
 import { validatePasswordStrength } from "./adminAuthSchemas.js";
 import { adminAuthConfig } from "./adminAuthConfig.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
+import { ADMIN_SESSION_REVOKE_REASONS } from "@core/domain/repositories/AdminSessionRepository.js";
 import { authLogger } from "../../lib/logger.js";
 import {
   hashPassword as argonHashPassword,
@@ -262,7 +263,7 @@ export class PasswordService {
       data: {
         isActive: false,
         revokedAt: new Date(),
-        revokeReason: "PASSWORD_CHANGED",
+        revokeReason: ADMIN_SESSION_REVOKE_REASONS.PASSWORD_CHANGED,
       },
     });
   }
@@ -504,7 +505,11 @@ export class PasswordService {
 
     await this.prisma.adminSession.updateMany({
       where: { userId, isActive: true },
-      data: { isActive: false, revokedAt: new Date(), revokeReason: "PASSWORD_RESET" },
+      data: {
+        isActive: false,
+        revokedAt: new Date(),
+        revokeReason: ADMIN_SESSION_REVOKE_REASONS.PASSWORD_RESET,
+      },
     });
 
     return ok(true);

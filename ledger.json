@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1235,
+      "total": 1243,
       "byShape": {
-        "test": 992,
-        "integration-test": 89,
+        "test": 996,
+        "integration-test": 91,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
         "runner": 0,
-        "helper": 122,
+        "helper": 124,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1067,
-        "ADJUDICATE": 95,
+        "KEEP": 1073,
+        "ADJUDICATE": 97,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1225,
+      "machine": 1233,
       "confirmed": 10,
-      "total": 1235
+      "total": 1243
     },
     "blocks": {
-      "total": 15420,
+      "total": 15507,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15109
+        "BEHAVIOURAL": 15196
       }
     },
     "deleted": {
@@ -4545,42 +4545,42 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses a wrong current password with 401 and changes nothing",
-          "line": 248,
+          "line": 254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d66c6e26425e77df9f934df665acf3912fef2f25e4b38b6ecec3e59ee8afff65"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::replaces the single-use password with the new one, clears the mark, leaves lastLoginAt null and opens no session",
-          "line": 259,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da142894c2eeeaf158f8bf72792fcbf49719c6af235018126f2ad85271a536f5"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses a second change as not required, with the new password as the current one, and changes nothing",
-          "line": 280,
+          "line": 286,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "262eeb77619e5daadb0727f79214d1d12b9f841faacfc0a9b3e42cf5e603272c"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::stores exactly one of two new passwords and refuses the other as a concurrent modification, when two changes run at once",
-          "line": 300,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0219b11475ebb4a30eea44873a1476c25366f09671d0a62ea8343e5d2156160"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses the single-use password at both sign-ins with 403 and no cookie, recording only the refusal, opening no session and leaving the row as it was",
-          "line": 364,
+          "line": 370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8355a77b23f05ea1c13fa66dda26c2e8d5698f1d13ca233252d0adc3e1d52de"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::signs in at both sign-ins with the new password once it is changed, opening a session at each and setting lastLoginAt, and refuses the single-use one",
-          "line": 423,
+          "line": 429,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "898a02713fa91d1f3477979f160ef486e28a41431abb843a2bef4ffde3762bb4"
@@ -4588,6 +4588,37 @@
       ],
       "verdict": "ADJUDICATE",
       "basis": "opaque",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/integration/adminUserRepositoryTransaction.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/adminUserRepositoryTransaction.integration.test.ts::finds the administrator its transaction created and has not committed through every read, while a connection outside the transaction finds none",
+          "line": 48,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a4a1ef7bc0d792bb4c450e2f1e353428d829c91709550ed50f7707cf61db69d2"
+        },
+        {
+          "id": "apps/api/tests/integration/adminUserRepositoryTransaction.integration.test.ts::finds the session its transaction created and has not committed through the sessions' read, while a connection outside the transaction finds none",
+          "line": 109,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ffa2c6f6d87f4f5e49f3077cb94a8d74b011afed95bb19c7b9ae22264cd2bba7"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -6047,70 +6078,77 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 21,
       "blocks": [
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates one administrator with the SUPER_ADMIN role and prints its password once, when the database is empty",
-          "line": 474,
+          "line": 441,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd01cbe7eeaadd5f3004b61a140831d5e24bb96000db8583591b606d02921284"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a second run with exit code 1 and leaves the first administrator unchanged",
-          "line": 516,
+          "line": 483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8c72e7c89e73ac14465ea685240e8b08b5a61d280976bdad92dad8b29320af9"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses and rolls the role write back when an administrator exists under another role and no SUPER_ADMIN row does",
-          "line": 532,
+          "line": 499,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa9e4e6ed6ad7b0c7f244ca48c86c573ce39a4f071417793dd031c105fb15fc0"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator and refuses the other run as a concurrent one, when two runs start at once on an empty database",
-          "line": 560,
+          "line": 527,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "576796c16b43cf2203d32cf3a59009a23ebc56d208cc9092008b8e2d3301fe9f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::makes the SUPER_ADMIN role exactly its definition and creates the administrator, when the role holds other fields and permissions",
-          "line": 593,
+          "line": 560,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4d82c695437327650a49aafa89d3a277cb69940d9041f58a985342954fdbcd6"
         },
         {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::activates the SUPER_ADMIN role with its definition's permissions and creates the administrator, when the role was deactivated and no administrator exists",
+          "line": 605,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fc8c400fe4d66df961391ecfe20f04ab3cb55b99fe86a3506495d9d7b2554cec"
+        },
+        {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses with the message of a lasting refusal and creates nothing, when a role of that name holds another id",
-          "line": 638,
+          "line": 635,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01429c11f87a339d76826c49fb229e77f8a71725e0802fc881d64bdd7eab7a9f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator when two runs start at once on a database where the SUPER_ADMIN role exists and no administrator does",
-          "line": 659,
+          "line": 656,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0cd389a2558df3bbefb6f6da7615b8acc0af547ef6105961d5b25e24c72c15a"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::runs as a process in a pseudo-terminal, shows only the block and ends by itself",
-          "line": 697,
+          "line": 694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d304b81d51f40f154329b17f2386ec95719fa3376537290ec02a8d9dbb127799"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues a different password that replaces the old one, ends every session and leaves one system audit record per run",
-          "line": 733,
+          "line": 730,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "956bee2c55c63184a92c031be94e8500501dc368757f688f424c5f75e6df1fc7"
+          "bodyHash": "41b2a0272936b5faa3b916e76d268eebd55b3bb5655597d1fe4e85ecfe0f3bf6"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when no administrator has the e-mail",
@@ -6134,43 +6172,57 @@
           "bodyHash": "6ddd79bf9c0b8463900667010d640dcc4db34330f44b95be4764d509cef532df"
         },
         {
-          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues exactly once when two re-issues start at once, and the stored hash is the printed password's",
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator is deactivated",
           "line": 898,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d1ecb21a647021e2b958a3aec43f3125ace333672a2250883486f2a57f077b65"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue as changed since its read and changes nothing more, when the administrator is deactivated between the read and the write",
+          "line": 919,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e8ec0f4c918353f502c8c4e625825e4447b2baa438ff5db2ac1060ba3753346a"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues exactly once when two re-issues start at once, and the stored hash is the printed password's",
+          "line": 959,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ec1ac1b2679b6ef2e0ae2cbf841d497c1e57b5f338b327fcb6e3bcbb1d0a14a"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues as a process in a pseudo-terminal, shows only the block and ends by itself",
-          "line": 939,
+          "line": 1000,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ea5832fdcb52d69712f4dcec9c043b1c6fd329ca1887be8ed899eac6fa20f0f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves no role and no administrator when the audit write of the creation fails inside its transaction",
-          "line": 976,
+          "line": 1037,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dff4607a048bfb7f7c7f4c6c75439930272f8deab28a81127469a4a382196c1e"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves the stored hash, the mark and the sessions as they were when the audit write of a re-issue fails inside its transaction",
-          "line": 1005,
+          "line": 1066,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "620dda401af55b3e03e3f0bedf388d87f98bccdc090dda2750799eda1608deb0"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets exactly one of a re-issue and the administrator's own required change win when both wait on the administrator's row",
-          "line": 1031,
+          "line": 1092,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "734c33ecdcd1f4db58ed108442c1d351ccc938bb69b2216fc22fcd91ae8a260f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets the required change win and refuses the re-issue as changed since its read, when the required change queues for the administrator's row first",
-          "line": 1093,
+          "line": 1154,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8986679845b7ccccd59a259d2e8b1f30783c943fa2f41175b702bd84d1d525f6"
@@ -6354,7 +6406,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 1
+      "importers": 5
     },
     {
       "path": "apps/api/tests/integration/helpers/postTrioFixtures.ts",
@@ -6434,7 +6486,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 86
+      "importers": 88
     },
     {
       "path": "apps/api/tests/integration/inboxRoutes.live.test.ts",
@@ -6807,21 +6859,21 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::holds no row but Prisma's own record of the migrations it applied",
-          "line": 155,
+          "line": 115,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d91b178a6892a36719a89204f3200d9f2dacb0af4c505a7c7d602ae7816d9d0a"
         },
         {
           "id": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::loses the rotation log's baseline rows and keeps every row recorded after them",
-          "line": 173,
+          "line": 133,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc75822a27de9c6387be00e2a1ab0c206a69bc1881fe5249f498aeeb2b1e6afb"
         }
       ],
-      "verdict": "KEEP",
-      "basis": "behavioural",
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -10060,6 +10112,51 @@
       "verdict": "REWRITE",
       "basis": "all-decorative",
       "status": "confirmed",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/integration/seedRoleWrites.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::leaves no row of an administration role whose permissions fail partway on a first run",
+          "line": 218,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c9e4ee7c4d7298ffe9e34a788d2cab56f2980635a5b79e20b8fedd1081d32855"
+        },
+        {
+          "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::leaves no row of a customer role whose permissions fail partway on a first run",
+          "line": 245,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5bb32e5be383a65bd88251bcf443d84a9cbe11e6d8e93c81ead0b01821771d7d"
+        },
+        {
+          "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::keeps every row and the description a role held when a rerun fails partway through it",
+          "line": 273,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d2c60bc5de4aec212e0eac87923690914515c88304dc06c024fa011584df8196"
+        },
+        {
+          "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::removes a stale permission and restores the description when a rerun completes",
+          "line": 318,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c27fcba7ca4886f3f84b66df762bac0a05e7817dda65055a938f3e3a7ea7731f"
+        }
+      ],
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
+      "status": "machine",
       "sliceId": null,
       "subject": null,
       "duplicate": null,
@@ -17723,7 +17820,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should create account successfully",
@@ -17733,92 +17830,113 @@
           "bodyHash": "6a0e06dbf03ae3491ac6b78f1f3bd81e29fb6850200b877e5b88716d81e023f2"
         },
         {
-          "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should reject duplicate email",
+          "id": "apps/api/tests/unit/accountLifecycleService.test.ts::stores the account marked to change the password its creator supplied",
           "line": 110,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c44ca2611b5ef7d7fbbbfa765b69bb4aacfc1ef693339dcca1537283afe927d5"
+        },
+        {
+          "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should reject duplicate email",
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9c31db75c95b2175b71b036e089702618866245e4f66081983014d313e4f6c4"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should reject weak password",
-          "line": 133,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71af8bb6d5c09b3f727c36bc0101b343a3235ed001c12fee62b2b4f1d0aa36b7"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should retrieve account successfully",
-          "line": 148,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "007082d406809334ae8612f36bcd75e32504d9b61df53115f159ec64ce7bddde"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should return NOT_FOUND for non-existent account",
-          "line": 169,
+          "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "81d4e8b8ce14282502f68833c4b6fe8e2458c443bfecc5bc5a37cf6ac6c2ac0e"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should update account successfully",
-          "line": 180,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee3569f38ffab32b996753527a9c2727563915dd99a90ce5c508113ef34daa82"
         },
         {
+          "id": "apps/api/tests/unit/accountLifecycleService.test.ts::ends the account's active sessions with the reason ACCOUNT_SUSPENDED",
+          "line": 225,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b34e253519199907dfb0118adaeb7aa476899a662f9aa3be17de6f7c799aa07a"
+        },
+        {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should suspend account successfully",
-          "line": 210,
+          "line": 255,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cd669c0dbe92dfbbea585d5e6cf3ff0ec07b5bc75f97dc4061f1821a3324051"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should detect already suspended account",
-          "line": 237,
+          "line": 282,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d69a89e9edb323381a4069dafef9f62bc37e48bf2473690181cf29f6e1c96615"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should reactivate account successfully",
-          "line": 266,
+          "line": 311,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7eb8b5d14714b276ae15c799959674a46349fd68893844fdcf59e9ff23f4000e"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should detect already active account",
-          "line": 294,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "745823def6f8747567579fc9118da33ddf58f24b68f1f3a9749b27ab0fe49d84"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should reset password successfully",
-          "line": 318,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae94c2776f195ea62a3008f6f77686d0fcc4bd8daba65968ee7ee920d3d41eef"
         },
         {
+          "id": "apps/api/tests/unit/accountLifecycleService.test.ts::ends the account's active sessions with the reason ADMIN_REVOKED and returns their count",
+          "line": 388,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c776413d8ffa2dbe4fd03a1724d7b89e39837a2a34cf79744a8903dbf51ff094"
+        },
+        {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should retrieve account stats successfully",
-          "line": 343,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4089f09cee2d0c266afed32cfba46f4c8fc08fbd7dbc6fc5cc211f58e395483c"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should delete account successfully",
-          "line": 367,
+          "line": 443,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37d00d45af9cd0dd64653c96c3ef646b032a2b12a379545f096961f24e371152"
         },
         {
           "id": "apps/api/tests/unit/accountLifecycleService.test.ts::should return NOT_FOUND after deletion",
-          "line": 383,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de0e41baff5104057e7fa75df383774302b79e0fc6031204dc635acee77b4968"
@@ -18355,81 +18473,88 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns EMAIL_EXISTS when the email is already taken",
-          "line": 110,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a6b2fa1887c23c7bb3f40a7869e42748766b97d7de013a85e849b77db4c8673"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::creates a user and returns a generated temporary password",
-          "line": 116,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58d2eeb0a8d1ad85a76282a831ee78ae65c44d2fb79eda2f8d9afe6f0b2c033f"
         },
         {
+          "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::creates the user marked to change the password when the temporary password is $source",
+          "line": 131,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cbe7036e2de25538a4f7b623a748f6c4deb1b637bf6c02f3995437ab9e0a8ef6"
+        },
+        {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns the user plus the session count",
-          "line": 127,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f76fe317b4f229b56237240cb0db8fb355381b5b8dc5879e6aa546b980e8f0e7"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns NOT_FOUND for an unknown id",
-          "line": 133,
+          "line": 157,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9458a3eaf1ed93ce08843ee03b42caf865c5385828f0f6e022cd9c8831c70bae"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns INVALID_ROLE for an unknown role name",
-          "line": 140,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e6a4aa45d43d937c05623a5f07b98310e1e879b70af4266bd2906f8e580210e"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns NOT_FOUND for an unknown id #2",
-          "line": 145,
+          "line": 169,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f2e030e68fe3b8e56071d245ce851140a5f6245451ef64557d6dff2bf4a0a6c"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::updates editable fields",
-          "line": 150,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce1e85ce4f2e0b2618cc045a325d6f40e73acc355c6edff0f3a0ea8058be5d68"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::refuses to deactivate the last active SUPER_ADMIN",
-          "line": 161,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37776cc4dae782779607f320ce27796d00a044ecf2cdf9380b43abcc94f8b021"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns ALREADY_INACTIVE when the user is not active",
-          "line": 173,
+          "line": 197,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "795c00f5c83faa6038adcc6bb234493474895663ebf60f64ce85239c5f06c6ad"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::deactivates a regular active user",
-          "line": 183,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4caedbfcfd7c35159cf8dd0ac522f36b4361fb2fd5cc435abe167e411b08b69"
         },
         {
           "id": "apps/api/tests/unit/admin/AdminUserAdminService.test.ts::returns ALREADY_ACTIVE when the user is already active",
-          "line": 191,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf85dc99e8e27f4ca300640c17ca537a7b21aed9baecafe8c84e2265bd5ac2b8"
@@ -19644,95 +19769,116 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 13,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 200 with a message, without a session, and hands the service the normalized e-mail and both passwords",
-          "line": 116,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bb36d7bad0f72a2fb44a96e69db34b74062afae25a119a5a755a4904383ee87"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::hands the service the second factor's code when one is given",
-          "line": 132,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0666fe4abb9dfaf104a9e39b447218639936457b5e3a642d031b05f345d2d170"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::refuses %s with 400 before the service runs",
-          "line": 146,
+          "line": 154,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0139eb278afdadbd759d4468a2fbcdf114b213b85a8f1f0cde93eff81f89d2ef"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::hands the service a new password of 128 characters, the longest the schema takes",
-          "line": 173,
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c8e0e3dc3276378ad7953791c45c070f482adfd5a18f113dcad5df50ef20870c"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with %i and the code",
-          "line": 185,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c91c8520fc26c53db9278f86fd15b6d173da88c126a00962dc80e5d5f88e469f"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with the status the sign-in gives it",
-          "line": 208,
+          "line": 216,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9f466ae4f8c6b72182a23fbf2aab0a45d4fbbbf33c7dda9e6354472ee42603e"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::spends the sign-in's rate-limit bucket, with the sign-in's allowance",
-          "line": 225,
+          "line": 233,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ae939a95f0f81c20e339b6f3765756aaa7a6e7317915e676928ae0918ca0d89"
         },
         {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::spends the sign-in's rate-limit bucket on a body the schema refuses, before the handler answers it",
+          "line": 249,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "df8d4bc02edee3fe1d5fac397a2dfa2b6be4aac6e208d80093fbf9d506ecfe48"
+        },
+        {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 429 and does not run the service when the rate limit refuses",
-          "line": 241,
+          "line": 260,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7af988b068924c5cd0e0a1b7d1c8a624a569822272b19c87509d2787550106b1"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::writes neither password into a response or a logged object",
-          "line": 250,
+          "line": 269,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e44a01e482f47801ddf026b96c7d6eb05794d6215382f1435c65860dec564d79"
         },
         {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::declares its body in the OpenAPI document the generated API types are made from: the e-mail and both passwords required, the second factor's code optional",
+          "line": 288,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5bd28103625d5fb26934349b57ff0563b2ba59a9f89ab02a34f889aa9af0e79e"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::refuses to start, naming the route, rather than serving it unvalidated",
+          "line": 331,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "42a318b2ed3b224c1e3d2502c30bf5693421aeb8c111d53ece53cade1f949e0b"
+        },
+        {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 200 with the profile and the tokens, and hands the service the normalized e-mail",
-          "line": 308,
+          "line": 389,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47748bd2b3cec074e2372c34f32be1b97219c7bfb36f6a33ebabe13093556d6e"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with %i and the code #2",
-          "line": 320,
+          "line": 401,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41e137f937fef2a00d03a42fbf62179e09c86b592632dbed62321fca80e5e509"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers a missing second factor with 200 and a body that asks for it",
-          "line": 335,
+          "line": 416,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b9b254b2987e18fa52c5a1b0e966870bc2c4642970bef16af1f448a65791b94"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::keys the sign-in and the change by the sign-in's pattern when the routes are registered under a prefix",
-          "line": 344,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a54d3b08348772f59a7d62a03238e545b8820e220f267e58f9f4797b929c830"
@@ -19760,14 +19906,14 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts::maps CONCURRENT_MODIFICATION to 409, not to the 400 a bad token gets",
-          "line": 72,
+          "line": 76,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a807e501f6b2d8d29d45dde00a80f1dc16a79439ea241e52dedf485db428b1cc"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts::maps INVALID_TOKEN to 400, so the two refusals are distinguishable over HTTP",
-          "line": 86,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be5083eb440a3e7ed0f27ea4660a84fca3f6fcc0acce24f6e61cce83fd08ed65"
@@ -38137,144 +38283,151 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 20,
+      "blockCount": 21,
       "blocks": [
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, the reason and the usage, echoing no argument, when given $args",
-          "line": 188,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f53860705de567b262099733bcdc6f3f37c8550a305733712ddc5c6f56b0659"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the help on standard output, loading nothing, when given %j",
-          "line": 226,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f925cb02616b2166b018a3e3b33ced3f39958efc1c56d27f37b52f60a985fd79"
+          "bodyHash": "542228ccd23522d1f4807b49c58ae0ce9572d19e652cc65e7c9c88be92ebfcf9"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, loading nothing, when standard output's isTTY is $isTTY",
-          "line": 265,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "80463e434c981f995ef4f676c330b512f58964113579ebc5c8bdbc68b933a19d"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses a re-issue with exit code 2, loading nothing, when standard output's isTTY is $isTTY",
-          "line": 287,
+          "line": 293,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1cbb4501ab09ccc2f101abca9010eb8a7784ae964085f1fa65918c720a213622"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the re-issue's block with the password exactly once on standard output and nothing on standard error",
-          "line": 311,
+          "line": 317,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0b1df64846d2baf12a45f67dd9682271f1b3bcc6abbd10026ecde929e4827b3f"
         },
         {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::states in the re-issue's lock line the minutes of the brute-force protection's default lock",
+          "line": 330,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fa18c92bb7d7d06485467255f6b7b7e510376da82596bea83dfe1cf044bb5681"
+        },
+        {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::re-issues when --reissue follows the e-mail",
-          "line": 324,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2dbf0b9b96f0a4fa6ed391f51a4951f8a20b9cabb773e3a6db53f9a7630b5bd"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::runs the creation and not the re-issue when --reissue is not given",
-          "line": 334,
+          "line": 349,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c17b0cc59d73d32febd1f9f41cebd06c7dcd1843896c7fefce212bfe09d56c2"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes only the use case's message on standard error when the re-issue is refused with $code: $message",
-          "line": 343,
+          "line": 358,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38ab7651c399e8ba1db990484798502bcdb4a8f3307483c6b933421f4237e184"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes the message and each cause's class and code, never a cause's message, when the re-issue fails",
-          "line": 371,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c60b73660df430546e3b9c2efd88fd449873aec19403e55c3846902659f6cd16"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1, closes the connection and tells the operator to run the re-issue again when the re-issue rejects",
-          "line": 394,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4cb1c0e16cb21bc9f804316665db4fa866c5dd213e3de30d0a2cc93a1757fe32"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the block with the password exactly once on standard output and nothing on standard error",
-          "line": 412,
+          "line": 432,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5be98ff0da95990559d45513d5c8a459189c3d95b6fbe71f90a2f6f7fb14d89d"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::passes the e-mail as given, the --email=<address> form included",
-          "line": 425,
+          "line": 445,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9bbd6c919bc90d5f8578c16ab8e671a59a63907099e020e6c17699c224230259"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and reports the failure to close on standard error when the connection does not close",
-          "line": 433,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1168345c2d5bb27bba6486100ab4132faf301f2618a9287a59e35a32bb5585fe"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes only the use case's message on standard error when it refuses: %s",
-          "line": 453,
+          "line": 473,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b6be79c17368e922e4d6f0f3e33bb0eeda58fed2449e8ef1192386d3713cb1d"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 2 and writes the use case's message with the usage when the sign-in's rule refuses the address",
-          "line": 474,
+          "line": 494,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f886c7f2ace6d25997cc4d01cc64ba839f61fc6eeed65a3e08177d3c0769633"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes the message and each cause's class and code, never a cause's message",
-          "line": 488,
+          "line": 508,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8b5ed3b6a2ab3de4a8fd6374b3181041562ff5bca4c69dc7c18c9cdb6e0d6f7"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and reports NOT_FOUND from the creation as a failure with its causes, not as a refusal",
-          "line": 514,
+          "line": 534,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c194c23b932694738349138b91f9f15b28704717865fede585eb703dccda546c"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::writes a cause's class without its code when the code is not an upper-case identifier",
-          "line": 531,
+          "line": 551,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7254f64015d8531a503d5f4ddd3b249fb6c36fddd6d9bb3d12d3d153e0654dbb"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 with the class and code of the error, never its message, when the composition does not load",
-          "line": 549,
+          "line": 569,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "018b8f2c27b24939cff064d37270da044c72779181c3aa291a5aa28f658b33a6"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1, closes the connection and writes no message of the error when the use case rejects",
-          "line": 565,
+          "line": 585,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e79d3b116adcf22f7ba375a4b18df6d505892cc61bc22e9f0aa041d346b5ce03"
@@ -46684,49 +46837,49 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::creates an active session and returns it with an id",
-          "line": 97,
+          "line": 99,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0ea4ab198a00183e6b49a276ec7b4921f202441e6565416a98c2a26ae3bc23d4"
         },
         {
           "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::stores null ipAddress/userAgent when omitted",
-          "line": 104,
+          "line": 106,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff032aaa7d2628da7144960aef4770b2a58fe8679b1596fcc4ecd2e8b057c3a9"
         },
         {
           "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::rotates the refresh-token hash by session id",
-          "line": 110,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f0b50e202167bda8692887511385596cade3d1eae218450357373038a4821ce"
         },
         {
           "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::lists a user's sessions newest first",
-          "line": 117,
+          "line": 119,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e62b67e47e52ee10e0e1333131efcb96d760e79f27faa17063a64cd0dcf8dc7d"
         },
         {
           "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::honours activeOnly and limit",
-          "line": 124,
+          "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "5df72d8ea9e32b4663d298b33c683392b6f0f2813fe22ccb5e0048c4e0879458"
+          "bodyHash": "1d2e7b9dca705dc0a0197f6ff46213eccc9cae356680e151d5fb9faf4b90b048"
         },
         {
-          "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::revokeAllForUser deactivates active sessions and returns the count",
-          "line": 135,
+          "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::revokeAllForUser deactivates active sessions, stores the reason on each, and returns the count",
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "402df582ee865b0c4d4b0853b628cdd43e3b0a96abc339a985f1682167fb5892"
+          "bodyHash": "179c3ca1aa068b2f98b878f6254f618a2e959cf8d4ee8a374f646c6574caefa4"
         },
         {
           "id": "apps/api/tests/unit/domain/repositories/AdminSessionRepository.test.ts::deleteAllForUser removes the rows and returns the count",
-          "line": 143,
+          "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b425ca27d1db5bc3a7146b701a6aad9008dad64cbd8e7a580187c02b491b166"
@@ -47681,6 +47834,22 @@
       },
       "duplicate": null,
       "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/domain/repositories/adminSessionRevokeReasonContract.type-test.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 1
     },
     {
       "path": "apps/api/tests/unit/domain/security/rotationStatusRules.test.ts",
@@ -50871,6 +51040,81 @@
       "subject": null,
       "duplicate": null,
       "importers": 5
+    },
+    {
+      "path": "apps/api/tests/unit/helpers/processState.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 6,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::raises, saying the suite needs procfs, where there is no procfs",
+          "line": 51,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "70aa1200e4185b748e4138bc2fbab5ecf96036eedc868e2cd72ad616da18144d"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::returns true when the process's entry is gone from a procfs",
+          "line": 59,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7c7cb7815ec15cf39ec49610cfef322ede971cc41563cbc620bc97f279c2c689"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::returns true when the process's state is %s",
+          "line": 63,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6914b24af652bb337ec158ff71359079eda06e7ed87b9ede19b93b95b01bef4c"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::returns false when the process runs, reading the state after the last parenthesis",
+          "line": 67,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "509041a4e7bd61294b3a112cf2b89a3d0853cb775b72d8e4c7667442e426a44f"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::raises the read's own error when the process's entry cannot be read",
+          "line": 71,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "189df9477e9368fc51889b66701ef9683b912f196c37b890c80cd1b8ea61477d"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/processState.test.ts::returns false for this process, read from the real procfs",
+          "line": 78,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "00231f9678977f318f571fcb590c0cf0541afdba1deeb88730231f055e00a756"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/helpers/processState.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 4
     },
     {
       "path": "apps/api/tests/unit/helpers/seedCustomerRoles.ts",
@@ -54106,109 +54350,116 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::returns allowed=true, no delay, no captcha when no failures recorded",
-          "line": 174,
+          "line": 175,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dab8da5ea3ed87e5c3435433826aeb4647118b73e87666080ac0a1b1fbd2f2a7"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::flips captchaRequired=true on the next check after 3 failures",
-          "line": 189,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "96170de8cb905d7015b32e416acf83ffdbfdb53adce925e0305e544be723dfb9"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::computes delaySeconds growing with failure count (1 → 2 → 4 → 8 → 16)",
-          "line": 210,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "247f9e8a637df3529756d3d38b90adadddf5b06b05e608572d023f50edc9a04a"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::caps delaySeconds at maxDelaySeconds (300s default)",
-          "line": 230,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3529a8ff806e3e8032a37e1dc010e46131258fdf0e277be990d41b3a4d1a9d05"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::blocks the account after lockoutThreshold failures with reason=account_lockout",
-          "line": 253,
+          "line": 254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e25ed80d23f06d8f318027cb92aa48e70d6811f3a029b967989d0e2450dfaddc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::emits ACCOUNT_LOCKED audit event when the threshold is crossed",
-          "line": 272,
+          "line": 273,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c041598f67c07686dea39e52e6ec53a414869eeeba779dd2ec8cc1b8116f2c4"
         },
         {
+          "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::locks for the default lockout duration when built with no configuration, as the composition root builds it",
+          "line": 286,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "34069e392a88268e170a93af943aca6df74167d0fc933aa468e363d3491e0c59"
+        },
+        {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::clears the per-identifier failure counter (IP counter preserved by canon)",
-          "line": 287,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c09818398fe8f7644d61a37e0e6e3a1fa98471b2972e8e55dec8807218d71d3"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::emits LOGIN_SUCCESS audit event",
-          "line": 313,
+          "line": 329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01f53f5f404daa92231ff27b485265d5e96523094ebfadf2080f836aa0cc281d"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::returns true and clears lockout when the account was locked",
-          "line": 323,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4c2fedfb6354893323be0265b8e0b670ffd906cec86b69f68bfb6d702cf894f"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::returns false when the account was not locked (idempotent)",
-          "line": 342,
+          "line": 358,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc3d579febabe5c31c67fae02d7a45673776a49efc00f21670de5f0121de5f1b"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::emits ACCOUNT_UNLOCKED audit event attributing to the admin",
-          "line": 348,
+          "line": 364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5a189469dae6b70598e64f897b74ef3bb69344d18ef8b985d2224ff2fb9bc059"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::locks the account even when each failure comes from a different IP",
-          "line": 366,
+          "line": 382,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6acb27bbf03ffa7cd040dd21dd6d9752fd60c24fcfe808eb893bc5181e662708"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::returns allowed=true when Redis throws on checkLoginAttempt",
-          "line": 386,
+          "line": 402,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa497033853c25fa4be972baf3f8d09641217d01cb807c3519a8c65d46b4ff4d"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::emits a securityThreats metric on adapter failure",
-          "line": 399,
+          "line": 415,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6626e894b8afcefedf26b9170c7b2f20b01ec0d4a501fd854d01b68582231029"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts::does not throw when Redis throws on recordFailedAttempt (best-effort)",
-          "line": 409,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0053e3f954bd03f471e1ade8d4a5c4e0df4f80619cf0863fdbf96b30a5501598"
@@ -55998,66 +56249,66 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::create omits ipAddress/userAgent when not provided",
-          "line": 58,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ba5eb84eddf012ecf59baab5d2048a4033d46408f8220fb9c1ab90f892c97dd"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::create includes ipAddress/userAgent when provided (incl. empty string)",
-          "line": 66,
+          "line": 67,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "155b1ecf2b57bae5610b880b6f6dea4d260756069c093a6b936ce9cafd556867"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::create returns the persisted row",
-          "line": 79,
+          "line": 80,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2614cfea8a34d5adb922ef5351cd33fccc8ec8d61e4a04948bb030da39430380"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::updateRefreshTokenHash rotates the hash by session id",
-          "line": 85,
+          "line": 86,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e160e50cf980c5e3abbd412d694c90510ae39886ffedbbc9f302e23598a7a36"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::findByUserId lists newest first without active filter by default",
-          "line": 93,
+          "line": 94,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa65cb08d8aca84f1185e5d5c2f3b14e30bf6f99f6e65e37eda231087da8c7ef"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::findByUserId applies activeOnly and limit",
-          "line": 101,
+          "line": 102,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50053952c715330fd6a5f9a99927f3fe44ff706798d7a15f7a3146620c8e240a"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::revokeAllForUser deactivates active sessions and returns the count",
-          "line": 110,
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::revokeAllForUser deactivates active sessions, stores the reason on each, and returns the count",
+          "line": 111,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "3f6730d4ce9c804afc1542b89c6256328812c26397cf634f3577afb9f7c5621a"
+          "bodyHash": "7d212e05516fb1716697a18d60d6b3a45e097127bf0c40996cfde30af0b49b8f"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::deleteAllForUser removes the user's sessions and returns the count",
-          "line": 120,
+          "line": 121,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a9c2b3c0106c8d035a49e3b33c35488e1d47dbcf056ca486256a6549ac7cd4a"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::returns the count of the transaction's client, and writes nothing through the base client, when revokeAllForUser runs inside an open unit of work",
-          "line": 143,
+          "line": 144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "8608b24b05110a6f062be6deb235cb9a8eb821d40e90179723fe9e940e6e88b6"
+          "bodyHash": "a7eb364e75ca92420c17712569923f395cb4fff6a191fb8f312d6afa24766e97"
         }
       ],
       "verdict": "KEEP",
@@ -56200,36 +56451,36 @@
           "bodyHash": "737beee9df1f276f5bb6ef580fc1ea51213b9935920c28fdda523943b1af66e6"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns true after one update guarded by the id, the hash and the reset token as read, the mark and no sign-in date, writing the hash and the change date and clearing the pending reset",
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns true after one update guarded by the id, the hash and the reset token as read, the mark, no sign-in date and an active administrator, writing the hash and the change date and clearing the pending reset",
           "line": 403,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "a141d9b17a22942d8ddf7d009954cfd58f750487600e7b33e2404ca9b0b5c6d0"
+          "bodyHash": "4d759a2109e2a6056e5b572e8689a429699b87c5412b82ebd094f17e2fc79597"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::guards on an empty reset token when none was read",
-          "line": 429,
+          "line": 430,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "8fbc5382efe21725d6f531df068d4828158c646a86e3f1848bc13f5bddfa3b83"
+          "bodyHash": "e0e429781e0ea71870552fd9e57a32e747d63a76d0c141a2d2453f3ad9fa5f44"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns false when the guard matches no row",
-          "line": 443,
+          "line": 445,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14bf6487cff2821e5f3214f4b819677f4a10f863d92cbfe06b716d2ca4b8214d"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the answer of the transaction's client when called inside an open unit of work #2",
-          "line": 452,
+          "line": 454,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79a747054907b9ea18700b5e73fd954475e38e72910595248cfd16c0a440de0c"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails #2",
-          "line": 463,
+          "line": 465,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e310a29c1505381411e2b44f74bc3ac2b323ea6ce497cfc5cfec996642ee75c"
@@ -57037,7 +57288,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok with the definition's fields and exactly its permissions when the role does not exist",
@@ -57054,64 +57305,71 @@
           "bodyHash": "f61fef74873625e7b1e0dd5a77fbbd3fe18f6674df5a520f516c28dec1633ff4"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok and deletes or inserts no row when the role already holds the definition (%s)",
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok with the role active again when the role was deactivated",
           "line": 288,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "65e8db258b3279e40d68a51d927089e5698f78ecd23faaf6315d2aa716c468df"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok and deletes or inserts no row when the role already holds the definition (%s)",
+          "line": 302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9db77e4ceb8a3e2e678cde4750920a1a0eb671c61a169e960215c6514ec378e"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok from the transaction's client when called inside an open unit of work",
-          "line": 308,
+          "line": 322,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c08d87178690fa08ee85b569f440f4bf961f684ee0d6831e3c4fa573c46d3436"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns ok from the base client when no unit of work is open",
-          "line": 321,
+          "line": 335,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6561d161842e54b087e747509fade7e800c03e1b07e47d6e113cc37af2290185"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError naming the key another writer holds when the store refuses $index",
-          "line": 333,
+          "line": 347,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "234a4879df740764397b20271fc57c7b09e07449c0d903e7b7e1dcc4933540f9"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError naming the key when the driver names the columns $fields instead of the index",
-          "line": 365,
+          "line": 379,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "772e6deb8c44994313b3503a4f8faf2360cdc70a4feb6c15abef91a4ea31be64"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a SystemRoleConflictError whose cause names only the type when the violation is not an Error",
-          "line": 393,
+          "line": 407,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab98f5ae86d850c6de9cd2416d9b3272c68dadf42411824fcd35d7da36ad7095"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError for a unique violation of a constraint that is not the role's",
-          "line": 415,
+          "line": 429,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2442a92422ddc4f2eeeb35fe882d50bb509eab23f832c1a8baab3861b553494"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails otherwise",
-          "line": 429,
+          "line": 443,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "04d8a87c973f075b3f1ac7d2b016b3930588cb004fac2a8cbee86e79060b7aba"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaSystemRoleRepository.test.ts::returns a RepositoryFailureError whose cause names only the type when the client rejects with a non-Error",
-          "line": 446,
+          "line": 460,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1094802d51507df6269d59267f9ba3e1ca6dca840db78d0c07b8cdb386214f8b"
@@ -59296,6 +59554,51 @@
         "module": "apps/api/src/infrastructure/integration-events/IntegrationEventConsumer.ts",
         "imported": true
       },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts::returns the exit code and both streams of a process that ends by itself, with no error",
+          "line": 60,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "79532845848be651d26a43886335c4325f31ba72564b068b58ba77f1dcb42dfc"
+        },
+        {
+          "id": "apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts::returns the spawn's error and no status when the command does not exist",
+          "line": 70,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b00a2026b564a639dbde0373c8aa4304ea5abd7b81aed1fa10dcb9be2c5af253"
+        },
+        {
+          "id": "apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts::ends the process and the one it started, and names the limit, when the process outlives it",
+          "line": 81,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "06324de2e73344dd68ac4ff63ca54f293abfcb9ae9b5b82b15f49e84c73f730f"
+        },
+        {
+          "id": "apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts::returns the limit and the refusal, raising nothing, when the process group cannot be ended",
+          "line": 106,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4bc20f5d0ea9f4711ecf5be65ef33e9e6141d7d520ed2beaf3a41f8a72551755"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
       "duplicate": null,
       "importers": null
     },
@@ -71066,140 +71369,140 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the names of the script's step declarations, in order, when --list is given alone",
-          "line": 260,
+          "line": 261,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a7e12532a217aa0f0c2fea9ce801e97f7a49ddb1be6669cf72323a24f9578ce"
         },
         {
-          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints as many names as PLANNED_STEPS, which is 36, when --list is given alone",
-          "line": 267,
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints as many names as PLANNED_STEPS, which is 37, when --list is given alone",
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "643d017b228fa9c389811d038d616bd8aad16e70ba3c3c61f90687dcfa48eda8"
+          "bodyHash": "4d6294e48b40ac039eb79208e64872f4e5b66ed3c023f52262972763e282d70f"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the static steps in the script's order when --static --list is given",
-          "line": 274,
+          "line": 275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "764906394e292bb591834cdbc2645f57c73872e397cb3b3312747f3ed612f48e"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns listings that differ by exactly the nine suite steps when both modes are listed",
-          "line": 285,
+          "line": 286,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c54473e44e97862833197607be7712a43f3912ae3a482a7066d996434b1be17"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the listing with exit 0 when the tree is dirty and no environment file exists",
-          "line": 293,
+          "line": 294,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d3db6b703dab8ed38522cdec34357b99370cddeda5fc664f251353f2eb03f9a5"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 naming the missing kind when a step declaration names no kind",
-          "line": 303,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "add8abbc6b89c5e35ce8dbf1f73ba1e57ab8a8cba5957b114516fc3675f8869f"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the usage naming both flags when a flag is unknown",
-          "line": 321,
+          "line": 322,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca8cccfc00604c9121403803ec4cbf10d72ae655e2e11b2d100d6887e9134d4b"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the usage when two worktrees are given",
-          "line": 329,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ecf965ec184314ea5e61be240bd613724228ef77674ec3b4d466f454ab13bf00"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the usage when a flag is repeated",
-          "line": 336,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "19835cbd65382a2865f8358589c9c41e7951e9bb30dc15cbfdb4281fe42d2464"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the environment refusal when the full battery has no environment file",
-          "line": 345,
+          "line": 346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cdab860f3cb2d254f947fc4d1b163aa14fce0e335b97ecfc3ad61766d30e0e54"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the dirty-tree refusal when the full battery runs on a dirty tree",
-          "line": 355,
+          "line": 356,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f37f671fca0f8596be0ff9c9f92eb0b755a7c0a61e1c357276979391ef267d39"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC GREEN with the step count and exits 0 when every static step exits 0 and no environment file exists",
-          "line": 371,
+          "line": 372,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8adf9e8ac5c5a158373347be198a5faf99912fe00d511e94fc6b43de69b45b8a"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED naming the failing step and exits 1 when one static step fails",
-          "line": 385,
+          "line": 386,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a69a16147596de319fd8e95130073b477276d625d3a505c587deb8df0e1061d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED naming the log and exits 1 when every step exits 0 but lint.log holds a warning line",
-          "line": 396,
+          "line": 397,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bf8965b1bddaf14dcd06de4fa3714ecbf1f182a388d94e44179b5cc87197c449"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC GREEN when a static log holds only a path and a flag the verdict does not count as warnings",
-          "line": 411,
+          "line": 412,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b29e830d100c5822474731d75007c279deb56e327a23697c91e75b7787acf54c"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::records only the static steps in its own log directory and writes no verdict when --static runs",
-          "line": 425,
+          "line": 426,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0dd6b72d26b9d56c0e0ba910b4efeb08b464fa251b4e96f67309e5fbd04b808c"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::leaves a full run's log directory untouched when --static runs with BATTERY_OUT naming it",
-          "line": 438,
+          "line": 439,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dab84d95d05a0859280b7adfc0c57903cdb1681247aa340dc581c76aa9718f32"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the dirty-tree notice and still runs when --static runs on a dirty tree",
-          "line": 452,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1f0f98d60d412b2beb5cae03925ba9800bbd3022b320c8c8b8622fc51f15074"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED and exits 1 when the static-result module prints nothing and exits 0",
-          "line": 465,
+          "line": 466,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c6dfda07428bd62df52ad718c97901e89fc1fe528ff2cef85b18575563e3b1fc"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED and exits 1 when the static-result module does not parse",
-          "line": 480,
+          "line": 481,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2948fa32efb5ac6ac17012642e4411803b7b913f8aa9cb815c4b5b1635560b93"
@@ -73209,441 +73512,441 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::throws from the body of every exported function and method, and keeps the constructor, the other functions and the top level",
-          "line": 309,
+          "line": 310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3610c529abf9342c96638d1378b01e0b0f691764d66acfefdeb096027c01233"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::guts the exported components of a .tsx module and keeps the JSX of the others as written",
-          "line": 345,
+          "line": 346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "39d9ebddad6abbc8cbea8cf44b617d17b260969f29ca6ad39eaf4ad14f9f0b69"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::returns a module that exports no function byte for byte, with nothing gutted",
-          "line": 368,
+          "line": 369,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1509a6541abe4848d279c164e37d172b696dc0eea08f24cb9e02d8946d13acc"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::guts only the public members of an exported class, so a constructor that calls the others still constructs",
-          "line": 375,
+          "line": 376,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7972d23240ea70cc053b5c9e90a2f7a308872cb01836bf294026ad8c760f3494"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::guts through as and satisfies, an exported object's functions and an exported call's function arguments, and names the exports it leaves",
-          "line": 419,
+          "line": 420,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d197ea2919567299f4c5e15d803bf11f11cae12e8830651867155ed26d896e2"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::names an exported namespace as left ungutted, and returns its module as written",
-          "line": 498,
+          "line": 499,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ccdf15fcbea9041a2b1e1da93e4044b50da5059efe124ae6b68d2cd9c02dbe2"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::anchors the describe titles and the block title joined by spaces, every regular expression character escaped",
-          "line": 511,
+          "line": 512,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b6fda90e4134430442032a6a28724eca2a8d974540b14a17af806b9ca2d32b4"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::leaves a slash as written, which both runners' patterns read literally",
-          "line": 520,
+          "line": 521,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "086e133d90b12b01cbaece082dccceefddca4d81caa84b74f35f85e06b80eb4f"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::matches any value where an each title formats one or a template literal interpolates one",
-          "line": 527,
+          "line": 528,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bbb0dfa713c7df316c8eda364eb502d2ea07b7f45abda731b8b7af8ac9899e3"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::runs a vitest block from its config's directory with the JSON reporter",
-          "line": 536,
+          "line": 537,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a6197d53c9ba4b2314654903e84e9a24dabc259cab44c72245cca0400c31ec68"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::runs a node:test block as run-tests.sh runs one file, with its summary reporter and the name pattern",
-          "line": 559,
+          "line": 560,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "411e3e662b6af326d658da901c2e09c92228f747dcf11c8653f7db981b962d5b"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::reads %s",
-          "line": 601,
+          "line": 602,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "735a8e3ad2129c5b31777a350b1bc13b0c15654487f237f9da528b6729a70c7c"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::reads the report among a suite's own JSON log lines, printed before it and after it",
-          "line": 668,
+          "line": 669,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8faa1ba61c96b222c6cc240c6de7317d62a9e74d22bbbf2d74a319b8cc5c778a"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::reads no report when vitest printed no JSON",
-          "line": 678,
+          "line": 679,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b48fdd222bb0415a270a9fa030f22848e6ac8643b654bdc8d956c099a3111317"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::reads %s #2",
-          "line": 694,
+          "line": 695,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "23ef43427c24f554c809fd826027e9696bd4af64a86fc5ba8d4d126addc81032"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::keeps the first-party production modules the closure reached, sorted, and no test, helper, runner, test configuration, declaration or data file",
-          "line": 787,
+          "line": 788,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c58b0296e04b6f8fa10e84e080ce20debed56fd2899be21df28579807047b11"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::leaves out the listed test infrastructure, by exact path and by glob, and keeps a production module only its own test imports",
-          "line": 822,
+          "line": 823,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e0c6a1fc44ab93fa5f635bee1b54f96a6d3b24ebb873751bf99469bcdae3b2ee"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::hashes the test's text and every subject module's path and text, whatever their order",
-          "line": 840,
+          "line": 841,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca976ae75890430d8e617ce067f47cd982c8cf5ffeb9274d656f8e7064e69521"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::probes every EXISTENCE-ONLY, CONDITIONAL-ONLY and TITLE-CONTRADICTION block of an ADJUDICATE file and 5 % of the runnable BEHAVIOURAL blocks, sorted by id",
-          "line": 900,
+          "line": 901,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c20f8d1bbf1dea6cfecf55e7e5d77b9c818a3b3a0b44d4fd0272046651c631c3"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::draws the same sample from the same seed, and other samples from other seeds",
-          "line": 947,
+          "line": 948,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "919b2aa43325f9d3eafcd99d57e3dcf9bf314dd26be2a36f6f606f0b946f0447"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::samples %i runnable BEHAVIOURAL blocks down to %i",
-          "line": 959,
+          "line": 960,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea3d87c0bab3a77e03f36f00f05a85435e085eabc1ed70b2d4f0881a0688ee40"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::caps the plan at --limit, from the start of its order",
-          "line": 978,
+          "line": 979,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae4b585804edff2ac8145599d0005de9c63e63039974c6adab5aa706ddab3704"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::probes the one block --only names, whatever its class, and names an id the ledger lacks",
-          "line": 982,
+          "line": 983,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0a4902ede9d73a43571ee625cb23778a504e35830f05a2022a239ce6884be51"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::renders the same bytes whatever order the probes arrive in, every key sorted and no timestamp",
-          "line": 1031,
+          "line": 1032,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6440d005026482071c7c4aa986eb0fb896b8ca31e97081d13521f6ec646f08f"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::rates each class's GREEN over its conclusive probes, and marks one a lint-rule candidate at 90 %, whatever its LOAD-ERROR count",
-          "line": 1066,
+          "line": 1067,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2ac8c990eb16dcaeefa10909c7eef2d4975892d41208833666f0dc2038c5ff3"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::rates and marks no class without a conclusive probe",
-          "line": 1101,
+          "line": 1102,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9f4170d5202a578455ff216b2d822804b59e62e8c7445fa7b3219e5e1ae1317"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::marks no class that falls short of 90 %",
-          "line": 1121,
+          "line": 1122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d06a5492eee816009f777cb77c082a7752b7b25c1e357c59efed026cf2814944"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::accepts what renderProbes writes, and no other JSON",
-          "line": 1143,
+          "line": 1144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "99d4ca8c903e942c77c838be72bd8f9b1d5a26dec7c5e0c71275f0afe62bb048"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses %j as a usage error",
-          "line": 1269,
+          "line": 1270,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d78296dfbc441483b8efea116bf78d9f93b0d050ba61570d48ca7ceaca3c71e1"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses a source tree with uncommitted changes, naming them, before any worktree exists",
-          "line": 1285,
+          "line": 1286,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1439690b8bf3920f2f77012d673d3a78db1dd2ce53d294339b056a41615d1bf2"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::puts its worktree in a private directory of its own under --worktree-root, never in a path planted there, and removes both",
-          "line": 1311,
+          "line": 1312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "42a6c5abc2fad693ea1e8f5e6bd490b44161a75d6d1913fcdfb5524492632544"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::removes its private directory when git cannot add the worktree, and calls no runner",
-          "line": 1341,
+          "line": 1342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d984f6583005326356cf1a12f22e4e5ba5146db46f78d1583369bf368fd59dc"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::keeps its private directory, with the worktree in it, when git cannot remove the worktree, names the failure and writes no probes.json",
-          "line": 1360,
+          "line": 1361,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a5f19df06243620fbaaea08e497678e1a26b3c9e91d3e17afa8212f13866667"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::exits 3 when probes.json cannot be written, after removing the worktree, and claims no write",
-          "line": 1401,
+          "line": 1402,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1090e9c5ff4684557dab12546c68e8ffd96ac532ee61a615bf7565a9313c44ad"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::leaves an earlier probes.json byte-identical, and no temp file, when the write fails after its file is open",
-          "line": 1423,
+          "line": 1424,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50fe091a68debe5e59d09bf445c59e5f948c8b064d1ff40a93265f0804fa95f5"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::removes its temp file and leaves --out as it was when the rename onto --out fails",
-          "line": 1449,
+          "line": 1450,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fcef624a96a291fa1d7fe7fdc4f260fff592d79b934d85d0190037b19961faf1"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses a run beside a temp file an earlier run left behind, naming it, under this repository's ignore rules",
-          "line": 1470,
+          "line": 1471,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fdccd55d9be938bccd230e88ab500e8ad745e778c74198f9db49ca92e5907af"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::follows a symlinked --out: the link stays a link, and the file it names gets the record",
-          "line": 1489,
+          "line": 1490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a5256561799fa5bec0f3cb6fb8386e8667e59f78592c465aacfccd1f5cdd510"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses a tracked symlinked --out whose file is a tracked file that is no probes.json, naming that file",
-          "line": 1512,
+          "line": 1513,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d0532534f954438d30ead76e5991cf46e8d5154510f22df5f7399ad9626cd46"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::keeps the mode of an earlier probes.json it replaces",
-          "line": 1548,
+          "line": 1549,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ed27a1fc7fe1b94cff00f5e1c8e1b4cb8c958317b3ceda943d115f77cfebcf3d"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::never gives two runs the same path",
-          "line": 1568,
+          "line": 1569,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f8f3e3057a6f193c5222c5b7c2cd4f93293ba60f1c9c619776fe084468e37907"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses a --worktree-root it cannot create a private directory in, before any worktree exists",
-          "line": 1593,
+          "line": 1594,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e6fb95d1e3bc194a221c7d583616fe63b9db075bb9e2bb025f3e6aea4d0b89c"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::probes in one detached worktree, guts the subject for the run, restores it, writes probes.json and removes the worktree",
-          "line": 1616,
+          "line": 1617,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9ef2ebeced3ba9d2a6febe95696298b7b6edb82627c4f6717d368f39ad0f9fb7"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::aborts with 3, naming the files, when a probe leaves the probe worktree dirty, and still removes it",
-          "line": 1736,
+          "line": 1737,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fb7aeaa9de1a82de800d0c0944000f06a00300fabfeda7f90b27c60afcd62e9f"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::returns 1 for an --only id the ledger lacks, writes nothing and removes the worktree",
-          "line": 1761,
+          "line": 1762,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f0131ebf90ebda4c0196d2b7cb1741b9a20eaaadc2cf1c182348e52533090cf6"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::resolves a test's import of a workspace package by its name to the module it guts",
-          "line": 1783,
+          "line": 1784,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6f817f3e3192771a2763e35dede40e40dafe77544c906343f998cdc0011db408"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::ignores its own uncommitted --out inside the source tree, the default one, and probes",
-          "line": 1817,
+          "line": 1818,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9fbbfcc747c17ccd833f14a2fafbf818c772d220a452d88638e102e77e117dc9"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::still refuses every other change beside its own committed and modified --out",
-          "line": 1847,
+          "line": 1848,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5dc799d31232b9f627891ea8bbb41b5938134b6246b317e83a7119035b264011"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses an uncommitted probes.json in the source tree when --out names another file",
-          "line": 1876,
+          "line": 1877,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "59cbac3c6aa1bb669107c569a880e956565b84f0b88f9307b77bfd6854979f4b"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses an --out that names a tracked file which is no probes.json of this tool, and leaves it as it was",
-          "line": 1895,
+          "line": 1896,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ccdb322ecd8e9ec91ce3d74bcec27047e733bea6a00f9873008ceabae9dfbd69"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::refuses a --worktree-root inside the source tree before any worktree exists",
-          "line": 1915,
+          "line": 1916,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ff569502bac159c26bd78a4f261b919690b2d9148be87f515aacbf4c81db5b1"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::guts the production modules a re-export reaches, whichever module re-exports them",
-          "line": 1942,
+          "line": 1943,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2525b8417a071bc441ff957c7699fde337ac15282c8c97bccc18ab8bfe05f62c"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::guts the client a package's index re-exports beside the test client, keeps the test client, and guts a module only its test imports",
-          "line": 1988,
+          "line": 1989,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e7323f2af20c30bf91badb4d6946ff2e749687c1439faf81885a6ea5b177e84d"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::guts every base class up a chain across modules, through a package's index, from a subclass the test imports",
-          "line": 2096,
+          "line": 2097,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "32594940bf20df437540a56dc900381b3e3405d259f6d5ac555503cad289aa10"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::follows no base class a third-party package defines",
-          "line": 2125,
+          "line": 2126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a401dd34944b1171f4a6a56f0eaec78765fefdd21daaacf4ec081ff6209ca70d"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::follows a base class into a listed test-infrastructure module and leaves it as written",
-          "line": 2141,
+          "line": 2142,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "836a377dfde4ca31336a4eb6a32d775d7403c00635c07acc9802a52d7f7559f2"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::records the exports of its subject it leaves ungutted, so a GREEN there reads as partial",
-          "line": 2161,
+          "line": 2162,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49768796df1de6d1372c74f544c43a489f273d6cb12e99a1af28452fd0ca908b"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::names a temp file beside %s that no ignore rule of this repository matches, so a leftover shows in git status",
-          "line": 2187,
+          "line": 2188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a86c667084769d6d1125dba6df7fa5352af352a119169aa560676e3ff96cb72f"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::kills the runner's whole process group when it times out, its workers included",
-          "line": 2251,
+          "line": 2236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da88f9d2613d4735e6d83c16a66dda45a5a5cf60e3c01ec8acc34c55c12deb06"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::kills a worker its runner leaves behind when the runner ends on its own",
-          "line": 2267,
+          "line": 2252,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c8d3cf26616159790140a54423e2be773e513e7d2231163792e0c7361d16dc9"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::names a command that cannot start",
-          "line": 2283,
+          "line": 2268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "536f35e31239860830bfc31a828e6237a63a34dab06c407cddc3392c9416c0e6"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::%s kills the runner's process group, restores and removes the worktree whatever a second signal does, and exits %i",
-          "line": 2320,
+          "line": 2305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7796f589edcce1f7b97b71bcdfdec3fd37d0e9f0febc312a3b1c7854f51e3a04"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::writes no probes.json, and leaves an earlier one as it was, when a signal arrives after the last probe",
-          "line": 2401,
+          "line": 2386,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "285cd90eae8001106e3bd4dc6630918ba0289eab90f9a286c4cbb5b08357421b"
@@ -77867,1024 +78170,1391 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/scripts/planClosureGate.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 44,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::reads the chain table of the plan and the records of the chain and the areas",
+          "line": 196,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1589609f4223f900904eb534ed54c4d76a2829284a597508b18eedfa1503f46a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::passes when every item of its record is closed by a pull request",
+          "line": 203,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b569e2df7b7a6f5a2c267b1a913f704ebecb3e9776516be05b25f8a12fc2c8f6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::refuses one open item, naming the feature and the item with its line",
+          "line": 224,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "16fe44bda169b0c5dfa0f003fbad93108901050a655f65145c94dd532c0ffa1e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::refuses an open item of a findings list as it refuses one of the attached list",
+          "line": 240,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "17f818804e4ec82cf3f3c6c3d67b5a9bd3c194b78e2c471f6634c647194dcf79"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::passes an item closed by a recorded decision that names its role and its date",
+          "line": 261,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "acd9db2edd0f62951f3599a3d1428979ec8f2900b105d612d82b8124d143a850"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::refuses a closure that lacks %s, as an open item that names both forms",
+          "line": 286,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "91cd5ce00a0fdeae92ec9cd873b90ad7c48e16d09382c7df3b25f9bacd3ba7ad"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::takes a decision dated up to the day the check runs, in UTC, and none dated after it",
+          "line": 334,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b0000583e9d135ac6cb3be02a3db5d201466b2cce0a0afc047306933e2bca16e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::counts every open item of every closed feature, and a note is not an item",
+          "line": 357,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ad8c6cab766b4a81d15a96c1cb01ce0a38c00488b6d7585cc548739c90c14648"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::passes in progress or open with open items under its record",
+          "line": 391,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "452d79c637183370f2f3d7507e45919bf1c189568012816f8047a20eff66e783"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a nested list entry under an entry, %s or not",
+          "line": 419,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e7bc9de2727c8fb1fbf1dd053dbbe3b82ce92dfae636c4c80f83e5bd7da9bbf9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on an entry indented by %s, which is neither an entry nor its text",
+          "line": 434,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fa7ecbe06bbeb4e859608348e368110a29a7ae1a6cf412074bce412394262b72"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::reads a line indented four spaces with no list marker as the text of the entry above",
+          "line": 448,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "046323941bc1481e13be512eb7b82bcef278b11f07f8433b761621d9f627f6e5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a line shaped like an item %s",
+          "line": 464,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "72a3eb754abfbf410eae3a80c11af25b74fd45e451a1b4e5c37e7c981f97487d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on the continuation of a closed entry that starts like %s",
+          "line": 546,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7cebc79bfb089a6381663d6a11867e271fc82fb24457ccedf8297fa4325fd08"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a line whose backticks do not pair, scanning it whole",
+          "line": 560,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "52b090f4c9e09479413e4b42a6a878fe78c2f21bcdf22648a7f6541eaad113b6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::leaves alone %s",
+          "line": 567,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "83e4836b9fb695cf0e2b1bf5dd7b43f7ce17f757552962db5857841f3d9310c2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::never reads a fenced table as the chain table",
+          "line": 614,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "434631caa29d3854ff70c943672465c9a8b86eee1b6caf74f82b293a3a834fd6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::never reads a line of a fenced example in a record as an item",
+          "line": 646,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "752470d3bd30e1a5a4c752b9a00381bab94481523d4cf42f6806173f43a049c7"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence a closed feature's record opens and nothing closes",
+          "line": 666,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "71b8be656f0c6dc9546abf26df0a9712cf9e4e0db58fe4ed221bee83bfba1bd6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence still open at the end of a file, outside every closed record",
+          "line": 682,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3226f1683d0b84b07caa2efd61b580901db57c11a21296bb9d6dea9d137bdc18"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence the plan opens before its chain section, which it then cannot find",
+          "line": 697,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7862bcd9d7c06dffadf5269dac378465220536395262aaa8c03e4153e7f84561"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence the plan opens after its chain table, which it still reads",
+          "line": 713,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bbebbefe34cee9a4b17455ac25b6e7486e195c54220b109919bd46dc5375a9fc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::never reads a fenced heading as the opening of a record",
+          "line": 732,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3faf8f23d4fbd1d1e4c6cf372c0f8b38dc258e2c97fff74f45118a06a806f9e6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the plan is missing, never reading the absent file as no closed feature",
+          "line": 747,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "744449823f8019808d4ca0beb3e68491b650c356d3f00c2a8fb5e34d9d3b4058"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the record file %s is missing",
+          "line": 760,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "502861963f3e93f0da0d29fa4036f4575e426f1f9411ca1b548226884e49cd82"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the plan has no chain section",
+          "line": 772,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "40feba5f441eba1964c7b7374c4d41cab19ca2f5baefb68969dd4235ee1dda95"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the plan opens the chain section twice",
+          "line": 784,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7512f2383e5e80648912644ac6ca12c3ba95aa689c3089c324a9a359a08b1518"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain table has no # column",
+          "line": 799,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1cb5294998e3df66eb11e7c36582b612a82278db263a75b505c25b233cbc9af8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a row whose cells are not the header's",
+          "line": 811,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4490606c1178f031b4344b42ce52d312ea8c1884d4261e997742c214058b56e3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a row with no feature id",
+          "line": 825,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7a904ba307aa09f89f7ef3e6d56c94ff40e90e30c4b185265704f7607c057df2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a feature the chain table lists twice",
+          "line": 834,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "45c7010551311c97b1b0108aacb4f503c9475197ff831375e5acc6b0dedcc77b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 over exit 1, printing the unreadable entry and the open item",
+          "line": 851,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "35074059b5791ec46aa401e2136593bb838ce21b5c72b63f9cf83669982b4fb0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain section holds no table",
+          "line": 867,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1cc56b91a3976717e25c95433038791800700c1f17d3f6a123e49d645644e8ea"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain table holds no feature row",
+          "line": 884,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bb64f0d1a8b26705d7303c84528a1e8d404c0049114a2506b22cee3f0b946635"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain table has no State column",
+          "line": 895,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fabbfdbb0bbdb70baa7ef416cc25334af3214c913434863540e56dcd10181fdc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a state that is not open, in progress or closed",
+          "line": 907,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2866727c65d41cbcab637a6634796a5296698e23353973b992cd5d2c9506d0de"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when a closed feature's record is not found",
+          "line": 918,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "394cc6714c1b314396fd73173560ea5c4ab3a9a286ced384f3272bbaf8f8b350"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when a closed feature's record is opened twice, in the chain and in the areas",
+          "line": 929,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "878a6c8287778f96229434b988cf89edf57a46b68c7361288e4315c2be733d9e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when a closed feature's record holds no attached list",
+          "line": 944,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7cfa9d982bae28d7a9947d5077182effc656295b0c320d84841ad56ce81e5fb3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the attached count the record states differs from the items read under it",
+          "line": 958,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8acc9cb1869e8f6c3a9b1446e7f3281969d3db0e64b60d97c27f0a5857924f9a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when an item list holds a line that is neither an item nor a note",
+          "line": 972,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f4608641b4bf34b6e21fd525a5d741c491cd8677a691a707350f4102a81fe528"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits with the verdict's code and writes each line to its stream",
+          "line": 998,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c4a8f6f015f2a590f7978638f1fe81df3e7d574945083a75c9622e1b38e76e1c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 0 with its one line on stdout over a plan with nothing open under a closed feature",
+          "line": 1009,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a934ab97c4621d970d1f079586a6490f15725e3d201476cc3a9d4e087c69b002"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 2 on the usage error %j",
+          "line": 1021,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "11fb98672b7209a75ab9ac15129c5c37f71e6c872cfbb500e2631c9bda4b0f05"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/scripts/platformStart.test.ts",
       "shape": "test",
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 145,
+      "blockCount": 151,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
-          "line": 856,
+          "line": 892,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0182ea366396b4c173c00fe7db288de45b9b6cb334c8f8d94df3cd8156570a4"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::draws each secret separately from the random source",
-          "line": 868,
+          "line": 904,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e669b565b166579f6786d6e9799859899ea3f6d5512c4a10d687b8926809657b"
         },
         {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds what the platform requires and, besides it, what the development tools need",
+          "line": 916,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fe165c5e0293c8163f67e9fdc4ce16018ddd46dce50df1a8845da6f77b50a71f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::requires nothing of an existing file that only the development tools read",
+          "line": 923,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7f44836910f09492d8866febe64273475276bf6aa086270891a0b5e0a33c8e4c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::gives the development seed an ADMIN_PASSWORD its password rule accepts",
+          "line": 931,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "116408b616d6b8408895ca88a4653416c56ccd66300a37371962eb7329823a31"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::draws %s at the size and in the alphabet the generator means",
+          "line": 940,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "92dc6153a765b7013f4cf6503e3392331a3f5357f560bfca4c0bafdea3bc0e64"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::gives the platform encryption key exactly 32 bytes, written in base64",
-          "line": 880,
+          "line": 949,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5114258af34b5c70d48c79dc39ec09c4bddbf45072399760239298a94a2eb27"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names one user, one password and one database to Compose and in the URLs",
-          "line": 888,
+          "line": 957,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f07a8dd20761b9721b2131f60645c511bb10fc0c0d2e1176ea7dcdafc07070d"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::carries the chosen host ports to Compose and to the URLs",
-          "line": 904,
+          "line": 973,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cfb1f7948f33d3f77a1b4085c5cf0cdf7bef3b463303b90dbd937b429f7fd349"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads the same through Node's loader and through a shell that sources it",
-          "line": 915,
+          "line": 984,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b44206515d44f86c0f6d2eece401e708ad6ebc20d24d2487e54163e3dbabe0a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret",
-          "line": 939,
+          "line": 1008,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a"
+          "bodyHash": "acf6e94b36509e768e8124924b71487d2d6120dcf7dba5fbf6941647e78b50df"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
-          "line": 953,
+          "line": 1022,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a8482de67c5eced12580b5595052020473595370f50d8f56cd4cce7de735bca2"
         },
         {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps the ADMIN_PASSWORD an existing file holds, and shows it nowhere",
+          "line": 1037,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "011cc5d401457a5eb18823dc66e7f99c18040038bd70d936a6853dd339a6b98b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts with an existing file that lacks ADMIN_PASSWORD, and leaves the file as it was",
+          "line": 1051,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "deec1d24ca117e890c1affbe898257bffc0d6313b520c8d7a099c47eea1a836c"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming each variable an existing file lacks, and leaves the file as it was",
-          "line": 968,
+          "line": 1063,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a0658966a72f5fa39669c6d6c01d1b9cea7cd8e93085d5be2fe3db3fa3f4c1e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a host port that is not a port before it writes anything",
-          "line": 985,
+          "line": 1080,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e0f9c13f0638f9c610f7ec7f3ce1ada270f0dfcd58b8bc9497e1e29a7f4df61"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses, naming each one, the host ports that disagree with those an existing file publishes",
-          "line": 995,
+          "line": 1090,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb60a21f4854f2dfe4345b32ee8ffd1f94a050814709ad44004a3152c57446d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses to publish both services on one host port, and writes nothing",
-          "line": 1012,
+          "line": 1107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53eb59fff7f2a913aa0be6722c2a4e0a724964783ca0e01228701315a9f4a504"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the root is missing or is a file, not a directory",
-          "line": 1027,
+          "line": 1122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f4e00c65e798b675f8069607295882743539b10a25bf483f87f5bfb55c88773"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes nothing through a link that leads nowhere",
-          "line": 1042,
+          "line": 1137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "43634c7373dcb44c150f3927814995a2336624753442cdc23aed20af67ba779c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers",
-          "line": 1057,
+          "line": 1152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce94d0b5ebe600d08a550e548e6f953f31343f77160af1c338a81a3b1d8740bc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names Docker when it is not on PATH",
-          "line": 1075,
+          "line": 1170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "76c448a069c1d99c7d415cfe35c8683c6adac72cddbe3dd15baf5dba8a9bbd79"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the Compose plugin when Docker has none, and starts nothing",
-          "line": 1087,
+          "line": 1182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d27c58c4c14ab66cb22113ff4e5cf2b835d0260883bca9473971ac27927d5579"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names Docker when it is on PATH but cannot be run",
-          "line": 1103,
+          "line": 1198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84ed725d40c01d8406a20b7ad9e571ac03d288b7c788abb7d6bac68a3e490b7c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails with Compose's exit code in the message when the services do not start",
-          "line": 1114,
+          "line": 1209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a48a52ecb5e93f31c5f7e277b9dd5fe936bb441f1192886fb232a4ae76995e8"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Redis and its port when it never answers PING",
-          "line": 1128,
+          "line": 1223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0017e8e1c7c33f8a016725db14ca1fc59e78a6a9f6e343a2fd93612154c4775"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, naming the credentials, when Postgres refuses the file's password",
-          "line": 1145,
+          "line": 1240,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12df1cf67aa532b3f6ff44cb829486213d789322658f5fea09f044db5e3da713"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Postgres and its port when it answers but never runs the query",
-          "line": 1162,
+          "line": 1257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2580e0d2fd784ebc1f21b91204b566cd5aacb4bb18de6246a0053480ffcd35fc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Postgres when nothing answers the protocol on its port, and runs no query",
-          "line": 1178,
+          "line": 1273,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "395485e324aee2615f7e1d54c305e0654082eb76791fee93b2600cc3f825c822"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops a query that outlives the wait, and fails naming Postgres",
-          "line": 1194,
+          "line": 1289,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb35676970289518920fb7cce536c08ad4f67ba2fddc22720a09f4b5cbee3475"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol",
-          "line": 1210,
+          "line": 1305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers",
-          "line": 1219,
+          "line": 1314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds",
-          "line": 1232,
+          "line": 1327,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file",
-          "line": 1253,
+          "line": 1348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3cab1831918d48207391b5b3c8d8f60b9c5d65c3bbc3ebaea7505ddecd3c7211"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the environment file cannot be read",
-          "line": 1275,
+          "line": 1370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0027bf8a009c7588cbf2b132b946331eaf34ad6d13f29c56a4c8dc4300066cd2"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says which signal ended Compose when one stopped it",
-          "line": 1287,
+          "line": 1382,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "73fe2681379abfe4b677cf9e0f2cf45e7aca51ae2ae61c4eabf22096381294f6"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates the database with the repository's own script, in the checkout, once both services answer",
-          "line": 1302,
+          "line": 1397,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ebb3ab8f0caa131c0f67398aada6bf805f6012670ff05238ffa452fd49349956"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::has the migration's connection prove, before it migrates, that it reached the database the container named",
-          "line": 1315,
+          "line": 1410,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b42e431f39292617564e05acab562962d6fcd993eb86ea3f257a1ad5548fcde"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates nothing when the migration's connection does not prove to be that database, and shows what the proof printed",
-          "line": 1330,
+          "line": 1425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "658c65c510ce68cab128a2e10434b705f7acfc47fcdfefd42e03c8b897c582b9"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says which signal ended the proof when one stopped it, and migrates nothing",
-          "line": 1352,
+          "line": 1447,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0438dd6c1960eabd8ced5871e5cae222df31dc37df37e9a9a207ea17e809a8b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says nothing of a proof that passes",
-          "line": 1368,
+          "line": 1463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9504f4f27235436908a7407681288151c6d990835d6692126b1b34804cc0371"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, naming each variable, when the container was created with another value than the command read",
-          "line": 1381,
+          "line": 1476,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03a4afae8e7b4ed53d34ff40ee5f4ba98cb0a11e9181d9eeabd494a0e4ab381f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes the verdict from the comparison's own line among what else the container printed",
-          "line": 1398,
+          "line": 1493,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7459eb8bd1c02c9c6bb7798fafdedb6c8370ca261f18a245ccf47d6f77435a3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not take %s for the container's verdict, and keeps asking until the wait runs out",
-          "line": 1414,
+          "line": 1509,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41fb117fe3e53d3d37db35c65a83b5fcb4f4b7762a9ea4fe796d97dae538e7c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::asks the database through its own network address once the container's values equal the command's",
-          "line": 1490,
+          "line": 1585,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83a9d540c1b2cece6ef9c2333e5267d1a49683cf426581ca1f2052a7a9a22a75"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::ends with exit 3 before it asks anything when %s of the values differ, and prints their names only",
-          "line": 1499,
+          "line": 1594,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "30f0c46851c2a7a611362c347e570bc2a8c8fc4842ed8483c69eb07ffeaa708d"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops the proof when it outlives the wait, and migrates nothing",
-          "line": 1517,
+          "line": 1612,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7ba5d7d3c2bfecb1bb553b9521948387b7ec5957ab9dba619f09770452ee645"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run",
-          "line": 1538,
+          "line": 1633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "034021165989fc4dd248b74183a8b6a58010bcf501ba234f2b4b392fe046239f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::asks for no proof and migrates nothing when the database is not the one its data volume was initialised for",
-          "line": 1552,
+          "line": 1647,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce9dbd46d7228f475158bbd3ccda86376d721c28737a1e0542e5e4763b6cc0e7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::asks for no proof and migrates nothing when Postgres answers %s for its identity",
-          "line": 1569,
+          "line": 1664,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cea023dd906761abce29bdf073c45c99ad40e79ff97971052ed86ef210779b3b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the proof and the migration no variable the file owns and no migration URL of the calling shell",
-          "line": 1595,
+          "line": 1690,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9ec255b07737cbbf958f3b89df2f7f5892a8c024d35b322dff55ae97263dcf43"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names pnpm when it is not on PATH, after the services answered",
-          "line": 1622,
+          "line": 1717,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47f72cbe9baab15894a7885c7b7f0ae1328b4547b41516eea1020a76c750a2b8"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails with the migration's exit code in the message, and does not call the database migrated",
-          "line": 1635,
+          "line": 1730,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "97bdbc713870816e96e2b6ab436d732c5bce93b63a34e263446ee51c358f14df"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says which signal ended the migration when one stopped it",
-          "line": 1651,
+          "line": 1746,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "beefc021ff905b23615d09919939079ea1663c8e493592e976527753511668be"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::runs no migration when the services did not start",
-          "line": 1666,
+          "line": 1761,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "397870bcbe02c6d259e8bbf19dedff831fa576122bd81594a55544d4ed014ae9"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::shows what the migration tool prints, on the stream it printed it on",
-          "line": 1679,
+          "line": 1774,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "943dd5a251ae5470059725bcdb2366d614fd237a9128015112a73e0535dbd579"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a wait that is not a whole number of seconds, with its usage",
-          "line": 1695,
+          "line": 1790,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a632d9d54712d8b2eaea510a3501b078e841ad506ce63ba4db8ff2f44a5d0f35"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints its usage and writes nothing when asked for help",
-          "line": 1706,
+          "line": 1801,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea77212994578b72e13ff319e4949638a96d103712fb87e0b0374a9609938bbb"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses an argument it does not know, with its usage",
-          "line": 1717,
+          "line": 1812,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc0bb4dbef8f43cf5d5930688e3f9a65f7667ae65068fb300ed471d6ffbc2798"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is the calling shell's PORT, else the file's, else 3000",
-          "line": 1729,
+          "line": 1824,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cc6aaf63b3f22b0b7d89d0e08d811d58b3f6cf327219945b7245aef1d4a2e22"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads an empty PORT as the API does: as absent, so the default, and the file is not consulted behind an empty one in the shell",
-          "line": 1735,
+          "line": 1830,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4dd37a4b3dbcbb75cad33d7ccfb9277c4e8b021fbfca720e54aa783db3f0a4d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is null when the value that wins is not a port",
-          "line": 1741,
+          "line": 1836,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c98c8e194bb902848b661abab7dfa7d7a488a35590b166c69a2f99c7e62a0eb"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes the proof's limit in seconds: a proof that takes one second passes with three allowed",
-          "line": 1748,
+          "line": 1843,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "878579396ff5d6361f865a270f25784a4fa2deed50572d0ec291dc9e3795554e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not take a server message that precedes the verdict's text for the verdict, even with the comparison's exit code",
-          "line": 1761,
+          "line": 1856,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5171bcef8fe94ef7daf402f8c8ace84e59ab68e583b42186ae6131bf4934bb7c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage what --wait-seconds bounds",
-          "line": 1778,
+          "line": 1873,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc239cdfcdc1a97ef8df6e6a8b82ae3a858ae9d67b1d57a8f7c209f46fe1fd1d"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the API from source, detached, returns once /health answers 200, and leaves it running",
-          "line": 1841,
+          "line": 1936,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13c2f665aabef30e37f0cc1603dd51b98c601c203748e04f437c6c517fafce75"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops with the signal the command prints: the API drains and ends",
-          "line": 1856,
+          "line": 1951,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "522877a26b23cd2dc466b61a812b36730c7a58325c2d5d02c891307979570fd8"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the API the calling shell's environment, without the variables the file owns",
-          "line": 1868,
+          "line": 1963,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db5bed1c0c8552b47e88ca8e02ba9ab67bb7839b62037782f5191a461b59d425"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is reported by the run: the calling shell's PORT first, then the file's, then 3000",
-          "line": 1886,
+          "line": 1981,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "457bb2b8bc00e26aad8206a82883405cabd668cfaaf633da000edc8e8c31320f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the API on the calling shell's PORT, and on the file's when the shell has none",
-          "line": 1911,
+          "line": 2006,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0fd4b12cf7f8f10f3b8ca541639e715830f0201ff15cf4aa54c6544bf0d0852a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is refused when it is not a port, before anything is written or started",
-          "line": 1941,
+          "line": 2036,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "794f15b8949ccca705ba9c990348f8f441647701c1a07fd2543219c3b78fe630"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is refused, with the file's own value, when the file holds one that is not a port",
-          "line": 1952,
+          "line": 2047,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a97c566e700a5a4e0065636001a98ec4459df15a93495a5fba0d35b1cc01b22"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no service and no API when the file's PORT is not a port",
-          "line": 1964,
+          "line": 2059,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "105a745e1b11a59744a39649b5aaaf07aaf3a9dc3c132932aae1bb898a86106c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, and starts no API",
-          "line": 1981,
+          "line": 2076,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a7c7f7bcc05513157c75566bedf41ffd9f3212503de5a48744fd5c70cc5eebb4"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::never signals a process it recorded in an earlier run: it only looks at it",
-          "line": 1996,
+          "line": 2091,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e316f0fe9f1a296fa06508fcad9b5df548b9400faec2fbc1b5366f508d5c69d6"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads a record holding 1 as no record: init is not an API it started, so it starts the API as it does with none",
-          "line": 2018,
+          "line": 2113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c197f5389beff12718f17ec6502fb3654cc6045f431ad2e966e8d8414ddc0a6d"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the API it started earlier still answers: it starts no other",
-          "line": 2033,
+          "line": 2128,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "88c8090abed08d1f582c6833ad22bceec87d47d6f4d602295c122fb7986f71de"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there",
-          "line": 2047,
+          "line": 2142,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6e8fb5dcc947fadd850273d7a2857a41141201a070bcaee312cd3bdabd1083b9"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops every process of the session it started when /health does not answer 200 within the wait (%s), names each, and removes the record once none is left",
-          "line": 2078,
+          "line": 2173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b12bdaf63ccd3a5d897b414853e9264627342d28760d6f67e394fcf2f288a5b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::ends with SIGKILL the processes of its session still running 10 s after SIGTERM when the wait runs out, and removes the record once none is left",
-          "line": 2105,
+          "line": 2200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e7f61ffb0c5875432e74d469ee95438f47b3050f7f753d4679a33b8f04bacd2"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on after a failed wait as a run that starts the API again: the failed run left no process and no record",
-          "line": 2130,
+          "line": 2225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bef79eed33034ec1d48ce177b984e01981614dd771bb57a2124a2c3a3884db6b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sweeps the session of a pnpm that ended first: it stops what pnpm left running, names it, and removes the record once none is left",
-          "line": 2148,
+          "line": 2243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "882fb8f2d16020051785ab862e6fcfe646e6e6aceba2def800b8f2822618f479"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives",
-          "line": 2193,
+          "line": 2288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "262f43ddff06d4549991c461a0159f593ff10636262164a9c1f6a9b7b0aa1cef"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API after a first run interrupted before its API bound its port, and says what it knows and no more when its own wait runs out",
-          "line": 2217,
+          "line": 2312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5a79a1453f68653caa7ac8a26a27ec026744a9f85b8ef401945bca97abf94ace"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails as soon as the recorded process ends during the wait, says that it ended, and leaves the record as it is",
-          "line": 2240,
+          "line": 2335,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d64058523d35454d97860095932740a8ff16d8ccaf9134827b34ba6dfaea1e3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the workers from source once the API answers, detached, returns once /health/ready answers 200, and leaves them running",
-          "line": 2337,
+          "line": 2432,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea139bab9a99ec3eca57ab4ad41d76172bef6f5fdf95d33c180e5c4332ecfe28"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops with the signal the command prints for them: the workers shut down and end, and the API keeps answering",
-          "line": 2359,
+          "line": 2454,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b49461bfd7f9617af0f40ac8e72f7ce36f9087ac34188ec0b1190ca5bd3af031"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the workers the calling shell's environment, without the variables the file owns",
-          "line": 2373,
+          "line": 2468,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d713cddddb91773ecfb9ca8d70bdabb9f1bdb4585e24f0a660d02f5e6af3cf4f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the workers no NODE_ENV, so a calling shell's NODE_ENV=test leaves them on the checkout's .env, and still hands it to the API",
-          "line": 2394,
+          "line": 2489,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "865153a0577c2596f216f39573ec660a979d555d1ff9392023b9b5f6b4b052cd"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is reported by the run after the API's port: the calling shell's METRICS_PORT first, then the file's, then 3300",
-          "line": 2410,
+          "line": 2505,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cff9e671f460c0befef16f6f641b88ee1180c17466420a322403b330ee3cfe16"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads an empty METRICS_PORT as the workers do: as absent, so 3300, and the file is not consulted behind an empty one in the shell",
-          "line": 2433,
+          "line": 2528,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8d7c2b568546668ad45a8cbfb2a28639c62a8b9c6d900985b175d5988d7d1bd"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the workers on the file's METRICS_PORT when the calling shell sets none",
-          "line": 2450,
+          "line": 2545,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4e4f5daf777eb5fd6dab2e8ef55274718f44faa15aca248e7b5d3b49b221f96"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is refused when METRICS_PORT is not a port, in the calling shell or in the file, with the other problems and before anything is written or started",
-          "line": 2462,
+          "line": 2557,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2dac1331aa8c55a6dd7dde989761cd026eed79e0f36de8f948d78c2e3bae794a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is refused when it is the API's port, whether set or the default, before anything is written or started",
-          "line": 2493,
+          "line": 2588,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "006f61821fbda62081f640abb59459839054fcc7e3a6e2c35a17d1cc5ab08012"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the workers it started earlier still answer: it starts no others",
-          "line": 2518,
+          "line": 2613,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e68e0560c54c9fc3ce7c3e0dc0e6482c5f79d9b5e7501ccd0e047e3bc302dba1"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, starts no workers and leaves the API it started running",
-          "line": 2534,
+          "line": 2629,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f6ad405418db7b41bc561494db3be301a0759263b3909645e82af91fbb29a5f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sweeps the session of a pnpm that ended first: it stops what pnpm left running, names it, removes the record once none is left, and leaves the API running",
-          "line": 2550,
+          "line": 2645,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d07797bd86e9e625319098314fbe08682f987fe12a29ad07b6c2a148fbb8e22"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops every process of the session it started when /health/ready does not answer 200 within the wait, names each, removes the record once none is left, and leaves the API running",
-          "line": 2571,
+          "line": 2666,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c92cf59955b9c8b54c4283ef3288d17dbef1387b1e1fa8aed7e8246676258c35"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no workers when the API's start fails: the run ends at the API, as it did before the workers had a stage",
-          "line": 2596,
+          "line": 2691,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7823faccf308b1f01788dcbbd18af7b4aabda5cacf09b7263d6991a661766265"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that the workers start after the API, on METRICS_PORT, without NODE_ENV, and that their stop line ends their session alone",
-          "line": 2613,
+          "line": 2708,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52ce4b3c526f875379fd0602f1f92f6bd456dac4b9c08f7702663ce9b39a144c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the portal from source once the workers answer, detached, returns once /api/health, /en/login and /api/backend/health answer 200, and leaves it running",
-          "line": 2721,
+          "line": 2816,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "378b48545622183dc46685314ad55cb8898adcb5de2a1598fa824f7d7aca4ac4"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops with the signal the command prints for it: the portal stops and ends, and the API and the workers keep answering",
-          "line": 2745,
+          "line": 2840,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d6f402525db91c5fb178464af8591797fd360d663f92b798506a70758905b0d4"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::points the portal at the API this run started: it hands it API_URL with the API's port, and /api/backend/health reaches that API through the portal",
-          "line": 2758,
+          "line": 2853,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3449ca742e8d32a511e0277511aa00eefb33022b2adaefbba0595a941cf2e896"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the portal the calling shell's API_URL when the shell sets one, as a shell's PORT wins, and holds the run to the API it names",
-          "line": 2775,
+          "line": 2870,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e154e00aa5c344234f9ef6d13ef2e57a265b2784018a1d91701e8c0bd79237f5"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads an empty API_URL in the calling shell as unset, as an empty PORT reads for the API: the portal is pointed at the API this run started, and the run passes",
-          "line": 2796,
+          "line": 2891,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "576f95aca2ef65ebf8528922343ed4d79fa11d1e7304a17d46c2887c40853ccf"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the portal no NODE_ENV, so a calling shell's NODE_ENV=test does not choose its environment files, and still hands it to the API",
-          "line": 2811,
+          "line": 2906,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9e974a5622fea6f0e7601ee579c4753eba40b3bed5f9249ae5d78443b76c300"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the portal the calling shell's environment, without the variables the file owns: no required secret reaches it",
-          "line": 2821,
+          "line": 2916,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "daa4970317427ef721d39852af784d3e8cf9a231ba179fcdbea22a972c3d8d7c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds the run to /en/login answering exactly 200: a portal whose page fails (DEF-85) fails the run, names the page and the port, sweeps its session alone and leaves the API and the workers running",
-          "line": 2840,
+          "line": 2935,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2add68c7e85b853f5da6c4d88904fd8de13c35d00e544be82cb5d56e822a390"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps the last answer the page gave when the wait's last attempt at it gets none: a page that answered 500 and then stays silent is named with the 500, never as unanswered",
-          "line": 2861,
+          "line": 2956,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4a1fd5ce8de47e5389dedce5eda10442662e0800293a04e9a58dca63fae77f21"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the answer a page gave once an attempt got one: a page whose first attempt gets none and a later attempt gets a 500 is named with the 500, never as unanswered",
-          "line": 2881,
+          "line": 2976,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "717c11f612674b8ad3bf1ff35f40c53dbeb3e84e537bd4a6400071906bb8fdbd"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the page, not the probe, when the probe answers 200 and the page never answers: the line says nothing answered /en/login",
-          "line": 2899,
+          "line": 2994,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "126dd018b4d94673115709e07227def04726cba71dae6ded14b0afd6916925f6"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds the run to /en/login answering exactly 200, never a redirect: a page that answers 307 to a path that answers 200 fails the run, named with the 307, and only the portal's session is swept",
-          "line": 2917,
+          "line": 3012,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1b14bc61ae2a0327dff41edd2814c2b4c2f2bba19629c676a57da35d1e14b9d"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds the run to /api/backend/health answering 200 through the portal: a portal that cannot reach the API fails the run and names that path and the port",
-          "line": 2937,
+          "line": 3032,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bcea8b584f2756cc530cd6d5a4e6c62dd7d2ea2cd259588a544c2eac0db639b7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the probe when the portal never answers it within the wait, and sweeps the portal's session alone",
-          "line": 2957,
+          "line": 3052,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57b9cebe649575002f3f4416b1bb3e348e404b4f1d0b7f825c8925070fee7e0e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once when pnpm ends first, as it does when the portal's predev build fails, sweeps its session and leaves the API and the workers running",
-          "line": 2977,
+          "line": 3072,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b9a8481d5da2374167050daa40198ccd7ee78c4413763b040c3972e3cc3871a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the portal it started earlier still answers on every path: it starts no other",
-          "line": 3001,
+          "line": 3096,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ef72edbfa07009e8a14ddd67eb7ef4a5c2ffca9140d863ce82377eb1c2bfff9"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds a second run to the pages too: a recorded portal that answers /api/health but not /en/login is named, and nothing is started or stopped",
-          "line": 3017,
+          "line": 3112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e7952f3fe5460d2d346fd6bd8275b0b77035838cc8f33edb607a91ffb73631c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::waits on a recorded process before the portal binds its port, names every path it awaits, and says only what it knows when the wait runs out",
-          "line": 3047,
+          "line": 3142,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9a45228145c1fced45198dc2348f943d08ac377e8e2c63f22ac4b8f5ce3b001"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, starts no portal and leaves the API and the workers running",
-          "line": 3069,
+          "line": 3164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20f42efa35eb38be9d5158e8ebddb579033cf00e32d405e14844fd12253a45d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no portal when the workers' start fails: the run ends at the workers",
-          "line": 3084,
+          "line": 3179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8585b59d9dfc462d6f48818eebd2f852f1c60f2efbed356d9996bb60c6b501a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses, before anything is written or started, a port the portal's package fixes that the API or the workers would take, each pair on its own line",
-          "line": 3103,
+          "line": 3198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "703b48b9a6e0bc5f30de01b03e676672006d56dd9f07295f79262a03b3db12c6"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a portal package that fixes no port, or one that is not a port, with the other problems and before anything is written or started",
-          "line": 3128,
+          "line": 3223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a4a73ef32e95a0d20c9feacd3ae54d4955eeb69183577ca834fc028b4451f1fc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at the portal's stage, naming the file, in a checkout with no apps/admin/package.json, after the API and the workers answered",
-          "line": 3148,
+          "line": 3243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b401b56d9f925b88c64ddd7ca37acf8e7dbb8b9b104749127a6945400cccfa9b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that the portal starts after the workers, on the port its package fixes, with API_URL and without NODE_ENV, held to three paths",
-          "line": 3162,
+          "line": 3257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "60d859dd3ac7334437fe6e7958261f92f079873310e3bf121fc38bc15d027b03"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the client portal from source once the administration portal answers, detached, returns once /api/health, /en/login and /api/backend/health answer 200, and leaves it running",
-          "line": 3196,
+          "line": 3291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b92fe3e058b9fa8146069a8c1056546631dcd790284a90be0ef922e5773f486"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops with the signal the command prints for it: the client portal stops and ends, and the API, the workers and the administration portal keep answering",
-          "line": 3221,
+          "line": 3316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1823f6a930b2fa6921e7c6bdfb9a5ce113a82fb65d35de6b713d6c70212bbb27"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::points the client portal at the API this run started: it hands it API_URL, the key its proxy reads, with the API's port, and /api/backend/health reaches that API through it",
-          "line": 3234,
+          "line": 3329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1b00ca759a4a3fe35b24b7fdfffb0b78114ab2ba9edaea88f64d48eaecd865bf"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the client portal the calling shell's API_URL when the shell sets one, and holds the run to the API it names",
-          "line": 3251,
+          "line": 3346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e73d301f77a897f7f4c2487b442134258ca840389d76488ea29f99067688ec1"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the client portal no NODE_ENV, so a calling shell's NODE_ENV=test does not choose its environment files, and still hands it to the API",
-          "line": 3269,
+          "line": 3364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "956998e1ea6752e8d3dd19b301ab2fd9e5e75888b263fe5c1d28aaac0ffdd9dc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the client portal the calling shell's environment, without the variables the file owns: no required secret reaches it",
-          "line": 3279,
+          "line": 3374,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f8b78c1fe8c9a70e937a7cd7fc154b599e67bc4a57467086a73ed974e860143"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the path a client portal in mode $mode never answered 200 on within the wait, sweeps its session alone and leaves the API, the workers and the administration portal running",
-          "line": 3298,
+          "line": 3393,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f941e1201a42c821662e971609192aa3a3bb157b9dcf540b7d4b64685049866a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once when pnpm ends first, as it does when the client portal's predev build fails, sweeps its session and leaves the earlier apps running",
-          "line": 3333,
+          "line": 3428,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40e4af113ec210c3b23c5c8b0e7ff5c43c409068bd0ac2fc834ad4d1e07a97a3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the client portal it started earlier still answers on every path: it starts no other",
-          "line": 3357,
+          "line": 3452,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd058b25635051ed1e4fabdb044356351cc0aef4ead028f0c74779a9c087f50c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, starts no client portal and leaves the earlier apps running",
-          "line": 3373,
+          "line": 3468,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48388427795dba5d1c9c2ff834041068e9ca347725709a8f00a81ede482fcf8e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no client portal when the administration portal's start fails: the run ends at the administration portal",
-          "line": 3388,
+          "line": 3483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc150b4809012eab4e6213bea5ba0a2bf65fee105e381f6f37e0cd0f659f0289"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses, before anything is written or started, a port two of the four apps would take, each pair on its own line",
-          "line": 3403,
+          "line": 3498,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6b18a4cacc111121c215ed3f7ee7d582322cbed9ab0cd2e0b3ed6b98f8d2f650"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a client portal package that fixes no port, or one that is not a port, after the administration portal's problem and before anything is written or started",
-          "line": 3434,
+          "line": 3529,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d02fd531eec8ce4244388a40eb036cd8c6dac5da469eec1cab8840b66d3c7726"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at the client portal's stage, naming the file, in a checkout with no apps/client/package.json, after the administration portal answered",
-          "line": 3457,
+          "line": 3552,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8aeec913b18a53e826844cbe86991da6e05e07c3014882c6159635114b50751a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that the client portal starts last, once the administration portal answers, on the port its package fixes, and that the four apps take four ports",
-          "line": 3471,
+          "line": 3566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ddc3ec02e10dfc5183dcf3834919fc19dc1456c1067b77e612be22662fcbb4b7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a record that names no process of its own: 1, 0, an empty text, -1 or text",
-          "line": 3495,
+          "line": 3590,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba6ff10e6d700fe67d86357d28293bd44c852b601d988ff7e5dc8e554e19647e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a workers record that names no process of its own: 1, 0, an empty text, -1 or text",
-          "line": 3517,
+          "line": 3612,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d3859a5219c4294ea251c0eae9738daec1edeef76555c22e8bd4c4d6b2a7647"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a portal record that names no process of its own, and ends the session of one that does",
-          "line": 3539,
+          "line": 3634,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "591a17091d9b595892ceadc6b6714cfd559b2b0c74891235c963c1759ef6ff20"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal, and lists no session, for a target that names no separate process: 0, 1, -1, a fraction, its own process, group or session",
-          "line": 3665,
+          "line": 3760,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "60241d8fec113e75fec1c0acca2c9abcd2e149c751f48df07ea0a2bc28bada3f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::counts a process whose /proc entry reads ESRCH while the session is swept as one that ended: the stop says its own line, removes the record and names no survivor",
-          "line": 3730,
+          "line": 3825,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c663534c2a08ffa5b8d003ac5582cf36cd04088b0c8ccc9cb34d6395621104ce"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names, with its command, each process still running after SIGKILL, and keeps the record",
-          "line": 3759,
+          "line": 3854,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d0c49149d49cb48af4c97e9d2e7804dd8212ac1b1c893421601a4472d3f9b63"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says the session could not be swept to the end, and keeps the record, when a read of /proc fails otherwise",
-          "line": 3783,
+          "line": 3878,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b1fefa555cbcb48f21f377675121ece3dd889573254860d96da6e4d2dfa677f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not call the session empty, and keeps the record, on a host where /proc cannot be read",
-          "line": 3802,
+          "line": 3897,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7c7dc14678d84863aa2f594e2a3b64954b3474dc3589d287a8472bb7578053a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not call a session whose id the guard refuses empty, and keeps the record",
-          "line": 3825,
+          "line": 3920,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4df3576b1d53126b904a75149f0ac8cf432d6db9317215c2d6acd91cd6b8f97c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names among those it sent SIGTERM and SIGKILL only the processes the signal reached: one it finds gone (ESRCH) is not named",
-          "line": 3844,
+          "line": 3939,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1910b243303262c2f815110db1be64aeecef4a58f2608352eff2aa313480c0b7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not count a process of the session that has ended and waits to be reaped",
-          "line": 3880,
+          "line": 3975,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c58ce565c3a3397b316db54228c885386d62f63674ffcdfea68635471f9f13c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends SIGKILL no sooner than the grace it states after SIGTERM",
-          "line": 3908,
+          "line": 4003,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07f645a8ba9fcd6f3e7db4d06c0b724ec3b13a91ac70708bb40109e48e9dd56b"
@@ -79166,35 +79836,56 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when NODE_ENV is production",
-          "line": 223,
+          "line": 258,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "945647d8446c1d1fcecba534be7576a596fc97483e34e8f358d36ba4ab443335"
         },
         {
           "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when only the env file sets NODE_ENV to production",
-          "line": 235,
+          "line": 270,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ed4e0cafa28662f07199dbf6899ef19c86dc31549ad7790a01417a0eea631012"
         },
         {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when the generated client cannot be loaded",
+          "line": 283,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8f97dedd3ae75c3e7bfdf85e3c6f70383070b108876d9da075965acb6d511501"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with a reason naming the value and no connection, when NODE_ENV is staging",
+          "line": 300,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bc1d55689948e66c296e7672b7f495a6ff6f82b020de04064c0b105c99635e09"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the password reason and no connection, when ADMIN_PASSWORD is absent under a development environment",
-          "line": 257,
+          "line": 326,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a6db3a93dc08529c57ce62edf45c91106d5070b9ec9139e22eb6634e56149f3"
         },
         {
           "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::does not refuse, and opens a connection, when only the env file sets ADMIN_PASSWORD under a development environment",
-          "line": 273,
+          "line": 342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "920d743ae54c6dd5dc491e3f7fc09af68e52f34dcc767da733b9662cd9e894d1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::is built with the LOG_LEVEL only the env file sets, before any connection is opened",
+          "line": 369,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d9dcd20330450402b6fce0949fde7657a8e1e87d827b90a759197d98ddf89565"
         }
       ],
       "verdict": "KEEP",
@@ -85847,88 +86538,102 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 14,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the production reason when NODE_ENV is production",
-          "line": 39,
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is development",
+          "line": 42,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "49efd0053e1cc6a40aee3460f6db2106b307d071a85564aca75d46789cb49a40"
+          "bodyHash": "1db2d2f6e811380e572cc3420a720f9251fa7262d440b7d7e1d02dfdb5320dd3"
         },
         {
-          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the production reason when NODE_ENV is %j, production by casing or surrounding whitespace",
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is test",
           "line": 46,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "e719a224d5213a637abe9f15f7d3abf6ff77403433beaa28c502abcb0d39ee77"
+          "bodyHash": "3ca885f0bf2cccec7131632762f2b682cec4830f28a387921aa69c948d1e640d"
         },
         {
-          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is %j",
-          "line": 56,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "13f7bf9d01cb61cbb64621d88cf331d3adf36eed1f4e78a354666ea5dfcf7ffd"
-        },
-        {
-          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is absent",
-          "line": 60,
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is absent, which counts as development",
+          "line": 50,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d88773739b8f3f53e2eba636d731d41fd0a3c95e0b4982c7d42f3d0141019fd8"
         },
         {
-          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is empty",
-          "line": 64,
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason naming the value when NODE_ENV is production",
+          "line": 54,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fdc0930b2ce43d16d1354ed8803211e0c638ffb4e4e88826c2d943af1de3f021"
+          "bodyHash": "cd465a73c8ff7cb7dc7bb276b0104e1eb56fb2be22859f46c373b7f6ebc2d1bf"
         },
         {
-          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV only contains production inside a longer value",
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason naming the value when NODE_ENV is staging",
+          "line": 61,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a630f311d4aff4f311bdeb83202194a658c37d79b11aefe5e12dea7288998f8e"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason naming the empty value when NODE_ENV is empty",
           "line": 68,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0a3113d1da36069149a59624b039615809e8a028f04697d10c39541ed2450050"
+          "bodyHash": "192838d408fcf6e0db401e8dcbfb5a76b40cf4ec211b112f6e2ec77a1ad15e92"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason naming the value when NODE_ENV is an unknown value",
+          "line": 72,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7200560abd43b6cd81622b113788177ef7caeb789022541aff1e812bdb8a8287"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason naming the value when NODE_ENV is %j, an accepted value by another casing or whitespace",
+          "line": 79,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a139101b0eb485b63db8132eb52eaa896eb9642dc19054021262e5342fe4653d"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the password reason when ADMIN_PASSWORD is absent",
-          "line": 91,
+          "line": 108,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b2ae62bd108939d814c25a7a5f867dd5620b30c8e5baa28bf65b57ee54911921"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the password reason when ADMIN_PASSWORD is empty",
-          "line": 98,
+          "line": 115,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34ff71f94ee64bc07b1884025282ba8f4e48f744777cf045fe4c32ad8d02d123"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the password reason when ADMIN_PASSWORD is %j, blank once trimmed",
-          "line": 105,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f1966139d208bd9c8719c50e2fd43411296e67963ece3a0df560cffe988dc5a"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with a reason that carries none of the value when ADMIN_PASSWORD is Unicode whitespace only",
-          "line": 115,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe93c3a69a17f0e66b4065e8d038f2f04494172dd7b96b4214a09840c6bf7158"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::returns the password exactly as given when ADMIN_PASSWORD is set",
-          "line": 124,
+          "line": 141,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "302463fc24e1c9731bc0cf1e05a68179b097ce31b3cf55cec0ad4e77a0295f14"
         },
         {
           "id": "apps/api/tests/unit/seedGuard.test.ts::returns the password exactly as given, surrounding whitespace included, when ADMIN_PASSWORD is padded",
-          "line": 134,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "251df1994a78207db94658997c8bbead57c8a9566bab8fee41ef3dbda47484fe"
@@ -85941,6 +86646,34 @@
       "subject": {
         "stem": "seedGuard",
         "module": "infra/prisma/src/seedGuard.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/seedPasswordHashing.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/seedPasswordHashing.test.ts::equals the parameters the API hashes passwords with when both are read",
+          "line": 16,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f41395c3f1fad7873a252779f14f41f55440917fc6d209ae247f558fa1489516"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "seedPasswordHashing",
+        "module": "infra/prisma/src/seedPasswordHashing.ts",
         "imported": true
       },
       "duplicate": null,
@@ -110514,88 +111247,102 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/auth/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns the new single-use password once, after replacing the hash as read, ending every session and writing one system audit record",
-          "line": 257,
+          "line": 267,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "50b509ea6f6ccb563a13f02c145232f2d87827a8353eb71b347811348d1cfb07"
+          "bodyHash": "22cac3c95b9b30d46ed6e2a55b1f7dec6d38f8b0cc9884c11d9fa35023d4838e"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns the password under the key password and nowhere else, and writes it to no port",
-          "line": 295,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "847aea9a05ea4988db5703b3bf4669663d15b34e308529ab88bb2ed9756e8f8d"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses with its own message, drawing no password and writing nothing, when $reason",
-          "line": 316,
+          "line": 326,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d014173c7c9615b25acdc8ed0d1de7b36eeda7d70f4add7d11ec50f913f8d2ab"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses as signed in, not as unmarked, when the administrator has signed in and is no longer marked",
-          "line": 354,
+          "line": 370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d39c92e5993f77877054e87a0bb75caf636697ef429f1d0254af432155eaa84a"
         },
         {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses as unmarked, not as deactivated, when the administrator is deactivated and no longer marked, since reactivating it would not make it eligible",
+          "line": 381,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "84b15bb33f4c60f8e1a8938f2251560fead47e4d38af71b4ade5b62eb4a461e1"
+        },
+        {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns CONFLICT, rolled back, ending no session and writing no audit record, when the guarded write matches no row",
-          "line": 367,
+          "line": 394,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2bdf1fa4aaa1224fbf752e2123a6d39989bdb903ec4e0d68e1ea7038ae4215ee"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns CONFLICT, leaving the stored hash and reset token as they are, ending no session and writing no audit record, when a password reset was requested between the read and the write",
-          "line": 386,
+          "line": 413,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75577d0661792f6a9c53d4d84dd44b10c8950ef72c01bcb76ab5803897184b43"
         },
         {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns CONFLICT, leaving the stored hash as it is, ending no session and writing no audit record, when the administrator was deactivated between the read and the write",
+          "line": 439,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a9af5846af1ac98182599a914e83e92a2bd0f69a291c7dc490a7887f1c231c45"
+        },
+        {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error, drawing no password, when reading the administrator raises",
-          "line": 414,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d58b206e771f71767ee7e296b3f8bce2ed6f383e55fc219b92c225f069f6b253"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR before any transaction when $step fails",
-          "line": 427,
+          "line": 472,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "86b51d6eda08279fabf2f4baf8c4c7e0968f630899fa9aa6b2f6c2ac3ff0db9e"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error, rolled back, when the guarded write fails",
-          "line": 461,
+          "line": 506,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7695fa728f412d38cdebf57695fcc7ecba6d63d8b9b669b6dcacf4279a2c1435"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR as the failed outcome of the transaction's work, after its earlier writes in it, when $step",
-          "line": 483,
+          "line": 528,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3d7850595f28101b988f36f0876533304423039da1d2ec4a73ec406a12eb3e5"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR whose cause names only the type when the guarded write raises a value that is not an Error",
-          "line": 528,
+          "line": 573,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1560f6f94b3be89475105b2aee24525ec74ef9b8504c2c1ae996e367b8bb6cb1"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR with the message of an unknown outcome when the transaction itself fails",
-          "line": 542,
+          "line": 587,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85509aecdd94452e1907c2806799bbcd0c9f8adfd49f2a0a443892ba8c76bb69"

@@ -15,9 +15,10 @@ import { AuditableService, auditActor } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
-import type {
-  AdminSessionRepository,
-  AdminSessionDto,
+import {
+  ADMIN_SESSION_REVOKE_REASONS,
+  type AdminSessionRepository,
+  type AdminSessionDto,
 } from "@core/domain/repositories/AdminSessionRepository.js";
 import type { ResetPasswordRequest } from "./accountLifecycleTypes.js";
 
@@ -31,7 +32,16 @@ export class AccountSessionService extends AuditableService {
   }
 
   /**
-   * Reset account password (admin action)
+   * @method resetPassword
+   * @description Sets a new password on an account for another administrator and records it.
+   *   When a change is required, a placeholder reset token is stored with it, with the expiry
+   *   this method sets.
+   * @param accountId - The administrator whose password is reset
+   * @param data - The new password, and whether its holder must change it
+   * @param resetByUserId - The administrator who resets it, when known
+   * @returns `ok` once the password is stored; `NOT_FOUND` when no administrator has the id,
+   *   `VALIDATION_ERROR` for a password shorter than this method's minimum length,
+   *   `DATABASE_ERROR` otherwise
    */
   async resetPassword(
     accountId: string,
@@ -106,7 +116,11 @@ export class AccountSessionService extends AuditableService {
   }
 
   /**
-   * Get account sessions
+   * @method getAccountSessions
+   * @description Lists every session of an account, newest first, active or not.
+   * @param accountId - The administrator whose sessions are listed
+   * @returns The sessions; `NOT_FOUND` when no administrator has the id, `DATABASE_ERROR` when a
+   *   read fails
    */
   async getAccountSessions(
     accountId: string
@@ -130,7 +144,13 @@ export class AccountSessionService extends AuditableService {
   }
 
   /**
-   * Revoke all sessions for an account
+   * @method revokeAllSessions
+   * @description Ends every active session of an account for another administrator, with the
+   *   reason `ADMIN_SESSION_REVOKE_REASONS.ADMIN_REVOKED` on each, and records it.
+   * @param accountId - The administrator whose sessions end
+   * @param revokedByUserId - The administrator who ends them, when known
+   * @returns The count of sessions ended; `NOT_FOUND` when no administrator has the id,
+   *   `DATABASE_ERROR` otherwise
    */
   async revokeAllSessions(
     accountId: string,
@@ -162,7 +182,10 @@ export class AccountSessionService extends AuditableService {
           severity: "HIGH",
         },
         async () => {
-          return this.sessionRepo.revokeAllForUser(accountId);
+          return this.sessionRepo.revokeAllForUser(
+            accountId,
+            ADMIN_SESSION_REVOKE_REASONS.ADMIN_REVOKED
+          );
         }
       );
 

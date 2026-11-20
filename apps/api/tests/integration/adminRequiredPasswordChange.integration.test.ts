@@ -27,6 +27,7 @@ import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
+import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { ok } from "@shared/types";
 import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
@@ -152,10 +153,15 @@ describe("The required password change on a migrated database", { concurrency: 1
     return { id: created.value.id, email: created.value.email, password: created.value.password };
   }
 
-  /** The routes over the real services on the application's client of the scratch database. */
+  /**
+   * The routes over the real services on the application's client of the scratch database, on an
+   * app with the Zod compilers `createApp()` sets.
+   */
   async function buildApp() {
     assert.ok(appClient, "an application client of the scratch database was built");
     const app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
     const container = new Container();
     container.registerInstance(
       TOKENS.AdminAuthService,

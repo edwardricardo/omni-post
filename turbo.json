@@ -20,6 +20,12 @@
       "dependsOn": ["^build", "//#typecheck:configs"],
       "outputs": []
     },
+    // The seed's type check reads `infra/prisma/generated/`, which the package's own `build`
+    // (`prisma generate`) rewrites, so it runs after that build and never during it.
+    "@infra/prisma#typecheck": {
+      "dependsOn": ["^build", "//#typecheck:configs", "build"],
+      "outputs": []
+    },
     "//#typecheck:configs": {
       "inputs": [
         "**/vitest*.config.ts",
