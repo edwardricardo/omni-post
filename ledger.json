@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1240,
+      "total": 1243,
       "byShape": {
-        "test": 997,
+        "test": 1000,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1072,
+        "KEEP": 1075,
         "ADJUDICATE": 95,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1230,
+      "machine": 1233,
       "confirmed": 10,
-      "total": 1240
+      "total": 1243
     },
     "blocks": {
-      "total": 15441,
+      "total": 15462,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15130
+        "BEHAVIOURAL": 15151
       }
     },
     "deleted": {
@@ -36770,18 +36770,25 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 2,
+      "blockCount": 3,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/billing/gatewaySwitchProcessor.test.ts::logs an error its worker emits instead of leaving it unhandled",
+          "id": "apps/api/tests/unit/billing/gatewaySwitchProcessor.test.ts::logs one worker-error line for two identical errors its worker emits",
           "line": 55,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "48c19bc75fe84d883b44dbdc27f2589f5bd6a31db38a79c724257e33acc58b5c"
+          "bodyHash": "04a7c4b2550a81537d479727ad6ef40bd6a14bab48625d2ebe37189e04d4b92b"
+        },
+        {
+          "id": "apps/api/tests/unit/billing/gatewaySwitchProcessor.test.ts::writes a different job-level error instead of counting it behind a connection error",
+          "line": 76,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5508ba4b05559390eea13656c4fc48d0fb498f0f097d7f0e45a3de6acdbacc46"
         },
         {
           "id": "apps/api/tests/unit/billing/gatewaySwitchProcessor.test.ts::builds its worker on the gateway switch queue with the injected connection",
-          "line": 67,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af4c58d07b167a1e5f6efa5d658f145dabad87180151636e01e3c1c5f31cdb3c"
@@ -55077,53 +55084,46 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 6,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs an error of a rate limiter's connection (setupServices, %s)",
-          "line": 117,
+          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors of a setupServices connection (%s)",
+          "line": 138,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "3a2cd94d2c4f6cfb041e8feaeb0fe7184d73040715c95620dc0282b05f361f5b"
+          "bodyHash": "68afb87e5998b58f1110b23439359089d06c5f3ca54ace2f3c64bdbbc12baa83"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs an error of a role connection (registerRedisConnections, %s)",
-          "line": 133,
+          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors of the gateway switch job service's connection (setupBillingUseCases)",
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ca0973098ba1b3fda36c65d3e153a7181935eff7cf7081f4fb59ef1636f0b39a"
+          "bodyHash": "ea336ff631bc0d615501b0cab74a79ffc3e1e0e39a808ef91e23dcf7788dc34d"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors of a role connection (registerRedisConnections, %s)",
+          "line": 169,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2e69feab31d5fbe486af35e2e0d572cce6bcd410b22436dab2bf512187e798fc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::still registers each role connection with its options and returns it",
-          "line": 150,
+          "line": 186,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e7cef16d256dabe0c45af54338ef6ea1bbfa543befee6e1cdb201139097ee9ef"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs an error the gateway switch job queue emits instead of leaving it unhandled",
-          "line": 168,
+          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors the gateway switch job queue emits",
+          "line": 204,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f3b00b4b05f14c8c62b63f1835c1b08e42876b9bcd2b2d25dd647b4eeda4df17"
+          "bodyHash": "48df9be175109a02724f8f4775500ed629f80778544d79344cff05e0c8292a5a"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs an error of the notification broadcaster's connection (setupServices)",
-          "line": 181,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "e65f7dbffc69622d1febed6a351d41fa1d2bfc32cd7af7a90058bcc1e6ff4338"
-        },
-        {
-          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs an error of the gateway switch job service's connection (setupBillingUseCases)",
-          "line": 195,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "f73008b98404400d3d32f2896c5111e8c37d92487ed1076a192b3936b4a1fa49"
-        },
-        {
-          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::still creates both connections with the default options",
-          "line": 209,
+          "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::still creates the notification and job service connections with the default options",
+          "line": 217,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91dfbf40e3a448bcfdb395e3d802a05a4fea610e9851a9cf6e6fd1b86c171f7f"
@@ -55146,29 +55146,29 @@
       "blockCount": 4,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::logs an error of the shared API connection",
-          "line": 79,
+          "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::logs one line for two errors of the shared API connection",
+          "line": 94,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "629ddfc8e19ea65a411baaea264da18234f6eeb9f3d801e4f7da499684f95b77"
+          "bodyHash": "38e4525a9084a9f5cc77c4c1c84241881b20dc54e589f8b989ede64b3f3396f7"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::logs an error of the gateway switch processor's connection",
-          "line": 91,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "bfb384e6352fc1e96d842854171755691aceb74e3298249eafce1e147168556a"
-        },
-        {
-          "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::logs an error the admin publish queue emits instead of leaving it unhandled",
+          "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::logs one line for two errors of the gateway switch processor's connection",
           "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d244698c56a037a923ca5a32dc0e4f905f893f74b28b4f6b2a39e63c087ba74c"
+          "bodyHash": "3a4dfe66d5c8528f8edd8656b89d724ed0ebfecc5868fbc34fb8e140b2ebf9c8"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::logs one line for two errors the admin publish queue emits",
+          "line": 112,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "191a43df5d4b7db95d13ad841297c56b9afd8c4ad04394081028e2e618a55dba"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts::builds each object with the options it had",
-          "line": 115,
+          "line": 121,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7cc9afeba871bda72d8a335246c05af377ae9b3a21dbde86ac73e33db0499bab"
@@ -59855,6 +59855,37 @@
         "module": "apps/api/src/lib/hardDeleteErrorMapping.ts",
         "imported": true
       },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/lib/loggerCommandArgsRedaction.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/lib/loggerCommandArgsRedaction.test.ts::masks the arguments of the command an error logged directly carries",
+          "line": 53,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "54dfaeb263de7991e5145ad4fe45eeb5cdc6993df1358746ea7e6754a812bde3"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/loggerCommandArgsRedaction.test.ts::writes the command's name and no argument when the throttled listener logs the error",
+          "line": 63,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "77dbdb066344d3dfa77e59b3098fd57b4b5ac0d2e21cc7bba737c7833f379c55"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
       "duplicate": null,
       "importers": null
     },
@@ -66858,11 +66889,11 @@
       "blockCount": 1,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/realtimeWebhookBroadcaster.subscriberErrors.test.ts::logs an error of its subscriber connection instead of leaving it unlistened",
+          "id": "apps/api/tests/unit/realtimeWebhookBroadcaster.subscriberErrors.test.ts::logs one line for two errors of its subscriber connection",
           "line": 43,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "3a1b9c9ab13f357bb7cc4bf1b303810ccfc1c3d8b80e50429aa6e57f04647909"
+          "bodyHash": "59cd7ad95823c85c6ca22c0a73e2cbb006ccdc4ce84a027743eebd8484058a50"
         }
       ],
       "verdict": "KEEP",
@@ -86203,11 +86234,11 @@
           "bodyHash": "03035b4803cf00a83f3f25d36147a8585e5bc976e7dad5f86070bf149e0237b1"
         },
         {
-          "id": "apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts::logs an error of its subscriber connection through the injected logger",
+          "id": "apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts::logs one line for two errors of its subscriber connection through the injected logger",
           "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "47aa4a35cce7f082cb806f58519674c154d5ffcdf991c0afc6f7df56a5a4f8cb"
+          "bodyHash": "cb3dcd04a829412d259fdb3fa1374c52eb67b9326cea953aa2eaabd73dae4744"
         }
       ],
       "verdict": "KEEP",
@@ -86280,11 +86311,11 @@
           "bodyHash": "35cdde0eafb9b2ea9769278728f866fbde5ce032915c29afa09464093561be4d"
         },
         {
-          "id": "apps/api/tests/unit/services/NotificationBroadcaster.test.ts::logs an error of its subscriber connection through the injected logger",
+          "id": "apps/api/tests/unit/services/NotificationBroadcaster.test.ts::logs one line for two errors of its subscriber connection through the injected logger",
           "line": 144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "778a94035677b5d1b0d90f266236f01e9faa8eac150f401b3eccb61f9431dc91"
+          "bodyHash": "ca6394ddf8ad4e98402ec6b2e301acae712c9c6d7f570a877b49360f10c43a60"
         }
       ],
       "verdict": "KEEP",
@@ -103724,6 +103755,41 @@
       "importers": null
     },
     {
+      "path": "apps/workers/tests/unit/healthConnection.unit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/workers/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/workers/tests/unit/healthConnection.unit.test.ts::logs one line for two errors and reports the connection ready again",
+          "line": 45,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "82839e204db36d7ed93f7819aa8d35260db7aa0c8a614724494b2ab0c4146030"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthConnection.unit.test.ts::builds the client on the given URL with the probe's options",
+          "line": 70,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c7ea215c2addda39a3d524470450966cd4c3c872a30afb1be91f515d093bc837"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "healthConnection",
+        "module": "apps/workers/src/healthConnection.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/workers/tests/unit/publishWorker.drain-order.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -103757,60 +103823,74 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/workers/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 10,
       "blocks": [
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::returns a PublishWorkerHandle with target, repo, and metricsRegistry",
-          "line": 254,
+          "line": 260,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "caa9bf548db3edf1f3af464ca14f2341cbf96a2c53c50023f97bca335a91ae76"
         },
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::hands the repository adapter the decryptor built from the workers' key ring",
-          "line": 268,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e7f44668d807706a4d753926004f217c631b15699909554f57cbf23c183e2c7"
         },
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::handle.target.workers has exactly one BullMQ Worker",
-          "line": 293,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eeba633897f3e27386c5d127be60a539088b6f90f176858d3c6049ac0bbc080e"
         },
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::handle.target.prisma is the injected PrismaClient",
-          "line": 307,
+          "line": 313,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "00cb194a43a54c90ebd71659bb8111541a2213f1d03985ab3d7760a416672fa3"
         },
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::does NOT register shutdown when registerShutdown is false",
-          "line": 323,
+          "line": 329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "229d9e5c2fe37b3176e065b12ed5628d7bf9426611c468736fdeab11554b3014"
         },
         {
+          "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::builds its task scheduler with the logger adapter, so a task error reaches the worker's log",
+          "line": 343,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4a3e32d18d295cee8d71af3fb8c2296c43742ed63d53c03435f8732d928719bc"
+        },
+        {
+          "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::logs one line for two errors of the saga-notify connection and reports it ready again",
+          "line": 354,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7204b356d1e50670077047ee6e6fc468f2b21dc7ac850b8a951f56202234ce22"
+        },
+        {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::worker.close() resolves BEFORE notifyRedis.quit() BEFORE prisma.$disconnect() (source-coupled)",
-          "line": 344,
+          "line": 393,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ebb0675c3989cc8313ec6087c6b40a58f29a869b4f6faa91e20cde4ed4e69c6"
         },
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::target.connections contains the notifyRedis instance (REGRESSION B pin)",
-          "line": 398,
+          "line": 447,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df4c581bcc07ee8437188159e9f141b82bf9b755b5d7ede5e0478cd7d3525674"
         },
         {
           "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::target.connections contains the dedicated workerConnection (null retries) and it reaches the consumer adapter",
-          "line": 431,
+          "line": 480,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91d943011e39a1fefd97d6297335de835ac8ac9c494c047b31f2edb94c66f128"
@@ -103886,6 +103966,41 @@
       "subject": {
         "stem": "readiness",
         "module": "apps/workers/src/health/readiness.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/workers/tests/unit/workerScheduler.unit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/workers/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/workers/tests/unit/workerScheduler.unit.test.ts::passes the scheduler's error, info and debug through to the logger",
+          "line": 42,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5768859118280f3be94ce3826a52aa34b2bf4c4ce8cdc580bbfb3677c8fa155c"
+        },
+        {
+          "id": "apps/workers/tests/unit/workerScheduler.unit.test.ts::builds the scheduler with the logger adapter as its only option",
+          "line": 58,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "955da2215e4e0bd70349d84af358a61484ab9df9dee8c2b24a31cc9f08635866"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "workerScheduler",
+        "module": "apps/workers/src/lib/workerScheduler.ts",
         "imported": true
       },
       "duplicate": null,
@@ -106538,36 +106653,36 @@
           "bodyHash": "3fc33aecf613c7f28d36e699577fc1ab4b4fd9e138af54a975c5c55cac816fc2"
         },
         {
-          "id": "packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts::routes a Worker error to the logger instead of throwing",
+          "id": "packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts::routes a Worker error to the logger as one worker-error line for two identical errors",
           "line": 188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "b6c97d804bb7ede77b61cb275cf6e70344a3b520546f2e2fa585cb6bc816ab8b"
+          "bodyHash": "2f56a088d903b557c107c3e69dadf3f92906cf0d67787e9c69f80fc8e244d007"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts::constructs QueueEvents with autorun disabled",
-          "line": 201,
+          "line": 210,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "77f78d6c9971ff3b0d91db8db30e742f8200dc194084cd1b64f191f9da43810a"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts::does not start the event loop until processing starts",
-          "line": 213,
+          "line": 222,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01ca27cb13da423c18a6ae349f93af524eab84abf876e56d803857e887b007da"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts::starts the event loop when processing starts",
-          "line": 223,
+          "line": 232,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31946ee044f06943e790642358932f85b9d254925a9bb0bc292510073bab3f1c"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts::registers an error listener on a retry queue too",
-          "line": 235,
+          "line": 244,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c165c9d31abd34559cd0935f4bfd19573fbf039fc3ed13db4ec554b183fdce97"
@@ -108281,113 +108396,113 @@
       "blockCount": 16,
       "blocks": [
         {
-          "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::logs an error the queue emits, with the queue's name, instead of leaving it unhandled",
+          "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::logs one line, with the queue's name, for two errors the queue emits",
           "line": 108,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "4f318b8fd4f0826e0bc21aff8aeede3e3c803ff37bcbfa7b20e73207b1de1839"
+          "bodyHash": "b816a3fbe337da233e8d02821e4dc3119d33f4a9e9b564cc6a380265346486d5"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::throws identifying the missing connection when none is injected (runtime safety net)",
-          "line": 120,
+          "line": 129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4956d89418af846f99371dd4738c048b8a541ecf8e025febb3faa8fb88b3835b"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::never constructs its own Redis (no env/localhost fallback) when no connection is injected",
-          "line": 129,
+          "line": 138,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd5564015a047e3016d1806395e89680d502acc6908b2795b47bafd6276d8f0a"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::creates the BullMQ Queue with the supplied queueName",
-          "line": 136,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8d6cea1c6571f7d34fd934389a8a6a6f4ef2793d1432695c94b7d194ad65ec5"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::calls queue.add with the supplied queueName when enqueueing",
-          "line": 145,
+          "line": 154,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "965e5e0fa6461b059aa28e9ad40a1c3ae285996e9ff8378c811b9af9e4518bc0"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::uses the injected connection without constructing a new Redis",
-          "line": 160,
+          "line": 169,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "278f85465945661f9bb90dc707a928efc0d4c2599b93f27dfb59ff5ee88b39c0"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::computes delay from runAt when present",
-          "line": 165,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff0ae8067dc7731e904f0cff550fa6aa7df4e48733b970689910c6fb7896d9b5"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::returns an error Result when the queue.add path fails after retries",
-          "line": 177,
+          "line": 186,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cebcacfcaf8c4b1264f3bed13a36b654339f232f1401afbd2bed724234c89a4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::close() closes the queue and never quits the injected connection (composition root owns it)",
-          "line": 193,
+          "line": 202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "380ed4528cbe63523f20f65baae3bc282d3f5ca3422917c529b5d2a9192f17f2"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() returns counts from BullMQ getters when reachable",
-          "line": 203,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9efbe4e3b461f96cff5adcd2c613d7e96e5982869d081d46a4492fe9c9860cf4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reads counts without fetching job objects",
-          "line": 222,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ca9e0f19fac7da166c3beec4a7056e597d8561e2a75cd8c7df3371e19aa45f2"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reports the consumers the broker has registered for this queue",
-          "line": 249,
+          "line": 258,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "22778bd9873be03b78da4c99cdaae69cbc07db124f73e5d64d8adfd1fd51eb6d"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reports consumers as 0 when no client is registered for this queue",
-          "line": 265,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d485af282037026ad6f014b695a6cb88880d9e85e17f3ec1dff8a6d4e567b5f4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reports consumers as null when the broker cannot answer CLIENT LIST",
-          "line": 278,
+          "line": 287,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "64c8fba27e6459ecad167810717c58331b66c6a9b2aba36db4ee42a40dbfed27"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::forwards defaultJobOptions to the BullMQ Queue constructor when provided",
-          "line": 297,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4920db4b9cb7066142778388482cfaa1b2f66c09b7f2de325675a036fa872aa"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::omits defaultJobOptions from the Queue constructor when not provided",
-          "line": 315,
+          "line": 324,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9270a2a4b1894d95a7900e53181feced9f8f0f039602f7d8b85125c3c105b357"
@@ -116960,7 +117075,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/logger/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "packages/observability/logger/tests/redaction.test.ts::masks every credential field the shared list adds when they are logged at the top level",
@@ -116989,6 +117104,20 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ada78103cc355ff5745028e81bcd324cd825dd0bada96a6d70e491f50ce4b657"
+        },
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::masks the arguments of the command an error carries, under every key an error is logged",
+          "line": 160,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b1346735651ee865a8eef9a1504c9102ad65f100115bcde82946d754cbe2e1c6"
+        },
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::writes no command argument when the throttled listener logs an error",
+          "line": 176,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9799acab5b7e9b914285357f6884b7c1198b086acd908665f24cb66145adac6e"
         }
       ],
       "verdict": "KEEP",
@@ -117005,28 +117134,105 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/logger/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 14,
       "blocks": [
         {
-          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs the first error at once with the error under err and the connection's name",
-          "line": 31,
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs the first error at once with its type, message, code and stack and the connection's name",
+          "line": 57,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "7c5b7203fda7cd26c3712489af33645281b3643d3d68c303a028a4c1d0e1f68d"
+          "bodyHash": "cdbcc2fe97875ff3301e842a9d4d91b4776fe9d4aa81927b55130b8c961ab9a8"
         },
         {
-          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::holds back every further error inside the window",
-          "line": 43,
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs the name of the command an error carries and never its arguments",
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "be072930c5643038e8f892ad690c7d01c63e45322c77c6c94bc3b2c351817159"
+          "bodyHash": "9c5df8eb44768cd19d5751c410f12e31a898a0d8072b6a951363adc1fae0903c"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::holds back a repeat of the same error inside the window",
+          "line": 89,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "50f81c96b1c33f7e01b6359a04d45e3d28791dce0f900aa568adb0c6c68c3c5f"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs one line with the count it held back once the window has passed",
-          "line": 55,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "55cfb5e59a4de02a8fef3c69f21d17f1bb112e16b9d478eafedceff81c94acde"
+          "bodyHash": "a648d4103ed188b093322ef1333d58f14330127014a9718d48b0f0334fcb87bb"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::resets the held-back count once a line has reported it",
+          "line": 114,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d75b7e465d117e419979664f87b0df7552526466c7d8c6942e2cd773ba872a13"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::measures the window from the last written line, not from the first",
+          "line": 129,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f0295ae34bfd8cb94485553227c5da44e662ce4bad1f67adca9375807e0b21ee"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::measures the window on a monotonic clock that a wall-clock jump does not move",
+          "line": 142,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "327bd62ce655d36513ed65fc064e3f430bb22af01d8c2031fbf3acbc7b6f211e"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::writes a different error inside the window instead of counting it behind the first",
+          "line": 153,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "df5f2f32fc55bccd36bd9c105d4eb56d67c2bc0e5ed599e1ef35f05ffce80054"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::past the bound of tracked identities, throttles every further identity together",
+          "line": 167,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c86b2a83bbea79cbf6c4ce9d5aada65586e228c9ce0361f1fddab63000604f94"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::reports the count the overflow bucket held back once its window has passed",
+          "line": 178,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ffc5aa147c90c9d17dd89713083ca95156e7ea6933de662ce690e8ceede9c37a"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::flush writes one recovery line with the count held back, and the next error is written at once",
+          "line": 191,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "12f6c8264b564a338d1e19b07dd41f8e94de9ab3ff630bfba6e5d56e25dcee26"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::flush writes nothing when no error came since the last flush",
+          "line": 206,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "71fbf6cc7263f777bbfd9fcb8040b23df517e8fef2c8b0a045304cdfb6c84b81"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::names the worker and says the error is the worker's, not a connection's",
+          "line": 220,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cc0a1290bd33b6e24f975850b18fcc6de70ec32cd53be8c013be2c9e140d8462"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::throttles the emitter's errors and reports recovery when it is ready again",
+          "line": 241,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7c2d29b3af27bb5a9dba85633efbf062b3556f87906f36258dab67981c870462"
         }
       ],
       "verdict": "KEEP",
