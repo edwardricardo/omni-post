@@ -32,7 +32,7 @@ export const CATEGORY_STATUSES = {
   permission: [403],
   not_found: [404],
   conflict: [409],
-  too_large: [413],
+  too_large: [413, 414],
   rate_limit: [429],
   not_implemented: [501],
   upstream: [502, 504],

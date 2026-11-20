@@ -5,9 +5,8 @@
  *   `application/problem+json`. A route answers a failure through it, and the global error handler
  *   answers through it what is raised. A framework refusal whose status no `http` code holds, such
  *   as a plugin's 401 or 406, answers `INTERNAL_ERROR` at that status and logs at error severity,
- *   so the framework's own message does not reach the client. Two framework refusals never reach
- *   this function, because the app sets no `frameworkErrors`: `FST_ERR_BAD_URL` and
- *   `FST_ERR_MAX_PARAM_LENGTH` answer the framework's own body.
+ *   so the framework's own message does not reach the client. The refusals the framework makes
+ *   before it routes a request reach it through the server's `frameworkErrors` option.
  * @layer infrastructure
  */
 import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";

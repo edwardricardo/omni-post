@@ -36,4 +36,18 @@ export const HTTP_ERRORS = defineErrors("http", {
     params: {},
     fronts: [],
   },
+  PATH_NOT_DECODABLE: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message: "The request's path holds a percent-encoded sequence that does not decode",
+    params: {},
+    fronts: [],
+  },
+  ROUTE_PARAMETER_TOO_LONG: {
+    category: ERROR_CATEGORY.TOO_LARGE,
+    status: 414,
+    message: "A parameter of the request's path is longer than the router accepts",
+    params: {},
+    fronts: [],
+  },
 });

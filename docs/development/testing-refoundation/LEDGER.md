@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1274  |
+| Files                   | 1275  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1101  |
+| KEEP                    | 1102  |
 | ADJUDICATE              | 100   |
 | unmeasured              | 0     |
-| Machine rows            | 1264  |
+| Machine rows            | 1265  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15943 |
+| Blocks                  | 15948 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -900,6 +900,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/integrationEventDeliveryHandler.test.ts`                                         | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/apiReference.test.ts`                                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts`                                            | test             | 25     | 2          | REWRITE    | machine                     | some-decorative      |
+| `apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts`                                            | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/errors/problem.test.ts`                                                      | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/errors/sendProblem.test.ts`                                                  | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts`                                        | test             | 5      | 0          | KEEP       | machine                     | behavioural          |

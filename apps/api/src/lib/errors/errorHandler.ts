@@ -1,13 +1,14 @@
 /**
  * @file errorHandler.ts
  * @description How Fastify answers with the API's one error body: the global error handler for
- *   what is raised, the not-found handler for a path no route matches, both through `sendProblem`,
- *   and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and Zod
+ *   what is raised, the not-found handler for a path no route matches, the server's
+ *   `frameworkErrors` option for a request the framework refuses before it routes it, all three
+ *   through `sendProblem`, and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and Zod
  *   converters to an `AppError`, which only their suites call.
  * @layer infrastructure
  */
 import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
-import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyBaseLogger, FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { HTTP_ERRORS, RegisteredError } from "@shared/types";
 import { AppError, ErrorCode, isOperationalError } from "./AppError.js";
@@ -78,6 +79,30 @@ export function createNotFoundHandler(logger: FastifyBaseLogger) {
   return function notFoundHandler(request: FastifyRequest, reply: FastifyReply): FastifyReply {
     return sendProblem(request, reply, RegisteredError.of(HTTP_ERRORS.ROUTE_NOT_FOUND), logger);
   };
+}
+
+/**
+ * @function answerFrameworkRefusal
+ * @description The server's `frameworkErrors` option: a request the framework refuses before it
+ *   routes it is answered through `sendProblem`, on the server's logger, the one the error and
+ *   not-found handlers are given. Fastify hands it three refusals: a path whose percent-encoding
+ *   does not decode (`FST_ERR_BAD_URL`), a route parameter over the router's limit
+ *   (`FST_ERR_MAX_PARAM_LENGTH`) and a failing async route constraint (`FST_ERR_ASYNC_CONSTRAINT`).
+ *   Fastify builds their request and reply outside the route lifecycle, so no hook of the
+ *   application runs for them: the answer carries no security header, counts against no rate limit
+ *   and no metric, and its correlation id is the request id, as for any failure no hook stamped;
+ *   Fastify writes its "incoming request" line for them and no "request completed" line. A failing
+ *   async constraint arrives without the constraint's own error, which Fastify does not pass on.
+ * @param error - The framework's refusal.
+ * @param request - The request Fastify built for the refusal.
+ * @param reply - The reply the problem is sent on.
+ */
+export function answerFrameworkRefusal(
+  error: FastifyError,
+  request: FastifyRequest,
+  reply: FastifyReply
+): void {
+  sendProblem(request, reply, error, request.server.log);
 }
 
 /**

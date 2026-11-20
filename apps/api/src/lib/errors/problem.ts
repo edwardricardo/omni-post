@@ -4,7 +4,8 @@
  *   turns any failure into that body. A registered code answers its registry entry, worded by the
  *   registry and never by the error's own message; an internal or configuration code reaches the
  *   wire as `INTERNAL_ERROR` and keeps its own code for the log. A failure nobody registered keeps
- *   its status: the framework's refusals answer an `http` code by status, an `AppError` its own
+ *   its status: the framework's refusals answer the `http` code of their cause when it has one and
+ *   of their status otherwise, an `AppError` its own
  *   status and code, and any other carrier of a failure status that status with
  *   `INTERNAL_ERROR`'s text. Pure: no logger, no clock, no request.
  * @layer infrastructure
@@ -104,8 +105,22 @@ const WIRE_HIDDEN_CATEGORIES: ReadonlySet<string> = new Set([
 const FRAMEWORK_CODE_PREFIX = "FST_";
 
 /**
- * The framework's refusals by status, each answered by the `http` code that holds the status the
- * framework gave, so no refusal changes its status. One whose status no code holds is a status
+ * The framework's refusals whose cause has a code of its own, by Fastify's code: the two the router
+ * raises before it routes, which reach `frameworkErrors`. The third it hands there,
+ * `FST_ERR_ASYNC_CONSTRAINT`, carries 500, so it is no refusal of the client's request: it answers
+ * as a status carrier, `INTERNAL_ERROR` logged at error under Fastify's code.
+ */
+const FRAMEWORK_CAUSES: ReadonlyMap<string, RegisteredDefinition> = new Map<
+  string,
+  RegisteredDefinition
+>([
+  ["FST_ERR_BAD_URL", HTTP_ERRORS.PATH_NOT_DECODABLE],
+  ["FST_ERR_MAX_PARAM_LENGTH", HTTP_ERRORS.ROUTE_PARAMETER_TOO_LONG],
+]);
+
+/**
+ * Every other refusal of the framework by status, answered by the `http` code that holds the status
+ * the framework gave, so no refusal changes its status. One whose status no code holds is a status
  * carrier.
  */
 const FRAMEWORK_DEFINITIONS: ReadonlyMap<number, RegisteredDefinition> = new Map<
@@ -257,13 +272,13 @@ function validationAnswer(error: unknown, context: ProblemContext): ProblemAnswe
   );
 }
 
-/** A request the framework itself refused: the `http` code of its status. */
+/** A request the framework itself refused: the `http` code of its cause, or else of its status. */
 function frameworkAnswer(error: unknown, context: ProblemContext): ProblemAnswer | undefined {
   if (!isRecord(error)) return undefined;
   const { code, statusCode } = error;
   if (typeof code !== "string" || !code.startsWith(FRAMEWORK_CODE_PREFIX)) return undefined;
   if (!isStatusBetween(statusCode, 400, 499)) return undefined;
-  const definition = FRAMEWORK_DEFINITIONS.get(statusCode);
+  const definition = FRAMEWORK_CAUSES.get(code) ?? FRAMEWORK_DEFINITIONS.get(statusCode);
   if (definition === undefined) return undefined;
   return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, "warn");
 }

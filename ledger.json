@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1274,
+      "total": 1275,
       "byShape": {
-        "test": 1025,
+        "test": 1026,
         "integration-test": 91,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1101,
+        "KEEP": 1102,
         "ADJUDICATE": 100,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1264,
+      "machine": 1265,
       "confirmed": 10,
-      "total": 1274
+      "total": 1275
     },
     "blocks": {
-      "total": 15943,
+      "total": 15948,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15632
+        "BEHAVIOURAL": 15637
       }
     },
     "deleted": {
@@ -60468,6 +60468,58 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 5,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers the route when a route parameter is at the router's limit, and writes no failure line",
+          "line": 87,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "237ef3cd55f39fec03f97eb3b4a94f95d5d9d4c4fd20737d4ecb3cd46a4dca4a"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_PARAMETER_TOO_LONG at 414 when a route parameter is over the router's limit, with one warn line",
+          "line": 96,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5956b1ebd4566588d2286c499aabc3de76dbbfab496eb8ce1bbb396bc2799568"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers PATH_NOT_DECODABLE at 400 when the path's percent-encoding does not decode, with one warn line",
+          "line": 135,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1e37165475cc1d03072c87581d78bed3c81e0aea78a391f943a6b349e9ce74ec"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_NOT_FOUND at 404 when no route matches the path, with one warn line",
+          "line": 174,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1666dd494f2421d3d325b24b0d3ceae1feaf4c043326c6d385f6ef2917af5b87"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers INTERNAL_ERROR at 500, writes one error line under Fastify's code and reports it to Sentry",
+          "line": 245,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d8d968427a66ce0d215624195cadd1a991034f67e5413d6163a0e71ded8751ae"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/lib/errors/problem.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -60477,150 +60529,150 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers its registry entry, worded by the registry and stamped by the context",
-          "line": 114,
+          "line": 115,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc60329c8f11744685ef392621618d9e76737c39af58b1bd86c33b752b9126ab"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers the registry's status and text whatever built the error, never its own sentence",
-          "line": 134,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f8ac59b87471a4bcd20f33a9edda3a24de2c8495d9ad1a3648e0f99ca94e7a4d"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::collapses an internal code to INTERNAL_ERROR and logs it at error",
-          "line": 150,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e4dd46f5c97a95eddeea65f7530f9947be94f416f453a930dea8deb2ec478e9"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::collapses a configuration code to INTERNAL_ERROR with no parameters, and logs its own code",
-          "line": 162,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da549161dfa3492378b5a39ff99f673fa92cfee927521dc64967bf2cca674df9"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::sends the declared parameters it carries and words the text with them",
-          "line": 179,
+          "line": 180,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7a2370409f3663c16a440f2e3fd07d1b8890f92f80fc8a57dd492de83486425"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps the placeholder of a declared parameter it does not carry, and logs at error",
-          "line": 200,
+          "line": 201,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d31bd00ca373edfbb3ae0a4f0a05d18888c84fb3d0930f2f16d2a7450a95ae95"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers VALIDATION_FAILED with each issue's part, pointer, code and the validator's text",
-          "line": 258,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d137ab8fa9ffdeeb89155bb5c7715167736da3ef28e744b72b864c3c19af81c3"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::points at the part itself when the issue is about the whole part, and names the part",
-          "line": 296,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5a4ef3e829c09205f9aee4981e13595caa6e8b8546f0f7455dae21990a40aa56"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers the http code of the status for each refusal of the framework, and logs Fastify's code",
-          "line": 308,
+          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers the http code of its cause, or else of its status, for each refusal of the framework, and logs Fastify's code",
+          "line": 309,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "bf09117fa67cb1ffe73ddfa24e4f5aebe28df05d72ce8b57550cf9359936b464"
+          "bodyHash": "23996ca02799e5b8382227dd3e17e2edd2b89f1bf53281b08722e263b937f3e3"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps the status of a refusal no http code holds, with INTERNAL_ERROR's text",
-          "line": 357,
+          "line": 361,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "7686b09f29797b45bce316f69df2d9916948119514175c57dad3865540ed6b59"
+          "bodyHash": "22bee7693a4ea5d65a4f5fa0441a43f7ad3f9475491f179a95407fe75afe3178"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps the failure status a thrown plain object carries, and never sends its text",
-          "line": 370,
+          "line": 380,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f22d433beae26ddd29e9bf35df2af3167871756e6699c8559fe43c79293ba82"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::reads an issue the validator does not describe as unknown, at the part itself",
-          "line": 380,
+          "line": 390,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc528d6996116bc51ddb13010543690f9fc6a04ddecccbec2b04a46caf3e53f4"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::does not read a validation list outside a request part as the request's issues",
-          "line": 393,
+          "line": 403,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0906298e643ac9847580fc9cf84caa0d7175c959697c41fec9ee4954000368ec"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps its status and code, and shows its message when operational and below 500",
-          "line": 409,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de954a12fc9d5a21548c46ad0c9f554a68a2f67b868efb1df815f70823108b03"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::hides its message at 500 or above, or when not operational, and logs a non-operational one at error",
-          "line": 429,
+          "line": 439,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "94e67ab92a163cd69abaaf674a6501e989d857631cd4bdf9d1ce962a4a98b1f6"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers INTERNAL_ERROR when its status is not a failure status",
-          "line": 444,
+          "line": 454,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "abc74b856b6a98ef8ba7626b393d2800feb4bf215c51c0545f385557f09bc9cc"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps the failure status a value carries, with INTERNAL_ERROR's code and text, and logs its code",
-          "line": 456,
+          "line": 466,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0638b1e55a0fd66049f8e668a188847bf9651bb4f30f4150a9d2a965883e0d03"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers INTERNAL_ERROR at 500 for anything else, and logs a code the value carries",
-          "line": 481,
+          "line": 491,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b6d20be5b87474e1dfa81120b2e143dd0705195adfbd65b994f7e7f1bdf2f0f3"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::is served as RFC 9457 problem JSON",
-          "line": 515,
+          "line": 525,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce012dc5cc36aa85ff69e1dec7d6cb15df006afeb64fc8eff51e3c55746fa7c0"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::accepts every body toProblem sends and refuses a code outside the grammar or a status that is no failure",
-          "line": 519,
+          "line": 529,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "21568021959bdbac99d2ef186293b28a756eb39d0bbac3367930a7c425102d3c"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::holds the four failures the HTTP boundary raises itself, for operators only",
-          "line": 539,
+          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::holds the six failures the HTTP boundary raises itself, for operators only",
+          "line": 549,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "bd99002c8647dc531c9f5d6be593799c130d74f24332fd137116499aaeff18c8"
+          "bodyHash": "fa4cff48434893ae3ba0c25bb26d7df46574e1878bc9cbe6758bf7132c59c5db"
         }
       ],
       "verdict": "KEEP",
@@ -74247,445 +74299,445 @@
           "line": 659,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "789e21f03f6c6d945160bdb5f69257ce00162a68bd48444616b6c4e1e3ebc95f"
+          "bodyHash": "310c2b20ba0a7cd51b949f9deb087025650301c6422f911dd4df270187c32918"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the message %j, which spans two lines",
-          "line": 693,
+          "line": 694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9e9dba31ae5e7cf3cd71cc33e264520ab53832e1861c161163716a5d3a8a196"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the empty message %j",
-          "line": 705,
+          "line": 706,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08067d26b1384da12c52e4409fbab20100402ef250c6d554b052ee2af4f09641"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a message that is not a string",
-          "line": 714,
+          "line": 715,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ccd2c6b978d653e0f71992bc15ed6cbd71feafb6e0dbdd51de6cdd9616646a1"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a placeholder that no parameter declares",
-          "line": 723,
+          "line": 724,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4584f6b7313db5f0d4acc06ee53df6bcdb953dd0e1b68542691c99cb45da9126"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a declared parameter that the message does not hold",
-          "line": 739,
+          "line": 740,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1939f6d59e647c5c4d37a5d63f40ef1d38a1b64088a11e075ac4b4b305ee9e2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the message %j, which is placeholders alone",
-          "line": 752,
+          "line": 753,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5ef475f413ea226cdbda5d3905e0d3b392a084849f6cfbc222eb5cea6e04cfc"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the parameter name %s",
-          "line": 769,
+          "line": 770,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0248a3f249365df9d55dc36a9db1bb7a83f1493348d1a059498d42a0c8fc0b4d"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the parameter kind %s",
-          "line": 791,
+          "line": 792,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ecb3c82f6c30f44746e5b6ba53664b6039be23e977f001edc5bba28fef946f0f"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::accepts a parameter of each of the four kinds",
-          "line": 802,
+          "line": 803,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f586bc0eaebb60642119b4194c395d82ad5507fd6e443536f4ca8803cdf010e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses parameters that are not an object of kinds",
-          "line": 819,
+          "line": 820,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d23dd84000bb015cde378eea4a6b4169b0b0a3bc8e704308bd610da594182d3b"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses fronts that name a portal twice",
-          "line": 835,
+          "line": 836,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b3fa02f22e768b80a14963cede7fcd2d55a2cfa9116dbc9d9774842608089e35"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses fronts that name %j, which is no portal",
-          "line": 846,
+          "line": 847,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d335cb9a07ad140ce7d325193d6251fac357b279de746d04b9801d235101491"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses fronts that are not a list",
-          "line": 859,
+          "line": 860,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2303851f92942e2d6c3b2939d6648d0a9cec2033288efd9576994028c265455a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::takes the portals from the tree, so a third portal may be named",
-          "line": 870,
+          "line": 871,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e22a5fc6658259edaa41482659f32d7d192109d9a2c7b433e1ed6150e51d853b"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::holds an enrolled portal in every locale and says so in its clean run",
-          "line": 915,
+          "line": 916,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "67a1ba7ac5a2fc7a66de46ad59d216bb7fac2f1bba3db08f0766295a75ee81e8"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::asks nothing of a portal whose default locale holds no errorCodes, whatever another locale holds",
-          "line": 932,
+          "line": 933,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "09c556bcbc932913850b0cac7313f7a796ffa9b06d36411f38da5fe787444c25"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a locale that has no text for a code the portal can receive",
-          "line": 949,
+          "line": 950,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f32f6cab5975ebd11a0bddaff924c1ecf4ea505ef5f334eac49c5b17be5d39e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a locale that holds no errorCodes while the default locale does",
-          "line": 965,
+          "line": 966,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65bb8f3437e5de61aaa53c52f73fcbb4ab88f7ca7f67920928cffb2da8446251"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a text for %s, which the portal cannot receive",
-          "line": 979,
+          "line": 980,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "616e7fef9c170dc0bdaed9a902a17292f9466707d12bc0c554085aafe1598d89"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a text that is not a message",
-          "line": 994,
+          "line": 995,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82903091236f21c0910f28ce517ea30bd23dd62f18518c29795b2e3656ae12d2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses an errorCodes that is not an object of messages",
-          "line": 1008,
+          "line": 1009,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "93ff7b09bb0fc7d1adaece0802719c69993c451b06349debe6b14b88fd9cd32a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the text %j",
-          "line": 1022,
+          "line": 1023,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc243c4cfb84e8c0aad694613cd0ea5c6af2b61c05f2eb4c781207fdd25414fe"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on a text that is not valid ICU, which R7 cannot read",
-          "line": 1050,
+          "line": 1051,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb2daa14826d2582753b77cbf0c834e3bf0f8e58092c0eaba3fd93ede9cfdd07"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on a routing with %s",
-          "line": 1063,
+          "line": 1064,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b293d957b8662b987d5216b0ed217697bee4c341f40940f9b71e989442d0af5e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on a catalog that is not JSON",
-          "line": 1088,
+          "line": 1089,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee52916da8781ba13036f4df9005fde6ba92aab0d3faa9a7cc525495427bbdf5"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on a catalog that is not an object",
-          "line": 1098,
+          "line": 1099,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9f3d70c4e63c14280699bc11024f57f8e917da593c1abcba830f928e2983b98"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when the default locale has no catalog",
-          "line": 1109,
+          "line": 1110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eda2dccf3c818db4de3c1c9e246b3b04b0dbd572119350a8d2fcc118f8bbc5f8"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a tree with no page",
-          "line": 1125,
+          "line": 1126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "39d4421f9688c9c6025ca93b867eec70cfb6fbd9586e6a07f6d919a3aa387ca2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::writes the page with --write, and the check then passes on it",
-          "line": 1139,
+          "line": 1140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d829bb80d525c7c82be66973d8a9b1cef2b3a026c6a18e710d5624595fc492aa"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a page edited by hand",
-          "line": 1154,
+          "line": 1155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c09d6a0ef5514d06569a736707f9ad5b2a9ae8efa4f127a67d76dafecafc66b"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a page that differs only by a line break at its end",
-          "line": 1164,
+          "line": 1165,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0cd8e3e03caedbf0bb6e7e529efe475aa89538ee3d5c18f58cd2e6c52d4f39e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::writes each context's count at the birth from the births alone, and now from every row",
-          "line": 1174,
+          "line": 1175,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b77099d419ea5a32a2b283e7c703a8437efd87f769e2c0c6443cbda425258992"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a page the registry has moved past",
-          "line": 1192,
+          "line": 1193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "05e2ccfb4e40f97190f91bfc30fc6695ff4110d4a5ab3bd5d78d5e9b6f5ada38"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a page the history has moved past, and shows the history it was written from",
-          "line": 1208,
+          "line": 1209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "faf8a2ce204d2b9bd93b19dd195452e195538b64da7e21ca362102d5954a39c8"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::writes the page beside a verdict, and still exits 1 on it",
-          "line": 1230,
+          "line": 1231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37f03d34339fff6a9f88b547d190c1f5735f46758c890fec69d3d72e4e9d4278"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::writes nothing when the registry could not be read",
-          "line": 1245,
+          "line": 1246,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "307edf80d282070d69e581442f93f9bf4390ae22b585bc6f8033b51479b883a9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on a history that is not the format of its rows, and judges no page",
-          "line": 1258,
+          "line": 1259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "99c62d2835ddb9bb2e7f298c1f33203fd58248b8a21ec3aad518b7eec35a9b53"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when the history's reader fails",
-          "line": 1278,
+          "line": 1279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e666d5a9b2cb0220109c338e1eb307effa62fa922ab2f452e9f973c9b9e45f02"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a code nothing references",
-          "line": 1304,
+          "line": 1305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e62c80eebc185dba2120ce8cda07ad0357c6e7253e0ce34829a42286192a870"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::does not count a reference in %s",
-          "line": 1310,
+          "line": 1311,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c33730504b1b6ce6abf6e1c4056b771ac7aaf917f750ef3d62b6877c236e3a7b"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::does not count a reference in a file git does not track",
-          "line": 1348,
+          "line": 1349,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9181a7fb9e7bc7b0ec208b40a4cb8953ba9eb87a5e5f108a6d2412e587a8657"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::counts a reference in %s",
-          "line": 1357,
+          "line": 1358,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "90cfa247c19f6c310a4f42c93ac45bb23ae29b7f59cdfed94218c2c5279b9b40"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses the token in %s",
-          "line": 1394,
+          "line": 1395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be00fbe8594f60eed8362913130360396f5008321fc7f63bf22b8e23cd0c02ed"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::does not read a file the rule's scope excludes: a test file, test code or configuration beside a source tree, a tooling root",
-          "line": 1438,
+          "line": 1439,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "224f015444bf261bb14f757435ae840a918933c9f9f1e6ba4545a2642a66024c"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::reads the token as a whole word",
-          "line": 1455,
+          "line": 1456,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6d20111c16d4c20938e8d61ccc313e493bfb86cfd446346592b480f867070ba3"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::refuses a name that is no table, read as %s",
-          "line": 1475,
+          "line": 1476,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bfed142fd474a117b5687956372ceadfb41c3a82be676ad52142ce0b791a4e47"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::reads the registry directory too",
-          "line": 1490,
+          "line": 1491,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9d25ce8fef4623380b83cbf643f4514a14b4ae150f2c4d0747c640a4ca6e4fd"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::passes a code whose own name ends in _ERRORS, a later argument, and an excluded file",
-          "line": 1500,
+          "line": 1501,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab2fa0038cd786d9247e8e07ba3b05770d7df4f273938e13d139d81316f88498"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when the root is not a directory",
-          "line": 1531,
+          "line": 1532,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75c85b0eb1bc1eca823648730e438686cfba3fcb208267c8a296e330fc6e2645"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on an exclusion list that is %s",
-          "line": 1543,
+          "line": 1544,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "071bedd1aab18d4338ff76bc2d291c410ce0d33d836450ffa658b4d3fdbd9cb2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 on fewer than two portals",
-          "line": 1595,
+          "line": 1596,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0f7b69d85f54347bf8bc093116f5260f63317473dbb61d878de4ac122b8120d5"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::does not count as a portal a directory with no routing file",
-          "line": 1604,
+          "line": 1605,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "64d0fece0d8b585746a49c27d28eb738b8f43eb2c16539b6b37f5046541fad9e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when domains/ does not exist",
-          "line": 1616,
+          "line": 1617,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a01315629b1816ea1ba54f9677d3283670c74bb79a4b758c6a5d4f52bf19a6e9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when domains/ holds no domain file",
-          "line": 1628,
+          "line": 1629,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47f6c5a1da80008f2af31a7372ef722a7edd68b0c8377b4144825172c16edf87"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when the registry cannot be loaded",
-          "line": 1642,
+          "line": 1643,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a52bf91febee0d278a3bac457c8d3fc2f86b6d571f2b79c2267c6dfec94b356c"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when the index %s",
-          "line": 1652,
+          "line": 1653,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f017a3c1cfa697fa09bf4edecc6f07811a761c49dc195ee8c05c57cdb2eccbe8"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when a domain file cannot be loaded, naming it",
-          "line": 1668,
+          "line": 1669,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "02962a67f2c2c125141c4cd96133ca6a083f675782b291aac45af5faad9b4581"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when git ls-files fails",
-          "line": 1683,
+          "line": 1684,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7856095403b56a7b2c56c155139fa1de11a3ecdb6d681e5ed8c14859caa715f"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when git lists no source file of the rule's scope",
-          "line": 1693,
+          "line": 1694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "125796e6195dea91c637e721a4a19b3d7a803ce9b07dbe99df113dad0ee4ac9d"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when a tracked file of the scope cannot be read",
-          "line": 1707,
+          "line": 1708,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d17c9ba1d2a2b65532f9a5a54a36cc5da0bb8f85b40f87ff6b59e88a7f51182f"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 over 1, printing what it could not read before the verdict",
-          "line": 1720,
+          "line": 1721,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d34fa677e7ec6c0969a75bf37934fd1bc8bdd5aa7239b184bb88e193eab5607"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 2 on the usage error %j",
-          "line": 1742,
+          "line": 1743,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c03a83f2d552161b32678307142bede89374a27eeba311bdd6e59ef2709eeeba"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorRegistryGate.test.ts::exits 3 when the root is not a directory, having read nothing, given %j",
-          "line": 1756,
+          "line": 1757,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d90b0ea81e446bd0edec8c49306065da390070e35081137dfb9e0031576f4053"
@@ -90063,7 +90115,7 @@
           "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "a92613784cafaf4a5890566acb0776e47a0c6c5ec0288caacbbe82d8c20a474a"
+          "bodyHash": "2c1f1f8f62706bd56cd56671f50035d8c873042fb80867852359eab20dbace2b"
         },
         {
           "id": "apps/api/tests/unit/shared/errorRegistry.test.ts::names four parameter kinds and the two portals",

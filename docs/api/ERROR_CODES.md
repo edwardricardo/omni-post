@@ -10,9 +10,9 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 | ---------- | ----- |
 | `auth`     | 33    |
 | `common`   | 10    |
-| `http`     | 4     |
+| `http`     | 6     |
 | `platform` | 2     |
-| **Total**  | 49    |
+| **Total**  | 51    |
 
 ## Domain `auth`
 
@@ -69,12 +69,14 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 
 ## Domain `http`
 
-| Code                     | Category   | Status | Message                                                              | Parameters | Portals   |
-| ------------------------ | ---------- | ------ | -------------------------------------------------------------------- | ---------- | --------- |
-| `MALFORMED_REQUEST`      | validation | 400    | The request could not be read: its body or its headers are malformed | none       | logs only |
-| `PAYLOAD_TOO_LARGE`      | too\_large | 413    | The request body is larger than this route accepts                   | none       | logs only |
-| `ROUTE_NOT_FOUND`        | not\_found | 404    | No route matches this method and path                                | none       | logs only |
-| `UNSUPPORTED_MEDIA_TYPE` | validation | 415    | The request's content type is not one this route accepts             | none       | logs only |
+| Code                       | Category   | Status | Message                                                                  | Parameters | Portals   |
+| -------------------------- | ---------- | ------ | ------------------------------------------------------------------------ | ---------- | --------- |
+| `MALFORMED_REQUEST`        | validation | 400    | The request could not be read: its body or its headers are malformed     | none       | logs only |
+| `PATH_NOT_DECODABLE`       | validation | 400    | The request's path holds a percent-encoded sequence that does not decode | none       | logs only |
+| `PAYLOAD_TOO_LARGE`        | too\_large | 413    | The request body is larger than this route accepts                       | none       | logs only |
+| `ROUTE_NOT_FOUND`          | not\_found | 404    | No route matches this method and path                                    | none       | logs only |
+| `ROUTE_PARAMETER_TOO_LONG` | too\_large | 414    | A parameter of the request's path is longer than the router accepts      | none       | logs only |
+| `UNSUPPORTED_MEDIA_TYPE`   | validation | 415    | The request's content type is not one this route accepts                 | none       | logs only |
 
 ## Domain `platform`
 

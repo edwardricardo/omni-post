@@ -902,7 +902,7 @@ A failure the error handler answers, a request a route's schema refuses and a pa
 What decides the answer:
 
 - A code in the `internal` or `configuration` category reaches the client as `INTERNAL_ERROR` at 500; its own code goes to the log.
-- A refusal of the framework answers the `http` code of its status (`MALFORMED_REQUEST`, `ROUTE_NOT_FOUND`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`); one whose status no `http` code holds answers `INTERNAL_ERROR`'s code and text at that status.
+- A refusal of the framework answers the `http` code of its cause when it has one (`PATH_NOT_DECODABLE` for a path whose percent-encoding does not decode, `ROUTE_PARAMETER_TOO_LONG` for a route parameter over the router's limit), and otherwise the `http` code of its status (`MALFORMED_REQUEST`, `ROUTE_NOT_FOUND`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`); one whose status no `http` code holds answers `INTERNAL_ERROR`'s code and text at that status.
 - A failure that carries no registered code keeps its status: an `AppError` answers its own code, and its message only when it is an expected failure below 500; any other value answers `INTERNAL_ERROR`'s code and text, at the failure status it carries or else at 500.
 - A route answers its own failures through `sendProblem` (`apps/api/src/lib/errors/index.ts`), the one function that writes the body; a route never raises to the error handler ([ADR-0006](../technical/ADR-0006-result-type-over-throws.md)).
 - The OpenAPI document publishes the body as `components.schemas.Problem`.

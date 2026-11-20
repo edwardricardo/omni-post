@@ -59,6 +59,7 @@ import {
 } from "./security/httpRateLimitPreHandler.js";
 import type { RateLimiterPort } from "@ports/core";
 import {
+  answerFrameworkRefusal,
   createErrorHandler,
   createNotFoundHandler,
   PROBLEM_OPENAPI_SCHEMA,
@@ -199,10 +200,14 @@ import aiRoutes from "./ai/routes.js";
 // Cache middleware
 import { autoCachePlugin } from "./middleware/autoCacheMiddleware.js";
 
-// Fastify v5.6.1 Application Creation
-async function createApp(): Promise<FastifyInstance> {
-  // Fastify v5.6.1 constructor syntax
-  const app = Fastify({
+/**
+ * @function createServer
+ * @description Builds the API's Fastify instance with the options it runs with, before any plugin
+ *   or route is registered on it.
+ * @returns The instance `createApp` registers the plugins, hooks, handlers and routes on.
+ */
+function createServer(): FastifyInstance {
+  return Fastify({
     logger: true,
     // `false` (socket-only) or the trusted proxy IP/CIDR allowlist — never
     // `true`, which trusts the leftmost, client-controlled X-Forwarded-For entry
@@ -219,7 +224,15 @@ async function createApp(): Promise<FastifyInstance> {
     // Together they prevent socket hoarding and indefinite request hangs.
     keepAliveTimeout: 5_000,
     requestTimeout: 30_000,
+    // Without it Fastify writes its own body for the requests it refuses before routing, past
+    // every hook and handler, so their answer and their log line would leave the one error path.
+    frameworkErrors: answerFrameworkRefusal,
   });
+}
+
+// Fastify v5.6.1 Application Creation
+async function createApp(): Promise<FastifyInstance> {
+  const app = createServer();
 
   // Apply ZodTypeProvider for type safety
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
@@ -1352,4 +1365,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   start();
 }
 
-export { createApp };
+export { createApp, createServer };

@@ -3,7 +3,8 @@
  * @description `toProblem` turns any failure into the API's one error body, step by step: a
  *   registered code answers its registry entry (an internal or configuration one collapses to
  *   `INTERNAL_ERROR`); a request the route's schema refuses answers `VALIDATION_FAILED` with its
- *   issues; the framework's own refusals answer an `http` code by status; a legacy `AppError` keeps
+ *   issues; the framework's own refusals answer an `http` code by cause, or else by status; a
+ *   legacy `AppError` keeps
  *   its status; any other carrier of a failure status keeps it with `INTERNAL_ERROR`'s text; and
  *   anything else is `INTERNAL_ERROR`. The request's own refusals are produced by a real Fastify
  *   with the API's Zod validator, so the shape the installed versions give is what is proved. No
@@ -305,7 +306,7 @@ describe("toProblem", () => {
       ]);
     });
 
-    it("answers the http code of the status for each refusal of the framework, and logs Fastify's code", async () => {
+    it("answers the http code of its cause, or else of its status, for each refusal of the framework, and logs Fastify's code", async () => {
       const refusals: readonly InjectOptions[] = [
         {
           method: "POST",
@@ -322,6 +323,7 @@ describe("toProblem", () => {
         { method: "POST", url: "/drafts", headers: { "content-type": "text/csv" }, payload: "a,b" },
         { method: "POST", url: "/drafts", payload: { title: "x".repeat(80), tags: [] } },
         { method: "GET", url: "/drafts/%E0%A4%A" },
+        { method: "GET", url: "/drafts/a-long-draft-id" },
       ];
       // Fastify's own not-found handler answers without raising; the error is read as raised.
       const notFound = {
@@ -341,7 +343,8 @@ describe("toProblem", () => {
         "400 400 MALFORMED_REQUEST FST_ERR_CTP_EMPTY_JSON_BODY framework/warn",
         "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
         "413 413 PAYLOAD_TOO_LARGE FST_ERR_CTP_BODY_TOO_LARGE framework/warn",
-        "400 400 MALFORMED_REQUEST FST_ERR_BAD_URL framework/warn",
+        "400 400 PATH_NOT_DECODABLE FST_ERR_BAD_URL framework/warn",
+        "414 414 ROUTE_PARAMETER_TOO_LONG FST_ERR_MAX_PARAM_LENGTH framework/warn",
         "404 404 ROUTE_NOT_FOUND FST_ERR_NOT_FOUND framework/warn",
       ]);
       expect(injected.map(({ answer }) => answer.problem.detail)).toEqual([
@@ -349,20 +352,27 @@ describe("toProblem", () => {
         HTTP_ERRORS.MALFORMED_REQUEST.message,
         HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
         HTTP_ERRORS.PAYLOAD_TOO_LARGE.message,
-        HTTP_ERRORS.MALFORMED_REQUEST.message,
+        HTTP_ERRORS.PATH_NOT_DECODABLE.message,
+        HTTP_ERRORS.ROUTE_PARAMETER_TOO_LONG.message,
         HTTP_ERRORS.ROUTE_NOT_FOUND.message,
       ]);
     });
 
-    it("keeps the status of a refusal no http code holds, with INTERNAL_ERROR's text", async () => {
-      const { status, answer } = await answerTo({ method: "GET", url: "/drafts/a-long-draft-id" });
+    it("keeps the status of a refusal no http code holds, with INTERNAL_ERROR's text", () => {
+      // Every status of Fastify's own refusals has an http code, so the refusal is a plugin's, raised
+      // with the framework's code prefix and a status of its own.
+      const pluginRefusal = Object.assign(new Error("No Authorization was found in the headers"), {
+        code: "FST_JWT_NO_AUTHORIZATION_IN_HEADER",
+        statusCode: 401,
+      });
 
-      expect(status).toBe(414);
+      const answer = toProblem(pluginRefusal, CONTEXT);
+
       expect(answer).toEqual({
-        problem: internalProblem(414),
+        problem: internalProblem(401),
         headers: {},
         source: "status-carrier",
-        loggedCode: "FST_ERR_MAX_PARAM_LENGTH",
+        loggedCode: "FST_JWT_NO_AUTHORIZATION_IN_HEADER",
         severity: "error",
       });
     });
@@ -536,7 +546,7 @@ describe("toProblem", () => {
   });
 
   describe("the http domain", () => {
-    it("holds the four failures the HTTP boundary raises itself, for operators only", () => {
+    it("holds the six failures the HTTP boundary raises itself, for operators only", () => {
       const definitions = Object.values(HTTP_ERRORS);
 
       expect(
@@ -549,6 +559,8 @@ describe("toProblem", () => {
         "PAYLOAD_TOO_LARGE http too_large 413: The request body is larger than this route accepts",
         "UNSUPPORTED_MEDIA_TYPE http validation 415: The request's content type is not one this route accepts",
         "ROUTE_NOT_FOUND http not_found 404: No route matches this method and path",
+        "PATH_NOT_DECODABLE http validation 400: The request's path holds a percent-encoded sequence that does not decode",
+        "ROUTE_PARAMETER_TOO_LONG http too_large 414: A parameter of the request's path is longer than the router accepts",
       ]);
       expect(definitions.map(({ params, fronts }) => [params, fronts])).toEqual(
         definitions.map(() => [{}, []])
