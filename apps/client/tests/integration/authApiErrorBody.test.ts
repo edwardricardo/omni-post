@@ -88,6 +88,7 @@ describe("authApi given a JSON body that is not an object", () => {
     ["a string", "upstream down"],
     ["a number", 42],
     ["null", null],
+    ["an array", []],
   ])(
     "rejects a sign-in with the endpoint's fallback text when the body is %s",
     async (_kind, body) => {

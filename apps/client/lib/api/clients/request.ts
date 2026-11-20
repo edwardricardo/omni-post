@@ -15,11 +15,11 @@ export const PROXY_BASE = "/api/backend";
 
 /**
  * A failed response's body when it is a JSON object; any other body, unparsable or not an object,
- * gives the body this helper builds, whose message names the status.
+ * an array included, gives the body this helper builds, whose message names the status.
  */
 async function readErrorBody(response: Response, unreadable: string): Promise<ErrorResponse> {
   const body: unknown = await response.json().catch(() => null);
-  if (typeof body === "object" && body !== null) {
+  if (typeof body === "object" && body !== null && !Array.isArray(body)) {
     return body as ErrorResponse;
   }
   return {

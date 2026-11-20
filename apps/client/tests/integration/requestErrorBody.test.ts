@@ -145,6 +145,7 @@ describe("request given a JSON body that is not an object", () => {
     ["a string", "upstream down"],
     ["a number", 42],
     ["null", null],
+    ["an array", []],
   ])("throws an ApiError naming the status when the body is %s", async (_kind, body) => {
     server.use(
       http.get(`${PROXY_BASE}/health`, () =>
