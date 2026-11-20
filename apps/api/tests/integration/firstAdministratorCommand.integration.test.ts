@@ -24,11 +24,13 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { until } from "@packages/vitest-shared/determinism";
+import {
+  runInPseudoTerminal as runInSharedPseudoTerminal,
+  type PseudoTerminalRun,
+} from "@packages/vitest-shared/pseudo-terminal";
 import { createTestPrismaClient, type Prisma, type PrismaClient } from "@infra/prisma";
 import { SUPER_ADMIN_ROLE } from "@infra/prisma/adminSystemRoles.js";
 import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
@@ -56,8 +58,6 @@ const TIMING = { timeout: 180_000 } as const;
 
 /** How long the process of the last case may run before the runner ends it. */
 const PROCESS_LIMIT_MS = 60_000;
-
-const execFileAsync = promisify(execFile);
 
 /** The use case's refusals, as the operator reads them on standard error. */
 const REFUSALS = {
@@ -249,37 +249,17 @@ describe("The first-administrator command on a migrated database", { concurrency
   }
 
   /**
-   * Runs a shell command under `script`, which gives it a pseudo-terminal as its standard
-   * streams, with the database URL of the test's database, and resolves on its exit. A run that
-   * outlives `PROCESS_LIMIT_MS` is ended with SIGTERM and comes back with `killed` set.
+   * Runs a shell command in a pseudo-terminal from the API's directory, with the database URL of
+   * the test's database, and resolves on its exit. A run that outlives `PROCESS_LIMIT_MS` is ended
+   * with SIGTERM and comes back with `killed` set.
    */
-  async function runInPseudoTerminal(command: string) {
-    try {
-      const { stdout, stderr } = await execFileAsync(
-        "script",
-        ["--quiet", "--return", "--flush", "--command", command, "/dev/null"],
-        {
-          cwd: API_DIR,
-          env: { ...process.env, DATABASE_URL: scratchUrl },
-          timeout: PROCESS_LIMIT_MS,
-          killSignal: "SIGTERM",
-        }
-      );
-      return { code: 0, killed: false, stdout, stderr };
-    } catch (error: unknown) {
-      const failure = error as {
-        code?: number | string;
-        killed?: boolean;
-        stdout?: string;
-        stderr?: string;
-      };
-      return {
-        code: typeof failure.code === "number" ? failure.code : -1,
-        killed: failure.killed === true,
-        stdout: failure.stdout ?? "",
-        stderr: failure.stderr ?? "",
-      };
-    }
+  function runInPseudoTerminal(command: string): Promise<PseudoTerminalRun> {
+    return runInSharedPseudoTerminal({
+      command,
+      cwd: API_DIR,
+      env: { ...process.env, DATABASE_URL: scratchUrl },
+      timeoutMs: PROCESS_LIMIT_MS,
+    });
   }
 
   /** Resolves once at least `count` backends of the test's database wait on a lock. */

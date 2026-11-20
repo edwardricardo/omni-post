@@ -12,6 +12,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./determinism": "./src/determinism/index.ts",
+    "./pseudo-terminal": "./src/pseudoTerminal.ts",
     "./story-console-contract": "./src/storyConsoleContract.ts"
   },
   "scripts": {
