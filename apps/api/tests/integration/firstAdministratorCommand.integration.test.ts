@@ -2,21 +2,22 @@
  * @file firstAdministratorCommand.integration.test.ts
  * @description The first-administrator command against a database of its own, created on the
  *              owner channel and migrated from empty with the script CI and the start command
- *              run. The first seven cases call the command's function in this process, with the
- *              composition root built on a client of that database and a standard output that
- *              says it is a terminal; each case starts from the three tables the command writes
- *              (`Role`, `RolePermission`, `AdminUser`) emptied.
+ *              run. Most cases call the command's function in this process, with the composition
+ *              root built on a client of that database and a standard output that says it is a
+ *              terminal; each case starts from the tables the command writes (`Role`,
+ *              `RolePermission`, `AdminUser`, `AdminSession`, `AuditLog`) emptied. The cases of
+ *              `--reissue` create the administrator with the command first.
  *
- *              The two cases of runs at once do not leave the interleaving to chance: a third
+ *              The cases of runs at once do not leave the interleaving to chance: a third
  *              connection holds what both runs need (an uncommitted `Role` row on the empty
- *              database, the `Role` row's lock where the role exists), waits until both runs are
- *              blocked on it, observed in `pg_stat_activity` and not guessed with a sleep, and
- *              only then lets them go.
+ *              database, the `Role` row's lock where the role exists, the `AdminUser` row's lock
+ *              for two re-issues), waits until both runs are blocked on it, observed in
+ *              `pg_stat_activity` and not guessed with a sleep, and only then lets them go.
  *
- *              The last case runs the command as a process, its standard output a pseudo-terminal
- *              that util-linux `script` opens, and requires that the terminal shows the block and
- *              nothing else (no line any imported module writes) and that the process ends by
- *              itself.
+ *              The two process cases run the command, once creating and once re-issuing, with its
+ *              standard output a pseudo-terminal that util-linux `script` opens, and require that
+ *              the terminal shows the block and nothing else (no line any imported module writes)
+ *              and that the process ends by itself.
  * @layer infrastructure
  */
 
@@ -31,8 +32,12 @@ import { createTestPrismaClient, type Prisma, type PrismaClient } from "@infra/p
 import { SUPER_ADMIN_ROLE } from "@infra/prisma/adminSystemRoles.js";
 import { assertSeedChannelConfigured, resolveSeedDatabaseUrl } from "./helpers/seedPrismaClient.js";
 import { runFirstAdministratorCommand } from "../../src/cli/firstAdministratorCommand.js";
-import { composeCreateFirstAdministrator } from "../../src/infrastructure/container/firstAdministratorComposition.js";
+import {
+  composeCreateFirstAdministrator,
+  composeReissueAdministratorPassword,
+} from "../../src/infrastructure/container/firstAdministratorComposition.js";
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
+import { PasswordService } from "../../src/admin/auth/PasswordService.js";
 
 assertSeedChannelConfigured();
 
@@ -61,7 +66,18 @@ const REFUSALS = {
     "Refused: Another run of this command wrote the administration role first: check whether an administrator exists\n",
   roleNameHeld:
     "Refused: A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed\n",
+  notFound:
+    "Refused: No administrator has this e-mail: there is no single-use password to re-issue\n",
+  hasSignedIn:
+    "Refused: This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued\n",
+  notMarked:
+    "Refused: This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued\n",
+  changedSinceRead:
+    "Refused: The administrator changed between the read and the write (another re-issue, a password change or a sign-in), so nothing was replaced: run the re-issue again to see what is true now\n",
 } as const;
+
+/** The arguments that switch the command to re-issuing the single-use password. */
+const REISSUE = ["--reissue"] as const;
 
 /** The `Role` row the command writes, with the column it leaves to its default. */
 const SUPER_ADMIN_ROW = {
@@ -101,6 +117,21 @@ function successBlock(email: string, password: string): string {
   ].join("\n");
 }
 
+/** The block the command writes when it re-issues the password. */
+function reissuedBlock(email: string, password: string): string {
+  return [
+    "A new single-use password was issued.",
+    "",
+    `  E-mail:              ${email}`,
+    `  Single-use password: ${password}`,
+    "",
+    "The password is shown this once and is stored nowhere: only its hash is kept.",
+    "The previous single-use password no longer works, and every session of this administrator was ended.",
+    "Sign in with it now and change it at once.",
+    "",
+  ].join("\n");
+}
+
 /** The single-use password the success block shows, or a failed assertion. */
 function printedPassword(stdout: string): string {
   const match = /^ {2}Single-use password: (\S+)$/m.exec(stdout);
@@ -113,7 +144,10 @@ function occurrences(text: string, needle: string): number {
   return text.split(needle).length - 1;
 }
 
-/** Every `Role` row with its permissions sorted, and every `AdminUser` row, ordered. */
+/**
+ * Every `Role` row with its permissions sorted, every `AdminUser` row, every `AdminSession` row
+ * and every `AuditLog` row, ordered.
+ */
 async function readState(client: PrismaClient) {
   const roles = await client.role.findMany({
     orderBy: { id: "asc" },
@@ -121,6 +155,10 @@ async function readState(client: PrismaClient) {
   });
   const administrators = await client.adminUser.findMany({ orderBy: { email: "asc" } });
   return {
+    sessions: await client.adminSession.findMany({ orderBy: { id: "asc" } }),
+    auditRecords: await client.auditLog.findMany({
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
     roles: roles.map((role) => ({
       id: role.id,
       name: role.name,
@@ -163,23 +201,32 @@ describe("The first-administrator command on a migrated database", { concurrency
       `the migration of ${database} ended with ${outcome}:\n${output}`
     );
     assert.ok(scratch, `a client of ${database} was built`);
+    await scratch.auditLog.deleteMany({});
     await scratch.adminUser.deleteMany({});
     await scratch.role.deleteMany({});
     return scratch;
   }
 
-  /** Runs the command in this process with `--email <email>`, composed on `client`. */
-  async function runCommand(client: PrismaClient, email: string): Promise<CommandRun> {
+  /**
+   * Runs the command in this process with `--email <email>` and any `extra` arguments, composed
+   * on `client`.
+   */
+  async function runCommand(
+    client: PrismaClient,
+    email: string,
+    extra: readonly string[] = []
+  ): Promise<CommandRun> {
     const stdout: string[] = [];
     const stderr: string[] = [];
     const code = await runFirstAdministratorCommand(
-      ["--email", email],
+      [...extra, "--email", email],
       {
         stdout: { isTTY: true, write: (text: string) => stdout.push(text) },
         stderr: { write: (text: string) => stderr.push(text) },
       },
       async () => ({
         createFirstAdministrator: composeCreateFirstAdministrator(client),
+        reissueAdministratorPassword: composeReissueAdministratorPassword(client),
         close: async () => undefined,
       })
     );
@@ -187,13 +234,35 @@ describe("The first-administrator command on a migrated database", { concurrency
   }
 
   /** Runs the command with a client of its own, released when the run ends. */
-  async function runWithOwnClient(email: string): Promise<CommandRun> {
+  async function runWithOwnClient(
+    email: string,
+    extra: readonly string[] = []
+  ): Promise<CommandRun> {
     const client = createTestPrismaClient(scratchUrl);
     try {
-      return await runCommand(client, email);
+      return await runCommand(client, email, extra);
     } finally {
       await client.$disconnect();
     }
+  }
+
+  /** Creates the first administrator with the command and returns it with its password. */
+  async function createWithCommand(client: PrismaClient, email: string) {
+    const run = await runCommand(client, email);
+    assert.equal(run.code, 0, `the creation succeeded:\n${run.stderr}`);
+    const administrator = await client.adminUser.findUniqueOrThrow({ where: { email } });
+    return { administrator, password: printedPassword(run.stdout) };
+  }
+
+  /** Opens an active session of the administrator, as a sign-in would. */
+  async function openSession(client: PrismaClient, userId: string): Promise<void> {
+    await client.adminSession.create({
+      data: {
+        userId,
+        refreshTokenHash: randomBytes(32).toString("hex"),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
   }
 
   /**
@@ -260,8 +329,28 @@ describe("The first-administrator command on a migrated database", { concurrency
     client: PrismaClient,
     hold: (tx: Prisma.TransactionClient) => Promise<unknown>,
     release: "commit" | "rollback",
-    emails: readonly [string, string]
+    emails: readonly [string, string],
+    extra: readonly string[] = []
   ): Promise<CommandRun[]> {
+    return runWhileHeld(
+      client,
+      hold,
+      release,
+      emails.map((email) => () => runWithOwnClient(email, extra))
+    );
+  }
+
+  /**
+   * Starts `runs` at once while a third connection holds what they need: `hold` takes it inside a
+   * transaction, which waits until as many backends as there are runs are blocked on it and then
+   * commits or, when `release` is `rollback`, rolls back.
+   */
+  async function runWhileHeld<T>(
+    client: PrismaClient,
+    hold: (tx: Prisma.TransactionClient) => Promise<unknown>,
+    release: "commit" | "rollback",
+    runs: ReadonlyArray<() => Promise<T>>
+  ): Promise<T[]> {
     const rollback = new Error("the holding connection rolls back");
     let held!: () => void;
     const holding = new Promise<void>((resolve) => {
@@ -272,7 +361,7 @@ describe("The first-administrator command on a migrated database", { concurrency
         async (tx) => {
           await hold(tx);
           held();
-          await waitUntilBlocked(2);
+          await waitUntilBlocked(runs.length);
           if (release === "rollback") throw rollback;
         },
         { timeout: 60_000 }
@@ -284,11 +373,28 @@ describe("The first-administrator command on a migrated database", { concurrency
         }
       );
     await Promise.race([holding, holder]);
-    const [runs] = await Promise.all([
-      Promise.all(emails.map((email) => runWithOwnClient(email))),
-      holder,
-    ]);
-    return runs;
+    const [outcomes] = await Promise.all([Promise.all(runs.map((run) => run())), holder]);
+    return outcomes;
+  }
+
+  /**
+   * Runs `work` while every insert into `AuditLog` of the test's database is refused by a
+   * trigger, so the real audit adapter raises inside the real transaction; the trigger is
+   * dropped afterwards whatever `work` does.
+   */
+  async function withAuditWritesRefused<T>(client: PrismaClient, work: () => Promise<T>) {
+    await client.$executeRawUnsafe(
+      `CREATE FUNCTION refuse_audit_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit writes are refused'; END $$`
+    );
+    await client.$executeRawUnsafe(
+      `CREATE TRIGGER refuse_audit_write BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION refuse_audit_write()`
+    );
+    try {
+      return await work();
+    } finally {
+      await client.$executeRawUnsafe(`DROP TRIGGER IF EXISTS refuse_audit_write ON "AuditLog"`);
+      await client.$executeRawUnsafe(`DROP FUNCTION IF EXISTS refuse_audit_write()`);
+    }
   }
 
   before(async () => {
@@ -576,6 +682,354 @@ describe("The first-administrator command on a migrated database", { concurrency
       const [administrator] = state.administrators;
       assert.ok(administrator);
       assert.equal(await hasher.verify(administrator.passwordHash, password), true);
+    }
+  );
+
+  it(
+    "re-issues a different password that replaces the old one, ends every session and leaves one system audit record per run",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      await openSession(client, created.administrator.id);
+      await openSession(client, created.administrator.id);
+
+      const run = await runCommand(client, email, REISSUE);
+
+      const password = printedPassword(run.stdout);
+      assert.deepEqual(run, { code: 0, stdout: reissuedBlock(email, password), stderr: "" });
+      assert.equal(occurrences(run.stdout, password), 1);
+      assert.notEqual(password, created.password);
+      const state = await readState(client);
+      assert.equal(state.administrators.length, 1);
+      const [administrator] = state.administrators;
+      assert.ok(administrator);
+      assert.equal(await hasher.verify(administrator.passwordHash, password), true);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), false);
+      assert.deepEqual(
+        {
+          mustChangePassword: administrator.mustChangePassword,
+          lastLoginAt: administrator.lastLoginAt,
+          passwordHistory: administrator.passwordHistory,
+          passwordHashAlgo: administrator.passwordHashAlgo,
+          passwordChangedAtMoved:
+            administrator.passwordChangedAt > created.administrator.passwordChangedAt,
+        },
+        {
+          mustChangePassword: true,
+          lastLoginAt: null,
+          passwordHistory: [],
+          passwordHashAlgo: "argon2id",
+          passwordChangedAtMoved: true,
+        }
+      );
+      assert.equal(state.sessions.length, 2);
+      assert.deepEqual(
+        state.sessions.map((session) => session.isActive),
+        [false, false]
+      );
+      assert.deepEqual(
+        state.auditRecords.map((record) => ({
+          action: record.action,
+          actorType: record.actorType,
+          userId: record.userId,
+          customerUserId: record.customerUserId,
+          accountId: record.accountId,
+          resource: record.resource,
+          resourceId: record.resourceId,
+          details: record.details,
+          success: record.success,
+          error: record.error,
+          ipAddress: record.ipAddress,
+          userAgent: record.userAgent,
+        })),
+        [
+          {
+            action: "FIRST_ADMINISTRATOR_CREATED",
+            actorType: "SYSTEM",
+            userId: null,
+            customerUserId: null,
+            accountId: null,
+            resource: "AdminUser",
+            resourceId: created.administrator.id,
+            details: { task: "create-first-admin" },
+            success: true,
+            error: null,
+            ipAddress: null,
+            userAgent: null,
+          },
+          {
+            action: "ADMINISTRATOR_PASSWORD_REISSUED",
+            actorType: "SYSTEM",
+            userId: null,
+            customerUserId: null,
+            accountId: null,
+            resource: "AdminUser",
+            resourceId: created.administrator.id,
+            details: { task: "create-first-admin --reissue" },
+            success: true,
+            error: null,
+            ipAddress: null,
+            userAgent: null,
+          },
+        ]
+      );
+      const recorded = JSON.stringify(state.auditRecords);
+      for (const secret of [email, password, created.password, administrator.passwordHash]) {
+        assert.equal(recorded.includes(secret), false);
+      }
+    }
+  );
+
+  it(
+    "refuses a re-issue and changes nothing, when no administrator has the e-mail",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      await createWithCommand(client, "first.admin@example.com");
+      const initial = await readState(client);
+
+      const run = await runCommand(client, "someone.else@example.com", REISSUE);
+
+      assert.deepEqual(run, { code: 1, stdout: "", stderr: REFUSALS.notFound });
+      assert.deepEqual(await readState(client), initial);
+    }
+  );
+
+  it(
+    "refuses a re-issue and changes nothing, when the administrator has signed in",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      await client.adminUser.update({
+        where: { id: created.administrator.id },
+        data: { lastLoginAt: new Date() },
+      });
+      await openSession(client, created.administrator.id);
+      const initial = await readState(client);
+
+      const run = await runCommand(client, email, REISSUE);
+
+      assert.deepEqual(run, { code: 1, stdout: "", stderr: REFUSALS.hasSignedIn });
+      assert.deepEqual(await readState(client), initial);
+    }
+  );
+
+  it(
+    "refuses a re-issue and changes nothing, when the administrator is no longer marked to change the password",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      await client.adminUser.update({
+        where: { id: created.administrator.id },
+        data: { mustChangePassword: false },
+      });
+      const initial = await readState(client);
+
+      const run = await runCommand(client, email, REISSUE);
+
+      assert.deepEqual(run, { code: 1, stdout: "", stderr: REFUSALS.notMarked });
+      assert.deepEqual(await readState(client), initial);
+    }
+  );
+
+  it(
+    "re-issues exactly once when two re-issues start at once, and the stored hash is the printed password's",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+
+      // The administrator's row lock, held: both runs read the row, hash their password and then
+      // wait on the lock in their guarded write; the second to get it finds the hash it read gone.
+      const runs = await runTwoWhileHeld(
+        client,
+        (tx) =>
+          tx.$executeRaw`SELECT id FROM "AdminUser" WHERE id = ${created.administrator.id} FOR UPDATE`,
+        "commit",
+        [email, email],
+        REISSUE
+      );
+
+      const reissued = runs.filter((run) => run.code === 0);
+      assert.equal(reissued.length, 1);
+      assert.deepEqual(
+        runs.filter((run) => run.code !== 0),
+        [{ code: 1, stdout: "", stderr: REFUSALS.changedSinceRead }]
+      );
+      const [winner] = reissued;
+      assert.ok(winner);
+      const password = printedPassword(winner.stdout);
+      assert.equal(winner.stdout, reissuedBlock(email, password));
+      const state = await readState(client);
+      const [administrator] = state.administrators;
+      assert.ok(administrator);
+      assert.equal(await hasher.verify(administrator.passwordHash, password), true);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), false);
+      assert.deepEqual(
+        state.auditRecords.map((record) => record.action),
+        ["FIRST_ADMINISTRATOR_CREATED", "ADMINISTRATOR_PASSWORD_REISSUED"]
+      );
+    }
+  );
+
+  it(
+    "re-issues as a process in a pseudo-terminal, shows only the block and ends by itself",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      const command = [
+        process.execPath,
+        "--conditions",
+        "development",
+        "--import",
+        "tsx",
+        "src/cli/createFirstAdministrator.ts",
+        "--reissue",
+        "--email",
+        email,
+      ]
+        .map((word) => `'${word}'`)
+        .join(" ");
+
+      const run = await runInPseudoTerminal(command);
+
+      // A terminal ends its lines with CR LF; the block is compared with LF endings.
+      const terminal = run.stdout.replaceAll("\r\n", "\n");
+      const password = /^ {2}Single-use password: (\S+)$/m.exec(terminal)?.[1] ?? "";
+      assert.deepEqual(
+        { code: run.code, killed: run.killed, terminal, stderr: run.stderr },
+        { code: 0, killed: false, terminal: reissuedBlock(email, password), stderr: "" }
+      );
+      const [administrator] = (await readState(client)).administrators;
+      assert.ok(administrator);
+      assert.equal(await hasher.verify(administrator.passwordHash, password), true);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), false);
+    }
+  );
+
+  it(
+    "leaves no role and no administrator when the audit write of the creation fails inside its transaction",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+
+      const run = await withAuditWritesRefused(client, () => runCommand(client, email));
+
+      assert.equal(run.code, 1);
+      assert.equal(run.stdout, "");
+      assert.ok(
+        run.stderr.startsWith("Failed: Writing the audit record of the creation failed\n"),
+        run.stderr
+      );
+      assert.equal(run.stderr.includes(email), false);
+      const state = await readState(client);
+      assert.deepEqual(
+        {
+          roles: state.roles,
+          permissionRows: state.permissionRows,
+          administrators: state.administrators,
+          auditRecords: state.auditRecords,
+        },
+        { roles: [], permissionRows: 0, administrators: [], auditRecords: [] }
+      );
+    }
+  );
+
+  it(
+    "leaves the stored hash, the mark and the sessions as they were when the audit write of a re-issue fails inside its transaction",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      await openSession(client, created.administrator.id);
+      const initial = await readState(client);
+
+      const run = await withAuditWritesRefused(client, () => runCommand(client, email, REISSUE));
+
+      assert.equal(run.code, 1);
+      assert.equal(run.stdout, "");
+      assert.ok(
+        run.stderr.startsWith("Failed: Writing the audit record of the re-issue failed\n"),
+        run.stderr
+      );
+      assert.equal(run.stderr.includes(email), false);
+      assert.deepEqual(await readState(client), initial);
+      const [administrator] = initial.administrators;
+      assert.ok(administrator);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), true);
+    }
+  );
+
+  it(
+    "lets exactly one of a re-issue and the administrator's own required change win when both wait on the administrator's row",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      const requiredChange = "fixture-Required-Change-9q4W";
+
+      // The administrator's row lock, held: the re-issue waits in its guarded write and the required
+      // change in its own; the second to get the lock finds the hash it read already replaced.
+      const [reissue, change] = await runWhileHeld(
+        client,
+        (tx) =>
+          tx.$executeRaw`SELECT id FROM "AdminUser" WHERE id = ${created.administrator.id} FOR UPDATE`,
+        "commit",
+        [
+          async () => {
+            const run = await runWithOwnClient(email, REISSUE);
+            return {
+              won: run.code === 0,
+              password: run.code === 0 ? printedPassword(run.stdout) : "",
+              refusal: run.stderr,
+            };
+          },
+          async () => {
+            const other = createTestPrismaClient(scratchUrl);
+            try {
+              const result = await new PasswordService(other).replaceRequiredPassword(
+                created.administrator,
+                requiredChange
+              );
+              return {
+                won: result.ok,
+                password: requiredChange,
+                refusal: result.ok ? "" : result.error,
+              };
+            } finally {
+              await other.$disconnect();
+            }
+          },
+        ]
+      );
+
+      assert.ok(reissue && change);
+      assert.equal([reissue, change].filter((outcome) => outcome.won).length, 1);
+      const [administrator] = (await readState(client)).administrators;
+      assert.ok(administrator);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), false);
+      if (reissue.won) {
+        assert.equal(change.refusal, "CONCURRENT_MODIFICATION");
+        assert.equal(await hasher.verify(administrator.passwordHash, reissue.password), true);
+        assert.equal(await hasher.verify(administrator.passwordHash, requiredChange), false);
+        assert.equal(administrator.mustChangePassword, true);
+      } else {
+        assert.equal(reissue.refusal, REFUSALS.changedSinceRead);
+        assert.equal(await hasher.verify(administrator.passwordHash, requiredChange), true);
+        assert.equal(administrator.mustChangePassword, false);
+      }
     }
   );
 });
