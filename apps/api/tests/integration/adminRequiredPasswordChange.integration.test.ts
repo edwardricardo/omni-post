@@ -146,11 +146,10 @@ describe("The required password change on a migrated database", { concurrency: 1
    * own, and creates the first administrator as the command does.
    */
   async function firstAdministrator(): Promise<FirstAdministrator> {
+    const client = migrated();
     assert.ok(database, "the scratch database was created");
-    database.assertMigrated();
-    assert.ok(scratch, "a client of the scratch database was built");
     await database.empty();
-    const created = await composeCreateFirstAdministrator(scratch).execute({ email: ADMIN_EMAIL });
+    const created = await composeCreateFirstAdministrator(client).execute({ email: ADMIN_EMAIL });
     assert.ok(created.ok, "the first administrator was created");
     return { id: created.value.id, email: created.value.email, password: created.value.password };
   }
