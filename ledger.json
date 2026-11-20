@@ -27,7 +27,7 @@
       "total": 1225
     },
     "blocks": {
-      "total": 15301,
+      "total": 15303,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14990
+        "BEHAVIOURAL": 14992
       }
     },
     "deleted": {
@@ -34943,7 +34943,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 36,
+      "blockCount": 38,
       "blocks": [
         {
           "id": "apps/api/tests/unit/authService.test.ts::should register new admin successfully",
@@ -35023,176 +35023,190 @@
           "bodyHash": "b9e28e4879fdafc167cacbcef74078d54da8a0dc074515708ab9bb9a8c5e3db3"
         },
         {
+          "id": "apps/api/tests/unit/authService.test.ts::asks a marked administrator with a second factor for the code, without saying the password must be changed",
+          "line": 299,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6b1f0460b5d1b0ca82a20de24fc58a58d8feab5c3b22d563964858f9eaacf345"
+        },
+        {
+          "id": "apps/api/tests/unit/authService.test.ts::answers USER_INACTIVE, not PASSWORD_CHANGE_REQUIRED, for a deactivated administrator who must change the password",
+          "line": 312,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c3ddbac952af06448519153808310da6ac721328a236b26b990be42bb8699f33"
+        },
+        {
           "id": "apps/api/tests/unit/authService.test.ts::should verify valid access token",
-          "line": 316,
+          "line": 342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c93f4dd11fe8469a6bdfcdf16c309fdf07610b261241f899a85d9e0cb4d5650"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should reject invalid token",
-          "line": 325,
+          "line": 351,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "27cb37dac3259e2064ff35c28fdf4efbdc011fc9a43c2afb39833009b198bfc8"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should reject token from revoked session",
-          "line": 334,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef3c93046e902ce302f32f2cbdb43dd04b3d60d48e11bbbf0107b49b2a2065d4"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should refresh tokens successfully",
-          "line": 368,
+          "line": 394,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "39b68954606a9b5b8dc4f262c909103a173d72b14b1d6c453ea34233641ca146"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should reject invalid refresh token",
-          "line": 383,
+          "line": 409,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac9fe47e06e30699b7f8f90fb6faf9ea55bb3bdcc5b2e31e49b957097914c96d"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::stores the hash of the newly issued refresh token",
-          "line": 469,
+          "line": 495,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49b3db5c3c1cf1d00478e4da668233a3c69e29baae928907238e6777c6e76dab"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::refuses a token already rotated by a concurrent caller, and leaves that hash alone",
-          "line": 482,
+          "line": 508,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "350d42b9350c39ba457ee661357af9b6b77bfc9216fd75e5764c22a501b812af"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::refuses a token whose session was deactivated between the read and the claim",
-          "line": 502,
+          "line": 528,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "669d01331eb43929573fe38761c112fa087efb8f44a6bdea689d7996ac68b99b"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::audits a revocation landing mid-flight as a revocation, and raises no replay alarm",
-          "line": 515,
+          "line": 541,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98500f8116c2a0f4ccf825d1c7633c555c209f142675fdc73e857a98f1346316"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::surfaces a blacklist failure after the claim committed, and leaves the rotation persisted",
-          "line": 540,
+          "line": 566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "faeaf395b20def54bd27abd491f3b3ea50e98eba7e0298e9882304ed7f72299c"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::refuses the same token on a second presentation",
-          "line": 577,
+          "line": 603,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba56bff549f3f6b5e27359a88a53271b59cd1ff2ea35f4590c45a62f0396d4ee"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::blacklists nothing when the claim refuses",
-          "line": 589,
+          "line": 615,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c74c5253e83c5d21e4d88a1d29eedbcbee7b858342c5149c900cd077253ecfc"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::blacklists the presented token exactly once, and only after the claim commits",
-          "line": 603,
+          "line": 629,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af1e9839ab547c432ace63c85581f49b4fa4d162d7ebc5598d2fa875bc59540d"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::mints two distinct refresh tokens when one payload is signed twice in the same tick",
-          "line": 668,
+          "line": 694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a5bf1d50270f577f2e0bcdeb2b00211169c6bfd18ac85cd9746f7712983bb205"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::carries an identical payload across those two mints apart from the per-mint id",
-          "line": 678,
+          "line": 704,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1a775169155f186d728197e917df7fec8fbbdad0f88a123138090ef1b883682"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should get user sessions",
-          "line": 710,
+          "line": 736,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0ff3fec032015bc1aa4b9c64fbfddcd465777c0cfee3bf86cfd84e2c698768ba"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should logout successfully",
-          "line": 720,
+          "line": 746,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0cd82bd9d51b13ba8e6dd5b45e38a912ebdba0fcb8a23a653ff537990d365a2b"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should return error for non-existent session on logout",
-          "line": 732,
+          "line": 758,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd58eeb8b667428cb04c957dcdd565577b0b059a71ee8d3ae4562125847a0a7a"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should revoke all sessions",
-          "line": 741,
+          "line": 767,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3646d4fdf2480b3c08484f6339d47830200317970cd79db2714e011d45b5af8"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should setup MFA",
-          "line": 782,
+          "line": 808,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ef155e1c41b7726257222555fa00f1b1f8658e83b810e19737d1fd42cc96365"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should verify and enable MFA",
-          "line": 794,
+          "line": 820,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c2ca1d2a3a24f0196305b3569089650b3f4ee87a00ebeab543dce3802e67284c"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should require MFA token on login",
-          "line": 813,
+          "line": 839,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6eef7b47715f2ca3622676fd6c4f11cf40d1203e93a222fc32878d680cd22bfa"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should reject invalid MFA token",
-          "line": 840,
+          "line": 866,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "286a757094497a24d4f56adf9ebbaa51001208cb77be887ba90b26e82d71beac"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should login successfully with valid MFA token",
-          "line": 867,
+          "line": 893,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9e3b1c3b790069b021128ad160dc23cf06512e8e29bd81820edb3ea4bc4783b"
         },
         {
           "id": "apps/api/tests/unit/authService.test.ts::should disable MFA",
-          "line": 897,
+          "line": 923,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9810afc1bfeb91247a28a58380272865ead649bc79ef5ff18f5d4c58cf4ecd4f"

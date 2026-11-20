@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1215  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15301 |
+| Blocks                  | 15303 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -690,7 +690,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/auth/requireCallerOwnsAccountParam.test.ts`                                      | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/authMiddleware.test.ts`                                                          | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/authRoutes.test.ts`                                                              | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/authService.test.ts`                                                             | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/authService.test.ts`                                                             | test             | 38     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts`                                 | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/backfillAdminMfaBackupCodesGuard.test.ts`                                        | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/backfillAdminMfaBackupCodesIsolation.test.ts`                                    | test             | 2      | 0          | KEEP       | machine                     | behavioural          |

@@ -8,7 +8,7 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import jwt from "jsonwebtoken";
-import { err } from "@shared/types";
+import { err, ok } from "@shared/types";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
 import type { AuthTokens } from "../../src/auth/authTypes.js";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
@@ -293,6 +293,32 @@ describe("AuthService", () => {
       );
 
       expect(result).toEqual(err("INVALID_CREDENTIALS"));
+      expect(stores.adminSession.all()).toEqual([]);
+    });
+
+    it("asks a marked administrator with a second factor for the code, without saying the password must be changed", async () => {
+      stores.adminUser.update(testUserId, { mustChangePassword: true, mfaEnabled: true });
+
+      const result = await authService.login(
+        { email: testEmail, password: testPassword },
+        "192.168.1.100",
+        "Mozilla/5.0 Test"
+      );
+
+      expect(result).toEqual(ok({ mfaRequired: true, userId: testUserId }));
+      expect(stores.adminSession.all()).toEqual([]);
+    });
+
+    it("answers USER_INACTIVE, not PASSWORD_CHANGE_REQUIRED, for a deactivated administrator who must change the password", async () => {
+      stores.adminUser.update(testUserId, { mustChangePassword: true, isActive: false });
+
+      const result = await authService.login(
+        { email: testEmail, password: testPassword },
+        "192.168.1.100",
+        "Mozilla/5.0 Test"
+      );
+
+      expect(result).toEqual(err("USER_INACTIVE"));
       expect(stores.adminSession.all()).toEqual([]);
     });
   });
