@@ -14,6 +14,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
@@ -103,6 +104,17 @@ const notJudged = (image: ImageVersion, problem: string): string =>
 
 const answer = (body: unknown, status = 200): Response =>
   new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
+
+/** A 200 whose body fails before it ends, as a connection reset in the middle of the body does. */
+const unreadableBody = (): Response =>
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.error(new TypeError("terminated"));
+      },
+    }),
+    { status: 200 }
+  );
 
 const wait = vi.fn<(ms: number) => Promise<void>>();
 
@@ -309,6 +321,79 @@ describe("main: reading the index and the command line", () => {
       /^node-runtime-advisory-gate: could not read the release index, so v26\.12\.0 was not judged: .* did not answer after 3 attempts \(attempt 1: .*timeout.*; attempt 2: .*timeout.*; attempt 3: .*timeout.*\)\n$/
     );
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns the verdict of the second answer, after one wait, when the first 200's body cannot be read", async () => {
+    const io = ioAnswering(unreadableBody(), answer(INDEX_BEHIND));
+
+    const run = await main(["--version", "v26.12.0"], io);
+
+    expect(run).toEqual({
+      code: 1,
+      stdout: "",
+      stderr: VERDICT_BEHIND.map((line) => `${GATE}: ${line}\n`).join(""),
+    });
+    expect(io.fetchImpl).toHaveBeenCalledTimes(2);
+    expect(wait.mock.calls).toEqual([[RETRY_DELAY_MS]]);
+  });
+
+  it("returns exit 3 after three attempts and two waits when no 200's body can be read", async () => {
+    const io = ioAnswering(unreadableBody(), unreadableBody(), unreadableBody());
+
+    const run = await main(["--version", "v26.12.0"], io);
+
+    expect(run).toEqual({
+      code: 3,
+      stdout: "",
+      stderr:
+        `${GATE}: ` +
+        notJudged(
+          IMAGE_BEHIND,
+          `${INDEX_URL} did not answer after 3 attempts ` +
+            "(attempt 1: terminated; attempt 2: terminated; attempt 3: terminated)"
+        ) +
+        "\n",
+    });
+    expect(io.fetchImpl).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls).toEqual([[RETRY_DELAY_MS], [2 * RETRY_DELAY_MS]]);
+  });
+
+  it("returns exit 3 after three attempts when each 200's body never ends, because each attempt's timeout aborts Node's own fetch in the middle of the body", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.write("[");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("the server has no port");
+    let headersReceived = 0;
+    const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
+      const response = await fetch(`http://127.0.0.1:${String(address.port)}/`, init);
+      headersReceived += 1;
+      return response;
+    });
+
+    try {
+      const run = await main(["--version", "v26.12.0"], { fetchImpl, wait, timeoutMs: 300 });
+
+      expect(run.code).toBe(3);
+      expect(run.stdout).toBe("");
+      expect(run.stderr).toBe(
+        `${GATE}: ` +
+          notJudged(
+            IMAGE_BEHIND,
+            `${INDEX_URL} did not answer after 3 attempts (attempt 1: The operation was aborted ` +
+              "due to timeout; attempt 2: The operation was aborted due to timeout; attempt 3: The " +
+              "operation was aborted due to timeout)"
+          ) +
+          "\n"
+      );
+      expect(headersReceived).toBe(3);
+      expect(wait.mock.calls).toEqual([[RETRY_DELAY_MS], [2 * RETRY_DELAY_MS]]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   it("returns exit 3 without a second attempt when the body is not JSON", async () => {
