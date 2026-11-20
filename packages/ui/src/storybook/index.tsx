@@ -68,6 +68,23 @@ const nativeLanguageLabel = (locale: string): string => {
 };
 
 /**
+ * @description The colour a CSS custom property resolves to where an element renders, as the
+ *              browser computes it, so a story asserts that an element is drawn in a token's
+ *              colour without restating the token's value.
+ * @param element - The element whose theme scope resolves the token
+ * @param token - The custom property's name, such as `--error`
+ * @returns The computed colour, in the form `getComputedStyle` reports a colour
+ */
+export function tokenColor(element: HTMLElement, token: string): string {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${token})`;
+  element.append(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color;
+}
+
+/**
  * @description Builds the preview annotations a portal shares with the others: parameters,
  *              toolbars, initial globals and the decorator. The accessibility check runs at
  *              `error`, so any axe violation over WCAG 2.1 A/AA fails the story's test; the

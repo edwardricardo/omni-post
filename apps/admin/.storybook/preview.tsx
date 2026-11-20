@@ -3,7 +3,7 @@
  * @description Storybook preview of the admin app: the shared preview of @packages/ui/storybook
  *              (accessibility check over WCAG 2.1 A/AA, viewports, toolbars, theme and locale
  *              decorator) built with the admin's intl provider, catalogs and dark default theme,
- *              the theme the app renders in, plus the admin's global CSS.
+ *              the theme the portal starts in, plus the admin's global CSS.
  * @layer infrastructure
  */
 /// <reference types="vite/client" />

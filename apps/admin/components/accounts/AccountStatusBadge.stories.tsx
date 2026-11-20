@@ -2,7 +2,8 @@
  * @file AccountStatusBadge.stories.tsx
  * @description Storybook stories for AccountStatusBadge, which picks one label and colour from an
  *              account's state: an active account, a suspended one, one on trial with its days
- *              left, and a suspended account still on trial, where suspension wins.
+ *              left, and a suspended account still on trial, where suspension wins. Each story
+ *              asserts the label and the colour token it is drawn in.
  *              States covered: default (Active, Trial) and error (Suspended,
  *              SuspendedDuringTrial).
  *              Absent by decision: disabled and loading, because the badge is a static label
@@ -11,6 +12,7 @@
  * @layer infrastructure
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { tokenColor } from "@packages/ui/storybook";
 import { expect } from "storybook/test";
 import type { AccountSummary } from "@/lib/apiClient";
 import { AccountStatusBadge } from "./AccountStatusBadge";
@@ -49,14 +51,18 @@ type Story = StoryObj<typeof meta>;
 
 export const Active: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Active")).toBeVisible();
+    const badge = canvas.getByText("Active");
+    await expect(badge).toBeVisible();
+    await expect(getComputedStyle(badge).color).toBe(tokenColor(badge, "--success"));
   },
 };
 
 export const Suspended: Story = {
   args: { account: makeAccount({ isActive: false }) },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Suspended")).toBeVisible();
+    const badge = canvas.getByText("Suspended");
+    await expect(badge).toBeVisible();
+    await expect(getComputedStyle(badge).color).toBe(tokenColor(badge, "--error"));
   },
 };
 
@@ -67,7 +73,9 @@ export const Trial: Story = {
     }),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Trial (12d)")).toBeVisible();
+    const badge = canvas.getByText("Trial (12d)");
+    await expect(badge).toBeVisible();
+    await expect(getComputedStyle(badge).color).toBe(tokenColor(badge, "--warning"));
   },
 };
 
@@ -79,7 +87,9 @@ export const SuspendedDuringTrial: Story = {
     }),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Suspended")).toBeVisible();
+    const badge = canvas.getByText("Suspended");
+    await expect(badge).toBeVisible();
+    await expect(getComputedStyle(badge).color).toBe(tokenColor(badge, "--error"));
     await expect(canvas.queryByText("Trial (12d)")).toBeNull();
   },
 };
