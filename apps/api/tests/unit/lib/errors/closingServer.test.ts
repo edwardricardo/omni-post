@@ -146,6 +146,7 @@ describe("a request that reaches the server createServer builds while it closes"
           wireCode: "SERVER_CLOSING",
           status: 503,
           source: "registered",
+          requestId: body.correlationId,
           correlationId: body.correlationId,
           method: "GET",
           url: "/things",

@@ -187,6 +187,7 @@ describe("sendProblem on the real pino logger", () => {
           wireCode: code,
           status,
           source: "registered",
+          requestId: REQUEST_ID,
           correlationId: REQUEST_ID,
           method: "GET",
           url,

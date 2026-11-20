@@ -302,6 +302,7 @@ function connectionLine(
       wireCode: definition.code,
       status: definition.status,
       source: "registered",
+      requestId: correlationId,
       correlationId,
       method: null,
       url: null,
@@ -352,6 +353,7 @@ function followingLine(
       wireCode: definition.code,
       status: definition.status,
       source: "registered",
+      requestId: expect.stringMatching(UUID),
       correlationId: expect.stringMatching(UUID),
       method: null,
       url: null,
@@ -389,6 +391,7 @@ function requestLine(
       wireCode: fields.definition.code,
       status: fields.definition.status,
       source: fields.source,
+      requestId: fields.correlationId,
       correlationId: fields.correlationId,
       method: fields.method,
       url: fields.url,
@@ -582,6 +585,7 @@ describe("a connection whose request cannot be read, on the server createServer 
           wireCode: "CONTENT_TYPE_MISSING",
           status: 400,
           source: "framework",
+          requestId: body.correlationId,
           correlationId: body.correlationId,
           method: "QUERY",
           url: "/things",
@@ -844,6 +848,13 @@ describe("a connection whose request cannot be read, on the server createServer 
       expect(JSON.parse(second.body)).toEqual(problemOf(definition, title));
       expect(JSON.parse(second.body).correlationId).not.toBe(routed[0]?.id);
       expect(lines.warn.mock.calls).toEqual([followingLine(definition, cause, routed[0]?.id)]);
+      // A message no request was read from is named by the id generated for its answer.
+      expect(lines.warn.mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({
+          requestId: JSON.parse(second.body).correlationId,
+          correlationId: JSON.parse(second.body).correlationId,
+        })
+      );
       expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
     }
   );
@@ -935,6 +946,7 @@ describe("a connection whose request cannot be read, on the server createServer 
           wireCode: "CONNECT_NOT_IMPLEMENTED",
           status: 501,
           source: "registered",
+          requestId: body.correlationId,
           correlationId: body.correlationId,
           method: "CONNECT",
           url: "example.com:443",
@@ -2079,6 +2091,7 @@ describe("a connection whose request cannot be read, on the server createServer 
           wireCode: "REQUEST_REFUSED",
           status: 400,
           source: "status-carrier",
+          requestId: body.correlationId,
           correlationId: body.correlationId,
           method: null,
           url: null,
@@ -2373,6 +2386,7 @@ describe("a client too slow to send its request, on the server createServer buil
       );
       const line = (method: string, url: string) => [
         {
+          requestId: expect.stringMatching(UUID),
           correlationId: expect.stringMatching(UUID),
           method,
           url,
@@ -2391,6 +2405,10 @@ describe("a client too slow to send its request, on the server createServer buil
       expect(notTaken()).toEqual([line("GET", timedOutPath), line(afterMethod, afterUrl)]);
       const ids = notTaken().map(([fields]) => (fields as { correlationId: string }).correlationId);
       expect(new Set([...ids, refusal.correlationId]).size).toBe(3);
+      // No hook sets a correlation id here, so each line's request id is its correlation id.
+      expect(notTaken().map(([fields]) => (fields as { requestId: string }).requestId)).toEqual(
+        ids
+      );
       expect(routed).toHaveLength(1);
       expect([lines.warn.mock.calls.length, lines.error.mock.calls]).toEqual([1, []]);
     }

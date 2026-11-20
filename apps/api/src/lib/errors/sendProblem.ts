@@ -209,11 +209,14 @@ function answerFailure(
     ...(bodyStreamError !== undefined && { bodyStreamError }),
   });
   // The key is not pino's `err`, whose serializer would read the projection as an error again.
+  // `requestId` is the id the framework's own lines for the request carry as `reqId`; it is not
+  // `reqId` itself, which a request's logger binds already and would write twice.
   const fields = {
     code: answer.loggedCode,
     wireCode: answer.problem.code,
     status: answer.problem.status,
     source: answer.source,
+    requestId,
     correlationId,
     method,
     url,
@@ -268,10 +271,10 @@ function writeNotTaken(
   refusalCorrelationId: string,
   logger: FastifyBaseLogger
 ): void {
-  const { correlationId, method, url } = read;
+  const { requestId, correlationId, method, url } = read;
   const { ip, source: ipSource } = read.address;
   logger.info(
-    { correlationId, method, url, ip, ipSource, refusalCorrelationId },
+    { requestId, correlationId, method, url, ip, ipSource, refusalCorrelationId },
     NOT_TAKEN_LOG_MESSAGE
   );
 }

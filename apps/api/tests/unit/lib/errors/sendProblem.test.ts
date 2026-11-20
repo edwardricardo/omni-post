@@ -101,6 +101,38 @@ describe("sendProblem", () => {
     );
     app.get("/broken", (request, reply) => sendProblem(request, reply, UNEXPECTED, logger));
     app.get(
+      "/correlated-broken",
+      {
+        preHandler: (request, _reply, done) => {
+          request.correlationId = "corr-0042";
+          done();
+        },
+      },
+      (request, reply) => sendProblem(request, reply, UNEXPECTED, logger)
+    );
+    app.get("/hijacked", (request, reply) => {
+      reply.hijack();
+      replied = reply;
+      returned = sendProblem(request, reply, CONFLICT, logger);
+      reply.raw.end("hijacked");
+      return returned;
+    });
+    let onSendRan = false;
+    app.get(
+      "/failing-in-on-send",
+      {
+        onSend: (request, reply, payload, done) => {
+          // Once: the problem's own send runs the route's onSend hooks too.
+          if (!onSendRan) {
+            onSendRan = true;
+            returned = sendProblem(request, reply, CONFLICT, logger);
+          }
+          done(null, payload);
+        },
+      },
+      (_request, reply) => reply.code(200).send({ ok: true })
+    );
+    app.get(
       "/health",
       { schema: { response: { 503: z.object({ status: z.literal("degraded") }) } } },
       (request, reply) => sendProblem(request, reply, TRANSIENT, logger)
@@ -162,6 +194,7 @@ describe("sendProblem", () => {
           wireCode: "CONFLICT",
           status: 409,
           source: "registered",
+          requestId: REQUEST_ID,
           correlationId: REQUEST_ID,
           method: "POST",
           url: "/posts/7?draft=1",
@@ -201,6 +234,7 @@ describe("sendProblem", () => {
           wireCode: "INTERNAL_ERROR",
           status: 500,
           source: "unregistered",
+          requestId: REQUEST_ID,
           correlationId: REQUEST_ID,
           method: "GET",
           url: "/broken",
@@ -243,6 +277,7 @@ describe("sendProblem", () => {
           wireCode: "TRANSIENT_FAILURE",
           status: 503,
           source: "registered",
+          requestId: REQUEST_ID,
           correlationId: REQUEST_ID,
           method: "GET",
           url: "/health",
@@ -271,6 +306,20 @@ describe("sendProblem", () => {
           ipSource: "peer",
         },
       ],
+    ]);
+  });
+
+  it("writes the request's own id beside the correlation id a hook set, in the line and in the report", async () => {
+    await app.inject({ method: "GET", url: "/correlated-broken" });
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: "error",
+        fields: expect.objectContaining({ requestId: REQUEST_ID, correlationId: "corr-0042" }),
+      }),
+    ]);
+    expect(vi.mocked(captureError).mock.calls).toEqual([
+      [UNEXPECTED, expect.objectContaining({ requestId: REQUEST_ID, correlationId: "corr-0042" })],
     ]);
   });
 
@@ -316,6 +365,37 @@ describe("sendProblem", () => {
     expect(returned).toBe(replied);
   });
 
+  it("leaves a reply its handler hijacked untouched, and writes one line saying the failure came after the answer", async () => {
+    const response = await app.inject({ method: "GET", url: "/hijacked" });
+
+    expect([response.statusCode, response.body]).toEqual([200, "hijacked"]);
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        fields: expect.objectContaining({ code: "CONFLICT", url: "/hijacked" }),
+        message: "Request failed after its answer was sent",
+      }),
+    ]);
+    expect(returned).toBe(replied);
+  });
+
+  it("answers with the problem a failure raised while the route's own answer is still in its onSend hooks", async () => {
+    const response = await app.inject({ method: "GET", url: "/failing-in-on-send" });
+
+    expect([response.statusCode, response.headers["content-type"]]).toEqual([
+      409,
+      PROBLEM_MEDIA_TYPE,
+    ]);
+    expect(response.json()).toEqual(CONFLICT_PROBLEM);
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        fields: expect.objectContaining({ code: "CONFLICT", url: "/failing-in-on-send" }),
+        message: "Request failed",
+      }),
+    ]);
+  });
+
   it("leaves a reply already sent untouched, and writes one line saying the failure came after the answer", async () => {
     const response = await app.inject({ method: "GET", url: "/answered-first" });
 
@@ -333,6 +413,7 @@ describe("sendProblem", () => {
           wireCode: "CONFLICT",
           status: 409,
           source: "registered",
+          requestId: REQUEST_ID,
           correlationId: REQUEST_ID,
           method: "GET",
           url: "/answered-first",
