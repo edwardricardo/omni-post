@@ -400,7 +400,7 @@ describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
     vi.useRealTimers();
   });
 
-  it("returns true after one update guarded by the id, the hash and the reset token as read, the mark and no sign-in date, writing the hash and the change date and clearing the pending reset", async () => {
+  it("returns true after one update guarded by the id, the hash and the reset token as read, the mark, no sign-in date and an active administrator, writing the hash and the change date and clearing the pending reset", async () => {
     clients.base.adminUser.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await repo.replaceSingleUsePassword(REPLACEMENT);
@@ -415,6 +415,7 @@ describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
           passwordResetToken: "reset-token-hash-as-read",
           mustChangePassword: true,
           lastLoginAt: null,
+          isActive: true,
         },
         data: {
           passwordHash: "argon2-hash-of-the-new-password",
@@ -437,6 +438,7 @@ describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
       passwordResetToken: null,
       mustChangePassword: true,
       lastLoginAt: null,
+      isActive: true,
     });
   });
 

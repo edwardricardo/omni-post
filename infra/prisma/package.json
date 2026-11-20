@@ -20,7 +20,8 @@
     "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
     "migrate": "prisma migrate deploy",
     "studio": "prisma studio",
-    "seed": "tsx --conditions development seed.ts"
+    "seed": "tsx --conditions development seed.ts",
+    "typecheck": "tsc -p tsconfig.seed.json"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

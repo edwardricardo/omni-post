@@ -5,14 +5,18 @@
  *   environment file receives, how the file is written and read, and what an existing file lacks.
  *   It reads and writes no file; `scripts/start/platform-start.mjs` does.
  *
- *   TWO CONSUMERS decide what is generated. Compose interpolates every `${NAME:?}` of
+ *   TWO CONSUMERS make up the platform. Compose interpolates every `${NAME:?}` of
  *   `docker-compose.yml` whatever services it is asked for, so Postgres and Redis alone need the
  *   seven variables the file names, Grafana's and MinIO's included. The API refuses to boot without
  *   the twelve its schema declares with no default (`apps/api/src/config/env.ts`); the workers'
- *   three are among them. The suite holds the generated environment to both sources.
+ *   three are among them. A new file also receives what the development tools need: the
+ *   development seed's `ADMIN_PASSWORD`, the password of the administrator it creates
+ *   (`infra/prisma/src/seedGuard.ts`). The suite holds the generated environment to all of them.
  *
- *   ONE LIST: what a new checkout receives is what an existing file must hold. `REQUIRED_KEYS` is
- *   read off the generator, so the two cannot drift.
+ *   ONE LIST PER PURPOSE. What the platform reads is what an existing file must hold:
+ *   `REQUIRED_KEYS` is read off the platform's generator, so the two cannot drift. What the
+ *   development tools need is generated for a new file and never required of an existing one: the
+ *   platform never reads it, and a tool whose variable is missing refuses by itself, naming it.
  *
  *   THREE READERS take the file: Compose, Node's loader (`process.loadEnvFile`, `--env-file`) and a
  *   shell that sources it. A value outside the plain set is written in single quotes, the one
@@ -53,15 +57,14 @@ const HEADER = [
 ].join("\n");
 
 /**
- * @function generateEnvironment
- * @description The environment of a checkout that has none, in file order: the seven variables
- *   Compose interpolates, the host ports when one was chosen, and the twelve the API requires.
+ * The variables the platform reads, in file order: the seven Compose interpolates, the host ports
+ * when one was chosen, and the twelve the API requires.
  * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
  *   The random source every secret is drawn from, and the host ports to publish when they are not
  *   the compose file's defaults.
  * @returns {Array<[string, string]>} Each variable with its value.
  */
-export function generateEnvironment({ randomBytes, postgresHostPort, redisHostPort }) {
+function platformEntries({ randomBytes, postgresHostPort, redisHostPort }) {
   const hex = (/** @type {number} */ size) => randomBytes(size).toString("hex");
   const user = "omnipost";
   const database = "omnipostdb";
@@ -106,14 +109,38 @@ export function generateEnvironment({ randomBytes, postgresHostPort, redisHostPo
 }
 
 /**
- * Every variable an environment file must hold: the ones a new checkout receives. The list is read
- * off one throwaway generation, of which only the names are kept (the zero-filled random source
- * exists to make that call possible, and its values are discarded), so the generator stays the one
- * place that says which variables there are.
+ * The variables the development tools need and the platform never reads: the development seed's
+ * administrator password, which its password rule requires and takes no default for.
+ * @param {{ randomBytes: (size: number) => Buffer }} options - The random source.
+ * @returns {Array<[string, string]>} Each variable with its value.
  */
-export const REQUIRED_KEYS = generateEnvironment({
-  randomBytes: (size) => Buffer.alloc(size),
-}).map(([key]) => key);
+function developmentToolEntries({ randomBytes }) {
+  return [["ADMIN_PASSWORD", randomBytes(24).toString("hex")]];
+}
+
+/**
+ * @function generateEnvironment
+ * @description The environment of a checkout that has none, in file order: what the platform
+ *   reads, then what the development tools need.
+ * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
+ *   The random source every secret is drawn from, and the host ports to publish when they are not
+ *   the compose file's defaults.
+ * @returns {Array<[string, string]>} Each variable with its value.
+ */
+export function generateEnvironment(options) {
+  return [...platformEntries(options), ...developmentToolEntries(options)];
+}
+
+/** A random source of zeros, for a generation whose values are discarded and names kept. */
+const discarded = { randomBytes: (/** @type {number} */ size) => Buffer.alloc(size) };
+
+/**
+ * Every variable an environment file must hold: the ones the platform reads, which a new checkout
+ * receives. The list is read off one throwaway generation of the platform's variables, of which
+ * only the names are kept, so the generator stays the one place that says which variables there
+ * are.
+ */
+export const REQUIRED_KEYS = platformEntries(discarded).map(([key]) => key);
 
 /**
  * @function renderEnvironmentFile

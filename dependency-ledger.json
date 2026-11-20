@@ -369,7 +369,10 @@
       "sites": {
         "runtime-import": {
           "production": ["apps/api/src/index.ts"],
-          "test": ["apps/api/tests/unit/lib/apiReference.test.ts"]
+          "test": [
+            "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts",
+            "apps/api/tests/unit/lib/apiReference.test.ts"
+          ]
         },
         "config-string": {
           "production": ["apps/api/src/lib/apiReference.ts"]
@@ -2530,11 +2533,14 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": ["apps/api/src/auth/passwordHashing.ts"],
+          "production": [
+            "apps/api/src/auth/passwordHashing.ts",
+            "infra/prisma/src/seedPasswordHashing.ts"
+          ],
           "test": [
             "apps/api/tests/integration/customerPasswordReset.integration.test.ts",
             "apps/api/tests/unit/admin/adminAuthService.test.ts",
@@ -3008,11 +3014,14 @@
         "runtime-import": {
           "production": ["apps/api/src/index.ts"],
           "test": [
+            "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts",
             "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
             "apps/api/tests/unit/accountRoutes.test.ts",
             "apps/api/tests/unit/accounts/accountDeleteOwnership.test.ts",
             "apps/api/tests/unit/accounts/accountDeletePermission.test.ts",
             "apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts",
+            "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts",
+            "apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts",
             "apps/api/tests/unit/auditRoutes.test.ts",
             "apps/api/tests/unit/authRoutes.test.ts",
             "apps/api/tests/unit/dashboardRoutes.test.ts",

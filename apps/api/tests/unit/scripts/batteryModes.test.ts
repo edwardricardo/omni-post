@@ -66,6 +66,7 @@ const STATIC_STEPS = [
   "ledger",
   "artifact-language",
   "instruction-context",
+  "plan-closure",
   "audit-end",
 ] as const;
 
@@ -264,11 +265,11 @@ describe("battery.sh --list", () => {
     expect(lines(result.stdout)).toEqual(declaredSteps().map((step) => step.name));
   });
 
-  it("prints as many names as PLANNED_STEPS, which is 36, when --list is given alone", () => {
+  it("prints as many names as PLANNED_STEPS, which is 37, when --list is given alone", () => {
     const result = runBattery(["--list"]);
 
     expect(lines(result.stdout)).toHaveLength(plannedSteps());
-    expect(plannedSteps()).toBe(36);
+    expect(plannedSteps()).toBe(37);
   });
 
   it("prints the static steps in the script's order when --static --list is given", () => {

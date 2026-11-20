@@ -8,6 +8,7 @@
 
 import type { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { logConnectionErrors, type ErrorLogSink } from "@observability/logger";
 import { duplicateForSubscriber } from "../lib/redis.js";
 
 const REDIS_CHANNEL_PREFIX = "notifications:";
@@ -51,13 +52,20 @@ export class NotificationBroadcaster {
   private readonly heartbeatTaskId = "notification-broadcaster-heartbeat";
   private initialized = false;
 
-  constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
+  /**
+   * @description Builds the broadcaster over a publish connection and the subscribe-mode
+   *   duplicate it opens from it.
+   * @param redis - Publish connection; the subscriber is duplicated from it.
+   * @param scheduler - Scheduler that runs the heartbeat.
+   * @param logger - Logger the subscriber connection's errors are written through.
+   */
+  constructor(redis: Redis, scheduler: BackgroundTaskScheduler, logger: ErrorLogSink) {
     this.publisher = redis;
     // Subscribe-mode connection via the canonical helper: it omits commandTimeout
     // entirely so a blocking psubscribe never arms a spurious "Command timed out"
     // timer (see duplicateForSubscriber in lib/redis.ts).
     this.subscriber = duplicateForSubscriber(redis);
-    this.subscriber.on("error", () => {});
+    logConnectionErrors(this.subscriber, logger, "redis:notification-broadcaster-subscriber");
     this.scheduler = scheduler;
   }
 
@@ -135,6 +143,7 @@ export class NotificationBroadcaster {
   /**
    * @method getActiveConnectionCount
    * @description Returns the total number of active SSE subscriptions.
+   * @returns The number of local subscriptions.
    */
   getActiveConnectionCount(): number {
     return this.subscriptions.size;

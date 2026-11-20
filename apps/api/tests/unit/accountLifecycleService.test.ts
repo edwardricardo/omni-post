@@ -107,6 +107,21 @@ describe("AccountLifecycleService", () => {
       }
     });
 
+    it("stores the account marked to change the password its creator supplied", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-lifecycle-marked-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Marked Lifecycle User",
+        role: "ADMIN",
+      });
+
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      expect(stores.adminUser.get(createResult.value.id)).toMatchObject({
+        mustChangePassword: true,
+      });
+    });
+
     it("should reject duplicate email", async () => {
       const testEmail = `test-lifecycle-dup@example.com`;
       // Create first
@@ -207,6 +222,36 @@ describe("AccountLifecycleService", () => {
   });
 
   describe("suspendAccount", () => {
+    it("ends the account's active sessions with the reason ACCOUNT_SUSPENDED", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-suspend-sessions-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Suspend Sessions Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      stores.adminSession.add({
+        id: "sess-of-the-suspended-account",
+        userId: createResult.value.id,
+        isActive: true,
+        revokedAt: null,
+        revokeReason: null,
+      });
+
+      const suspendResult = await accountLifecycleService.suspendAccount(
+        createResult.value.id,
+        "Test suspension",
+        undefined
+      );
+
+      expect(suspendResult.ok).toBe(true);
+      expect(stores.adminSession.get("sess-of-the-suspended-account")).toMatchObject({
+        isActive: false,
+        revokeReason: "ACCOUNT_SUSPENDED",
+      });
+    });
+
     it("should suspend account successfully", async () => {
       const createResult = await accountLifecycleService.createAccount({
         email: `test-suspend-${Date.now()}@example.com`,
@@ -336,6 +381,37 @@ describe("AccountLifecycleService", () => {
       );
 
       expect(resetPasswordResult.ok).toBe(true);
+    });
+  });
+
+  describe("revokeAllSessions", () => {
+    it("ends the account's active sessions with the reason ADMIN_REVOKED and returns their count", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-revoke-all-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Revoke All Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      stores.adminSession.add({
+        id: "sess-revoked-by-an-administrator",
+        userId: createResult.value.id,
+        isActive: true,
+        revokedAt: null,
+        revokeReason: null,
+      });
+
+      const result = await accountLifecycleService.revokeAllSessions(
+        createResult.value.id,
+        undefined
+      );
+
+      expect(result).toEqual({ ok: true, value: 1 });
+      expect(stores.adminSession.get("sess-revoked-by-an-administrator")).toMatchObject({
+        isActive: false,
+        revokeReason: "ADMIN_REVOKED",
+      });
     });
   });
 

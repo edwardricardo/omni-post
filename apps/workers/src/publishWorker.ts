@@ -35,9 +35,9 @@ import {
   createChannelCredentialsDecryptor,
 } from "./services/channelCredentialsDecryptor.js";
 import { CredentialResolver } from "./services/CredentialResolver.js";
-import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { createWorkerTaskScheduler } from "./lib/workerScheduler.js";
 import client from "prom-client";
-import { createLogger } from "@observability/logger";
+import { createLogger, logConnectionErrors } from "@observability/logger";
 import { Redis } from "ioredis";
 import { WorkerMetrics } from "./metrics/workerMetrics.js";
 import { PublishHandler } from "./publishHandler.js";
@@ -131,13 +131,7 @@ export async function startPublishWorker(
     buildWorkerEncryptionKeyRing(env)
   );
 
-  const scheduler = new DefaultBackgroundTaskScheduler({
-    logger: {
-      error: (msg, data) => logger.error({ data }, msg),
-      info: (msg, data) => logger.info({ data }, msg),
-      debug: (msg, data) => logger.debug({ data }, msg),
-    },
-  });
+  const scheduler = createWorkerTaskScheduler(logger);
 
   const repo = createPrismaRepoAdapter({
     prisma: options.prisma,
@@ -158,9 +152,7 @@ export async function startPublishWorker(
     commandTimeout: 5_000,
     connectTimeout: 5_000,
   });
-  notifyRedis.on("error", () => {
-    // Suppress unhandled errors — saga notifications are best-effort.
-  });
+  logConnectionErrors(notifyRedis, logger, "redis:saga-notify");
 
   const credentialResolver = new CredentialResolver(repo);
 

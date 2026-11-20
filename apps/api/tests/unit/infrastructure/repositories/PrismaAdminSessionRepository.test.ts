@@ -4,8 +4,9 @@
  *              port. The Prisma client is stubbed with vi-mocked adminSession
  *              methods to assert create payload (optional ipAddress/userAgent),
  *              refresh-token rotation, listing filters, and bulk revoke/delete,
- *              and that the bulk revoke writes through the Unit of Work's
- *              transaction client when one is open.
+ *              that the bulk revoke stores its reason on every session it ends,
+ *              and that it writes through the Unit of Work's transaction client
+ *              when one is open.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -107,12 +108,12 @@ describe("PrismaAdminSessionRepository", () => {
     });
   });
 
-  it("revokeAllForUser deactivates active sessions and returns the count", async () => {
+  it("revokeAllForUser deactivates active sessions, stores the reason on each, and returns the count", async () => {
     prisma.adminSession.updateMany.mockResolvedValue({ count: 3 });
-    const count = await repo.revokeAllForUser("u-1");
+    const count = await repo.revokeAllForUser("u-1", "PASSWORD_REISSUED");
     expect(prisma.adminSession.updateMany).toHaveBeenCalledWith({
       where: { userId: "u-1", isActive: true },
-      data: { isActive: false, revokedAt: expect.any(Date) },
+      data: { isActive: false, revokedAt: expect.any(Date), revokeReason: "PASSWORD_REISSUED" },
     });
     expect(count).toBe(3);
   });
@@ -144,14 +145,16 @@ describe("PrismaAdminSessionRepository inside a unit of work", () => {
     tx.adminSession.updateMany.mockResolvedValue({ count: 2 });
     const uow = new PrismaUnitOfWork(base as never, NO_TENANT);
 
-    const count = await uow.executeInTransaction(() => repo.revokeAllForUser("u-1"));
+    const count = await uow.executeInTransaction(() =>
+      repo.revokeAllForUser("u-1", "PASSWORD_REISSUED")
+    );
 
     expect(count).toBe(2);
     expect(base.$transaction).toHaveBeenCalledTimes(1);
     expect(tx.adminSession.updateMany).toHaveBeenCalledTimes(1);
     expect(tx.adminSession.updateMany).toHaveBeenCalledWith({
       where: { userId: "u-1", isActive: true },
-      data: { isActive: false, revokedAt: expect.any(Date) },
+      data: { isActive: false, revokedAt: expect.any(Date), revokeReason: "PASSWORD_REISSUED" },
     });
     expect(base.adminSession.updateMany).not.toHaveBeenCalled();
   });

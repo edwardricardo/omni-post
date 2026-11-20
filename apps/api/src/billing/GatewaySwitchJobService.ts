@@ -9,6 +9,7 @@
 import { Queue } from "bullmq";
 import type { Redis } from "ioredis";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import { createThrottledErrorListener, type ErrorLogSink } from "@observability/logger";
 import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -27,7 +28,12 @@ interface SwitchJobData {
 export class GatewaySwitchJobService implements GatewaySwitchJobPort {
   private queue: Queue<SwitchJobData>;
 
-  constructor(redisConnection: Redis) {
+  /**
+   * @description Builds the gateway switch queue on the injected connection.
+   * @param redisConnection - Connection the queue runs on, owned by the composition root.
+   * @param logger - Logger the queue's errors are written through.
+   */
+  constructor(redisConnection: Redis, logger: ErrorLogSink) {
     this.queue = new Queue<SwitchJobData>(QUEUE_NAMES.GATEWAY_SWITCH, {
       connection: redisConnection,
       defaultJobOptions: {
@@ -37,11 +43,19 @@ export class GatewaySwitchJobService implements GatewaySwitchJobPort {
         backoff: { type: "exponential", delay: 30000 },
       },
     });
+    // BullMQ re-emits its connection's errors from the queue and writes an unlistened one with
+    // console.error, once per reconnection attempt while Redis is down.
+    this.queue.on(
+      "error",
+      createThrottledErrorListener(logger, `bullmq-queue:${QUEUE_NAMES.GATEWAY_SWITCH}`)
+    );
   }
 
   /**
    * @method startCheckoutWindow
    * @description Enqueues a reminder job (24h) and a suspend job (48h).
+   * @param accountId - The account switching gateway.
+   * @param switchEventId - The switch event the jobs belong to.
    */
   async startCheckoutWindow(accountId: string, switchEventId: string): Promise<void> {
     await Promise.all([
@@ -69,6 +83,7 @@ export class GatewaySwitchJobService implements GatewaySwitchJobPort {
   /**
    * @method cancelJobs
    * @description Cancels both reminder and suspend jobs for an account.
+   * @param accountId - The account whose jobs are cancelled.
    */
   async cancelJobs(accountId: string): Promise<void> {
     const [reminder, suspend] = await Promise.all([
@@ -81,6 +96,8 @@ export class GatewaySwitchJobService implements GatewaySwitchJobPort {
   /**
    * @method rescheduleJobs
    * @description Cancels existing jobs and creates new ones with recalculated delays.
+   * @param accountId - The account whose jobs are rescheduled.
+   * @param newDeadline - The new checkout deadline the delays are computed from.
    */
   async rescheduleJobs(accountId: string, newDeadline: Date): Promise<void> {
     const now = Date.now();
