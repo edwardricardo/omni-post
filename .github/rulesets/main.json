@@ -36,7 +36,12 @@
           { "context": "dependency-cruiser (hexagonal)", "integration_id": 15368 },
           { "context": "Squawk (Prisma migrations)", "integration_id": 15368 },
           { "context": "Code Quality (knip + jscpd)", "integration_id": 15368 },
-          { "context": "Test Contracts", "integration_id": 15368 }
+          { "context": "Test Contracts", "integration_id": 15368 },
+          { "context": "Platform Start", "integration_id": 15368 },
+          { "context": "Container Security (api)", "integration_id": 15368 },
+          { "context": "Container Security (workers)", "integration_id": 15368 },
+          { "context": "Container Security (admin)", "integration_id": 15368 },
+          { "context": "Container Security (client)", "integration_id": 15368 }
         ]
       }
     }
