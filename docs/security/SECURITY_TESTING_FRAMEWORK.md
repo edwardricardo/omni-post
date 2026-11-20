@@ -127,8 +127,8 @@ marked as a security release, or when the index cannot be read. Once
 cases, and in both the scanner after it does not run and the images are not
 pushed on main: the index is unreachable after three attempts, or Node has
 published a security release of the images' line that their distroless base does
-not ship yet, which it followed by about two days for v26.13.1 (released on
-2026-11-10; the digest the images took for it, `80631bd2`, was uploaded on
+not ship yet, which it followed by about two days for v26.13.1 (dated
+2026-11-10 by the index; the digest the images took for it, `80631bd2`, was uploaded on
 2026-11-12). In the first case, re-run
 the job once nodejs.org answers; in the second, raise the build stage to the
 release and wait for, or pin, the distroless digest that ships it, by the
