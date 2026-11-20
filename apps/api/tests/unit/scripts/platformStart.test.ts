@@ -4582,6 +4582,139 @@ describe("a degraded answer, named by the run", () => {
     });
   });
 
+  it("names a dependency whose name holds a capital letter and an underscore, when it is not healthy", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of seven degraded, an average of 0.929: healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", {
+          ...dependenciesOf("API"),
+          Search_Index: "degraded",
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with Search_Index degraded",
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("names a dependency whose name is 64 characters long, and reads as not a report the one whose name is 65", async () => {
+    const staged = await stage();
+    // "consumer:" is 9 characters: 9 + 55 = 64, the longest name the line prints.
+    const atTheCap = `consumer:${"q".repeat(55)}`;
+    const pastTheCap = `${atTheCap}q`;
+
+    const result = await start(
+      ["--root", staged.root],
+      // Each well formed: one of seven degraded, healthy overall; one of four degraded, an average
+      // of 0.875, healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", {
+          ...dependenciesOf("API"),
+          [atTheCap]: "degraded",
+        }),
+        FAKE_WORKERS_REPORT: healthReport("healthy", {
+          ...dependenciesOf("WORKERS"),
+          [pastTheCap]: "degraded",
+        }),
+      })
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      stages: appStages(result.stdout),
+      carrying: result.stdout.split("\n").filter((line) => line.includes(pastTheCap)),
+    }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        `platform-start: the API reports healthy overall, with ${atTheCap} degraded`,
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
+  it("prints nothing of a report whose dependency's name holds a `.` or a `/`, which would read as a host or as a path: it could not be read", async () => {
+    const staged = await stage();
+    const host = "db.internal";
+    const path = "var/run/redis";
+
+    const result = await start(
+      ["--root", staged.root],
+      // Each well formed but for one name: one of seven degraded, healthy overall; one of four
+      // degraded, healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", { ...dependenciesOf("API"), [host]: "degraded" }),
+        FAKE_WORKERS_REPORT: healthReport("healthy", {
+          ...dependenciesOf("WORKERS"),
+          [path]: "degraded",
+        }),
+      })
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      stages: appStages(result.stdout),
+      carrying: result.stdout
+        .split("\n")
+        .filter((line) => line.includes(host) || line.includes(path)),
+    }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
+  it("reads as not a report the one whose dependency has an empty name", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // Well formed but for one name: one of seven degraded, healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", { ...dependenciesOf("API"), "": "degraded" }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
   it("says a report could not be read when its connection ends before its body does, and still exits 0", async () => {
     const staged = await stage();
 

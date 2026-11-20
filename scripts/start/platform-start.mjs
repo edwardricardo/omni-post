@@ -365,16 +365,17 @@ const REPORT_TIMEOUT_MS = 10_000;
 const DEPENDENCY_STATUSES = new Set(["healthy", "degraded", "unhealthy"]);
 
 /**
- * What a dependency's name may hold for the line to print it: an identifier, never text. Letters
- * of either case, digits, and the separators identifiers of dependencies and queues are built with:
- * `-` and `_` inside a word, as queue names join theirs
- * (`packages/adapters/queue-bullmq/src/constants.ts`), and `:` between a kind and a name, as the
- * workers name a queue's consumer (`apps/workers/src/health/readiness.ts`). No space, line break or
- * other control character, so the line stays one line and holds no prose; no `.` or `/`, which turn
- * an identifier into a host or a path. At most 64 characters, nearly twice the longest name a
- * queue's consumer could take today (34, `consumer:bulk-schedule-dead-letter`), so a name has room
- * to grow and still never fills the line. A name outside this makes the body not a report, as a
- * status outside the three does.
+ * What a dependency's name may hold for the line to print it: the characters of an identifier,
+ * never text. Letters of either case, digits, and three separators: `-`, which queue names join
+ * their words with (`packages/adapters/queue-bullmq/src/constants.ts`); `:`, which the workers put
+ * between a kind and a name for a queue's consumer (`apps/workers/src/health/readiness.ts`); and
+ * `_`, which no name carries today and identifiers commonly do. The pattern holds which characters
+ * a name carries and how many, not where each sits: a name made of separators alone is printed as
+ * the report gives it. No space, line break or other control character, so the line stays one line
+ * and holds no prose; no `.` or `/`, which turn an identifier into a host or a path. At least one
+ * character and at most 64, nearly twice the longest name a queue's consumer could take today (34,
+ * `consumer:bulk-schedule-dead-letter`), so a name has room to grow and still never fills the
+ * line. A name outside this makes the body not a report, as a status outside the three does.
  */
 const DEPENDENCY_NAME = /^[A-Za-z0-9_:-]{1,64}$/;
 
