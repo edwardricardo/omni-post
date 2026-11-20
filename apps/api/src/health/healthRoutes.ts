@@ -28,32 +28,19 @@ interface HealthRoutesOptions {
 }
 
 /**
- * Health check routes for monitoring and Kubernetes probes
- *
- * Endpoints:
- * - GET /health - Simple health check
- * - GET /health/detailed - Comprehensive health status
- * - GET /health/live - Kubernetes liveness probe
- * - GET /health/ready - Kubernetes readiness probe
- * - GET /health/dependency/:name - Individual dependency health
+ * @function healthRoutes
+ * @description Registers the health routes for monitoring and Kubernetes probes:
+ *   `GET /health` (the last refreshed report), `GET /health/detailed`, `GET /health/live`,
+ *   `GET /health/ready` and `GET /health/dependency/:name`. The manager behind them refreshes on
+ *   the package's timing: every 30 s, every 5 s while the last report is unhealthy, each check in
+ *   one attempt.
+ * @param fastify - The Fastify instance the routes are registered on.
+ * @param options - The scheduler the refresh runs on and the checker of each probed dependency.
  */
 export async function healthRoutes(fastify: FastifyInstance, options: HealthRoutesOptions) {
   const { scheduler, checkers } = options;
 
-  // Initialize health check manager
-  const healthManager = createHealthCheckManager(
-    {
-      timeout: 5000,
-      interval: 30000,
-      retries: 3,
-      alertThresholds: {
-        degradedLatency: 1000,
-        unhealthyLatency: 5000,
-        criticalFailureCount: 3,
-      },
-    },
-    scheduler
-  );
+  const healthManager = createHealthCheckManager(undefined, scheduler);
 
   // Register health checkers
   healthManager.register("database", checkers.database, {

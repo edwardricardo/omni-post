@@ -134,6 +134,12 @@ export type UpdateTweetInput = {
 };
 
 export interface RepoPort {
+  /**
+   * Ask the store one question that reads no table, to learn whether it answers: `DATABASE_ERROR`
+   * when it does not. Its cost is one round trip, whatever the store holds.
+   */
+  ping(): Promise<Result<void, "DATABASE_ERROR">>;
+
   // Account management methods
   /** Persist a new account. Returns `EMAIL_TAKEN` when the email is already in use. */
   createAccount(
@@ -150,8 +156,6 @@ export interface RepoPort {
   ): Promise<Result<Account, "NOT_FOUND" | "DATABASE_ERROR">>;
   /** Delete an account by id. Cascades to projects per the schema. */
   deleteAccount(id: string): Promise<Result<void, "NOT_FOUND" | "DATABASE_ERROR">>;
-  /** Return every account. Admin-only use; production callers should paginate via a query port. */
-  listAccounts(): Promise<Result<Account[], "DATABASE_ERROR">>;
 
   // Project management methods (now account-aware)
   /**

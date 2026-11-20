@@ -68,9 +68,10 @@ async function main(): Promise<void> {
   });
 
   // --- Health check manager + scheduler ---
-  // The HealthCheckManager runs registered checkers periodically (interval
-  // 30s). Workers' critical deps are database + redis; queue + provider
-  // checkers can be added later if needed.
+  // The HealthCheckManager refreshes its report on this scheduler every 30 s,
+  // and every 5 s while the last report is unhealthy, each check in one
+  // attempt. The critical dependencies are the database, Redis and one
+  // consumer per publish-pipeline queue (below).
   const healthScheduler = new DefaultBackgroundTaskScheduler({
     logger: {
       error: (msg, data) => logger.error({ data }, msg),
@@ -93,10 +94,7 @@ async function main(): Promise<void> {
     // Errors surface via the checker's PING failure path.
   });
 
-  const healthManager = createHealthCheckManager(
-    { timeout: 5000, interval: 30000, retries: 3 },
-    healthScheduler
-  );
+  const healthManager = createHealthCheckManager(undefined, healthScheduler);
   healthManager.register("database", new DatabaseHealthChecker(publishHandle.repo), {
     type: "database",
     critical: true,

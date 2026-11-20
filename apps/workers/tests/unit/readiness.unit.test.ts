@@ -71,8 +71,20 @@ describe("worker readiness", () => {
     expect(verdict.unhealthyDependencies).toContain("redis");
   });
 
-  it("treats a degraded critical dependency as not ready", async () => {
+  it("treats a degraded critical dependency as ready, since it still answers", async () => {
+    // A database slower than one second reports degraded: slow, yet usable.
     const manager = makeManager({ database: "degraded", redis: "healthy", [CONSUMER]: "healthy" });
+
+    const verdict = await evaluateReadiness(manager, ["database", "redis", CONSUMER]);
+
+    expect(verdict).toEqual({ ready: true, unhealthyDependencies: [] });
+  });
+
+  it("is NOT ready when a dependency reports a status other than healthy or degraded", async () => {
+    const manager = {
+      checkDependency: async (name: string): Promise<Result<{ status: string }, "NOT_FOUND">> =>
+        ok({ status: name === "database" ? "unknown" : "healthy" }),
+    };
 
     const verdict = await evaluateReadiness(manager, ["database", "redis", CONSUMER]);
 

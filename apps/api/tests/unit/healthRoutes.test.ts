@@ -40,6 +40,12 @@ const checkers = {
 // record, because `vi.clearAllMocks()` empties that record before every test.
 const registrations = new Map<string, unknown>();
 
+// What the route built its manager with, kept for the same reason.
+const managerConstruction: { args: unknown[] } = { args: [] };
+
+// The scheduler the composition root hands the route.
+const scheduler = new NoopBackgroundTaskScheduler();
+
 // Mock health check manager
 const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealthy" = "healthy") => {
   return {
@@ -154,6 +160,7 @@ vi.mock("@monitoring/health-checks", async (importOriginal) => {
 
 describe("healthRoutes - Unit Tests", () => {
   let app: FastifyInstance;
+  let manager: ReturnType<typeof createMockHealthCheckManager>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -162,8 +169,8 @@ describe("healthRoutes - Unit Tests", () => {
   beforeAll(async () => {
     // Configure the mocked createHealthCheckManager
     const healthChecks = await import("@monitoring/health-checks");
-    vi.mocked(healthChecks.createHealthCheckManager).mockImplementation(() =>
-      createMockHealthCheckManager("healthy")
+    vi.mocked(healthChecks.createHealthCheckManager).mockImplementation(
+      () => (manager = createMockHealthCheckManager("healthy"))
     );
 
     app = Fastify({ logger: false });
@@ -176,7 +183,8 @@ describe("healthRoutes - Unit Tests", () => {
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");
     // The manager double records at registration, so the record holds this registration only.
     registrations.clear();
-    await app.register(healthRoutes, { scheduler: new NoopBackgroundTaskScheduler(), checkers });
+    await app.register(healthRoutes, { scheduler, checkers });
+    managerConstruction.args = vi.mocked(healthChecks.createHealthCheckManager).mock.calls[0] ?? [];
   });
 
   afterAll(async () => {
@@ -196,6 +204,16 @@ describe("healthRoutes - Unit Tests", () => {
       expect(body.status).toBe("healthy");
       expect(body.timestamp).toBeTruthy();
       expect(typeof body.uptime === "number").toBeTruthy();
+    });
+
+    it("answers from the last refreshed report without running the checks", async () => {
+      const response = await app.inject({ method: "GET", url: "/health" });
+
+      expect({
+        statusCode: response.statusCode,
+        reportsRead: manager.getCurrentStatus.mock.calls.length,
+        checksRun: manager.checkAll.mock.calls.length,
+      }).toEqual({ statusCode: 200, reportsRead: 1, checksRun: 0 });
     });
   });
 
@@ -336,6 +354,17 @@ describe("healthRoutes - Unit Tests", () => {
 
     it("serves its routes from the options alone, with no DI container on the instance", () => {
       expect(app.hasDecorator("container")).toBe(false);
+    });
+
+    it("builds its health manager on the composition root's scheduler, overriding no timing", () => {
+      // The timeout and the two refresh intervals are the package's, so the API and the workers
+      // refresh and give up by the same rule.
+      const [config, passedScheduler] = managerConstruction.args;
+
+      expect({ config, sameScheduler: passedScheduler === scheduler }).toEqual({
+        config: undefined,
+        sameScheduler: true,
+      });
     });
   });
 });
