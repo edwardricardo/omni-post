@@ -8,8 +8,9 @@
  *              routes run over the real `AdminAuthService` and `AuthService` on a client of that
  *              database, without Redis; the brute-force port allows every attempt and records
  *              nothing, since the subject is the stored rows. Both sign-ins refuse the
- *              single-use password with no session and no `lastLoginAt`; once the password is
- *              changed, the administrator signs in with the new one and the old one is refused.
+ *              single-use password with one audit row of the refusal, no session and no
+ *              `lastLoginAt`; once the password is changed, the administrator signs in with the
+ *              new one at both, and the old one is refused.
  *
  *              The case of two calls at once does not leave the interleaving to chance: a third
  *              connection holds the administrator's row lock, which plain reads do not wait on,
@@ -57,6 +58,7 @@ const TIMING = { timeout: 180_000 } as const;
 const ROUTE = "/admin/auth/password/change-required";
 const ADMIN_SIGN_IN = "/admin/auth/login";
 const SIGN_IN = "/auth/login";
+const USER_AGENT = "fixture-integration-agent/1.0";
 const ADMIN_EMAIL = "first.admin@required-change-integration.test";
 const NEW_PASSWORD = "Fixture-Lasting-Pw-4q!";
 const RIVAL_PASSWORD = "Fixture-Rival-Pw-7u?";
@@ -196,17 +198,31 @@ describe("The required password change on a migrated database", { concurrency: 1
     const res = await app.inject({
       method: "POST",
       url,
+      headers: { "user-agent": USER_AGENT },
       payload: { email: ADMIN_EMAIL, password },
     });
     return { status: res.statusCode, body: JSON.parse(res.body) as unknown, cookies: res.cookies };
   }
 
-  /** How many sessions and audit rows name the administrator. */
+  /** How many sessions name the administrator, and the audit rows that do, oldest first. */
   async function sessionsAndAuditRows(id: string) {
     const client = migrated();
     return {
       sessions: await client.adminSession.count({ where: { userId: id } }),
-      auditRows: await client.auditLog.count({ where: { userId: id } }),
+      auditRows: await client.auditLog.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          action: true,
+          actorType: true,
+          resource: true,
+          success: true,
+          error: true,
+          ipAddress: true,
+          userAgent: true,
+          details: true,
+        },
+      }),
     };
   }
 
@@ -346,49 +362,66 @@ describe("The required password change on a migrated database", { concurrency: 1
   );
 
   it(
-    "refuses the single-use password at POST /admin/auth/login with 403, opening no session and leaving the row as it was",
+    "refuses the single-use password at both sign-ins with 403 and no cookie, recording only the refusal, opening no session and leaving the row as it was",
     TIMING,
     async () => {
-      const admin = await firstAdministrator();
-      const rowBefore = await storedAdmin(admin.id);
+      const refusals = [
+        {
+          url: ADMIN_SIGN_IN,
+          body: { ok: false, error: "PASSWORD_CHANGE_REQUIRED" },
+          auditRow: {
+            action: "LOGIN_FAILED",
+            actorType: "ADMIN",
+            resource: "AdminAuth",
+            success: false,
+            error: "PASSWORD_CHANGE_REQUIRED",
+            ipAddress: "127.0.0.1",
+            userAgent: USER_AGENT,
+            details: null,
+          },
+        },
+        {
+          url: SIGN_IN,
+          body: { ok: false, error: "Password change required" },
+          auditRow: {
+            action: "USER_LOGIN",
+            actorType: "ADMIN",
+            resource: null,
+            success: true,
+            error: null,
+            ipAddress: "127.0.0.1",
+            userAgent: USER_AGENT,
+            details: {
+              email: ADMIN_EMAIL,
+              reason: "PASSWORD_CHANGE_REQUIRED",
+              category: "AUTHENTICATION",
+              severity: "HIGH",
+            },
+          },
+        },
+      ];
       const app = await buildApp();
 
-      const call = await signIn(app, ADMIN_SIGN_IN, admin.password);
+      for (const refusal of refusals) {
+        const admin = await firstAdministrator();
+        const rowBefore = await storedAdmin(admin.id);
 
-      assert.deepEqual(call, {
-        status: 403,
-        body: { ok: false, error: "PASSWORD_CHANGE_REQUIRED" },
-        cookies: [],
-      });
-      assert.deepEqual(await storedAdmin(admin.id), rowBefore);
-      assert.equal(rowBefore.lastLoginAt, null);
-      assert.deepEqual(await sessionsAndAuditRows(admin.id), { sessions: 0, auditRows: 0 });
+        const call = await signIn(app, refusal.url, admin.password);
+
+        assert.deepEqual(call, { status: 403, body: refusal.body, cookies: [] }, refusal.url);
+        assert.deepEqual(await storedAdmin(admin.id), rowBefore, refusal.url);
+        assert.equal(rowBefore.lastLoginAt, null, refusal.url);
+        assert.deepEqual(
+          await sessionsAndAuditRows(admin.id),
+          { sessions: 0, auditRows: [refusal.auditRow] },
+          refusal.url
+        );
+      }
     }
   );
 
   it(
-    "refuses the single-use password at POST /auth/login with 403 and no cookie, opening no session and leaving the row as it was",
-    TIMING,
-    async () => {
-      const admin = await firstAdministrator();
-      const rowBefore = await storedAdmin(admin.id);
-      const app = await buildApp();
-
-      const call = await signIn(app, SIGN_IN, admin.password);
-
-      assert.deepEqual(call, {
-        status: 403,
-        body: { ok: false, error: "Password change required" },
-        cookies: [],
-      });
-      assert.deepEqual(await storedAdmin(admin.id), rowBefore);
-      assert.equal(rowBefore.lastLoginAt, null);
-      assert.deepEqual(await sessionsAndAuditRows(admin.id), { sessions: 0, auditRows: 0 });
-    }
-  );
-
-  it(
-    "signs in at POST /admin/auth/login with the new password once it is changed, opening a session and setting lastLoginAt, and refuses the single-use one",
+    "signs in at both sign-ins with the new password once it is changed, opening a session at each and setting lastLoginAt, and refuses the single-use one",
     TIMING,
     async () => {
       const admin = await firstAdministrator();
@@ -396,22 +429,37 @@ describe("The required password change on a migrated database", { concurrency: 1
       const changed = await change(app, admin.password, NEW_PASSWORD);
       assert.equal(changed.status, 200);
 
-      const withNew = await signIn(app, ADMIN_SIGN_IN, NEW_PASSWORD);
+      const atAdminSignIn = await signIn(app, ADMIN_SIGN_IN, NEW_PASSWORD);
+      const sessionsAfterAdminSignIn = (await sessionsAndAuditRows(admin.id)).sessions;
+      const atSignIn = await signIn(app, SIGN_IN, NEW_PASSWORD);
+      const sessionsAfterSignIn = (await sessionsAndAuditRows(admin.id)).sessions;
       const withOld = await signIn(app, ADMIN_SIGN_IN, admin.password);
 
-      assert.equal(withNew.status, 200);
-      const signedIn = withNew.body as { ok: boolean; data: { user: { id: string } } };
+      assert.equal(atAdminSignIn.status, 200);
+      const adminSignedIn = atAdminSignIn.body as { ok: boolean; data: { user: { id: string } } };
+      assert.equal(adminSignedIn.ok, true);
+      assert.equal(adminSignedIn.data.user.id, admin.id);
+      assert.equal(sessionsAfterAdminSignIn, 1);
+
+      assert.equal(atSignIn.status, 200);
+      const signedIn = atSignIn.body as { ok: boolean; data: { user: { id: string } } };
       assert.equal(signedIn.ok, true);
       assert.equal(signedIn.data.user.id, admin.id);
+      assert.deepEqual(
+        atSignIn.cookies.map((cookie) => (cookie as { name: string }).name),
+        ["refreshToken"]
+      );
+      assert.equal(sessionsAfterSignIn, 2);
+
       assert.deepEqual(withOld, {
         status: 401,
         body: { ok: false, error: "INVALID_CREDENTIALS" },
         cookies: [],
       });
       const row = await storedAdmin(admin.id);
-      assert.ok(row.lastLoginAt instanceof Date, "the sign-in wrote lastLoginAt");
+      assert.ok(row.lastLoginAt instanceof Date, "the sign-ins wrote lastLoginAt");
       assert.equal(row.mustChangePassword, false);
-      assert.equal(await migrated().adminSession.count({ where: { userId: admin.id } }), 1);
+      assert.equal((await sessionsAndAuditRows(admin.id)).sessions, 2);
     }
   );
 });

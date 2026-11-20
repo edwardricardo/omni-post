@@ -143,9 +143,11 @@ export class AuthServiceCore extends AuditableService {
    *   the sign-in. A missing code is answered with the second factor's challenge.
    *
    *   An administrator whose password must be changed is refused once every check has passed and
-   *   before the session is opened: no session, no `lastLoginAt` and no record of a sign-in. The
-   *   refusal comes after the second factor, so a caller who holds the password but not the
-   *   second factor learns nothing of the mark, and the code that verified is spent.
+   *   before the session is opened. The refusal writes one audit row, as the other refusals do:
+   *   `USER_LOGIN` with the reason `PASSWORD_CHANGE_REQUIRED`, and nothing else: no session, no
+   *   record of a successful attempt and no `lastLoginAt`. The refusal comes after the second
+   *   factor, so a caller who holds the password but not the second factor learns nothing of the
+   *   mark, and the code that verified is spent.
    * @param credentials - The e-mail, the password and the second factor's code when there is one
    * @param ipAddress - The caller's address, used when no fingerprint is given
    * @param userAgent - The caller's agent, used when no fingerprint is given
@@ -321,6 +323,18 @@ export class AuthServiceCore extends AuditableService {
       // The password must be changed first: refused only now, so the mark stays hidden from a
       // caller without the second factor, and before the session, so nothing of a sign-in lands.
       if (user.mustChangePassword) {
+        await this.logUserAction(auditActor.admin(user.id), {
+          action: "USER_LOGIN",
+          category: "AUTHENTICATION",
+          severity: "HIGH",
+          details: {
+            email: user.email,
+            reason: "PASSWORD_CHANGE_REQUIRED",
+            ...(this.hasRedis && { fingerprint: hashFingerprint(sessionFingerprint) }),
+          },
+          ipAddress: sessionFingerprint.ipAddress,
+          userAgent: sessionFingerprint.userAgent,
+        });
         return err("PASSWORD_CHANGE_REQUIRED");
       }
 

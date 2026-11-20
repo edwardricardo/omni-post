@@ -9,7 +9,8 @@
  *   delay, the lookup by normalized e-mail, the manual lock, the active check, the password, the
  *   second factor) and what it does once they pass, since the replacement runs the same checks.
  *   The second block pins that `login` refuses an administrator who must change the password
- *   once every check has passed, and runs nothing a sign-in runs after them. The third block
+ *   once every check has passed, records the refusal in one audit row, and runs nothing a
+ *   sign-in runs after them. The third block
  *   covers the replacement: every refusal with its code and nothing written, the one guarded
  *   write, no session and no sign-in, and a row moved between the read and the write refused as
  *   a concurrent modification.
@@ -165,9 +166,9 @@ function makeHarness(
         sessionCalls.push("updateMany");
         return inner.adminSession.updateMany?.(args);
       },
-      findMany: async () => {
+      findMany: async (args: Record<string, unknown>) => {
         sessionCalls.push("findMany");
-        return [];
+        return inner.adminSession.findMany?.(args);
       },
       create: async (args: Record<string, unknown>) => {
         sessionCalls.push("create");
@@ -484,11 +485,23 @@ describe("AdminAuthService.login — the sign-in's checks", () => {
 });
 
 describe("AdminAuthService.login — an administrator who must change the password", () => {
+  /** The one audit row a refused sign-in leaves: who, from where, and why it was refused. */
+  const REFUSAL_ROW = {
+    action: "LOGIN_FAILED",
+    resource: "AdminAuth",
+    success: false,
+    userId: ADMIN_ID,
+    actorType: "ADMIN",
+    ipAddress: DEVICE.ipAddress,
+    userAgent: DEVICE.userAgent,
+    error: "PASSWORD_CHANGE_REQUIRED",
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("refuses the right password with PASSWORD_CHANGE_REQUIRED and runs nothing a sign-in runs after its checks", async () => {
+  it("refuses the right password with PASSWORD_CHANGE_REQUIRED, records the refusal and runs nothing a sign-in runs after its checks", async () => {
     const harness = makeHarness();
 
     const result = await harness.service.login(signInRequest(SINGLE_USE_PASSWORD), DEVICE);
@@ -501,7 +514,7 @@ describe("AdminAuthService.login — an administrator who must change the passwo
     expect(harness.bruteForce.checkLoginAttempt).toHaveBeenCalledWith(ATTEMPT);
     expect(harness.bruteForce.recordFailedAttempt).not.toHaveBeenCalled();
     expect(harness.bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
-    expect(harness.audit).toEqual([]);
+    expect(harness.audit).toEqual([REFUSAL_ROW]);
   });
 
   it("refuses with PASSWORD_CHANGE_REQUIRED after the second factor's code verifies, once", async () => {
@@ -522,7 +535,7 @@ describe("AdminAuthService.login — an administrator who must change the passwo
     expect(harness.fake.writes()).toEqual([]);
     expect(harness.bruteForce.recordFailedAttempt).not.toHaveBeenCalled();
     expect(harness.bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
-    expect(harness.audit).toEqual([]);
+    expect(harness.audit).toEqual([REFUSAL_ROW]);
   });
 
   it("asks for the missing second factor without saying the password must be changed", async () => {

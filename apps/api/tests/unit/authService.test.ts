@@ -266,7 +266,7 @@ describe("AuthService", () => {
       }
     });
 
-    it("refuses an administrator who must change the password with PASSWORD_CHANGE_REQUIRED, opening no session and recording no sign-in", async () => {
+    it("refuses an administrator who must change the password with PASSWORD_CHANGE_REQUIRED, opening no session and recording only the refusal", async () => {
       stores.adminUser.update(testUserId, { mustChangePassword: true });
       const auditRowsBefore = auditLog.rows.length;
 
@@ -280,7 +280,29 @@ describe("AuthService", () => {
       expect(stores.adminSession.all()).toEqual([]);
       const stored = stores.adminUser.all().find((u) => u.id === testUserId);
       expect(stored?.lastLoginAt).toBeNull();
-      expect(auditLog.rows.slice(auditRowsBefore)).toEqual([]);
+      expect(auditLog.rows.slice(auditRowsBefore)).toEqual([
+        {
+          id: expect.any(String),
+          userId: testUserId,
+          customerUserId: null,
+          actorType: "ADMIN",
+          accountId: null,
+          action: "USER_LOGIN",
+          resource: null,
+          resourceId: null,
+          details: {
+            email: testEmail.toLowerCase(),
+            reason: "PASSWORD_CHANGE_REQUIRED",
+            category: "AUTHENTICATION",
+            severity: "HIGH",
+          },
+          ipAddress: "192.168.1.100",
+          userAgent: "Mozilla/5.0 Test",
+          success: true,
+          error: null,
+          createdAt: expect.any(Date),
+        },
+      ]);
     });
 
     it("answers a wrong password with INVALID_CREDENTIALS for an administrator who must change the password", async () => {

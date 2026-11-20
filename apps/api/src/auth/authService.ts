@@ -64,13 +64,12 @@ export class AuthService {
 
   /**
    * @method registerAdmin
-   * @description Creates an administrator with a verified e-mail under the named role, and
-   *   records the creation in the audit log.
-   * @param email - The administrator's e-mail, stored normalized
-   * @param password - The password, at least 8 characters, stored as a hash
-   * @param name - The administrator's display name
-   * @param role - The name of the role the administrator gets
-   * @returns The administrator; otherwise `VALIDATION_ERROR`, `EMAIL_EXISTS` or `DATABASE_ERROR`
+   * @description Delegates to {@link AuthServiceCore.registerAdmin}, which states the contract.
+   * @param email - Passed through
+   * @param password - Passed through
+   * @param name - Passed through
+   * @param role - Passed through
+   * @returns What the delegate returns
    */
   async registerAdmin(
     email: string,
@@ -83,15 +82,12 @@ export class AuthService {
 
   /**
    * @method login
-   * @description Signs an administrator in with the e-mail, the password and, when the
-   *   administrator has a second factor, its code; an administrator whose password must be
-   *   changed is refused once every check has passed, with no session opened.
-   * @param credentials - The e-mail, the password and the second factor's code when there is one
-   * @param ipAddress - The caller's address, used when no fingerprint is given
-   * @param userAgent - The caller's agent, used when no fingerprint is given
-   * @param fingerprint - The caller's device, which the session is bound to
-   * @returns The administrator and the session's tokens, or the second factor's challenge;
-   *   otherwise the code of the refusal
+   * @description Delegates to {@link AuthServiceCore.login}, which states the contract.
+   * @param credentials - Passed through
+   * @param ipAddress - Passed through
+   * @param userAgent - Passed through
+   * @param fingerprint - Passed through
+   * @returns What the delegate returns
    */
   async login(
     credentials: LoginCredentials,
@@ -115,13 +111,11 @@ export class AuthService {
 
   /**
    * @method refreshTokens
-   * @description Rotates the presented refresh token: at most one caller receives a new pair
-   *   for it.
-   * @param refreshToken - The refresh token presented
-   * @param ipAddress - The caller's address, used when no fingerprint is given
-   * @param fingerprint - The caller's device, checked against the session's when Redis is
-   *   available
-   * @returns The new tokens; otherwise the code of the refusal
+   * @description Delegates to {@link AuthServiceSession.refreshTokens}, which states the contract.
+   * @param refreshToken - Passed through
+   * @param ipAddress - Passed through
+   * @param fingerprint - Passed through
+   * @returns What the delegate returns
    */
   async refreshTokens(
     refreshToken: string,
@@ -138,13 +132,11 @@ export class AuthService {
 
   /**
    * @method verifyAccessToken
-   * @description Verifies an access token and returns the administrator it was issued to, while
-   *   the session is active and unexpired and the administrator is active; when Redis is
-   *   available, a blacklisted token is refused and the device fingerprint is compared.
-   * @param token - The bearer access token
-   * @param fingerprint - The caller's device, compared with the token's when Redis is available
-   * @returns The administrator; otherwise `INVALID_TOKEN`, `TOKEN_BLACKLISTED`, `SESSION_EXPIRED`
-   *   or `USER_INACTIVE`
+   * @description Delegates to {@link AuthServiceSession.verifyAccessToken}, which states the
+   *   contract.
+   * @param token - Passed through
+   * @param fingerprint - Passed through
+   * @returns What the delegate returns
    */
   async verifyAccessToken(
     token: string,
@@ -160,10 +152,9 @@ export class AuthService {
 
   /**
    * @method logout
-   * @description Ends the session the refresh token belongs to and records the sign-out; when
-   *   Redis is available the token is blacklisted too.
-   * @param refreshToken - The session's refresh token
-   * @returns `ok` once the session is ended; otherwise `SESSION_NOT_FOUND` or `DATABASE_ERROR`
+   * @description Delegates to {@link AuthServiceSession.logout}, which states the contract.
+   * @param refreshToken - Passed through
+   * @returns What the delegate returns
    */
   async logout(
     refreshToken: string
@@ -173,9 +164,10 @@ export class AuthService {
 
   /**
    * @method revokeAllSessions
-   * @description Ends every active session of the administrator and records the revocation.
-   * @param userId - The administrator
-   * @returns How many sessions were ended; otherwise `DATABASE_ERROR`
+   * @description Delegates to {@link AuthServiceSession.revokeAllSessions}, which states the
+   *   contract.
+   * @param userId - Passed through
+   * @returns What the delegate returns
    */
   async revokeAllSessions(userId: string): Promise<Result<number, "DATABASE_ERROR">> {
     return this.session.revokeAllSessions(userId);
@@ -183,9 +175,10 @@ export class AuthService {
 
   /**
    * @method getUserSessions
-   * @description Lists the administrator's active, unexpired sessions, newest first.
-   * @param userId - The administrator
-   * @returns The sessions; otherwise `DATABASE_ERROR`
+   * @description Delegates to {@link AuthServiceSession.getUserSessions}, which states the
+   *   contract.
+   * @param userId - Passed through
+   * @returns What the delegate returns
    */
   async getUserSessions(userId: string): Promise<Result<AdminSession[], "DATABASE_ERROR">> {
     return this.session.getUserSessions(userId);

@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1215  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15303 |
+| Blocks                  | 15302 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -399,7 +399,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/fixtures/run-tests-gate/cleanExitNonZero.fixture.ts`                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/adminPasswordResetClaim.integration.test.ts`                              | integration-test | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/adminRefreshRotationClaim.integration.test.ts`                            | integration-test | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts`                          | integration-test | 7      | 0          | ADJUDICATE | machine                     | opaque               |
+| `apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts`                          | integration-test | 6      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/integration/aiLocalizedRoutes.live.test.ts`                                           | live-test        | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/analyticsPremiumRoutes.live.test.ts`                                      | live-test        | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/analyticsStreamRoutes.live.test.ts`                                       | live-test        | 3      | 0          | KEEP       | machine                     | behavioural          |

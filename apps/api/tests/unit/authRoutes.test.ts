@@ -82,13 +82,15 @@ const mfaService = new MfaService(
   new PrismaCustomerMfaUserRepository(mockPrisma.prisma as never),
   new InMemoryAuditLogRepository()
 );
+// Captured so a case can read the rows a sign-in writes.
+const auditLog = new InMemoryAuditLogRepository();
 const authService = new AuthService(
   mockPrisma.prisma,
   adminUserRepo,
   mfaService,
   roleRepo,
   sessionRepo,
-  new InMemoryAuditLogRepository()
+  auditLog
 );
 
 // Create test Fastify instance
@@ -229,7 +231,7 @@ describe("authRoutes Integration Tests", () => {
       expect(body.error).toBe("Account is inactive");
     });
 
-    it("answers 403 with its message, sets no cookie and opens no session for an administrator who must change the password", async () => {
+    it("answers 403 with its message, sets no cookie, opens no session and records only the refusal for an administrator who must change the password", async () => {
       const markedEmail = `must-change-${timestamp}@example.com`;
       const created = await authService.registerAdmin(
         markedEmail,
@@ -239,10 +241,12 @@ describe("authRoutes Integration Tests", () => {
       );
       if (!created.ok) throw new Error("the administrator must be registered");
       stores.adminUser.update(created.value.id, { mustChangePassword: true });
+      const auditRowsBefore = auditLog.rows.length;
 
       const response = await app.inject({
         method: "POST",
         url: "/auth/login",
+        headers: { "user-agent": "fixture-route-agent/1.0" },
         payload: { email: markedEmail, password: testPassword },
       });
 
@@ -252,6 +256,29 @@ describe("authRoutes Integration Tests", () => {
       expect(stores.adminSession.all().filter((s) => s.userId === created.value.id)).toEqual([]);
       const stored = stores.adminUser.all().find((u) => u.id === created.value.id);
       expect(stored?.lastLoginAt).toBeNull();
+      expect(auditLog.rows.slice(auditRowsBefore)).toEqual([
+        {
+          id: expect.any(String),
+          userId: created.value.id,
+          customerUserId: null,
+          actorType: "ADMIN",
+          accountId: null,
+          action: "USER_LOGIN",
+          resource: null,
+          resourceId: null,
+          details: {
+            email: markedEmail,
+            reason: "PASSWORD_CHANGE_REQUIRED",
+            category: "AUTHENTICATION",
+            severity: "HIGH",
+          },
+          ipAddress: "127.0.0.1",
+          userAgent: "fixture-route-agent/1.0",
+          success: true,
+          error: null,
+          createdAt: expect.any(Date),
+        },
+      ]);
     });
   });
 
