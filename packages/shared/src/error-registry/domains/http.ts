@@ -61,7 +61,8 @@ export const HTTP_ERRORS = defineErrors("http", {
   BODY_LENGTH_MISMATCH: {
     category: ERROR_CATEGORY.VALIDATION,
     status: 400,
-    message: "The request body's length differs from the one its Content-Length header declares",
+    message:
+      "The request body, as a hook's stream delivered it, is not the length its Content-Length header declares",
     params: {},
     fronts: [],
   },
@@ -72,10 +73,66 @@ export const HTTP_ERRORS = defineErrors("http", {
     params: {},
     fronts: [],
   },
-  REQUEST_NOT_PARSABLE: {
+  REQUEST_LINE_NOT_PARSABLE: {
     category: ERROR_CATEGORY.VALIDATION,
     status: 400,
-    message: "The request is not valid HTTP: its request line or its headers could not be read",
+    message:
+      "The request line could not be read: check its method, its target and its HTTP version",
+    params: {},
+    fronts: [],
+  },
+  REQUEST_HEADERS_NOT_PARSABLE: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "A request header could not be read: check each header's name and value, and that Content-Length is a number",
+    params: {},
+    fronts: [],
+  },
+  REQUEST_BODY_FRAMING_NOT_PARSABLE: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "The request body's framing could not be read: check its chunk sizes and extensions, and that the body is sent whole",
+    params: {},
+    fronts: [],
+  },
+  DATA_AFTER_REQUEST_UNEXPECTED: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "Data that is not a request follows a complete request: check the body's length against its Content-Length, and send nothing after a request that closes the connection",
+    params: {},
+    fronts: [],
+  },
+  TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "The request sends both Transfer-Encoding and Content-Length, which HTTP/1.1 refuses as a way to smuggle a request: send one of them",
+    params: {},
+    fronts: [],
+  },
+  REQUEST_BODY_ABORTED: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message: "The connection closed before the request body was received whole",
+    params: {},
+    fronts: [],
+  },
+  REQUEST_REFUSED: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message:
+      "The request was refused and the server holds no more specific code for the cause: the status says what was refused",
+    params: {},
+    fronts: [],
+  },
+  EXPECTATION_UNSUPPORTED: {
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 417,
+    message:
+      "The request's Expect header asks for something other than 100-continue, which the server does not support: send the request without it",
     params: {},
     fronts: [],
   },
@@ -87,7 +144,7 @@ export const HTTP_ERRORS = defineErrors("http", {
     fronts: [],
   },
   REQUEST_TIMEOUT: {
-    category: ERROR_CATEGORY.TOO_LARGE,
+    category: ERROR_CATEGORY.TIMEOUT,
     status: 408,
     message: "The request was not received in full within the time the server waits for one",
     params: {},

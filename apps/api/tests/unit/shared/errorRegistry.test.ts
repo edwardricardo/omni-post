@@ -102,12 +102,13 @@ describe("the error registry", () => {
   describe("its closed vocabularies", () => {
     it("allows each category exactly the statuses of the decision", () => {
       expect(CATEGORY_STATUSES).toEqual({
-        validation: [400, 415, 422],
+        validation: [400, 415, 417, 422],
         authentication: [401],
         permission: [403],
         not_found: [404],
         conflict: [409],
-        too_large: [408, 413, 414, 431],
+        too_large: [413, 414, 431],
+        timeout: [408],
         rate_limit: [429],
         not_implemented: [501],
         upstream: [502, 504],
@@ -364,6 +365,13 @@ describe("the error registry", () => {
       expect(titleOf("NOT_FOUND")).toBe("Not found");
       expect(titleOf("CONFLICT")).toBe("Conflict");
       expect(titleOf("OAUTH2_TOKEN_EXPIRED")).toBe("Oauth2 token expired");
+    });
+
+    it("spells an acronym of its table in capitals, first word or not", () => {
+      expect([titleOf("JSON_BODY_EMPTY"), titleOf("BODY_NOT_JSON")]).toEqual([
+        "JSON body empty",
+        "Body not JSON",
+      ]);
     });
   });
 

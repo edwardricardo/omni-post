@@ -2310,7 +2310,7 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # domain, domains/ holds nothing but such files, and ERROR_TABLES holds every domain file's table
 # once; R2 every key matches
 # `^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, is at most 63 characters and is its entry's code; R3 no code is
-# in two tables; R4 the category is one of the twelve and the status one of its statuses; R5 the
+# in two tables; R4 the category is one of the thirteen and the status one of its statuses; R5 the
 # message is one line that is not blank and holds a letter outside its placeholders, and its
 # `{name}` placeholders are exactly the declared parameters; R6 parameter names match
 # `^[a-z][A-Za-z0-9]*$`, kinds are string, number, boolean or string[], and `fronts` is a list

@@ -4,22 +4,22 @@
  *   failure into its problem, writes the line, reports a failure logged at error severity to
  *   Sentry, and sends the problem as `application/problem+json`: on the request's reply for every
  *   failure a request reaches, and straight to the socket, as a whole HTTP response, for a
- *   connection whose request could not be read, where the framework hands over no reply. A route
- *   answers a failure through it, the global error handler answers through it what is raised, and
- *   the server's `frameworkErrors` and `clientErrorHandler` options and its hook for a server that
- *   is closing answer through it what never reaches a route. A framework refusal whose cause no
- *   `http` code names, such as a plugin's 401 or 406, answers `INTERNAL_ERROR` at its status and
- *   logs at error severity, so the framework's own message does not reach the client.
+ *   connection whose parser failed, where Node hands over no reply. A route answers a failure
+ *   through it, the global error handler answers through it what is raised, and the server's
+ *   `frameworkErrors` and `clientErrorHandler` options and its hooks for a closing server and an
+ *   unsupported expectation answer through it what never reaches a route. A framework refusal whose
+ *   cause no `http` code names, such as a plugin's 401 or 406, answers `INTERNAL_ERROR` at its
+ *   status and logs at error severity, so the framework's own message does not reach the client.
  * @layer infrastructure
  */
 import { STATUS_CODES } from "node:http";
 import type { Socket } from "node:net";
 import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";
-import { AppError, isCodedError, type Problem } from "@shared/types";
+import { AppError, type Problem } from "@shared/types";
 import { captureError } from "../../observability/sentryInit.js";
 import { resolveClientIp } from "../../security/resolveClientIp.js";
 import { createCorrelationId } from "./correlationId.js";
-import { PROBLEM_MEDIA_TYPE, toProblem } from "./problem.js";
+import { PROBLEM_MEDIA_TYPE, carriedCode, toProblem } from "./problem.js";
 
 const LOG_MESSAGE = "Request failed";
 const LATE_LOG_MESSAGE = "Request failed after its answer was sent";
@@ -35,6 +35,8 @@ interface ErrorFields {
   readonly stack?: string;
   readonly isOperational?: boolean;
   readonly cause?: ErrorFields | ValueFields;
+  /** True when the error has a cause the line no longer follows. */
+  readonly causeOmitted?: true;
 }
 
 /** What the log line says of a raised value that is not an `Error`: its type, never its content. */
@@ -44,9 +46,10 @@ interface ValueFields {
 }
 
 /**
- * The request a failure answers, as its line and its report name it. A connection whose request
- * could not be read has none: its `method` and `url` are null, since no request line was read, and
- * the id generated for the answer is both its request id and its correlation id.
+ * The request a failure answers, as its line and its report name it. A connection whose parser
+ * failed with no request in flight has none: its `method` and `url` are null, since no request
+ * reached the server's handler, and the id generated for the answer is both its request id and its
+ * correlation id.
  */
 interface FailedRequest {
   readonly requestId: string;
@@ -58,27 +61,83 @@ interface FailedRequest {
 }
 
 /**
+ * The requests a connection's failure was answered for: their own later failure, the body stream's
+ * once the connection closes, already has its answer and its line.
+ */
+const answeredOnTheirConnection = new WeakSet<FastifyRequest>();
+
+/**
+ * Each request's client address, as `resolveClientIp` derived it when the request arrived: Node no
+ * longer gives a destroyed connection's peer address, so the line of a request whose client went
+ * away before its failure was logged still names it.
+ */
+const clientAddresses = new WeakMap<FastifyRequest, string>();
+
+/**
+ * @description Keeps a request's client address while its connection can still give it, for its
+ *   failure's line.
+ * @param request - The request, as it arrives.
+ */
+export function keepClientAddress(request: FastifyRequest): void {
+  clientAddresses.set(request, resolveClientIp(request));
+}
+
+/** The request a connection's failure belongs to, while the server is still answering it. */
+export interface RequestInFlight {
+  readonly request: FastifyRequest;
+  readonly reply: FastifyReply;
+}
+
+/**
  * The failure as the log line carries it, built from a list of fields and never the value itself:
  * a value's other fields can hold a secret (an `AppError`'s details, a provider's response, a Prisma
  * error's meta, the bytes a connection received), and pino's error serializer walks every
  * enumerable field and raises on a frozen one. `name`, `message` and `stack` tell what failed and
- * where; `code` is the code the value carries, a driver's or a library's as well as a registered
- * one; `isOperational` tells whether an `AppError` was an expected failure. An error's `cause` is
- * carried the same way, as its own projection in the same shape, for up to `MAX_CAUSES` causes: a
- * use case's failure names the infrastructure error under it, which is what an operator reads. A
- * value that is not an `Error` is carried as its type and its code.
+ * where; `code` is the code the value carries as `carriedCode` reads it, a driver's or a library's
+ * as well as a registered one; `isOperational` tells whether an `AppError` was an expected failure.
+ * An error's `cause` is carried the same way, as its own projection in the same shape, for up to
+ * `MAX_CAUSES` causes, and the last projection followed says so when the chain goes on: a use
+ * case's failure names the infrastructure error under it, which is what an operator reads. A value
+ * that is not an `Error` is carried as its type and its code.
  */
 function failureFields(error: unknown, causesLeft = MAX_CAUSES): ErrorFields | ValueFields {
-  const code = isCodedError(error) ? { code: error.code } : {};
-  if (!(error instanceof Error)) return { type: error === null ? "null" : typeof error, ...code };
+  const code = carriedCode(error);
+  const coded = code === undefined ? {} : { code };
+  if (!(error instanceof Error)) return { type: error === null ? "null" : typeof error, ...coded };
+  const hasCause = error.cause !== undefined;
   return {
     name: error.name,
     message: error.message,
-    ...code,
+    ...coded,
     ...(typeof error.stack === "string" && { stack: error.stack }),
     ...(error instanceof AppError && { isOperational: error.isOperational }),
-    ...(error.cause !== undefined &&
-      causesLeft > 0 && { cause: failureFields(error.cause, causesLeft - 1) }),
+    ...(hasCause && causesLeft > 0 && { cause: failureFields(error.cause, causesLeft - 1) }),
+    ...(hasCause && causesLeft === 0 && { causeOmitted: true as const }),
+  };
+}
+
+/** A request as its failure's line and report name it. */
+function failedRequestOf(request: FastifyRequest): FailedRequest {
+  return {
+    requestId: request.id,
+    correlationId: request.correlationId ?? request.id,
+    method: request.method,
+    url: request.url,
+    ip: clientAddresses.get(request) ?? resolveClientIp(request),
+  };
+}
+
+/** A connection with no request in flight, as its failure's line names it. */
+function connectionOf(socket: Socket): FailedRequest {
+  const id = createCorrelationId();
+  return {
+    requestId: id,
+    correlationId: id,
+    method: null,
+    url: null,
+    // A request read from this socket with no forwarding header would carry the peer as its `ip`;
+    // the resolver answers "unknown" when the socket has no peer address.
+    ip: resolveClientIp({ ip: socket.remoteAddress ?? "", socket }),
   };
 }
 
@@ -90,10 +149,15 @@ function answerFailure(
   error: unknown,
   failed: FailedRequest,
   logger: FastifyBaseLogger,
-  message: string
+  message: string,
+  bodyStreamError?: Error | null
 ) {
   const { requestId, correlationId, method, url, ip } = failed;
-  const answer = toProblem(error, { correlationId, now: new Date() });
+  const answer = toProblem(error, {
+    correlationId,
+    now: new Date(),
+    ...(bodyStreamError !== undefined && { bodyStreamError }),
+  });
   // The key is not pino's `err`, whose serializer would read the projection as an error again.
   const fields = {
     code: answer.loggedCode,
@@ -139,7 +203,12 @@ function httpResponseOf(problem: Problem, headers: Readonly<Record<string, strin
  *   ended, or that a handler hijacked, is left as it is, and the line says the failure came after
  *   the answer. That is what the framework's `reply.sent` reads: a `send` still in its `onSend`
  *   hooks is not seen, by this function or by the framework's own second `send`, and the problem
- *   then replaces that answer's status and content type.
+ *   then replaces that answer's status and content type. When the request's connection is already
+ *   destroyed nothing can be sent: the line says so and the reply is hijacked, so the framework
+ *   sends nothing either. A failure of the request's own body stream answers the code of its cause.
+ *   A request whose connection's failure was already answered for it writes no second line and
+ *   sends nothing: its reply is hijacked, and the framework, which reads a hijacked reply returned
+ *   to it as handled, does not send it either.
  * @param request - The request that failed; its correlation id, or its id when no hook set one,
  *   stamps the problem and the log line, and the line carries its client's address.
  * @param reply - The reply the problem is sent on.
@@ -153,19 +222,18 @@ export function sendProblem(
   error: unknown,
   logger: FastifyBaseLogger
 ): FastifyReply {
+  if (answeredOnTheirConnection.has(request)) return reply.hijack();
+  const gone = request.socket.destroyed;
+  const message = reply.sent ? LATE_LOG_MESSAGE : gone ? UNWRITABLE_LOG_MESSAGE : LOG_MESSAGE;
   const answer = answerFailure(
     error,
-    {
-      requestId: request.id,
-      correlationId: request.correlationId ?? request.id,
-      method: request.method,
-      url: request.url,
-      ip: resolveClientIp(request),
-    },
+    failedRequestOf(request),
     logger,
-    reply.sent ? LATE_LOG_MESSAGE : LOG_MESSAGE
+    message,
+    request.raw.errored
   );
   if (reply.sent) return reply;
+  if (gone) return reply.hijack();
   // A string under a JSON media type is sent as it is: no preSerialization hook and no response
   // schema the route declares for this status reads it, so a route's success shape never refuses
   // the problem.
@@ -177,35 +245,41 @@ export function sendProblem(
 }
 
 /**
- * @description Answers the failure of a connection whose request could not be read, where no reply
- *   exists: the same problem and the same line as `sendProblem`, stamped with an id generated for
- *   the answer, with null for the method and the url no request line gave, and the peer's address,
- *   the one address the connection has. As the framework's documentation of a client-error handler
- *   asks, the answer is written as a whole HTTP response only while the socket can still be
- *   written; when it cannot, the line says so. The connection is then closed once what was written
- *   has gone out.
- * @param socket - The connection whose request could not be read.
+ * @description Answers the failure of a connection whose parser failed, where no reply exists, as
+ *   Node's documentation of `clientError` asks: on the socket itself, as a whole HTTP response,
+ *   only while the socket can still be written, and with the connection closed. With no request
+ *   in flight, the answer is stamped with an id generated for it, null for the method and the url,
+ *   and the peer's address, the one address the connection has. With a request in flight, the
+ *   failure is that request's: it is answered once, under its own correlation id, method, url and
+ *   address, and `sendProblem` answers nothing more for it, so its body stream's failure once the
+ *   connection closes logs nothing again; the connection is closed, so its route's answer, if it
+ *   still comes, reaches no client. When that request's
+ *   answer has already started, no byte is written, since a second status line inside a response
+ *   would corrupt it: the line says the failure came after the answer and the connection is
+ *   destroyed at once, as Node's own handler does.
+ * @param socket - The connection whose parser failed.
  * @param error - The failure, a registered error whose cause is the connection's error.
  * @param logger - The logger the failure's one line is written to.
+ * @param inFlight - The request the connection is answering, when there is one.
  */
 export function sendProblemOnSocket(
   socket: Socket,
   error: unknown,
-  logger: FastifyBaseLogger
+  logger: FastifyBaseLogger,
+  inFlight: RequestInFlight | undefined
 ): void {
-  const id = createCorrelationId();
+  if (inFlight !== undefined) {
+    answeredOnTheirConnection.add(inFlight.request);
+    if (inFlight.reply.raw.headersSent) {
+      answerFailure(error, failedRequestOf(inFlight.request), logger, LATE_LOG_MESSAGE);
+      socket.destroy();
+      return;
+    }
+  }
   const writable = socket.writable;
   const { problem, headers } = answerFailure(
     error,
-    {
-      requestId: id,
-      correlationId: id,
-      method: null,
-      url: null,
-      // A request read from this socket with no forwarding header would carry the peer as its
-      // `ip`; the resolver answers "unknown" when the socket has no peer address.
-      ip: resolveClientIp({ ip: socket.remoteAddress ?? "", socket }),
-    },
+    inFlight === undefined ? connectionOf(socket) : failedRequestOf(inFlight.request),
     logger,
     writable ? LOG_MESSAGE : UNWRITABLE_LOG_MESSAGE
   );

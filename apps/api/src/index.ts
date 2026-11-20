@@ -59,12 +59,15 @@ import {
 } from "./security/httpRateLimitPreHandler.js";
 import type { RateLimiterPort } from "@ports/core";
 import {
-  answerClientError,
   answerFrameworkRefusal,
+  answerUnsupportedExpectations,
+  createClientErrorHandler,
   createErrorHandler,
   createNotFoundHandler,
   PROBLEM_OPENAPI_SCHEMA,
   refuseRequestsWhileClosing,
+  trackRequestsInFlight,
+  type RequestsInFlight,
 } from "./lib/errors/errorHandler.js";
 import { createCorrelationId } from "./lib/errors/correlationId.js";
 import { registerApiReference } from "./lib/apiReference.js";
@@ -205,11 +208,14 @@ import { autoCachePlugin } from "./middleware/autoCacheMiddleware.js";
 
 /**
  * @function createServer
- * @description Builds the API's Fastify instance with the options it runs with and the hooks that
- *   refuse a request once it closes, before any plugin or route is registered on it.
+ * @description Builds the API's Fastify instance with the options it runs with and the hooks of
+ *   its error path, which run before any other: the one that tells a connection's failure which
+ *   request it belongs to, and the ones that refuse a request once the server closes or when its
+ *   expectation is not met. Nothing else is registered on it yet.
  * @returns The instance `createApp` registers the plugins, hooks, handlers and routes on.
  */
 function createServer(): FastifyInstance {
+  const requestsInFlight: RequestsInFlight = new WeakMap();
   const server = Fastify({
     logger: true,
     // Every request's id, which its lines and its failure's body carry as its correlation id: a
@@ -234,14 +240,16 @@ function createServer(): FastifyInstance {
     // Without it Fastify writes its own body for the requests it refuses before routing, past
     // every hook and handler, so their answer and their log line would leave the one error path.
     frameworkErrors: answerFrameworkRefusal,
-    // Without it Fastify writes its own body to the socket of a connection whose request cannot be
-    // read (408, 431, 400) and logs it at trace only.
-    clientErrorHandler: answerClientError,
+    // Without it Fastify writes its own body to the socket of a connection whose parser fails
+    // (408, 431, 400) and logs it at trace only.
+    clientErrorHandler: createClientErrorHandler(requestsInFlight),
     // Fastify's own 503 for a request that reaches a closing server is written past every hook;
     // `refuseRequestsWhileClosing` answers it instead.
     return503OnClosing: false,
   });
+  trackRequestsInFlight(server, requestsInFlight);
   refuseRequestsWhileClosing(server);
+  answerUnsupportedExpectations(server);
   return server;
 }
 

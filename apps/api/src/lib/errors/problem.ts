@@ -6,7 +6,7 @@
  *   wire as `INTERNAL_ERROR` and keeps its own code for the log. The framework's refusals answer
  *   the `http` code of their own cause. A failure nobody registered keeps its status: an
  *   `AppError` its own status and code, and any other carrier of a failure status that status with
- *   `INTERNAL_ERROR`'s text. Every answer at 500 or above, and every answer the registry does not
+ *   `REQUEST_REFUSED`'s text below 500 and `INTERNAL_ERROR`'s at 500 or above. Every answer at 500 or above, and every answer the registry does not
  *   classify, is logged at error; a refusal of the client's request at warn. Pure: no logger, no
  *   clock, no request.
  * @layer infrastructure
@@ -80,6 +80,12 @@ type ProblemSeverity = "warn" | "error";
 export interface ProblemContext {
   readonly correlationId: string;
   readonly now: Date;
+  /**
+   * The error the request's own message stream was destroyed with, when it was: Fastify hands it on
+   * at 400 when it fails while the body is read, and only this identity tells it from another error
+   * of the same code. Absent where no request exists.
+   */
+  readonly bodyStreamError?: Error | null;
 }
 
 /** A failure's answer: what is sent, and what the one log line of it says. */
@@ -94,6 +100,7 @@ export interface ProblemAnswer {
 }
 
 const INTERNAL_ERROR: RegisteredDefinition = COMMON_ERRORS.INTERNAL_ERROR;
+const REQUEST_REFUSED: RegisteredDefinition = HTTP_ERRORS.REQUEST_REFUSED;
 const VALIDATION_FAILED: RegisteredDefinition = COMMON_ERRORS.VALIDATION_FAILED;
 const NO_HEADERS: Readonly<Record<string, string>> = Object.freeze({});
 
@@ -119,8 +126,10 @@ const SERVER_FAILURE_STATUS = 500;
  * `FST_ERR_CTP_INVALID_MEDIA_TYPE` is raised for a content type that does not parse and for one no
  * parser takes: one cause, a content type the route does not accept. The third error the router
  * hands to `frameworkErrors`, `FST_ERR_ASYNC_CONSTRAINT`, carries 500 and is no refusal of the
- * client's request. A refusal whose cause is not here answers as a carrier of its status, logged at
- * error, so a cause the registry does not name is seen rather than filed under another's code.
+ * client's request. Fastify also hands on, at 400 and under Node's code, any error the body's
+ * stream fails with: `BODY_STREAM_CAUSES` names those. A refusal whose cause is not named answers
+ * as a carrier of its status, `REQUEST_REFUSED` logged at error, so a cause the registry does not
+ * name is seen rather than filed under another's code.
  */
 const FRAMEWORK_CAUSES: ReadonlyMap<string, RegisteredDefinition> = new Map<
   string,
@@ -135,6 +144,19 @@ const FRAMEWORK_CAUSES: ReadonlyMap<string, RegisteredDefinition> = new Map<
   ["FST_ERR_CTP_INVALID_CONTENT_LENGTH", HTTP_ERRORS.BODY_LENGTH_MISMATCH],
   ["FST_ERR_ROUTE_MISSING_CONTENT_TYPE", HTTP_ERRORS.CONTENT_TYPE_MISSING],
 ]);
+
+/**
+ * The failures of the request's own body stream, by Node's code, which Fastify hands on with the
+ * status 400 (`fastify/lib/content-type-parser.js`, `rawBody`). With no `preParsing` hook in the
+ * API, that stream is the request's message, and the one error it is destroyed with is Node's
+ * `ConnResetException("aborted")` (`ECONNRESET`), raised when its connection closes before the
+ * message was received whole (`node:_http_server` `abortIncoming`): a client that cancels an upload
+ * or goes away while sending it.
+ */
+const BODY_STREAM_CAUSES: ReadonlyMap<string, RegisteredDefinition> = new Map<
+  string,
+  RegisteredDefinition
+>([["ECONNRESET", HTTP_ERRORS.REQUEST_BODY_ABORTED]]);
 
 /** The code of an issue whose validator names none. */
 const UNKNOWN_ISSUE_CODE = "unknown";
@@ -165,9 +187,18 @@ function isRequestPart(value: unknown): value is ProblemIssuePart {
   return Object.values(PROBLEM_ISSUE_PART).some((part) => part === value);
 }
 
-/** The code a value carries, which the log keeps whatever code reaches the wire. */
-function carriedCode(value: unknown): string | undefined {
-  return isCodedError(value) ? value.code : undefined;
+/**
+ * @description The code a value carries, which the log keeps whatever code reaches the wire: a
+ *   string code as it is, and a finite numeric one, as a driver's or a protocol's can be, as its
+ *   decimal string, so a code always reads as a string. A code of any other kind is none.
+ * @param value - Any value, a raised one included.
+ * @returns The code, or undefined when the value carries none.
+ */
+export function carriedCode(value: unknown): string | undefined {
+  if (isCodedError(value)) return value.code;
+  if (!isRecord(value)) return undefined;
+  const { code } = value;
+  return typeof code === "number" && Number.isFinite(code) ? String(code) : undefined;
 }
 
 function problemOf(fields: ProblemFields, context: ProblemContext): Problem {
@@ -222,12 +253,24 @@ function definitionProblem(definition: RegisteredDefinition, context: ProblemCon
   );
 }
 
-/** `INTERNAL_ERROR`'s problem at a status: the failure is told, its reason is not. */
-function internalProblem(status: number, context: ProblemContext): Problem {
+/**
+ * A definition's problem at a status other than its own: a carrier is answered at the status it
+ * carries, which the definition's category need not hold, worded by the definition.
+ */
+function carriedProblem(
+  definition: RegisteredDefinition,
+  status: number,
+  context: ProblemContext
+): Problem {
   return problemOf(
-    { code: INTERNAL_ERROR.code, status, detail: formatErrorMessage(INTERNAL_ERROR) },
+    { code: definition.code, status, detail: formatErrorMessage(definition) },
     context
   );
+}
+
+/** `INTERNAL_ERROR`'s problem at a status: the failure is told, its reason is not. */
+function internalProblem(status: number, context: ProblemContext): Problem {
+  return carriedProblem(INTERNAL_ERROR, status, context);
 }
 
 /** A registered code: its entry, or `INTERNAL_ERROR` on the wire for a server-side category. */
@@ -296,6 +339,18 @@ function validationAnswer(error: unknown, context: ProblemContext): ProblemAnswe
   );
 }
 
+/** The failure of the request's own body stream, by its identity: the `http` code of its cause. */
+function bodyStreamAnswer(error: unknown, context: ProblemContext): ProblemAnswer | undefined {
+  const { bodyStreamError } = context;
+  if (bodyStreamError === undefined || bodyStreamError === null || error !== bodyStreamError) {
+    return undefined;
+  }
+  const code = carriedCode(error);
+  const definition = code === undefined ? undefined : BODY_STREAM_CAUSES.get(code);
+  if (code === undefined || definition === undefined) return undefined;
+  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, true);
+}
+
 /** A request the framework itself refused: the `http` code of its cause. */
 function frameworkAnswer(error: unknown, context: ProblemContext): ProblemAnswer | undefined {
   const code = carriedCode(error);
@@ -330,22 +385,30 @@ function appErrorAnswer(error: unknown, context: ProblemContext): ProblemAnswer 
   );
 }
 
-/** Any other value that carries a failure status keeps it, and tells nothing else. */
+/**
+ * Any other value that carries a failure status keeps it, and tells nothing else of its cause:
+ * below 500, a refusal of the client's request the table has no row for, answered
+ * `REQUEST_REFUSED`; at 500 or above, `INTERNAL_ERROR`. Either is logged at error and reported,
+ * since a carrier is a gap of the table: its line names the code, the name and the message it
+ * carries, which is what a row for it is written from.
+ */
 function statusCarrierAnswer(error: unknown, context: ProblemContext): ProblemAnswer | undefined {
   if (!isRecord(error)) return undefined;
   const { statusCode } = error;
   if (!isStatusBetween(statusCode, 400, 599)) return undefined;
+  const definition = statusCode < SERVER_FAILURE_STATUS ? REQUEST_REFUSED : INTERNAL_ERROR;
   return answerOf(
-    internalProblem(statusCode, context),
+    carriedProblem(definition, statusCode, context),
     PROBLEM_SOURCE.STATUS_CARRIER,
-    carriedCode(error) ?? INTERNAL_ERROR.code,
+    carriedCode(error) ?? definition.code,
     false
   );
 }
 
 /**
  * @description Turns any failure into the API's one error body, by the first step that reads it:
- *   a registered code, a request the route's schema refused, a refusal of the framework, a legacy
+ *   a registered code, a request the route's schema refused, the failure of the request's own body
+ *   stream, a refusal of the framework, a legacy
  *   `AppError`, a carrier of a failure status, and anything else as `INTERNAL_ERROR`.
  * @param error - Any value, a raised one included.
  * @param context - The correlation id and the moment the problem is stamped with.
@@ -355,6 +418,7 @@ export function toProblem(error: unknown, context: ProblemContext): ProblemAnswe
   return (
     registeredAnswer(error, context) ??
     validationAnswer(error, context) ??
+    bodyStreamAnswer(error, context) ??
     frameworkAnswer(error, context) ??
     appErrorAnswer(error, context) ??
     statusCarrierAnswer(error, context) ??

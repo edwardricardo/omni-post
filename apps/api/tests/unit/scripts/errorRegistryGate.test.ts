@@ -627,20 +627,20 @@ describe("R3: a code is in one table", () => {
   });
 });
 
-describe("R4: a category of the twelve and one of its statuses", () => {
-  it("refuses a category that is none of the twelve", async () => {
+describe("R4: a category of the thirteen and one of its statuses", () => {
+  it("refuses a category that is none of the thirteen", async () => {
     const outcome = await failure({
       domains: [commonWith("NOT_FOUND", { category: "teapot" }), AUTH],
     });
 
     expect(outcome).toEqual({
       exitCode: 1,
-      stderr: lines(`NOT_FOUND: has category "teapot", which is none of the twelve (R4)`),
+      stderr: lines(`NOT_FOUND: has category "teapot", which is none of the thirteen (R4)`),
     });
   });
 
   it.each([
-    ["validation", 409, "400, 415 or 422"],
+    ["validation", 409, "400, 415, 417 or 422"],
     ["conflict", 400, "409"],
     ["upstream", 503, "502 or 504"],
     ["internal", 503, "500"],
@@ -656,19 +656,20 @@ describe("R4: a category of the twelve and one of its statuses", () => {
     });
   });
 
-  it("accepts every status of every one of the twelve categories", async () => {
+  it("accepts every status of every one of the thirteen categories", async () => {
     const pairs: [string, number][] = [
       ["validation", 400],
       ["validation", 415],
+      ["validation", 417],
       ["validation", 422],
       ["authentication", 401],
       ["permission", 403],
       ["not_found", 404],
       ["conflict", 409],
-      ["too_large", 408],
       ["too_large", 413],
       ["too_large", 414],
       ["too_large", 431],
+      ["timeout", 408],
       ["rate_limit", 429],
       ["not_implemented", 501],
       ["upstream", 502],
@@ -688,7 +689,7 @@ describe("R4: a category of the twelve and one of its statuses", () => {
     const outcome = await scan();
 
     expect(outcome.stderr).toEqual([]);
-    expect(outcome.stdout).toEqual(passing("21 codes in 3 domains"));
+    expect(outcome.stdout).toEqual(passing("22 codes in 3 domains"));
   });
 });
 

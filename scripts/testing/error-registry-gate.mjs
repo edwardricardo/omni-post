@@ -31,7 +31,7 @@
  *   holds nothing but such files; every table of `ERROR_TABLES` is one domain file's table, and every
  *   domain file's table is in `ERROR_TABLES` once. R2: every key matches
  *   `^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, is at most 63 characters, and is its entry's `code`. R3: no code
- *   is in two tables. R4: `category` is one of the twelve and `status` one of its statuses. R5:
+ *   is in two tables. R4: `category` is one of the thirteen and `status` one of its statuses. R5:
  *   `message` is a string of one line that is not blank; its `{name}` placeholders are exactly the
  *   declared parameters; it holds a letter outside its placeholders. R6: parameter names match
  *   `^[a-z][A-Za-z0-9]*$` and kinds are `string`, `number`, `boolean` or `string[]`; `fronts` is a
@@ -53,7 +53,7 @@
  *   registry directory, in code, a string or a comment; a test file is outside the scope, so a suite
  *   that builds a table to prove the kernel is no finding. R11: every name ending in `_ERRORS` that
  *   an `of` call reads as its first argument, through parentheses and casts, is the export name of a
- *   table of `ERROR_TABLES`. The gate holds its own copy of the code grammar, the twelve categories
+ *   table of `ERROR_TABLES`. The gate holds its own copy of the code grammar, the thirteen categories
  *   and their statuses: it is the check of the registry's rules, so a registry that loosened them
  *   would loosen nothing here.
  *
@@ -156,15 +156,16 @@ const CODE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
 const CODE_MAX_LENGTH = 63;
 const PARAMETER_NAME = /^[a-z][A-Za-z0-9]*$/;
 const PARAMETER_KINDS = ["string", "number", "boolean", "string[]"];
-/** The twelve categories and the statuses each takes. */
+/** The thirteen categories and the statuses each takes. */
 const CATEGORY_STATUSES = new Map(
   Object.entries({
-    validation: [400, 415, 422],
+    validation: [400, 415, 417, 422],
     authentication: [401],
     permission: [403],
     not_found: [404],
     conflict: [409],
-    too_large: [408, 413, 414, 431],
+    too_large: [413, 414, 431],
+    timeout: [408],
     rate_limit: [429],
     not_implemented: [501],
     upstream: [502, 504],
@@ -888,7 +889,7 @@ function judgeEntries(domain, table, portals, findings) {
 }
 
 /**
- * @description R4: a category of the twelve and one of its statuses.
+ * @description R4: a category of the thirteen and one of its statuses.
  * @param {string} code The entry's code.
  * @param {Record<string, unknown>} definition The entry.
  * @param {string[]} r4 Where R4's findings go.
@@ -898,7 +899,7 @@ function judgeStatus(code, definition, r4) {
   const { category, status } = definition;
   const statuses = typeof category === "string" ? CATEGORY_STATUSES.get(category) : undefined;
   if (statuses === undefined) {
-    r4.push(`${code}: has category ${shown(category)}, which is none of the twelve (R4)`);
+    r4.push(`${code}: has category ${shown(category)}, which is none of the thirteen (R4)`);
   } else if (typeof status !== "number" || !statuses.includes(status)) {
     r4.push(
       `${code}: has status ${shown(status)}; category ${JSON.stringify(category)} takes ` +

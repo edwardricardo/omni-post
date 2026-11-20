@@ -114,6 +114,9 @@ describe("sendProblem on the real pino logger", () => {
       // A driver can reject with a plain object that carries a code.
       throw new Error("The query failed", { cause: { code: "ECONNREFUSED", detail: RAISED_TEXT } });
     });
+    app.get("/numeric-code", async () => {
+      throw Object.assign(new Error("unavailable"), { code: 14 });
+    });
     app.get("/caused/in-a-circle", async () => {
       const first = new Error("first");
       first.cause = new Error("second", { cause: first });
@@ -305,5 +308,34 @@ describe("sendProblem on the real pino logger", () => {
 
     expect(response.statusCode).toBe(500);
     expect(messages).toEqual(["first", "second", "first", "second", "first", "second"]);
+  });
+
+  it("marks the last cause it follows when the chain goes on past it", async () => {
+    await app.inject({ method: "GET", url: "/caused/in-a-circle" });
+    const [line] = failureLines();
+    let last: Record<string, unknown> = {};
+    for (
+      let failure = line?.["error"];
+      typeof failure === "object" && failure !== null;
+      failure = (failure as Record<string, unknown>)["cause"]
+    ) {
+      last = failure as Record<string, unknown>;
+    }
+
+    expect(last).toEqual(projectionOf("Error", "second", { causeOmitted: true }));
+  });
+
+  it("logs a numeric code as its decimal string, in the line and in the failure's projection", async () => {
+    const response = await app.inject({ method: "GET", url: "/numeric-code" });
+
+    expect(response.statusCode).toBe(500);
+    expect(failureLines()).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        code: "14",
+        wireCode: "INTERNAL_ERROR",
+        error: projectionOf("Error", "unavailable", { code: "14" }),
+      }),
+    ]);
   });
 });

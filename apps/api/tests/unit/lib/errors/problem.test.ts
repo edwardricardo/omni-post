@@ -61,6 +61,20 @@ const INTERNAL_TEXT = "The server could not complete the request";
 /** The text a thrown plain object carries, which must reach no body. */
 const LOCKED_TEXT = "draft 42 of tenant acme is locked by user 7";
 
+/** `REQUEST_REFUSED`'s problem at a status, as an unnamed refusal below 500 sends it. */
+function refusedProblem(status: number) {
+  return {
+    type: "https://omnipost.app/problems/REQUEST_REFUSED",
+    title: "Request refused",
+    status,
+    detail:
+      "The request was refused and the server holds no more specific code for the cause: the status says what was refused",
+    code: "REQUEST_REFUSED",
+    correlationId: "corr-0001",
+    timestamp: "2026-11-20T08:00:00.000Z",
+  };
+}
+
 /** `INTERNAL_ERROR`'s problem at a status, as every collapsed answer sends it. */
 function internalProblem(status: number) {
   return {
@@ -410,13 +424,51 @@ describe("toProblem", () => {
       ]);
     });
 
+    it("answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code at warn", () => {
+      const aborted = Object.assign(new Error("aborted"), { code: "ECONNRESET", statusCode: 400 });
+
+      const answer = toProblem(aborted, { ...CONTEXT, bodyStreamError: aborted });
+
+      expect(answer).toEqual({
+        problem: {
+          type: "https://omnipost.app/problems/REQUEST_BODY_ABORTED",
+          title: "Request body aborted",
+          status: 400,
+          detail: "The connection closed before the request body was received whole",
+          code: "REQUEST_BODY_ABORTED",
+          correlationId: "corr-0001",
+          timestamp: "2026-11-20T08:00:00.000Z",
+        },
+        headers: {},
+        source: "framework",
+        loggedCode: "ECONNRESET",
+        severity: "warn",
+      });
+    });
+
+    it("does not read an error of the same code that is not the request's own body stream's as its abort", () => {
+      const upstream = Object.assign(new Error("socket hang up"), {
+        code: "ECONNRESET",
+        statusCode: 400,
+      });
+
+      const answer = toProblem(upstream, { ...CONTEXT, bodyStreamError: null });
+
+      expect([answer.problem, answer.source, answer.loggedCode, answer.severity]).toEqual([
+        refusedProblem(400),
+        "status-carrier",
+        "ECONNRESET",
+        "error",
+      ]);
+    });
+
     it("answers a refusal of the framework whose cause no http code names as a carrier of its status, logged at error", () => {
       // Fastify raises it only when the router matched not even the not-found handler's catch-all
       // route, which it reports as a defect of its own.
       const answer = toProblem(new errorCodes.FST_ERR_NOT_FOUND(), CONTEXT);
 
       expect(answer).toEqual({
-        problem: internalProblem(404),
+        problem: refusedProblem(404),
         headers: {},
         source: "status-carrier",
         loggedCode: "FST_ERR_NOT_FOUND",
@@ -424,7 +476,7 @@ describe("toProblem", () => {
       });
     });
 
-    it("keeps the status of a refusal no http code holds, with INTERNAL_ERROR's text", () => {
+    it("answers a refusal no http code holds with REQUEST_REFUSED at its status, logged at error", () => {
       // Every status of Fastify's own refusals has an http code, so the refusal is a plugin's, raised
       // with the framework's code prefix and a status of its own.
       const pluginRefusal = Object.assign(new Error("No Authorization was found in the headers"), {
@@ -435,7 +487,7 @@ describe("toProblem", () => {
       const answer = toProblem(pluginRefusal, CONTEXT);
 
       expect(answer).toEqual({
-        problem: internalProblem(401),
+        problem: refusedProblem(401),
         headers: {},
         source: "status-carrier",
         loggedCode: "FST_JWT_NO_AUTHORIZATION_IN_HEADER",
@@ -443,11 +495,11 @@ describe("toProblem", () => {
       });
     });
 
-    it("keeps the failure status a thrown plain object carries, and never sends its text", async () => {
+    it("keeps the failure status a thrown plain object carries, refused below 500 and internal above, and never sends its text", async () => {
       const carried = await answerTo({ method: "GET", url: "/locked/409" });
       const outOfRange = await answerTo({ method: "GET", url: "/locked/302" });
 
-      expect([carried.status, carried.answer.problem]).toEqual([409, internalProblem(409)]);
+      expect([carried.status, carried.answer.problem]).toEqual([409, refusedProblem(409)]);
       expect(carried.answer.source).toBe("status-carrier");
       expect([outOfRange.status, outOfRange.answer.problem]).toEqual([500, internalProblem(500)]);
       expect(JSON.stringify([carried.answer, outOfRange.answer])).not.toContain(LOCKED_TEXT);
@@ -477,7 +529,7 @@ describe("toProblem", () => {
       const answer = toProblem(error, CONTEXT);
 
       expect([answer.problem, answer.source, answer.severity]).toEqual([
-        internalProblem(400),
+        refusedProblem(400),
         "status-carrier",
         "error",
       ]);
@@ -532,7 +584,7 @@ describe("toProblem", () => {
   });
 
   describe("any other failure", () => {
-    it("keeps the failure status a value carries, with INTERNAL_ERROR's code and text, and logs its code", () => {
+    it("keeps the failure status a value carries, REQUEST_REFUSED below 500 and INTERNAL_ERROR at 500 or above, and logs its code", () => {
       const providerError = ProviderError.badRequest("youtube", "quota of project 123 exhausted");
       const carrier = Object.assign(new Error("upstream down"), { statusCode: 503 });
       const serialization = new ResponseSerializationError("GET", "/drafts", {
@@ -544,7 +596,7 @@ describe("toProblem", () => {
       );
 
       expect(answers.map(({ problem }) => problem)).toEqual([
-        internalProblem(400),
+        refusedProblem(400),
         internalProblem(503),
         internalProblem(500),
       ]);
@@ -554,6 +606,57 @@ describe("toProblem", () => {
         ["status-carrier", "BAD_REQUEST", "error"],
         ["status-carrier", "INTERNAL_ERROR", "error"],
         ["status-carrier", "FST_ERR_RESPONSE_SERIALIZATION", "error"],
+      ]);
+    });
+
+    it("logs a numeric code a value carries as its decimal string, and no code of another kind", () => {
+      const answers = [
+        Object.assign(new Error("unavailable"), { code: 14 }),
+        Object.assign(new Error("odd"), { code: { reason: "x" } }),
+        Object.assign(new Error("odd"), { code: Number.NaN }),
+      ].map((error) => toProblem(error, CONTEXT));
+
+      expect(answers.map(({ loggedCode, source }) => `${loggedCode} ${source}`)).toEqual([
+        "14 unregistered",
+        "INTERNAL_ERROR unregistered",
+        "INTERNAL_ERROR unregistered",
+      ]);
+    });
+
+    it("answers a plugin's refusal and a thrown value with a 4xx status and no row with REQUEST_REFUSED at that status, at error", () => {
+      const refusals = [
+        Object.assign(new Error("Not Acceptable"), {
+          code: "FST_SOMETHING_UNNAMED",
+          statusCode: 406,
+        }),
+        { statusCode: 429, code: "RATE" },
+        { statusCode: 418 },
+      ];
+
+      const answers = refusals.map((value) => toProblem(value, CONTEXT));
+
+      expect(answers).toEqual([
+        {
+          problem: refusedProblem(406),
+          headers: {},
+          source: "status-carrier",
+          loggedCode: "FST_SOMETHING_UNNAMED",
+          severity: "error",
+        },
+        {
+          problem: refusedProblem(429),
+          headers: {},
+          source: "status-carrier",
+          loggedCode: "RATE",
+          severity: "error",
+        },
+        {
+          problem: refusedProblem(418),
+          headers: {},
+          source: "status-carrier",
+          loggedCode: "REQUEST_REFUSED",
+          severity: "error",
+        },
       ]);
     });
 
@@ -615,7 +718,7 @@ describe("toProblem", () => {
   });
 
   describe("the http domain", () => {
-    it("holds the thirteen failures the HTTP boundary raises itself, one per cause, for operators only", () => {
+    it("holds the twenty failures the HTTP boundary raises itself, one per cause, for operators only", () => {
       const definitions = Object.values(HTTP_ERRORS);
 
       expect(
@@ -631,11 +734,18 @@ describe("toProblem", () => {
         "ROUTE_PARAMETER_TOO_LONG http too_large 414: A parameter of the request's path is longer than the router accepts",
         "JSON_BODY_EMPTY http validation 400: The request declares a JSON body and sends an empty one",
         "JSON_BODY_NOT_PARSABLE http validation 400: The request body is not valid JSON",
-        "BODY_LENGTH_MISMATCH http validation 400: The request body's length differs from the one its Content-Length header declares",
+        "BODY_LENGTH_MISMATCH http validation 400: The request body, as a hook's stream delivered it, is not the length its Content-Length header declares",
         "CONTENT_TYPE_MISSING http validation 400: A request of this method must declare the content type of its body",
-        "REQUEST_NOT_PARSABLE http validation 400: The request is not valid HTTP: its request line or its headers could not be read",
+        "REQUEST_LINE_NOT_PARSABLE http validation 400: The request line could not be read: check its method, its target and its HTTP version",
+        "REQUEST_HEADERS_NOT_PARSABLE http validation 400: A request header could not be read: check each header's name and value, and that Content-Length is a number",
+        "REQUEST_BODY_FRAMING_NOT_PARSABLE http validation 400: The request body's framing could not be read: check its chunk sizes and extensions, and that the body is sent whole",
+        "DATA_AFTER_REQUEST_UNEXPECTED http validation 400: Data that is not a request follows a complete request: check the body's length against its Content-Length, and send nothing after a request that closes the connection",
+        "TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH http validation 400: The request sends both Transfer-Encoding and Content-Length, which HTTP/1.1 refuses as a way to smuggle a request: send one of them",
+        "REQUEST_BODY_ABORTED http validation 400: The connection closed before the request body was received whole",
+        "REQUEST_REFUSED http validation 400: The request was refused and the server holds no more specific code for the cause: the status says what was refused",
+        "EXPECTATION_UNSUPPORTED http validation 417: The request's Expect header asks for something other than 100-continue, which the server does not support: send the request without it",
         "REQUEST_HEADERS_TOO_LARGE http too_large 431: The request's headers are larger than the server accepts",
-        "REQUEST_TIMEOUT http too_large 408: The request was not received in full within the time the server waits for one",
+        "REQUEST_TIMEOUT http timeout 408: The request was not received in full within the time the server waits for one",
         "SERVER_CLOSING http unavailable 503: The server is shutting down and takes no new request: send it again on a new connection",
       ]);
       expect(definitions.map(({ params, fronts }) => [params, fronts])).toEqual(

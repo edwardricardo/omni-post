@@ -1,6 +1,6 @@
 /**
  * @file definition.ts
- * @description What an error definition is: the twelve categories and the statuses each allows, the
+ * @description What an error definition is: the thirteen categories and the statuses each allows, the
  *   four kinds of a parameter, the portals a code can reach, the grammar of a code, the definition
  *   with the mark only this module gives, `defineErrors`, which builds a domain's table, and the two
  *   functions that word a definition: its message with one occurrence's parameters, and its code as
@@ -16,6 +16,7 @@ export const ERROR_CATEGORY = {
   NOT_FOUND: "not_found",
   CONFLICT: "conflict",
   TOO_LARGE: "too_large",
+  TIMEOUT: "timeout",
   RATE_LIMIT: "rate_limit",
   NOT_IMPLEMENTED: "not_implemented",
   UPSTREAM: "upstream",
@@ -27,12 +28,13 @@ export type ErrorCategory = (typeof ERROR_CATEGORY)[keyof typeof ERROR_CATEGORY]
 
 /** The statuses each category allows: an entry's status is one of its category's. */
 export const CATEGORY_STATUSES = {
-  validation: [400, 415, 422],
+  validation: [400, 415, 417, 422],
   authentication: [401],
   permission: [403],
   not_found: [404],
   conflict: [409],
-  too_large: [408, 413, 414, 431],
+  too_large: [413, 414, 431],
+  timeout: [408],
   rate_limit: [429],
   not_implemented: [501],
   upstream: [502, 504],
@@ -164,13 +166,20 @@ export function formatErrorMessage(definition: ErrorDefinition, params?: ErrorPa
   });
 }
 
+/** The words of a code that a title spells in capitals, as acronyms are written. */
+const ACRONYMS: ReadonlySet<string> = new Set(["JSON"]);
+
 /**
  * @description Writes a code in words, the same for every occurrence of it:
- *   `ADMINISTRATOR_ALREADY_EXISTS` is "Administrator already exists".
+ *   `ADMINISTRATOR_ALREADY_EXISTS` is "Administrator already exists", and an acronym of the table
+ *   keeps its capitals, `JSON_BODY_EMPTY` being "JSON body empty".
  * @param code - A registered code.
  * @returns The code in sentence case, its underscores as spaces.
  */
 export function titleOf(code: string): string {
-  const words = code.toLowerCase().replaceAll("_", " ");
+  const words = code
+    .split("_")
+    .map((word) => (ACRONYMS.has(word) ? word : word.toLowerCase()))
+    .join(" ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

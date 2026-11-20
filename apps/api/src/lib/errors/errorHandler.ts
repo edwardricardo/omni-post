@@ -3,12 +3,14 @@
  * @description How Fastify answers with the API's one error body: the global error handler for
  *   what is raised, the not-found handler for a path no route matches, the server's
  *   `frameworkErrors` option for a request the framework refuses before it routes it, its
- *   `clientErrorHandler` option for a connection whose request cannot be read, and the hooks that
- *   refuse a request reaching a server that is closing, all through `sendProblem` or its socket
- *   twin, and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and
+ *   `clientErrorHandler` option for a connection whose parser fails, with the hooks that tell it
+ *   which request the connection is answering, the hooks that refuse a request reaching a server
+ *   that is closing and one whose expectation the server does not meet, all through
+ *   `sendProblem` or its socket twin, and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and
  *   Zod converters to an `AppError`, which only their suites call.
  * @layer infrastructure
  */
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
 import type {
@@ -23,7 +25,12 @@ import { z } from "zod";
 import { HTTP_ERRORS, RegisteredError } from "@shared/types";
 import { AppError, ErrorCode, isOperationalError } from "./AppError.js";
 import { problemSchema } from "./problem.js";
-import { sendProblem, sendProblemOnSocket } from "./sendProblem.js";
+import {
+  keepClientAddress,
+  sendProblem,
+  sendProblemOnSocket,
+  type RequestInFlight,
+} from "./sendProblem.js";
 import {
   violatedConstraint,
   type ViolatedConstraint,
@@ -115,42 +122,212 @@ export function answerFrameworkRefusal(
   sendProblem(request, reply, error, request.server.log);
 }
 
-/** A connection's failure as a registered error, by Node's code, the connection's error its cause. */
-function connectionFailure(error: ConnectionError): RegisteredError {
-  switch (error.code) {
-    case "ERR_HTTP_REQUEST_TIMEOUT":
-      return RegisteredError.of(HTTP_ERRORS.REQUEST_TIMEOUT, { cause: error });
-    case "HPE_HEADER_OVERFLOW":
-      return RegisteredError.of(HTTP_ERRORS.REQUEST_HEADERS_TOO_LARGE, { cause: error });
-    default:
-      return RegisteredError.of(HTTP_ERRORS.REQUEST_NOT_PARSABLE, { cause: error });
+/** The part of a message a connection's error finds wrong, which names its code. */
+const MESSAGE_PART = {
+  REQUEST_LINE: "request-line",
+  HEADERS: "headers",
+  BODY_FRAMING: "body-framing",
+  AFTER_MESSAGE: "after-message",
+} as const;
+type MessagePart = (typeof MESSAGE_PART)[keyof typeof MESSAGE_PART];
+
+/**
+ * The part of the message each code of Node's HTTP parser finds wrong, for a connection with no
+ * request in flight. The codes are llhttp's `llhttp_errno` names as Node 26.13.1 vendors them
+ * (`deps/llhttp/include/llhttp.h`), which Node hands to `clientError` as `error.code`
+ * (`src/node_http_parser.cc`), and Node's own `HPE_CHUNK_EXTENSIONS_OVERFLOW`. llhttp raises
+ * `HPE_STRICT` and `HPE_CR_EXPECTED` in the request line, the headers and the body's framing alike,
+ * so with no request in flight they name the headers, and `HPE_STRICT`'s reason after the version
+ * names the request line; with a request in flight, the position decides (`connectionFailure`).
+ * `HPE_INVALID_EOF_STATE`, an end of data in the wrong state, names the body's framing. Not here,
+ * since no request makes Node raise them: `HPE_INVALID_STATUS` and the response line's reasons (a
+ * response parser's), `HPE_INTERNAL`, the `HPE_CB_*` callback errors and `HPE_PAUSED` (Node's
+ * callbacks raise none of them), and `HPE_JS_EXCEPTION` and `HPE_REENTRANT_EXECUTE`, which Node
+ * raises for its own faults, not the client's.
+ */
+const MESSAGE_PART_OF_PARSER_CODE: ReadonlyMap<string, MessagePart> = new Map<string, MessagePart>([
+  ["HPE_INVALID_METHOD", MESSAGE_PART.REQUEST_LINE],
+  ["HPE_INVALID_URL", MESSAGE_PART.REQUEST_LINE],
+  ["HPE_INVALID_VERSION", MESSAGE_PART.REQUEST_LINE],
+  ["HPE_INVALID_CONSTANT", MESSAGE_PART.REQUEST_LINE],
+  ["HPE_UNEXPECTED_SPACE", MESSAGE_PART.REQUEST_LINE],
+  ["HPE_PAUSED_H2_UPGRADE", MESSAGE_PART.REQUEST_LINE],
+  ["HPE_INVALID_HEADER_TOKEN", MESSAGE_PART.HEADERS],
+  ["HPE_LF_EXPECTED", MESSAGE_PART.HEADERS],
+  ["HPE_CR_EXPECTED", MESSAGE_PART.HEADERS],
+  ["HPE_STRICT", MESSAGE_PART.HEADERS],
+  ["HPE_UNEXPECTED_CONTENT_LENGTH", MESSAGE_PART.HEADERS],
+  ["HPE_INVALID_CONTENT_LENGTH", MESSAGE_PART.HEADERS],
+  ["HPE_INVALID_TRANSFER_ENCODING", MESSAGE_PART.HEADERS],
+  ["HPE_INVALID_CHUNK_SIZE", MESSAGE_PART.BODY_FRAMING],
+  ["HPE_CHUNK_EXTENSIONS_OVERFLOW", MESSAGE_PART.BODY_FRAMING],
+  ["HPE_INVALID_EOF_STATE", MESSAGE_PART.BODY_FRAMING],
+  ["HPE_CLOSED_CONNECTION", MESSAGE_PART.AFTER_MESSAGE],
+]);
+
+/** llhttp's reasons, as Node sets `error.reason`, that name the request line under another code. */
+const REQUEST_LINE_REASONS: ReadonlySet<string> = new Set(["Expected CRLF after version"]);
+
+/**
+ * llhttp's reasons for a request that declares both Transfer-Encoding and Content-Length, the shape
+ * of a request-smuggling attempt, which it raises under the code of whichever header it reads
+ * second.
+ */
+const LENGTH_CONFLICT_REASONS: ReadonlySet<string> = new Set([
+  "Content-Length can't be present with Transfer-Encoding",
+  "Transfer-Encoding can't be present with Content-Length",
+]);
+
+/** llhttp's reason for a parser error, which Node sets beside its code. */
+function reasonOf(error: ConnectionError): string | undefined {
+  return "reason" in error && typeof error.reason === "string" ? error.reason : undefined;
+}
+
+/** The part of the message a connection's error finds wrong, or none the table names. */
+function messagePartOf(
+  error: ConnectionError,
+  requestInFlight: IncomingMessage | undefined
+): MessagePart | undefined {
+  if (requestInFlight !== undefined) {
+    return requestInFlight.complete ? MESSAGE_PART.AFTER_MESSAGE : MESSAGE_PART.BODY_FRAMING;
   }
+  const reason = reasonOf(error);
+  if (reason !== undefined && REQUEST_LINE_REASONS.has(reason)) return MESSAGE_PART.REQUEST_LINE;
+  return MESSAGE_PART_OF_PARSER_CODE.get(error.code);
 }
 
 /**
- * @function answerClientError
- * @description The server's `clientErrorHandler` option: a connection whose request Node's HTTP
- *   server cannot finish is answered through `sendProblemOnSocket`, on the server's logger, the
- *   instance Fastify binds the option to. Node hands it the connection's error and its socket, and
- *   no request: a client too slow to send its request within the server's `requestTimeout`
- *   (`ERR_HTTP_REQUEST_TIMEOUT`) answers `REQUEST_TIMEOUT` at 408, headers over Node's limit
- *   (`HPE_HEADER_OVERFLOW`) answer `REQUEST_HEADERS_TOO_LARGE` at 431, and any other error of the
- *   connection, a request line or a header the parser refuses among them, answers
- *   `REQUEST_NOT_PARSABLE` at 400, as Node and the framework answer it; the line names Node's
- *   code as its cause's. A connection the client reset (`ECONNRESET`), or one already destroyed,
- *   is left as it is, as the framework's own handler leaves it: nothing can be written to it, and
- *   no request of it was read. No hook of the application runs for these answers, so they carry
- *   no security header and count against no rate limit and no metric.
+ * @description A connection's failure as the failure the line and the answer name, Node's error its
+ *   cause. The request timeout and headers over Node's limit keep their own codes. A request that
+ *   declares both Transfer-Encoding and Content-Length is a smuggling attempt, named on its own.
+ *   Otherwise the code names the part of the message that is wrong: with a request in flight, its
+ *   position, the body's framing while its message is incomplete and data after it once complete;
+ *   with none, Node's parser code. A code the table does not name, with no request in flight, is
+ *   handed on as Node's error with the status 400 every parser error answers, so it answers as an
+ *   unnamed refusal of the client's request under Node's own code.
  * @param error - The connection's error, as Node emits it with `clientError`.
- * @param socket - The connection.
+ * @param requestInFlight - The message of the request the connection is answering, if any.
+ * @returns The failure to answer.
  */
-export function answerClientError(
-  this: FastifyInstance,
+export function connectionFailure(
   error: ConnectionError,
-  socket: Socket
+  requestInFlight: IncomingMessage | undefined
+): RegisteredError | (ConnectionError & { readonly statusCode: number }) {
+  if (error.code === "ERR_HTTP_REQUEST_TIMEOUT") {
+    return RegisteredError.of(HTTP_ERRORS.REQUEST_TIMEOUT, { cause: error });
+  }
+  if (error.code === "HPE_HEADER_OVERFLOW") {
+    return RegisteredError.of(HTTP_ERRORS.REQUEST_HEADERS_TOO_LARGE, { cause: error });
+  }
+  const reason = reasonOf(error);
+  if (reason !== undefined && LENGTH_CONFLICT_REASONS.has(reason)) {
+    return RegisteredError.of(HTTP_ERRORS.TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH, {
+      cause: error,
+    });
+  }
+  switch (messagePartOf(error, requestInFlight)) {
+    case MESSAGE_PART.REQUEST_LINE:
+      return RegisteredError.of(HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE, { cause: error });
+    case MESSAGE_PART.HEADERS:
+      return RegisteredError.of(HTTP_ERRORS.REQUEST_HEADERS_NOT_PARSABLE, { cause: error });
+    case MESSAGE_PART.BODY_FRAMING:
+      return RegisteredError.of(HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE, { cause: error });
+    case MESSAGE_PART.AFTER_MESSAGE:
+      return RegisteredError.of(HTTP_ERRORS.DATA_AFTER_REQUEST_UNEXPECTED, { cause: error });
+    case undefined:
+      return Object.assign(error, { statusCode: 400 });
+  }
+}
+
+/** The request each connection is answering, by its socket, while the server answers it. */
+export type RequestsInFlight = WeakMap<Socket, RequestInFlight>;
+
+/**
+ * @function trackRequestsInFlight
+ * @description Keeps, for each connection, the request the server is answering on it: the first
+ *   `onRequest` hook records it, with its client's address while the connection can still give it,
+ *   and its `onResponse` hook forgets it once its answer is sent. The
+ *   relation is read from the framework's documented request and hooks only; the request a parser
+ *   holds is kept by Node in fields it does not document.
+ * @param server - The server, before any route is registered on it.
+ * @param requestsInFlight - Where the requests are kept.
+ */
+export function trackRequestsInFlight(
+  server: FastifyInstance,
+  requestsInFlight: RequestsInFlight
 ): void {
-  if (error.code === "ECONNRESET" || socket.destroyed) return;
-  sendProblemOnSocket(socket, connectionFailure(error), this.log);
+  server.addHook("onRequest", (request, reply, done) => {
+    requestsInFlight.set(request.socket, { request, reply });
+    keepClientAddress(request);
+    done();
+  });
+  server.addHook("onResponse", (request, _reply, done) => {
+    if (requestsInFlight.get(request.socket)?.request === request) {
+      requestsInFlight.delete(request.socket);
+    }
+    done();
+  });
+}
+
+/**
+ * @function createClientErrorHandler
+ * @description Builds the server's `clientErrorHandler` option: a connection whose parser fails is
+ *   answered through `sendProblemOnSocket`, on the server's logger, the instance Fastify binds the
+ *   option to, with the failure `connectionFailure` names. Node hands it the connection's error and
+ *   its socket and no request; the request the connection is answering, when there is one, is read
+ *   from what `trackRequestsInFlight` keeps. A connection the client reset (`ECONNRESET`), or one
+ *   already destroyed, is left as it is, as the framework's own handler leaves it: nothing can be
+ *   written to it, and a request in flight on it logs its own failure when its body's stream fails.
+ *   No hook of the application runs for these answers, so they carry no security header and count
+ *   against no rate limit and no metric.
+ * @param requestsInFlight - The requests the connections are answering.
+ * @returns The handler.
+ */
+export function createClientErrorHandler(requestsInFlight: RequestsInFlight) {
+  return function answerClientError(
+    this: FastifyInstance,
+    error: ConnectionError,
+    socket: Socket
+  ): void {
+    if (error.code === "ECONNRESET" || socket.destroyed) return;
+    const inFlight = requestsInFlight.get(socket);
+    sendProblemOnSocket(
+      socket,
+      connectionFailure(error, inFlight?.request.raw),
+      this.log,
+      inFlight
+    );
+  };
+}
+
+/**
+ * @function answerUnsupportedExpectations
+ * @description Answers a request whose `Expect` header asks for something other than
+ *   `100-continue` with `EXPECTATION_UNSUPPORTED` at 417 through `sendProblem`. Node emits such a
+ *   request as `checkExpectation`, and answers 417 by itself with no body when nothing listens; the
+ *   listener hands it to the server as any other request, and the first `onRequest` hook answers
+ *   it, before any other hook and its route, under the request's own id, method, url and address.
+ *   `Expect: 100-continue` is untouched: Node still answers it `100 Continue` and emits the request.
+ * @param server - The server, before any route is registered on it.
+ */
+export function answerUnsupportedExpectations(server: FastifyInstance): void {
+  const unsupported = new WeakSet<IncomingMessage>();
+  server.server.on("checkExpectation", (request: IncomingMessage, response: ServerResponse) => {
+    unsupported.add(request);
+    server.server.emit("request", request, response);
+  });
+  server.addHook("onRequest", (request, reply, done) => {
+    if (!unsupported.has(request.raw)) {
+      done();
+      return;
+    }
+    sendProblem(
+      request,
+      reply,
+      RegisteredError.of(HTTP_ERRORS.EXPECTATION_UNSUPPORTED),
+      server.log
+    );
+  });
 }
 
 /**
