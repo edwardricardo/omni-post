@@ -264,4 +264,24 @@ describe("UseCaseError.of", () => {
     assert.deepStrictEqual(e.params, { count: 12, tables: ["Post", "Media"] });
     assert.strictEqual(e.message, "The operation touches 12 rows of Post, Media");
   });
+
+  it("keeps its registry fields readable and read-only but out of every enumeration a logger reads", async () => {
+    vi.resetModules();
+    vi.doMock(PARAMS_TABLE, () => ({ PLATFORM_ERRORS: FIXTURE_ERRORS }));
+    const fresh = await import("../../src/UseCase.js");
+    const e = fresh.UseCaseError.of(LIMIT_EXCEEDED, { count: 12, tables: ["Post", "Media"] });
+    const enumerated: string[] = [];
+
+    for (const key in e) enumerated.push(key);
+
+    assert.strictEqual(e.definition, FIXTURE_ERRORS.FIXTURE_LIMIT_EXCEEDED);
+    assert.deepStrictEqual(e.params, { count: 12, tables: ["Post", "Media"] });
+    assert.deepStrictEqual(enumerated.sort(), ["code", "name", "originalError"]);
+    assert.deepStrictEqual(Object.keys({ ...e }).sort(), ["code", "name", "originalError"]);
+    for (const field of ["definition", "params"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(e, field);
+      assert.strictEqual(descriptor?.enumerable, false, field);
+      assert.strictEqual(descriptor?.writable, false, field);
+    }
+  });
 });

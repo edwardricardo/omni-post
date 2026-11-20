@@ -104,7 +104,7 @@ function declaredParams(
 /**
  * @description Whether a value is a coded error: an object with a string `code`, whatever class
  *   built it. Its parameters are not trusted by this test: `resolveError` reads them against the
- *   registry.
+ *   registry. The match is structural, so another library's error with a string `code` is one too.
  * @param value - Any value, a raised one included.
  * @returns True when the value carries a string code.
  */
@@ -117,7 +117,10 @@ export function isCodedError(value: unknown): value is CodedError {
 /**
  * @description Gives a failure the registry's reading: the entry its code names, the declared
  *   parameters it carries and that entry's message worded with them. It never reads the value's own
- *   message, so a text the registry does not hold cannot reach a front through it.
+ *   message, so a text the registry does not hold cannot reach a front through it. The code is
+ *   compared by value, so another library's error whose `code` equals a registered string resolves
+ *   to that entry: a front then shows the registry's text and status, never the library's, and the
+ *   first front that must tell the two apart maps the library's error before it reaches that front.
  * @param value - Any value, a raised one included.
  * @returns The registry's entry for the value's code, or `INTERNAL_ERROR`'s when the value carries no
  *   registered code.
@@ -156,11 +159,17 @@ export function resolveOccurrence<D extends RegisteredDefinition>(
   return { ...resolved, cause: cause instanceof Error ? cause : undefined };
 }
 
-/** An error raised outside the application core, built only from a registered definition. */
+/**
+ * An error raised outside the application core, built only from a registered definition.
+ * `definition` and `params` are own fields that no enumeration reaches, as the runtime defines an
+ * error's `message` and `cause`: a logger's error serializer copies every enumerable field, and it
+ * takes the frozen definition, which has a string `message`, for an error it then cannot tag. A
+ * copy made by spreading the error therefore keeps its code and leaves both fields behind.
+ */
 export class RegisteredError extends Error implements CodedError {
   public readonly code: string;
-  public readonly definition: RegisteredDefinition;
-  public readonly params: ErrorParams | undefined;
+  declare public readonly definition: RegisteredDefinition;
+  declare public readonly params: ErrorParams | undefined;
 
   private constructor(occurrence: RegisteredOccurrence) {
     super(
@@ -169,8 +178,10 @@ export class RegisteredError extends Error implements CodedError {
     );
     this.name = "RegisteredError";
     this.code = occurrence.definition.code;
-    this.definition = occurrence.definition;
-    this.params = occurrence.params;
+    Object.defineProperties(this, {
+      definition: { value: occurrence.definition },
+      params: { value: occurrence.params },
+    });
   }
 
   /**

@@ -8,7 +8,10 @@
  *
  *   A definition carries a mark only `defineErrors` gives, keyed by a symbol no other module can
  *   name. That is what lets the registry path accept a registered definition and refuse an object
- *   written by hand, however complete. The category's statuses are a type, so an entry whose status
+ *   literal written by hand, however complete. It does not refuse a spread copy of a registered
+ *   definition, which carries the mark on: the lint rule's `definitionSource` shape refuses that copy
+ *   at an `of` call, and `of` keeps only its code (`registeredError.type-test.ts` pins that the copy
+ *   compiles, `registeredError.test.ts` that it brings no text). The category's statuses are a type, so an entry whose status
  *   its category does not allow does not compile. The registered codes are the union of the tables'
  *   keys, so a code no table holds is refused where a registered one is named, even in a table
  *   `defineErrors` built outside the registry, which this file does by its own path to prove it.
@@ -44,7 +47,7 @@ export const literalStatus: 404 = COMMON_ERRORS.NOT_FOUND.status;
 // @ts-expect-error a table holds only the codes written in its file
 export const absentMember = COMMON_ERRORS.NOT_A_REGISTERED_CODE;
 
-// @ts-expect-error an object written by hand lacks the registry's mark, however complete it is
+// @ts-expect-error an object literal written by hand lacks the registry's mark, however complete it is
 export const handWrittenRegistered: RegisteredDefinition = {
   code: "NOT_FOUND",
   domain: "common",
@@ -64,6 +67,15 @@ export const handWrittenDefinition: ErrorDefinition = {
   message: "Any message",
   params: {},
   fronts: [],
+};
+
+/**
+ * The limit of the mark, stated so it cannot drift: a spread copy of a registered definition with
+ * its message changed carries the mark on and is a definition. `of` keeps only its code.
+ */
+export const spreadCopyIsADefinition: ErrorDefinition = {
+  ...COMMON_ERRORS.NOT_FOUND,
+  message: "an inline text",
 };
 
 /** A registered code is a key of a table. */

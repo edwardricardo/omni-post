@@ -3,11 +3,13 @@
  * @description The registry's error class and the readings every `of` and every front go through:
  *   `RegisteredError.of`, `isCodedError` and `resolveError`. A definition is answered with the
  *   registry's own entry for its code, never with what the object passed carries, and a code the
- *   registry does not hold answers `INTERNAL_ERROR`. No domain declares a parameter yet, so the
- *   parameter rules are proved on a registry whose `platform` table is replaced, for one case, by a
- *   table `defineErrors` builds here.
+ *   registry does not hold answers `INTERNAL_ERROR`. The parameter rules are proved on a registry
+ *   whose `platform` table is replaced, for one case, by a table `defineErrors` builds here with one
+ *   parameter of each kind. Both error classes are logged through a real pino logger, the API's own
+ *   dependency, because the application core does not depend on pino.
  * @layer infrastructure
  */
+import pino from "pino";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UseCaseError } from "@core/application/UseCase.js";
 import {
@@ -70,6 +72,39 @@ async function loadRegistryWithParams() {
   vi.doMock(PARAMS_TABLE, () => ({ PLATFORM_ERRORS: FIXTURE_ERRORS }));
   return import("@shared/types/error-registry/registered-error.js");
 }
+
+/**
+ * @description Logs an error the way every logger of the tree does, `logger.error({ err }, ...)`,
+ *   through a real pino logger whose destination collects the lines it writes.
+ * @param error - The error to log.
+ * @returns The lines pino wrote.
+ */
+function logThroughPino(error: Error): string[] {
+  const lines: string[] = [];
+  const destination = {
+    write(line: string): void {
+      lines.push(line);
+    },
+  };
+  const logger = pino({ base: null }, destination);
+  logger.error({ err: error }, "a registry error");
+  return lines;
+}
+
+/** The fields pino's error serializer writes for an error of the registry. */
+const LOGGED_FIXTURE_FIELDS = {
+  message: "Refused DATABASE_URL: 1 of them, retry false, first DATABASE_URL",
+  code: "FIXTURE_VARIABLES_REFUSED",
+  stack: expect.stringContaining("Refused DATABASE_URL: 1 of them"),
+};
+
+/** The fixture's parameters, one of each kind. */
+const FIXTURE_PARAMS = {
+  variables: ["DATABASE_URL"],
+  count: 1,
+  retry: false,
+  first: "DATABASE_URL",
+};
 
 describe("the registry's errors", () => {
   beforeEach(() => {
@@ -283,6 +318,54 @@ describe("the registry's errors", () => {
       expect(carried.map((params) => fresh.resolveError({ code, params }).params)).toEqual(
         carried.map(() => ({}))
       );
+    });
+
+    it("resolves a spread copy of an error by its code, the registry fields being left behind", async () => {
+      const fresh = await loadRegistryWithParams();
+      const error = fresh.RegisteredError.of(VARIABLES_REFUSED, FIXTURE_PARAMS);
+
+      const copy = { ...error };
+
+      expect(Object.keys(copy).sort()).toEqual(["code", "name"]);
+      expect(fresh.resolveError(copy)).toEqual({
+        definition: FIXTURE_ERRORS.FIXTURE_VARIABLES_REFUSED,
+        params: {},
+        registered: true,
+        message: "Refused {variables}: {count} of them, retry {retry}, first {first}",
+      });
+    });
+  });
+
+  describe("logged through pino", () => {
+    it("writes a RegisteredError as one line with its type, message, stack and code, and no registry field", async () => {
+      const fresh = await loadRegistryWithParams();
+      const error = fresh.RegisteredError.of(VARIABLES_REFUSED, FIXTURE_PARAMS);
+
+      const lines = logThroughPino(error);
+
+      expect(error.definition).toBe(FIXTURE_ERRORS.FIXTURE_VARIABLES_REFUSED);
+      expect(error.params).toEqual(FIXTURE_PARAMS);
+      expect(lines).toHaveLength(1);
+      const logged: unknown = JSON.parse(lines[0] ?? "{}");
+      expect(logged).toMatchObject({ err: { type: "RegisteredError", ...LOGGED_FIXTURE_FIELDS } });
+      expect(logged).not.toHaveProperty("err.definition");
+      expect(logged).not.toHaveProperty("err.params");
+    });
+
+    it("writes a UseCaseError built by of as one line with its type, message, stack and code, and no registry field", async () => {
+      await loadRegistryWithParams();
+      const fresh = await import("@core/application/UseCase.js");
+      const error = fresh.UseCaseError.of(VARIABLES_REFUSED, FIXTURE_PARAMS);
+
+      const lines = logThroughPino(error);
+
+      expect(error.definition).toBe(FIXTURE_ERRORS.FIXTURE_VARIABLES_REFUSED);
+      expect(error.params).toEqual(FIXTURE_PARAMS);
+      expect(lines).toHaveLength(1);
+      const logged: unknown = JSON.parse(lines[0] ?? "{}");
+      expect(logged).toMatchObject({ err: { type: "UseCaseError", ...LOGGED_FIXTURE_FIELDS } });
+      expect(logged).not.toHaveProperty("err.definition");
+      expect(logged).not.toHaveProperty("err.params");
     });
   });
 });

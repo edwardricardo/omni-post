@@ -65,13 +65,19 @@ export type ErrorParams = Readonly<Record<string, ParamValue>>;
 export const ERROR_FRONT = { ADMIN: "admin", CLIENT: "client" } as const;
 export type ErrorFront = (typeof ERROR_FRONT)[keyof typeof ERROR_FRONT];
 
-/** Not exported, and with no value at run time: only `defineErrors` yields a type that carries it. */
+/**
+ * Not exported, and with no value at run time: only `defineErrors` gives it, and a spread copy of a
+ * definition it built carries it on.
+ */
 declare const REGISTERED: unique symbol;
 
 /**
  * One registered error: its code, the domain whose table holds it, its category and status, the
  * English message an operator or a developer reads, its declared parameters, and the portals that
- * can receive it. The mark keeps an object written anywhere else from being one without a cast.
+ * can receive it. The mark keeps an object literal written anywhere else from being one without a
+ * cast. It does not refuse a spread copy of a registered definition with a field changed: the lint
+ * rule `errors/no-inline-error` (its `definitionSource` shape) refuses that copy at an `of` call,
+ * and `of` keeps only the copy's code, reading every other field from the registry's own entry.
  */
 export interface ErrorDefinition<
   TCode extends string = string,

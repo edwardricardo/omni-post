@@ -62,7 +62,23 @@ export const missingParams = RegisteredError.of(withCount);
 // @ts-expect-error a parameter declared as a number takes no string
 export const mistypedParams = RegisteredError.of(withCount, { count: "2" });
 
-// @ts-expect-error an object written by hand is no registered definition
+/**
+ * The type does not refuse a spread copy of a registered definition: these compile. What makes them
+ * harmless is run time, pinned by the cases "takes the text, status and category of the registry's
+ * entry, never of the object passed" (`registeredError.test.ts`) and "takes the text of the
+ * registry's entry, never a text the object passed carries" (`UseCase.test.ts`); what refuses them
+ * in feature code is the lint rule's `definitionSource` shape.
+ */
+export const spreadCopyCompilesForRegisteredError = RegisteredError.of({
+  ...COMMON_ERRORS.NOT_FOUND,
+  message: "an inline text",
+});
+export const spreadCopyCompilesForUseCaseError = UseCaseError.of({
+  ...COMMON_ERRORS.NOT_FOUND,
+  message: "an inline text",
+});
+
+// @ts-expect-error an object literal written by hand is no registered definition
 export const handWritten = RegisteredError.of({
   code: "CONFLICT",
   domain: "common",

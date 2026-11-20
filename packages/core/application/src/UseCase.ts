@@ -73,21 +73,25 @@ class RegistryFields {
 /**
  * Application error types for use cases. `UseCaseError.of` builds one from a registered
  * definition; the constructor takes a message of its own and leaves `definition` and `params`
- * undefined.
+ * undefined. Both are own fields that no enumeration reaches, as the runtime defines an error's
+ * `message` and `cause`: a logger's error serializer copies every enumerable field, and it takes the
+ * frozen definition, which has a string `message`, for an error it then cannot tag.
  */
 export class UseCaseError extends Error implements CodedError {
   public readonly code: string;
   public readonly originalError: Error | undefined;
-  public readonly definition: RegisteredDefinition | undefined;
-  public readonly params: ErrorParams | undefined;
+  declare public readonly definition: RegisteredDefinition | undefined;
+  declare public readonly params: ErrorParams | undefined;
 
   constructor(message: string, code: string, originalError?: Error, registered?: RegistryFields) {
     super(message, originalError ? { cause: originalError } : undefined);
     this.name = "UseCaseError";
     this.code = code;
     this.originalError = originalError ?? undefined;
-    this.definition = registered?.occurrence.definition;
-    this.params = registered?.occurrence.params;
+    Object.defineProperties(this, {
+      definition: { value: registered?.occurrence.definition },
+      params: { value: registered?.occurrence.params },
+    });
   }
 
   /**
