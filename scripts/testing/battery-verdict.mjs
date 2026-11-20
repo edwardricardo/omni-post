@@ -27,6 +27,24 @@
  *   own pino records at level "warn" — the code under test logging on the failure paths its tests
  *   exercise. Those records are counted per message, so a new one is visible without failing the
  *   run.
+ *
+ *   One kind of text is not read: the title of a test block on the line where the record-coverage
+ *   gate (`scripts/testing/record-coverage-gate.mjs`) lists that block. A title is data the gate
+ *   copies from a test, often a block of the base the change's author cannot edit, so a block named
+ *   "logs warnings" is not a warning. The exception holds only in `record-coverage.log` and only on
+ *   a line of the gate's grammar `record-coverage-gate: <class>: <path>::<title> (<kind>): <detail>`,
+ *   with `<class>` one of `refused`, `behaviour change`, `live`, `no-collector` and `moved`, and
+ *   `<kind>` `deletion` or `rewrite`. The path holds no `:`, so the title starts after the first
+ *   `::`; it runs to the last ` (<kind>): `, which no detail of those classes holds, so a title may
+ *   hold any character, `::`, parentheses and the gate's own words included. A `moved` line's detail,
+ *   `its bodyHash reappears as <path>::<title>`, names a second block whose title is not read either;
+ *   its first title runs to the last ` (deletion): its bodyHash reappears as ` that a colon-free path
+ *   and `::` follow, so a second title that itself holds that phrase, a colon-free run and `::`
+ *   splits there, and the run is read as a path: a warning word in it still counts. Everything else
+ *   on such a line is read (the class, the paths, the detail), and so is every other line of that
+ *   log (the gate's summary and its own problems, a runtime warning) and every line of every other
+ *   log. A change to the gate's line that the grammar no longer matches turns its titles back into
+ *   warning lines: RED, never a waived warning.
  * @layer infrastructure
  */
 import { readdirSync, readFileSync } from "node:fs";
@@ -50,6 +68,21 @@ const WARNING_WORD = new RegExp(
 const WARNING_CATEGORY = new RegExp(
   `${NO_PATH_NEIGHBOUR_BEFORE}[A-Z][A-Za-z]*Warning${NO_PATH_NEIGHBOUR_AFTER}`
 );
+const COVERAGE_GATE_LOG = "record-coverage.log";
+/**
+ * The record-coverage gate's line for one listed block of every class but `moved`. The groups are
+ * the text before the title and the text after it; the title between them is greedy, so it runs to
+ * the last ` (<kind>): `.
+ */
+const COVERAGE_BLOCK_LINE =
+  /^(record-coverage-gate: (?:refused|behaviour change|live|no-collector): [^:]*::).*( \((?:deletion|rewrite)\): .*)$/;
+/**
+ * The gate's `moved` line. The groups are the text before the first title and the text between the
+ * two titles; the first title is greedy, so it runs to the last phrase a colon-free path and `::`
+ * follow.
+ */
+const COVERAGE_MOVED_LINE =
+  /^(record-coverage-gate: moved: [^:]*::).*( \(deletion\): its bodyHash reappears as [^:]*::).*$/;
 const APP_WARN_RECORD = '"level":"warn"';
 const APP_WARN_MESSAGE = /"msg":"((?:[^"\\]|\\.)*)/;
 const NO_MESSAGE = "<no msg field>";
@@ -169,6 +202,20 @@ function messageOf(line) {
 }
 
 /**
+ * The text of a log line the warning rule reads: the line whole, except a line of the record-coverage
+ * gate's log that lists a test block, which is read without its block titles.
+ *
+ * @param {string} log The log's file name.
+ * @param {string} text The line, without its line ending.
+ * @returns {string}
+ */
+function warningTextOf(log, text) {
+  if (log !== COVERAGE_GATE_LOG) return text;
+  const hit = COVERAGE_BLOCK_LINE.exec(text) ?? COVERAGE_MOVED_LINE.exec(text);
+  return hit === null ? text : hit.slice(1).join("");
+}
+
+/**
  * Scans every `*.log` once: toolchain warning lines, application warn records, and the unhandled
  * lines of each api run.
  *
@@ -210,7 +257,8 @@ function scanLogs(outDir, entries) {
         messages.set(msg, (messages.get(msg) ?? 0) + 1);
         return;
       }
-      if (!WARNING_WORD.test(text) && !WARNING_CATEGORY.test(text)) return;
+      const read = warningTextOf(log, text);
+      if (!WARNING_WORD.test(read) && !WARNING_CATEGORY.test(read)) return;
       warnings.push({ log, line: index + 1, text: text.slice(0, WARNING_TEXT_LIMIT) });
     });
   }
