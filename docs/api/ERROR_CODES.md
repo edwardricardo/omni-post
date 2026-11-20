@@ -10,9 +10,9 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 | ---------- | ----- |
 | `auth`     | 33    |
 | `common`   | 10    |
-| `http`     | 6     |
+| `http`     | 13    |
 | `platform` | 2     |
-| **Total**  | 51    |
+| **Total**  | 58    |
 
 ## Domain `auth`
 
@@ -69,14 +69,21 @@ Every code of the error registry, `packages/shared/src/error-registry/`, by doma
 
 ## Domain `http`
 
-| Code                       | Category   | Status | Message                                                                  | Parameters | Portals   |
-| -------------------------- | ---------- | ------ | ------------------------------------------------------------------------ | ---------- | --------- |
-| `MALFORMED_REQUEST`        | validation | 400    | The request could not be read: its body or its headers are malformed     | none       | logs only |
-| `PATH_NOT_DECODABLE`       | validation | 400    | The request's path holds a percent-encoded sequence that does not decode | none       | logs only |
-| `PAYLOAD_TOO_LARGE`        | too\_large | 413    | The request body is larger than this route accepts                       | none       | logs only |
-| `ROUTE_NOT_FOUND`          | not\_found | 404    | No route matches this method and path                                    | none       | logs only |
-| `ROUTE_PARAMETER_TOO_LONG` | too\_large | 414    | A parameter of the request's path is longer than the router accepts      | none       | logs only |
-| `UNSUPPORTED_MEDIA_TYPE`   | validation | 415    | The request's content type is not one this route accepts                 | none       | logs only |
+| Code                        | Category    | Status | Message                                                                                 | Parameters | Portals   |
+| --------------------------- | ----------- | ------ | --------------------------------------------------------------------------------------- | ---------- | --------- |
+| `BODY_LENGTH_MISMATCH`      | validation  | 400    | The request body's length differs from the one its Content-Length header declares       | none       | logs only |
+| `CONTENT_TYPE_MISSING`      | validation  | 400    | A request of this method must declare the content type of its body                      | none       | logs only |
+| `JSON_BODY_EMPTY`           | validation  | 400    | The request declares a JSON body and sends an empty one                                 | none       | logs only |
+| `JSON_BODY_NOT_PARSABLE`    | validation  | 400    | The request body is not valid JSON                                                      | none       | logs only |
+| `PATH_NOT_DECODABLE`        | validation  | 400    | The request's path holds a percent-encoded sequence that does not decode                | none       | logs only |
+| `PAYLOAD_TOO_LARGE`         | too\_large  | 413    | The request body is larger than this route accepts                                      | none       | logs only |
+| `REQUEST_HEADERS_TOO_LARGE` | too\_large  | 431    | The request's headers are larger than the server accepts                                | none       | logs only |
+| `REQUEST_NOT_PARSABLE`      | validation  | 400    | The request is not valid HTTP: its request line or its headers could not be read        | none       | logs only |
+| `REQUEST_TIMEOUT`           | too\_large  | 408    | The request was not received in full within the time the server waits for one           | none       | logs only |
+| `ROUTE_NOT_FOUND`           | not\_found  | 404    | No route matches this method and path                                                   | none       | logs only |
+| `ROUTE_PARAMETER_TOO_LONG`  | too\_large  | 414    | A parameter of the request's path is longer than the router accepts                     | none       | logs only |
+| `SERVER_CLOSING`            | unavailable | 503    | The server is shutting down and takes no new request: send it again on a new connection | none       | logs only |
+| `UNSUPPORTED_MEDIA_TYPE`    | validation  | 415    | The request's content type is not one this route accepts                                | none       | logs only |
 
 ## Domain `platform`
 

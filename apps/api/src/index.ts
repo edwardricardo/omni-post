@@ -59,11 +59,14 @@ import {
 } from "./security/httpRateLimitPreHandler.js";
 import type { RateLimiterPort } from "@ports/core";
 import {
+  answerClientError,
   answerFrameworkRefusal,
   createErrorHandler,
   createNotFoundHandler,
   PROBLEM_OPENAPI_SCHEMA,
+  refuseRequestsWhileClosing,
 } from "./lib/errors/errorHandler.js";
+import { createCorrelationId } from "./lib/errors/correlationId.js";
 import { registerApiReference } from "./lib/apiReference.js";
 import { getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
@@ -202,13 +205,17 @@ import { autoCachePlugin } from "./middleware/autoCacheMiddleware.js";
 
 /**
  * @function createServer
- * @description Builds the API's Fastify instance with the options it runs with, before any plugin
- *   or route is registered on it.
+ * @description Builds the API's Fastify instance with the options it runs with and the hooks that
+ *   refuse a request once it closes, before any plugin or route is registered on it.
  * @returns The instance `createApp` registers the plugins, hooks, handlers and routes on.
  */
 function createServer(): FastifyInstance {
-  return Fastify({
+  const server = Fastify({
     logger: true,
+    // Every request's id, which its lines and its failure's body carry as its correlation id: a
+    // UUID unique across boots and instances, where Fastify's own counter restarts at every boot.
+    // No header a client sends is read for it (`requestIdHeader` stays off).
+    genReqId: createCorrelationId,
     // `false` (socket-only) or the trusted proxy IP/CIDR allowlist — never
     // `true`, which trusts the leftmost, client-controlled X-Forwarded-For entry
     // (ERR_ERL_PERMISSIVE_TRUST_PROXY), and never a number, which fastify
@@ -227,7 +234,15 @@ function createServer(): FastifyInstance {
     // Without it Fastify writes its own body for the requests it refuses before routing, past
     // every hook and handler, so their answer and their log line would leave the one error path.
     frameworkErrors: answerFrameworkRefusal,
+    // Without it Fastify writes its own body to the socket of a connection whose request cannot be
+    // read (408, 431, 400) and logs it at trace only.
+    clientErrorHandler: answerClientError,
+    // Fastify's own 503 for a request that reaches a closing server is written past every hook;
+    // `refuseRequestsWhileClosing` answers it instead.
+    return503OnClosing: false,
   });
+  refuseRequestsWhileClosing(server);
+  return server;
 }
 
 // Fastify v5.6.1 Application Creation

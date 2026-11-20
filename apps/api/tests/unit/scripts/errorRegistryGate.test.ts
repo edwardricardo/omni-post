@@ -665,8 +665,10 @@ describe("R4: a category of the twelve and one of its statuses", () => {
       ["permission", 403],
       ["not_found", 404],
       ["conflict", 409],
+      ["too_large", 408],
       ["too_large", 413],
       ["too_large", 414],
+      ["too_large", 431],
       ["rate_limit", 429],
       ["not_implemented", 501],
       ["upstream", 502],
@@ -686,7 +688,7 @@ describe("R4: a category of the twelve and one of its statuses", () => {
     const outcome = await scan();
 
     expect(outcome.stderr).toEqual([]);
-    expect(outcome.stdout).toEqual(passing("19 codes in 3 domains"));
+    expect(outcome.stdout).toEqual(passing("21 codes in 3 domains"));
   });
 });
 

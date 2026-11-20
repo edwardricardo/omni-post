@@ -107,7 +107,7 @@ describe("the error registry", () => {
         permission: [403],
         not_found: [404],
         conflict: [409],
-        too_large: [413, 414],
+        too_large: [408, 413, 414, 431],
         rate_limit: [429],
         not_implemented: [501],
         upstream: [502, 504],

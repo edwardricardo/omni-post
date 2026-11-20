@@ -2,18 +2,28 @@
  * @file errorHandler.ts
  * @description How Fastify answers with the API's one error body: the global error handler for
  *   what is raised, the not-found handler for a path no route matches, the server's
- *   `frameworkErrors` option for a request the framework refuses before it routes it, all three
- *   through `sendProblem`, and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and Zod
- *   converters to an `AppError`, which only their suites call.
+ *   `frameworkErrors` option for a request the framework refuses before it routes it, its
+ *   `clientErrorHandler` option for a connection whose request cannot be read, and the hooks that
+ *   refuse a request reaching a server that is closing, all through `sendProblem` or its socket
+ *   twin, and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and
+ *   Zod converters to an `AppError`, which only their suites call.
  * @layer infrastructure
  */
+import type { Socket } from "node:net";
 import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
-import type { FastifyBaseLogger, FastifyError, FastifyReply, FastifyRequest } from "fastify";
+import type {
+  ConnectionError,
+  FastifyBaseLogger,
+  FastifyError,
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+} from "fastify";
 import { z } from "zod";
 import { HTTP_ERRORS, RegisteredError } from "@shared/types";
 import { AppError, ErrorCode, isOperationalError } from "./AppError.js";
 import { problemSchema } from "./problem.js";
-import { sendProblem } from "./sendProblem.js";
+import { sendProblem, sendProblemOnSocket } from "./sendProblem.js";
 import {
   violatedConstraint,
   type ViolatedConstraint,
@@ -103,6 +113,70 @@ export function answerFrameworkRefusal(
   reply: FastifyReply
 ): void {
   sendProblem(request, reply, error, request.server.log);
+}
+
+/** A connection's failure as a registered error, by Node's code, the connection's error its cause. */
+function connectionFailure(error: ConnectionError): RegisteredError {
+  switch (error.code) {
+    case "ERR_HTTP_REQUEST_TIMEOUT":
+      return RegisteredError.of(HTTP_ERRORS.REQUEST_TIMEOUT, { cause: error });
+    case "HPE_HEADER_OVERFLOW":
+      return RegisteredError.of(HTTP_ERRORS.REQUEST_HEADERS_TOO_LARGE, { cause: error });
+    default:
+      return RegisteredError.of(HTTP_ERRORS.REQUEST_NOT_PARSABLE, { cause: error });
+  }
+}
+
+/**
+ * @function answerClientError
+ * @description The server's `clientErrorHandler` option: a connection whose request Node's HTTP
+ *   server cannot finish is answered through `sendProblemOnSocket`, on the server's logger, the
+ *   instance Fastify binds the option to. Node hands it the connection's error and its socket, and
+ *   no request: a client too slow to send its request within the server's `requestTimeout`
+ *   (`ERR_HTTP_REQUEST_TIMEOUT`) answers `REQUEST_TIMEOUT` at 408, headers over Node's limit
+ *   (`HPE_HEADER_OVERFLOW`) answer `REQUEST_HEADERS_TOO_LARGE` at 431, and any other error of the
+ *   connection, a request line or a header the parser refuses among them, answers
+ *   `REQUEST_NOT_PARSABLE` at 400, as Node and the framework answer it; the line names Node's
+ *   code as its cause's. A connection the client reset (`ECONNRESET`), or one already destroyed,
+ *   is left as it is, as the framework's own handler leaves it: nothing can be written to it, and
+ *   no request of it was read. No hook of the application runs for these answers, so they carry
+ *   no security header and count against no rate limit and no metric.
+ * @param error - The connection's error, as Node emits it with `clientError`.
+ * @param socket - The connection.
+ */
+export function answerClientError(
+  this: FastifyInstance,
+  error: ConnectionError,
+  socket: Socket
+): void {
+  if (error.code === "ECONNRESET" || socket.destroyed) return;
+  sendProblemOnSocket(socket, connectionFailure(error), this.log);
+}
+
+/**
+ * @function refuseRequestsWhileClosing
+ * @description Refuses every request that reaches the server once it has begun to close, with
+ *   `SERVER_CLOSING` at 503 through `sendProblem`, before any other hook and its route run. The
+ *   server is built with `return503OnClosing: false`, since the framework's own refusal writes its
+ *   body past every hook; the framework still sets `Connection: close` on such a request, so the
+ *   client sends it again on a new connection. The first `preClose` hook marks the server closing:
+ *   the framework marks its routes closing in the same step of `close` and runs the `preClose`
+ *   hooks after it on the microtask queue only, so no request is read between the two.
+ * @param server - The server, before any route is registered on it.
+ */
+export function refuseRequestsWhileClosing(server: FastifyInstance): void {
+  let closing = false;
+  server.addHook("preClose", (done) => {
+    closing = true;
+    done();
+  });
+  server.addHook("onRequest", (request, reply, done) => {
+    if (!closing) {
+      done();
+      return;
+    }
+    sendProblem(request, reply, RegisteredError.of(HTTP_ERRORS.SERVER_CLOSING), server.log);
+  });
 }
 
 /**

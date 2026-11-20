@@ -3,11 +3,12 @@
  * @description The API's one error body, an RFC 9457 problem, its schema, and `toProblem`, which
  *   turns any failure into that body. A registered code answers its registry entry, worded by the
  *   registry and never by the error's own message; an internal or configuration code reaches the
- *   wire as `INTERNAL_ERROR` and keeps its own code for the log. A failure nobody registered keeps
- *   its status: the framework's refusals answer the `http` code of their cause when it has one and
- *   of their status otherwise, an `AppError` its own
- *   status and code, and any other carrier of a failure status that status with
- *   `INTERNAL_ERROR`'s text. Pure: no logger, no clock, no request.
+ *   wire as `INTERNAL_ERROR` and keeps its own code for the log. The framework's refusals answer
+ *   the `http` code of their own cause. A failure nobody registered keeps its status: an
+ *   `AppError` its own status and code, and any other carrier of a failure status that status with
+ *   `INTERNAL_ERROR`'s text. Every answer at 500 or above, and every answer the registry does not
+ *   classify, is logged at error; a refusal of the client's request at warn. Pure: no logger, no
+ *   clock, no request.
  * @layer infrastructure
  */
 import { z } from "zod";
@@ -102,13 +103,24 @@ const WIRE_HIDDEN_CATEGORIES: ReadonlySet<string> = new Set([
   ERROR_CATEGORY.CONFIGURATION,
 ]);
 
-const FRAMEWORK_CODE_PREFIX = "FST_";
+/** The lowest status of a failure of the server or of what it depends on. */
+const SERVER_FAILURE_STATUS = 500;
 
 /**
- * The framework's refusals whose cause has a code of its own, by Fastify's code: the two the router
- * raises before it routes, which reach `frameworkErrors`. The third it hands there,
- * `FST_ERR_ASYNC_CONSTRAINT`, carries 500, so it is no refusal of the client's request: it answers
- * as a status carrier, `INTERNAL_ERROR` logged at error under Fastify's code.
+ * The framework's refusals of a client's request, each answered by the `http` code of its own
+ * cause, by Fastify's code. Every error of the installed Fastify with a 4xx status that a request
+ * can raise is here, or named below with the reason it is not:
+ * - `FST_ERR_VALIDATION` is answered by the validation step, which reads its issues;
+ * - `FST_ERR_NOT_FOUND` is raised only when the router matched not even the not-found handler's
+ *   catch-all route, which Fastify reports as a defect of its own: it answers as a status carrier;
+ * - `FST_ERR_CTP_INSTANCE_ALREADY_STARTED` and `FST_ERR_INVALID_URL` are raised while content-type
+ *   parsers and routes are registered, before any request, and `FST_ERR_ROUTE_MISSING_CONTENT` is
+ *   no longer raised.
+ * `FST_ERR_CTP_INVALID_MEDIA_TYPE` is raised for a content type that does not parse and for one no
+ * parser takes: one cause, a content type the route does not accept. The third error the router
+ * hands to `frameworkErrors`, `FST_ERR_ASYNC_CONSTRAINT`, carries 500 and is no refusal of the
+ * client's request. A refusal whose cause is not here answers as a carrier of its status, logged at
+ * error, so a cause the registry does not name is seen rather than filed under another's code.
  */
 const FRAMEWORK_CAUSES: ReadonlyMap<string, RegisteredDefinition> = new Map<
   string,
@@ -116,21 +128,12 @@ const FRAMEWORK_CAUSES: ReadonlyMap<string, RegisteredDefinition> = new Map<
 >([
   ["FST_ERR_BAD_URL", HTTP_ERRORS.PATH_NOT_DECODABLE],
   ["FST_ERR_MAX_PARAM_LENGTH", HTTP_ERRORS.ROUTE_PARAMETER_TOO_LONG],
-]);
-
-/**
- * Every other refusal of the framework by status, answered by the `http` code that holds the status
- * the framework gave, so no refusal changes its status. One whose status no code holds is a status
- * carrier.
- */
-const FRAMEWORK_DEFINITIONS: ReadonlyMap<number, RegisteredDefinition> = new Map<
-  number,
-  RegisteredDefinition
->([
-  [HTTP_ERRORS.MALFORMED_REQUEST.status, HTTP_ERRORS.MALFORMED_REQUEST],
-  [HTTP_ERRORS.ROUTE_NOT_FOUND.status, HTTP_ERRORS.ROUTE_NOT_FOUND],
-  [HTTP_ERRORS.PAYLOAD_TOO_LARGE.status, HTTP_ERRORS.PAYLOAD_TOO_LARGE],
-  [HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.status, HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE],
+  ["FST_ERR_CTP_BODY_TOO_LARGE", HTTP_ERRORS.PAYLOAD_TOO_LARGE],
+  ["FST_ERR_CTP_INVALID_MEDIA_TYPE", HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE],
+  ["FST_ERR_CTP_EMPTY_JSON_BODY", HTTP_ERRORS.JSON_BODY_EMPTY],
+  ["FST_ERR_CTP_INVALID_JSON_BODY", HTTP_ERRORS.JSON_BODY_NOT_PARSABLE],
+  ["FST_ERR_CTP_INVALID_CONTENT_LENGTH", HTTP_ERRORS.BODY_LENGTH_MISMATCH],
+  ["FST_ERR_ROUTE_MISSING_CONTENT_TYPE", HTTP_ERRORS.CONTENT_TYPE_MISSING],
 ]);
 
 /** The code of an issue whose validator names none. */
@@ -181,13 +184,34 @@ function problemOf(fields: ProblemFields, context: ProblemContext): Problem {
   };
 }
 
+/**
+ * A failure at 500 or above is one of the server or of what it depends on, logged and reported as
+ * an error; so is a failure its raiser did not expect. Only an expected refusal of the client's
+ * request is a warning. Every category's statuses are all below 500 or all at 500 or above, so the
+ * status tells the category's side.
+ */
+function severityOf(status: number, expected: boolean): ProblemSeverity {
+  return expected && status < SERVER_FAILURE_STATUS ? "warn" : "error";
+}
+
+/**
+ * @param expected - Whether the failure is one its raiser expected: a registered code with every
+ *   declared parameter, a refusal of the framework or of a schema, or an operational `AppError`.
+ *   A value nothing classifies is not.
+ */
 function answerOf(
   problem: Problem,
   source: ProblemSource,
   loggedCode: string,
-  severity: ProblemSeverity
+  expected: boolean
 ): ProblemAnswer {
-  return { problem, headers: NO_HEADERS, source, loggedCode, severity };
+  return {
+    problem,
+    headers: NO_HEADERS,
+    source,
+    loggedCode,
+    severity: severityOf(problem.status, expected),
+  };
 }
 
 /** A definition's problem as the registry words it, for a definition that declares no parameter. */
@@ -216,7 +240,7 @@ function registeredAnswer(error: unknown, context: ProblemContext): ProblemAnswe
       internalProblem(INTERNAL_ERROR.status, context),
       PROBLEM_SOURCE.REGISTERED,
       definition.code,
-      "error"
+      true
     );
   }
   // A declared parameter the value did not carry leaves its placeholder in the text: a defect of
@@ -231,7 +255,7 @@ function registeredAnswer(error: unknown, context: ProblemContext): ProblemAnswe
     ),
     PROBLEM_SOURCE.REGISTERED,
     definition.code,
-    complete ? "warn" : "error"
+    complete
   );
 }
 
@@ -268,19 +292,16 @@ function validationAnswer(error: unknown, context: ProblemContext): ProblemAnswe
     ),
     PROBLEM_SOURCE.VALIDATION,
     carriedCode(error) ?? VALIDATION_FAILED.code,
-    "warn"
+    true
   );
 }
 
-/** A request the framework itself refused: the `http` code of its cause, or else of its status. */
+/** A request the framework itself refused: the `http` code of its cause. */
 function frameworkAnswer(error: unknown, context: ProblemContext): ProblemAnswer | undefined {
-  if (!isRecord(error)) return undefined;
-  const { code, statusCode } = error;
-  if (typeof code !== "string" || !code.startsWith(FRAMEWORK_CODE_PREFIX)) return undefined;
-  if (!isStatusBetween(statusCode, 400, 499)) return undefined;
-  const definition = FRAMEWORK_CAUSES.get(code) ?? FRAMEWORK_DEFINITIONS.get(statusCode);
-  if (definition === undefined) return undefined;
-  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, "warn");
+  const code = carriedCode(error);
+  const definition = code === undefined ? undefined : FRAMEWORK_CAUSES.get(code);
+  if (code === undefined || definition === undefined) return undefined;
+  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, true);
 }
 
 /**
@@ -305,7 +326,7 @@ function appErrorAnswer(error: unknown, context: ProblemContext): ProblemAnswer 
     ),
     PROBLEM_SOURCE.APP_ERROR,
     error.code,
-    error.isOperational ? "warn" : "error"
+    error.isOperational
   );
 }
 
@@ -318,7 +339,7 @@ function statusCarrierAnswer(error: unknown, context: ProblemContext): ProblemAn
     internalProblem(statusCode, context),
     PROBLEM_SOURCE.STATUS_CARRIER,
     carriedCode(error) ?? INTERNAL_ERROR.code,
-    "error"
+    false
   );
 }
 
@@ -341,7 +362,7 @@ export function toProblem(error: unknown, context: ProblemContext): ProblemAnswe
       internalProblem(INTERNAL_ERROR.status, context),
       PROBLEM_SOURCE.UNREGISTERED,
       carriedCode(error) ?? INTERNAL_ERROR.code,
-      "error"
+      false
     )
   );
 }

@@ -3,10 +3,11 @@
  * @description `toProblem` turns any failure into the API's one error body, step by step: a
  *   registered code answers its registry entry (an internal or configuration one collapses to
  *   `INTERNAL_ERROR`); a request the route's schema refuses answers `VALIDATION_FAILED` with its
- *   issues; the framework's own refusals answer an `http` code by cause, or else by status; a
- *   legacy `AppError` keeps
- *   its status; any other carrier of a failure status keeps it with `INTERNAL_ERROR`'s text; and
- *   anything else is `INTERNAL_ERROR`. The request's own refusals are produced by a real Fastify
+ *   issues; the framework's own refusals answer the `http` code of their cause, and one whose cause
+ *   no code names is a carrier of its status; a legacy `AppError` keeps its status; any other
+ *   carrier of a failure status keeps it with `INTERNAL_ERROR`'s text; and anything else is
+ *   `INTERNAL_ERROR`. Every answer at 500 or above is logged at error, as is every answer the
+ *   registry does not classify; a client's failure is logged at warn. The request's own refusals are produced by a real Fastify
  *   with the API's Zod validator, so the shape the installed versions give is what is proved. No
  *   domain declares a parameter yet, so the parameter rules run on a registry whose `platform`
  *   table is replaced, for one case, by a table `defineErrors` builds here.
@@ -32,6 +33,7 @@ import {
   ERROR_CATEGORY,
   HTTP_ERRORS,
   PARAM_KIND,
+  PLATFORM_ERRORS,
   RegisteredError,
 } from "@shared/types";
 import { defineErrors } from "@shared/types/error-registry/definition.js";
@@ -45,6 +47,7 @@ import {
   PROBLEM_MEDIA_TYPE,
   problemSchema,
   toProblem,
+  type ProblemAnswer,
   type ProblemContext,
 } from "../../../../src/lib/errors/problem.js";
 
@@ -87,6 +90,13 @@ const FIXTURE_ERRORS = defineErrors("platform", {
     status: 429,
     message: "Reached {limit} calls to {service}",
     params: { limit: PARAM_KIND.NUMBER, service: PARAM_KIND.STRING },
+    fronts: [],
+  },
+  FIXTURE_UPSTREAM_TIMED_OUT: {
+    category: ERROR_CATEGORY.UPSTREAM,
+    status: 504,
+    message: "The upstream did not answer in time",
+    params: {},
     fronts: [],
   },
 });
@@ -198,6 +208,42 @@ describe("toProblem", () => {
       expect(answer.severity).toBe("warn");
     });
 
+    it("logs a registered failure of the server or of a service it depends on at error, by its status, and a client's at warn", () => {
+      const errors = [
+        RegisteredError.of(COMMON_ERRORS.TRANSIENT_FAILURE),
+        RegisteredError.of(COMMON_ERRORS.NOT_IMPLEMENTED),
+        RegisteredError.of(PLATFORM_ERRORS.DATABASE_UNREACHABLE),
+        RegisteredError.of(HTTP_ERRORS.SERVER_CLOSING),
+        RegisteredError.of(COMMON_ERRORS.OPERATION_TOO_LARGE),
+        RegisteredError.of(HTTP_ERRORS.REQUEST_TIMEOUT),
+      ];
+
+      const answers = errors.map((error) => toProblem(error, CONTEXT));
+
+      expect(
+        answers.map(({ problem, severity }) => `${problem.code} ${problem.status} ${severity}`)
+      ).toEqual([
+        "TRANSIENT_FAILURE 503 error",
+        "NOT_IMPLEMENTED 501 error",
+        "DATABASE_UNREACHABLE 503 error",
+        "SERVER_CLOSING 503 error",
+        "OPERATION_TOO_LARGE 413 warn",
+        "REQUEST_TIMEOUT 408 warn",
+      ]);
+    });
+
+    it("logs a registered failure of an upstream at error", async () => {
+      const fresh = await loadProblemWithParams();
+
+      const answer = fresh.toProblem({ code: "FIXTURE_UPSTREAM_TIMED_OUT" }, CONTEXT);
+
+      expect([answer.problem.status, answer.problem.code, answer.severity]).toEqual([
+        504,
+        "FIXTURE_UPSTREAM_TIMED_OUT",
+        "error",
+      ]);
+    });
+
     it("keeps the placeholder of a declared parameter it does not carry, and logs at error", async () => {
       const fresh = await loadProblemWithParams();
 
@@ -306,32 +352,34 @@ describe("toProblem", () => {
       ]);
     });
 
-    it("answers the http code of its cause, or else of its status, for each refusal of the framework, and logs Fastify's code", async () => {
+    it("answers the http code of its own cause for each refusal of the framework, and logs Fastify's code", async () => {
+      const json = { "content-type": "application/json" };
       const refusals: readonly InjectOptions[] = [
+        { method: "POST", url: "/drafts", headers: json, payload: "{" },
+        { method: "POST", url: "/drafts", headers: json, payload: "" },
         {
           method: "POST",
           url: "/drafts",
-          headers: { "content-type": "application/json" },
-          payload: "{",
-        },
-        {
-          method: "POST",
-          url: "/drafts",
-          headers: { "content-type": "application/json" },
-          payload: "",
+          headers: { ...json, "content-length": "10" },
+          payload: "{}",
         },
         { method: "POST", url: "/drafts", headers: { "content-type": "text/csv" }, payload: "a,b" },
+        { method: "POST", url: "/drafts", headers: { "content-type": "not a type" }, payload: "a" },
         { method: "POST", url: "/drafts", payload: { title: "x".repeat(80), tags: [] } },
         { method: "GET", url: "/drafts/%E0%A4%A" },
         { method: "GET", url: "/drafts/a-long-draft-id" },
       ];
-      // Fastify's own not-found handler answers without raising; the error is read as raised.
-      const notFound = {
-        status: 404,
-        answer: toProblem(new errorCodes.FST_ERR_NOT_FOUND(), CONTEXT),
+
+      // The inject's types take no QUERY request; Fastify's own error for one is read as raised.
+      const missingContentType = {
+        status: 400,
+        answer: toProblem(new errorCodes.FST_ERR_ROUTE_MISSING_CONTENT_TYPE("QUERY"), CONTEXT),
       };
 
-      const injected = [...(await Promise.all(refusals.map((r) => answerTo(r)))), notFound];
+      const injected: Array<{ status: number; answer: ProblemAnswer }> = await Promise.all(
+        refusals.map((r) => answerTo(r))
+      );
+      injected.splice(3, 0, missingContentType);
 
       expect(
         injected.map(
@@ -339,23 +387,41 @@ describe("toProblem", () => {
             `${status} ${problem.status} ${problem.code} ${loggedCode} ${source}/${severity}`
         )
       ).toEqual([
-        "400 400 MALFORMED_REQUEST FST_ERR_CTP_INVALID_JSON_BODY framework/warn",
-        "400 400 MALFORMED_REQUEST FST_ERR_CTP_EMPTY_JSON_BODY framework/warn",
+        "400 400 JSON_BODY_NOT_PARSABLE FST_ERR_CTP_INVALID_JSON_BODY framework/warn",
+        "400 400 JSON_BODY_EMPTY FST_ERR_CTP_EMPTY_JSON_BODY framework/warn",
+        "400 400 BODY_LENGTH_MISMATCH FST_ERR_CTP_INVALID_CONTENT_LENGTH framework/warn",
+        "400 400 CONTENT_TYPE_MISSING FST_ERR_ROUTE_MISSING_CONTENT_TYPE framework/warn",
+        "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
         "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
         "413 413 PAYLOAD_TOO_LARGE FST_ERR_CTP_BODY_TOO_LARGE framework/warn",
         "400 400 PATH_NOT_DECODABLE FST_ERR_BAD_URL framework/warn",
         "414 414 ROUTE_PARAMETER_TOO_LONG FST_ERR_MAX_PARAM_LENGTH framework/warn",
-        "404 404 ROUTE_NOT_FOUND FST_ERR_NOT_FOUND framework/warn",
       ]);
       expect(injected.map(({ answer }) => answer.problem.detail)).toEqual([
-        HTTP_ERRORS.MALFORMED_REQUEST.message,
-        HTTP_ERRORS.MALFORMED_REQUEST.message,
+        HTTP_ERRORS.JSON_BODY_NOT_PARSABLE.message,
+        HTTP_ERRORS.JSON_BODY_EMPTY.message,
+        HTTP_ERRORS.BODY_LENGTH_MISMATCH.message,
+        HTTP_ERRORS.CONTENT_TYPE_MISSING.message,
+        HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
         HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
         HTTP_ERRORS.PAYLOAD_TOO_LARGE.message,
         HTTP_ERRORS.PATH_NOT_DECODABLE.message,
         HTTP_ERRORS.ROUTE_PARAMETER_TOO_LONG.message,
-        HTTP_ERRORS.ROUTE_NOT_FOUND.message,
       ]);
+    });
+
+    it("answers a refusal of the framework whose cause no http code names as a carrier of its status, logged at error", () => {
+      // Fastify raises it only when the router matched not even the not-found handler's catch-all
+      // route, which it reports as a defect of its own.
+      const answer = toProblem(new errorCodes.FST_ERR_NOT_FOUND(), CONTEXT);
+
+      expect(answer).toEqual({
+        problem: internalProblem(404),
+        headers: {},
+        source: "status-carrier",
+        loggedCode: "FST_ERR_NOT_FOUND",
+        severity: "error",
+      });
     });
 
     it("keeps the status of a refusal no http code holds, with INTERNAL_ERROR's text", () => {
@@ -410,8 +476,11 @@ describe("toProblem", () => {
 
       const answer = toProblem(error, CONTEXT);
 
-      expect([answer.problem.code, answer.source]).toEqual(["MALFORMED_REQUEST", "framework"]);
-      expect(answer.problem).not.toHaveProperty("issues");
+      expect([answer.problem, answer.source, answer.severity]).toEqual([
+        internalProblem(400),
+        "status-carrier",
+        "error",
+      ]);
     });
   });
 
@@ -436,7 +505,7 @@ describe("toProblem", () => {
       });
     });
 
-    it("hides its message at 500 or above, or when not operational, and logs a non-operational one at error", () => {
+    it("hides its message at 500 or above, or when not operational, and logs both at error", () => {
       const errors = [
         new DatabaseError("relation tenant_a.posts does not exist"),
         new AppError(ErrorCode.BAD_REQUEST, 400, "stack at /srv/app.ts:12", false),
@@ -448,7 +517,7 @@ describe("toProblem", () => {
         ["DATABASE_ERROR", 500, INTERNAL_TEXT],
         ["BAD_REQUEST", 400, INTERNAL_TEXT],
       ]);
-      expect(answers.map(({ severity }) => severity)).toEqual(["warn", "error"]);
+      expect(answers.map(({ severity }) => severity)).toEqual(["error", "error"]);
     });
 
     it("answers INTERNAL_ERROR when its status is not a failure status", () => {
@@ -546,7 +615,7 @@ describe("toProblem", () => {
   });
 
   describe("the http domain", () => {
-    it("holds the six failures the HTTP boundary raises itself, for operators only", () => {
+    it("holds the thirteen failures the HTTP boundary raises itself, one per cause, for operators only", () => {
       const definitions = Object.values(HTTP_ERRORS);
 
       expect(
@@ -555,12 +624,19 @@ describe("toProblem", () => {
             `${code} ${domain} ${category} ${status}: ${message}`
         )
       ).toEqual([
-        "MALFORMED_REQUEST http validation 400: The request could not be read: its body or its headers are malformed",
         "PAYLOAD_TOO_LARGE http too_large 413: The request body is larger than this route accepts",
         "UNSUPPORTED_MEDIA_TYPE http validation 415: The request's content type is not one this route accepts",
         "ROUTE_NOT_FOUND http not_found 404: No route matches this method and path",
         "PATH_NOT_DECODABLE http validation 400: The request's path holds a percent-encoded sequence that does not decode",
         "ROUTE_PARAMETER_TOO_LONG http too_large 414: A parameter of the request's path is longer than the router accepts",
+        "JSON_BODY_EMPTY http validation 400: The request declares a JSON body and sends an empty one",
+        "JSON_BODY_NOT_PARSABLE http validation 400: The request body is not valid JSON",
+        "BODY_LENGTH_MISMATCH http validation 400: The request body's length differs from the one its Content-Length header declares",
+        "CONTENT_TYPE_MISSING http validation 400: A request of this method must declare the content type of its body",
+        "REQUEST_NOT_PARSABLE http validation 400: The request is not valid HTTP: its request line or its headers could not be read",
+        "REQUEST_HEADERS_TOO_LARGE http too_large 431: The request's headers are larger than the server accepts",
+        "REQUEST_TIMEOUT http too_large 408: The request was not received in full within the time the server waits for one",
+        "SERVER_CLOSING http unavailable 503: The server is shutting down and takes no new request: send it again on a new connection",
       ]);
       expect(definitions.map(({ params, fronts }) => [params, fronts])).toEqual(
         definitions.map(() => [{}, []])

@@ -196,12 +196,6 @@ describe("createErrorHandler and createNotFoundHandler through Fastify inject", 
 
   it.each([
     [
-      "malformed JSON",
-      { headers: { "content-type": "application/json" }, payload: "{" },
-      HTTP_ERRORS.MALFORMED_REQUEST,
-      "Malformed request",
-    ],
-    [
       "a content type no parser takes",
       { headers: { "content-type": "text/csv" }, payload: "a,b" },
       HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE,

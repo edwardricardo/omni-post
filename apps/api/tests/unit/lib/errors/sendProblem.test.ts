@@ -3,8 +3,10 @@
  * @description `sendProblem` is the one writer of the API's error body, and a route answers a failure
  *   through it: the failure's problem at its status as `application/problem+json`, stamped with the
  *   correlation id a hook set or else the request id, and with the clock; the headers the answer
- *   names; one log line, through the logger it is given, at the answer's severity; a report to
- *   Sentry for an unexpected failure only; and a body no response schema of the route reads. The
+ *   names; one log line, through the logger it is given, at the answer's severity, with the
+ *   client's address and the code of the failure; a report to Sentry for every line at error, an
+ *   unexpected failure and a failure of the server or of a service it depends on, and for no
+ *   client's failure; and a body no response schema of the route reads. The
  *   routes run on a real Fastify with the API's Zod compilers.
  * @layer infrastructure
  */
@@ -28,6 +30,8 @@ vi.mock("../../../../src/lib/errors/problem.js", async (importOriginal) => {
 const { PROBLEM_MEDIA_TYPE, toProblem } = problemModule;
 
 const REQUEST_ID = "req-0001";
+/** The client's address as `resolveClientIp` derives it from an inject, whose peer is the loopback. */
+const CLIENT_IP = "127.0.0.1";
 const CONFLICT = RegisteredError.of(COMMON_ERRORS.CONFLICT);
 const TRANSIENT = RegisteredError.of(COMMON_ERRORS.TRANSIENT_FAILURE);
 const UNEXPECTED = Object.assign(new Error("connection refused at /var/run/db.sock"), {
@@ -161,7 +165,13 @@ describe("sendProblem", () => {
           correlationId: REQUEST_ID,
           method: "POST",
           url: "/posts/7?draft=1",
-          error: { name: "RegisteredError", message: CONFLICT.message, stack: CONFLICT.stack },
+          ip: CLIENT_IP,
+          error: {
+            name: "RegisteredError",
+            message: CONFLICT.message,
+            code: "CONFLICT",
+            stack: CONFLICT.stack,
+          },
         },
         message: "Request failed",
       },
@@ -193,7 +203,13 @@ describe("sendProblem", () => {
           correlationId: REQUEST_ID,
           method: "GET",
           url: "/broken",
-          error: { name: "Error", message: UNEXPECTED.message, stack: UNEXPECTED.stack },
+          ip: CLIENT_IP,
+          error: {
+            name: "Error",
+            message: UNEXPECTED.message,
+            code: "LEGACY_STORE_DOWN",
+            stack: UNEXPECTED.stack,
+          },
         },
         message: "Request failed",
       },
@@ -207,7 +223,47 @@ describe("sendProblem", () => {
           code: "LEGACY_STORE_DOWN",
           method: "GET",
           url: "/broken",
-          ip: "127.0.0.1",
+          ip: CLIENT_IP,
+        },
+      ],
+    ]);
+  });
+
+  it("writes one line at error for a registered failure of the server or of a service it depends on, and reports it to Sentry", async () => {
+    await app.inject({ method: "GET", url: "/health" });
+
+    expect(lines).toEqual([
+      {
+        level: "error",
+        fields: {
+          code: "TRANSIENT_FAILURE",
+          wireCode: "TRANSIENT_FAILURE",
+          status: 503,
+          source: "registered",
+          correlationId: REQUEST_ID,
+          method: "GET",
+          url: "/health",
+          ip: CLIENT_IP,
+          error: {
+            name: "RegisteredError",
+            message: TRANSIENT.message,
+            code: "TRANSIENT_FAILURE",
+            stack: TRANSIENT.stack,
+          },
+        },
+        message: "Request failed",
+      },
+    ]);
+    expect(vi.mocked(captureError).mock.calls).toEqual([
+      [
+        TRANSIENT,
+        {
+          requestId: REQUEST_ID,
+          correlationId: REQUEST_ID,
+          code: "TRANSIENT_FAILURE",
+          method: "GET",
+          url: "/health",
+          ip: CLIENT_IP,
         },
       ],
     ]);
@@ -275,7 +331,13 @@ describe("sendProblem", () => {
           correlationId: REQUEST_ID,
           method: "GET",
           url: "/answered-first",
-          error: { name: "RegisteredError", message: CONFLICT.message, stack: CONFLICT.stack },
+          ip: CLIENT_IP,
+          error: {
+            name: "RegisteredError",
+            message: CONFLICT.message,
+            code: "CONFLICT",
+            stack: CONFLICT.stack,
+          },
         },
         message: "Request failed after its answer was sent",
       },

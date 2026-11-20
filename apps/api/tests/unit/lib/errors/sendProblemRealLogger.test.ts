@@ -3,8 +3,10 @@
  * @description The error handler, the not-found handler and a route answering through
  *   `sendProblem`, on a Fastify whose logger is the real pino the API runs (`logger: true` in
  *   index.ts), writing to a stream the suite reads. Each failure answers its own status with exactly
- *   one line at its severity, which parses as JSON and carries the failure as an allow-listed
- *   projection: the line never serializes the error object, so neither a frozen field nor an
+ *   one line at its severity, warn for a client's failure and error for one of the server or of a
+ *   service it depends on, which parses as JSON, carries the client's address, and carries the
+ *   failure and each of its causes as an allow-listed projection with its code when it has one:
+ *   the line never serializes the error object, so neither a frozen field nor an
  *   `AppError`'s details, a provider's response, a Prisma error's meta or a raised value's content
  *   reaches the log or the body.
  * @layer infrastructure
@@ -26,6 +28,8 @@ import { sendProblem } from "../../../../src/lib/errors/index.js";
 import { uniqueViolationOnFields } from "../../helpers/prismaKnownRequestErrors.js";
 
 const REQUEST_ID = "req-0001";
+/** The client's address as `resolveClientIp` derives it from an inject, whose peer is the loopback. */
+const CLIENT_IP = "127.0.0.1";
 const PROBLEM_JSON = "application/problem+json; charset=utf-8";
 const WARN = 40;
 const ERROR = 50;
@@ -106,6 +110,10 @@ describe("sendProblem on the real pino logger", () => {
     app.get("/caused/by-a-value", async () => {
       throw new Error("The call failed", { cause: RAISED_TEXT });
     });
+    app.get("/caused/by-a-coded-value", async () => {
+      // A driver can reject with a plain object that carries a code.
+      throw new Error("The query failed", { cause: { code: "ECONNREFUSED", detail: RAISED_TEXT } });
+    });
     app.get("/caused/in-a-circle", async () => {
       const first = new Error("first");
       first.cause = new Error("second", { cause: first });
@@ -137,20 +145,28 @@ describe("sendProblem on the real pino logger", () => {
   }
 
   it.each([
-    ["a raised registered error", "/registered", 409, "CONFLICT", "RegisteredError"],
-    ["a raised use-case error", "/use-case", 404, "NOT_FOUND", "UseCaseError"],
-    ["a path no route matches", "/nowhere", 404, "ROUTE_NOT_FOUND", "RegisteredError"],
+    ["a raised registered error", "/registered", 409, "CONFLICT", "RegisteredError", WARN],
+    ["a raised use-case error", "/use-case", 404, "NOT_FOUND", "UseCaseError", WARN],
+    ["a path no route matches", "/nowhere", 404, "ROUTE_NOT_FOUND", "RegisteredError", WARN],
     [
-      "a raised error under a 503 response schema",
+      "a raised error under a 503 response schema, a failure a retry may pass",
       "/health",
       503,
       "TRANSIENT_FAILURE",
       "RegisteredError",
+      ERROR,
     ],
-    ["a route answering through sendProblem", "/answered", 403, "FORBIDDEN", "RegisteredError"],
+    [
+      "a route answering through sendProblem",
+      "/answered",
+      403,
+      "FORBIDDEN",
+      "RegisteredError",
+      WARN,
+    ],
   ])(
-    "answers %s at its own status, with one warn line that carries the failure's projection",
-    async (_name, url, status, code, errorName) => {
+    "answers %s at its own status, with one line at its severity that carries the address and the failure's projection",
+    async (_name, url, status, code, errorName, level) => {
       const response = await app.inject({ method: "GET", url });
       const body = response.json();
 
@@ -162,7 +178,7 @@ describe("sendProblem on the real pino logger", () => {
       ]).toEqual([status, PROBLEM_JSON, status, code]);
       expect(failureLines()).toEqual([
         expect.objectContaining({
-          level: WARN,
+          level,
           msg: "Request failed",
           code,
           wireCode: code,
@@ -171,7 +187,8 @@ describe("sendProblem on the real pino logger", () => {
           correlationId: REQUEST_ID,
           method: "GET",
           url,
-          error: projectionOf(errorName, body.detail),
+          ip: CLIENT_IP,
+          error: projectionOf(errorName, body.detail, { code }),
         }),
       ]);
     }
@@ -183,7 +200,10 @@ describe("sendProblem on the real pino logger", () => {
       "/leak/app-error",
       400,
       WARN,
-      projectionOf("Error", "Validation failed", { isOperational: true }),
+      projectionOf("Error", "Validation failed", {
+        code: "VALIDATION_ERROR",
+        isOperational: true,
+      }),
       [PASSWORD],
     ],
     [
@@ -191,7 +211,7 @@ describe("sendProblem on the real pino logger", () => {
       "/leak/provider",
       400,
       ERROR,
-      projectionOf("ProviderError", "The upstream refused the request"),
+      projectionOf("ProviderError", "The upstream refused the request", { code: "BAD_REQUEST" }),
       [TOKEN],
     ],
     [
@@ -201,7 +221,8 @@ describe("sendProblem on the real pino logger", () => {
       ERROR,
       projectionOf(
         "PrismaClientKnownRequestError",
-        "Unique constraint failed on the fields: (`email`)"
+        "Unique constraint failed on the fields: (`email`)",
+        { code: "P2002" }
       ),
       [CONSTRAINT, MODEL],
     ],
@@ -221,7 +242,7 @@ describe("sendProblem on the real pino logger", () => {
     }
   );
 
-  it("logs each cause of the failure as its own projection, and none of a cause's other fields", async () => {
+  it("logs each cause of the failure as its own projection with its code when it has one, and none of a cause's other fields", async () => {
     const response = await app.inject({ method: "GET", url: "/caused" });
     const everything = `${written.join("")}${response.body}`;
 
@@ -231,13 +252,31 @@ describe("sendProblem on the real pino logger", () => {
         level: ERROR,
         url: "/caused",
         error: projectionOf("UseCaseError", response.json().detail, {
+          code: "INTERNAL_ERROR",
           cause: projectionOf("Error", "The query failed", {
-            cause: projectionOf("Error", "Validation failed", { isOperational: true }),
+            cause: projectionOf("Error", "Validation failed", {
+              code: "VALIDATION_ERROR",
+              isOperational: true,
+            }),
           }),
         }),
       }),
     ]);
     expect(everything.includes(PASSWORD)).toBe(false);
+  });
+
+  it("logs a cause that is not an Error as its type and its code, never its content", async () => {
+    const response = await app.inject({ method: "GET", url: "/caused/by-a-coded-value" });
+
+    expect(response.statusCode).toBe(500);
+    expect(failureLines()).toEqual([
+      expect.objectContaining({
+        error: projectionOf("Error", "The query failed", {
+          cause: { type: "object", code: "ECONNREFUSED" },
+        }),
+      }),
+    ]);
+    expect(`${written.join("")}${response.body}`.includes(RAISED_TEXT)).toBe(false);
   });
 
   it("logs a cause that is not an Error as its type, never its content", async () => {
