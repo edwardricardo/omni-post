@@ -418,6 +418,180 @@ describe("battery verdict", () => {
     });
   });
 
+  describe("the record-coverage gate's block lines", () => {
+    const GATE_LOG = "record-coverage.log";
+    /** The line the static battery printed on 2026-11-20 for a block its change deleted. */
+    const MEASURED_LINE =
+      "record-coverage-gate: behaviour change: apps/api/tests/unit/errorHandler.test.ts::should log operational errors as warnings (deletion): its test imports apps/api/src/lib/errors/errorHandler.ts, which this pull request changes";
+
+    it("returns GREEN over the measured line, whose block title holds the word", async () => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `${MEASURED_LINE}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.reasons).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it.each([
+      [
+        "refused",
+        "record-coverage-gate: refused: pkg/tests/a.test.ts::warns once (deletion): no-record",
+      ],
+      [
+        "live",
+        "record-coverage-gate: live: pkg/tests/a.test.ts::logs a warning (rewrite): counted, not refused: a live-tier test needs a running API, which mutation-diff does not start",
+      ],
+      [
+        "no-collector",
+        "record-coverage-gate: no-collector: pkg/tests/a.test.ts::Warning banner (deletion): counted, not refused: no collector runs it, so mutation-diff cannot",
+      ],
+      [
+        "moved",
+        "record-coverage-gate: moved: pkg/tests/a.test.ts::warns on a stale token (deletion): its bodyHash reappears as pkg/tests/b.test.ts::emits a DeprecationWarning",
+      ],
+    ])("reads a %s line without its block titles", async (_cls, line) => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it.each([
+      [
+        "::",
+        "record-coverage-gate: refused: pkg/tests/a.test.ts::parses a::b and warns (deletion): no-record",
+      ],
+      [
+        "the separator ` (deletion): `",
+        "record-coverage-gate: behaviour change: pkg/tests/a.test.ts::keeps (deletion): apart from warnings (deletion): its test imports pkg/src/a.ts, which this pull request changes",
+      ],
+      [
+        "the gate's own words",
+        "record-coverage-gate: refused: pkg/tests/a.test.ts::refused: pkg/x.ts::warns (rewrite): no-record (deletion): no-record",
+      ],
+      [
+        "a moved line's own phrase",
+        "record-coverage-gate: moved: pkg/tests/a.test.ts::says (deletion): its bodyHash reappears as warnings::twice (deletion): its bodyHash reappears as pkg/tests/b.test.ts::warns",
+      ],
+    ])("reads a title holding %s as the title", async (_holding, line) => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it.each([
+      [
+        "in the detail",
+        "record-coverage-gate: refused: pkg/tests/a.test.ts::warns once (deletion): no-record, warning: the base was not read",
+      ],
+      [
+        "in the path",
+        "record-coverage-gate: refused: pkg/tests/a warn b.test.ts::checks once (deletion): no-record",
+      ],
+      [
+        "in a moved line's second path",
+        "record-coverage-gate: moved: pkg/tests/a.test.ts::warns once (deletion): its bodyHash reappears as pkg/tests/a warn b.test.ts::warns once",
+      ],
+    ])("returns RED over a warning word %s of a block line", async (_where, line) => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: GATE_LOG, line: 2, text: line }]);
+    });
+
+    it.each([
+      [
+        "the gate's own problem",
+        "record-coverage-gate: docs/development/testing-refoundation/mutations/a.record.json is not a mutation-diff record: warnings is not a field",
+      ],
+      ["the gate's own failure", "record-coverage-gate: the gate failed: Warning: git is too old"],
+      [
+        "a runtime warning",
+        "(node:1824577) [DEP0040] DeprecationWarning: The punycode module is deprecated.",
+      ],
+      [
+        "another tool's line holding ::",
+        "::warning file=pkg/tests/a.test.ts::warns once (deletion): no-record",
+      ],
+      [
+        "a class the gate does not list",
+        "record-coverage-gate: covered: pkg/tests/a.test.ts::warns once (rewrite): GAIN in a.record.json",
+      ],
+    ])("returns RED over %s on the gate's log", async (_form, line) => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: GATE_LOG, line: 2, text: line }]);
+    });
+
+    it.each([
+      [
+        "a block line's grammar after other text",
+        "warning: record-coverage-gate: refused: pkg/tests/a.test.ts::warns once (deletion): no-record",
+      ],
+      [
+        "a moved line's grammar after other text",
+        "warning: record-coverage-gate: moved: pkg/tests/a.test.ts::warns once (deletion): its bodyHash reappears as pkg/tests/b.test.ts::warns once",
+      ],
+      [
+        "a carriage return inside a block line's detail",
+        "record-coverage-gate: behaviour change: pkg/tests/a.test.ts::warns once (deletion): its test imports pkg/src/a\rwarning: x.ts, which this pull request changes",
+      ],
+      [
+        "a carriage return inside a moved line's second title",
+        "record-coverage-gate: moved: pkg/tests/a.test.ts::warns once (deletion): its bodyHash reappears as pkg/tests/b.test.ts::warns\ronce",
+      ],
+      [
+        "a kind with no `: ` after it",
+        "record-coverage-gate: live: pkg/tests/a.test.ts::warns (deletion) counted",
+      ],
+      [
+        "a path holding a single `:`",
+        "record-coverage-gate: refused: pkg/tests/a:b.test.ts::warns once (deletion): no-record",
+      ],
+    ])("returns RED over %s on the gate's log, read whole", async (_limit, line) => {
+      const outDir = makeLogDir({ logs: { [GATE_LOG]: `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: GATE_LOG, line: 2, text: line }]);
+    });
+
+    it("returns RED over the measured line in a log whose name differs from the gate's in case", async () => {
+      const outDir = makeLogDir({ logs: { "Record-Coverage.log": `ok\n${MEASURED_LINE}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([
+        { log: "Record-Coverage.log", line: 2, text: MEASURED_LINE.slice(0, 220) },
+      ]);
+    });
+
+    it("returns RED over the measured line in another step's log", async () => {
+      const outDir = makeLogDir({ logs: { "lint.log": `ok\n${MEASURED_LINE}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([
+        { log: "lint.log", line: 2, text: MEASURED_LINE.slice(0, 220) },
+      ]);
+    });
+  });
+
   describe("missing inputs", () => {
     it("returns RED when fewer steps were recorded than planned", async () => {
       const outDir = makeLogDir();
