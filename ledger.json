@@ -27,7 +27,7 @@
       "total": 1259
     },
     "blocks": {
-      "total": 15600,
+      "total": 15602,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15289
+        "BEHAVIOURAL": 15291
       }
     },
     "deleted": {
@@ -72106,7 +72106,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 25,
+      "blockCount": 27,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns GREEN with no reasons when every planned step exits 0 over clean logs",
@@ -72193,92 +72193,106 @@
           "bodyHash": "78fdcd4c91361c1f11abbc4a63292ab7f3b63433fc36d9621402020977e0439b"
         },
         {
+          "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns GREEN over the application's records at warn with the level as pino's number, and counts them per message",
+          "line": 360,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2f34191a28c6d3904ffbbc533e41ab75d660d8198ac758242b9aeaf80a2d851f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED over %s",
+          "line": 386,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "53c14a889a480764d38dc3eb8e60cdac14e3b9f92ae687a07e3e2526bc8f29ca"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when fewer steps were recorded than planned",
-          "line": 358,
+          "line": 410,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "68c086bbb50d733f9664098714ac53a899a29565a1b3f465d74cc9455065ebd7"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when steps.tsv is missing",
-          "line": 369,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0de6923731efaf3d60b5bce70c5b2cf32173e7defa4dee5521c72cb7e552045b"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when the log directory does not exist at all",
-          "line": 378,
+          "line": 430,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e55771a7ce5aa5b7847d80175e9e2b3e34bf78bac0c51532a3586b1a55a3b1c1"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when a steps.tsv row is not a name and an exit code",
-          "line": 385,
+          "line": 437,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c59407f8491e281fbb89781d031ad2dfc3f5ee273acebf4c20ba66225a561068"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED with one reason naming a step recorded twice, keeping its first record",
-          "line": 395,
+          "line": 447,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15d5644f2c9f2e464046dc569d12ca2a20fe619ae5d0e4d6e64bfb0a693f7d09"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns one reason for a step recorded three times",
-          "line": 409,
+          "line": 461,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e7e2e7b37b0090214758d4fcefd9d918bc0f9e63d64e8f93ee17ccdcc289441"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when a recorded step left no log",
-          "line": 422,
+          "line": 474,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dee7bcfce7b9bf54c913034a895254644fa26a489baa3a7ebcae50917b6aa9ca"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api run left no JSON report",
-          "line": 432,
+          "line": 484,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf8cb00ff3a70b493eb627181113f8f3be478b01e9367ab45ec28f5907c8aa00"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api report is valid JSON but not a vitest report",
-          "line": 442,
+          "line": 494,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb11cb38f092b79cef32e9619a5c5256239f7ea489d9d173610a6090f804edcd"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api log carries Unhandled Error",
-          "line": 454,
+          "line": 506,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c7b5ba0ab409b411fbb8e725c49370f4bc74e5c9513fc721357d0e481fa4b87"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api log carries Worker exited",
-          "line": 466,
+          "line": 518,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26b0c025ee53428bf353d5a502b8d0503b3aac4a764945e22e99e4061c38b1fe"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when an api report counts a failed test",
-          "line": 477,
+          "line": 529,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "755b94f2dd8e9a7ae3b73b3a26c6beec90711973c4d9536ad550b3434d2088b1"
         },
         {
           "id": "apps/api/tests/unit/scripts/batteryVerdict.test.ts::returns RED when the tree changed during the battery",
-          "line": 490,
+          "line": 542,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bd6ec6cbc4b93a55d69d4c2cb64350e4f92aea890b138d22ca007b5968516ca"
