@@ -12,14 +12,14 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, beforeEach, afterAll, vi, expect } from "vitest";
+import { describe, it, beforeAll, beforeEach, afterAll, afterEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import {
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
-import type { HealthChecker } from "@monitoring/health-checks";
+import type { HealthChecker, HealthStatus } from "@monitoring/health-checks";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 // One checker double per dependency the composition root probes. The route registers each one
@@ -365,6 +365,137 @@ describe("healthRoutes - Unit Tests", () => {
         config: undefined,
         sameScheduler: true,
       });
+    });
+  });
+});
+
+describe("healthRoutes status codes, over the real health manager", () => {
+  const apps: FastifyInstance[] = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  /**
+   * The routes over the package's own manager, whose every checker reports `status` unless
+   * `exceptions` names another for it, on a scheduler the case drives: before its refresh runs,
+   * `GET /health` checks on demand; after, it answers from the refreshed report.
+   */
+  async function routesReporting(
+    status: HealthStatus,
+    exceptions: Partial<Record<keyof typeof checkers, HealthStatus>> = {}
+  ) {
+    const healthChecks = await import("@monitoring/health-checks");
+    const scheduler = new NoopBackgroundTaskScheduler();
+    vi.mocked(healthChecks.createHealthCheckManager).mockImplementationOnce(
+      () => new healthChecks.HealthCheckManager(undefined, scheduler)
+    );
+    const checkerFor = (name: keyof typeof checkers): HealthChecker => ({
+      check: async () => ({ status: exceptions[name] ?? status, latency: 1 }),
+    });
+    const app = Fastify({ logger: false });
+    app.withTypeProvider<ZodTypeProvider>();
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+    apps.push(app);
+    const { healthRoutes } = await import("../../src/health/healthRoutes.js");
+    await app.register(healthRoutes, {
+      scheduler,
+      checkers: {
+        database: checkerFor("database"),
+        redis: checkerFor("redis"),
+        cache: checkerFor("cache"),
+        queue: checkerFor("queue"),
+        storage: checkerFor("storage"),
+        providers: checkerFor("providers"),
+      },
+    });
+    return { app, scheduler };
+  }
+
+  /** A route's status code and the fields of its body a case names. */
+  async function answer(app: FastifyInstance, url: string, fields: readonly string[]) {
+    const response = await app.inject({ method: "GET", url });
+    const body = JSON.parse(response.body) as Record<string, unknown>;
+    return [response.statusCode, ...fields.map((field) => body[field])];
+  }
+
+  const STATUSES = ["healthy", "degraded", "unhealthy"] as const;
+
+  it("answers /health with 200 for a healthy or degraded report and 503 for an unhealthy one", async () => {
+    const answers: Record<string, unknown[]> = {};
+    for (const status of STATUSES) {
+      const { app, scheduler } = await routesReporting(status);
+      const onDemand = await answer(app, "/health", ["status"]);
+      await scheduler.triggerTask("health-check-manager-periodic");
+      answers[status] = [onDemand, await answer(app, "/health", ["status"])];
+    }
+
+    expect(answers).toEqual({
+      healthy: [
+        [200, "healthy"],
+        [200, "healthy"],
+      ],
+      degraded: [
+        [200, "degraded"],
+        [200, "degraded"],
+      ],
+      unhealthy: [
+        [503, "unhealthy"],
+        [503, "unhealthy"],
+      ],
+    });
+  });
+
+  it("answers /health/ready with ready for healthy or degraded critical dependencies and 503 for unhealthy ones", async () => {
+    const answers: Record<string, unknown[]> = {};
+    for (const status of STATUSES) {
+      const { app } = await routesReporting(status);
+      answers[status] = await answer(app, "/health/ready", ["status", "unhealthyDependencies"]);
+    }
+
+    expect(answers).toEqual({
+      healthy: [200, "ready", undefined],
+      degraded: [200, "ready", undefined],
+      unhealthy: [503, "not ready", ["database", "redis", "queue"]],
+    });
+  });
+
+  it("names, on /health/ready, only the critical dependency that cannot serve", async () => {
+    const { app } = await routesReporting("healthy", { redis: "degraded", queue: "unhealthy" });
+
+    expect(await answer(app, "/health/ready", ["status", "unhealthyDependencies"])).toEqual([
+      503,
+      "not ready",
+      ["queue"],
+    ]);
+  });
+
+  it("answers /health/detailed with 200 for a healthy or degraded report and 503 for an unhealthy one", async () => {
+    const answers: Record<string, unknown[]> = {};
+    for (const status of STATUSES) {
+      const { app } = await routesReporting(status);
+      answers[status] = await answer(app, "/health/detailed", ["status", "ok"]);
+    }
+
+    expect(answers).toEqual({
+      healthy: [200, "healthy", true],
+      degraded: [200, "degraded", true],
+      unhealthy: [503, "unhealthy", false],
+    });
+  });
+
+  it("answers /health/dependency/:name with 200 for a healthy or degraded dependency and 503 for an unhealthy one", async () => {
+    const answers: Record<string, unknown[]> = {};
+    for (const status of STATUSES) {
+      const { app } = await routesReporting(status);
+      answers[status] = await answer(app, "/health/dependency/database", ["status", "ok"]);
+    }
+
+    expect(answers).toEqual({
+      healthy: [200, "healthy", true],
+      degraded: [200, "degraded", true],
+      unhealthy: [503, "unhealthy", false],
     });
   });
 });

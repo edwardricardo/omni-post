@@ -597,6 +597,8 @@ export function getHealthCheckManager(): HealthCheckManager | null {
   return globalHealthManager;
 }
 
+export { isUsable } from "./usable.js";
+
 // Export all health checkers
 export { DatabaseHealthChecker, DatabaseConnectionPoolHealthChecker } from "./checkers/database.js";
 export { RedisHealthChecker, CacheHealthChecker } from "./checkers/redis.js";

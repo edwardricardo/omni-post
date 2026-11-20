@@ -71,7 +71,7 @@ A few routes send a body of their own: `GET /health` and its siblings, `GET /met
 GET /health
 ```
 
-**Response**: `{ status: "healthy" | "degraded" | "unhealthy", timestamp: string, uptime?: number }`, with 200 when `status` is `healthy` and 503 otherwise, `degraded` included. `uptime` is absent until the health checks have run once.
+**Response**: `{ status: "healthy" | "degraded" | "unhealthy", timestamp: string, uptime?: number }`, with 200 when `status` is `healthy` or `degraded`, since a degraded dependency still answers, and 503 when it is `unhealthy`. `GET /health/ready` and `GET /health/dependency/:name` answer by the same rule. The report is refreshed every 30 s, and every 5 s while it is `unhealthy`. `uptime` is absent until the health checks have run once.
 
 #### Detailed Health Check
 

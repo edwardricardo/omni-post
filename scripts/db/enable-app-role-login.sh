@@ -64,9 +64,9 @@ if [[ -z "${ADMIN_URL}" ]]; then
 fi
 
 # --- Parse it into discrete libpq arguments ----------------------------------
-# Same approach as scripts/db-up.sh: the `?schema=...` query parameter is
-# Prisma-specific and libpq rejects it, and explicit -h/-p/-U/-d avoids any
-# percent-encoding ambiguity in the URI parser.
+# The `?schema=...` query parameter is Prisma-specific and libpq rejects it,
+# and explicit -h/-p/-U/-d avoids any percent-encoding ambiguity in the URI
+# parser.
 URL_NOQUERY="${ADMIN_URL%%\?*}"
 URL_NO_SCHEME="${URL_NOQUERY#*://}"
 URL_USERINFO="${URL_NO_SCHEME%@*}"

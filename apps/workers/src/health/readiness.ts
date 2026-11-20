@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import type { Result } from "@shared/types";
+import { isUsable } from "@monitoring/health-checks";
 
 /**
  * @function publishConsumerDependencyName
@@ -28,16 +29,11 @@ export interface ReadinessVerdict {
 }
 
 /**
- * The statuses of a dependency the process can use. A degraded one answers, slowly or close to a
- * limit, so it is still usable; the report keeps saying degraded for the operator to see.
- */
-const USABLE_STATUSES: ReadonlySet<string> = new Set(["healthy", "degraded"]);
-
-/**
  * @function evaluateReadiness
  * @description Asks for each critical dependency BY NAME and treats anything other than
  *   `healthy` or `degraded` — `unhealthy`, an unknown status, a failed check, a name with no
- *   registered checker — as not ready.
+ *   registered checker — as not ready. The rule is `isUsable`, the one the API's health routes
+ *   answer by; a degraded dependency still answers, and the report keeps saying degraded.
  *
  *   The per-name lookup is the whole point. Filtering a whole-report scan by a list of critical
  *   names contributes zero entries for a name nobody registered, and zero unhealthy entries reads
@@ -58,7 +54,7 @@ export async function evaluateReadiness(
 
   const unhealthyDependencies = criticalDependencies.filter((_name, index) => {
     const result = results[index];
-    return !result || !result.ok || !USABLE_STATUSES.has(result.value.status);
+    return !result || !result.ok || !isUsable(result.value.status);
   });
 
   return { ready: unhealthyDependencies.length === 0, unhealthyDependencies };
