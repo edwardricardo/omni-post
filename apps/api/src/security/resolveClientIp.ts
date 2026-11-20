@@ -127,9 +127,8 @@ export function normalizeIp(raw: string | undefined | null): string | undefined 
 }
 
 /** Where a client address comes from: the connection's peer, or a trusted proxy's report. */
-export const CLIENT_ADDRESS_SOURCE = { PEER: "peer", FORWARDED: "forwarded" } as const;
-export type ClientAddressSource =
-  (typeof CLIENT_ADDRESS_SOURCE)[keyof typeof CLIENT_ADDRESS_SOURCE];
+const CLIENT_ADDRESS_SOURCE = { PEER: "peer", FORWARDED: "forwarded" } as const;
+type ClientAddressSource = (typeof CLIENT_ADDRESS_SOURCE)[keyof typeof CLIENT_ADDRESS_SOURCE];
 
 /** A client address and where it comes from, decided together. */
 export interface ClientAddress {
