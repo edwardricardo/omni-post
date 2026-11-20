@@ -37,6 +37,9 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 const Fastify = (await import("fastify")).default;
+const fastifySwagger = (await import("@fastify/swagger")).default;
+const { jsonSchemaTransform, serializerCompiler, validatorCompiler } =
+  await import("fastify-type-provider-zod");
 const { adminAuthRoutes } = await import("../../src/admin/auth/adminAuthRoutes.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
@@ -262,6 +265,49 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(logged.length).toBeGreaterThan(0);
     expect(written.includes(CURRENT_PASSWORD)).toBe(false);
     expect(written.includes(NEW_PASSWORD)).toBe(false);
+  });
+});
+
+describe("POST /admin/auth/password/change-required in the published contract", () => {
+  it("declares its body in the OpenAPI document the generated API types are made from: the e-mail and both passwords required, the second factor's code optional", async () => {
+    const app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+    await app.register(fastifySwagger, {
+      transform: jsonSchemaTransform,
+      openapi: { info: { title: "Contract test API", version: "1.0.0" } },
+    });
+    const container = new Container();
+    container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
+    container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);
+    container.registerInstance(TOKENS.EmailPort, emailStub);
+    container.registerInstance(TOKENS.HttpRateLimiter, limiterStub);
+    app.decorate("container", container);
+    await app.register(adminAuthRoutes);
+    await app.ready();
+
+    // The document is OpenAPI 3, the only version whose operations carry `requestBody`.
+    const operation = app.swagger().paths?.[ROUTE]?.post ?? {};
+    const body = "requestBody" in operation ? operation.requestBody : undefined;
+    await app.close();
+
+    expect(body).toMatchObject({
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              email: { type: "string" },
+              currentPassword: { type: "string", minLength: 1 },
+              newPassword: { type: "string", minLength: 1, maxLength: 128 },
+              mfaToken: { type: "string" },
+            },
+            required: ["email", "currentPassword", "newPassword"],
+          },
+        },
+      },
+    });
   });
 });
 

@@ -6,6 +6,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
+import { validatorCompiler } from "fastify-type-provider-zod";
 import { ZodError } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
@@ -655,6 +656,11 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
   const handler = new AdminAuthRouteHandler(adminAuthSvc, credSvc, emailPort);
 
+  // The Zod compiler `createApp()` sets, set again on this plugin's own context, so a declared Zod
+  // schema validates the same on every instance the plugin is registered on, an instance built
+  // without that compiler included.
+  fastify.setValidatorCompiler(validatorCompiler);
+
   // ==========================================================================
   // Public Endpoints (No Authentication Required)
   // ==========================================================================
@@ -671,12 +677,20 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // Required password change: it runs the sign-in's checks without a session, so it spends the
-  // sign-in's bucket, and an address gets one allowance for guessing passwords, not two
+  // sign-in's bucket, and an address gets one allowance for guessing passwords, not two.
+  // The body is declared so the published contract types it. A body the schema refuses is
+  // attached to the request rather than answered: the handler parses it again and answers in its
+  // own shape, the one the portal reads, and the rate limit is still spent on it.
   fastify.post(
     "/admin/auth/password/change-required",
     {
       preHandler: [rateLimit(loginRateMax, 60000, SIGN_IN_ROUTE)],
-      schema: { tags: ["Admin Auth"], summary: "Change a password that must be changed" },
+      attachValidation: true,
+      schema: {
+        tags: ["Admin Auth"],
+        summary: "Change a password that must be changed",
+        body: requiredPasswordChangeSchema,
+      },
     },
     async (request, reply) => handler.changeRequiredPassword(request, reply)
   );
