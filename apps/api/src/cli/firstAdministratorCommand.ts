@@ -16,7 +16,7 @@
 
 import { parseArgs } from "node:util";
 import type { Result } from "@shared/types";
-import type { UseCase, UseCaseError } from "@core/application/UseCase.js";
+import type { UseCase, UseCaseError, UseCaseErrorCode } from "@core/application/UseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type {
   CreateFirstAdministratorInput,
@@ -249,9 +249,9 @@ function reissuedBlock(reissued: ReissueAdministratorPasswordOutput): string {
  * conflict, and the re-issue also when no administrator has the e-mail. Any other code but a
  * validation failure is reported as a failure, with its causes.
  */
-const REFUSAL_CODES: Readonly<Record<"create" | "reissue", ReadonlySet<string>>> = {
-  create: new Set([USE_CASE_ERRORS.CONFLICT]),
-  reissue: new Set([USE_CASE_ERRORS.CONFLICT, USE_CASE_ERRORS.NOT_FOUND]),
+const REFUSAL_CODES: Readonly<Record<"create" | "reissue", ReadonlyArray<UseCaseErrorCode>>> = {
+  create: [USE_CASE_ERRORS.CONFLICT],
+  reissue: [USE_CASE_ERRORS.CONFLICT, USE_CASE_ERRORS.NOT_FOUND],
 };
 
 /**
@@ -262,7 +262,7 @@ const REFUSAL_CODES: Readonly<Record<"create" | "reissue", ReadonlySet<string>>>
 function report<T>(
   outcome: Result<T, UseCaseError>,
   block: (value: T) => string,
-  refusalCodes: ReadonlySet<string>,
+  refusalCodes: ReadonlyArray<UseCaseErrorCode>,
   streams: CommandStreams
 ): number {
   if (outcome.ok) {
@@ -270,7 +270,7 @@ function report<T>(
     return EXIT.OK;
   }
   const { error } = outcome;
-  if (refusalCodes.has(error.code)) {
+  if (refusalCodes.some((code) => code === error.code)) {
     streams.stderr.write(`Refused: ${error.message}\n`);
     return EXIT.REFUSED_OR_FAILED;
   }

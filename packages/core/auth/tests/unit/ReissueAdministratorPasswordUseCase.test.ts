@@ -49,7 +49,7 @@ const MESSAGES = {
   hashFailed: "Hashing the single-use password failed",
   replaceFailed: "Replacing the single-use password failed",
   changedSinceRead:
-    "The administrator changed between the read and the write (another re-issue, a password change or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
+    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
   revokeFailed: "Ending the administrator's sessions failed",
   auditFailed: "Writing the audit record of the re-issue failed",
   transactionFailed:
@@ -111,7 +111,10 @@ interface HarnessOptions {
   readonly readRaise?: unknown;
   readonly generateFailure?: Error;
   readonly hashFailure?: Error;
+  /** What the guarded write answers instead of applying its guard to the stored row. */
   readonly replaceAnswer?: Result<boolean, RepositoryFailureError>;
+  /** Fields of the stored row that changed between the read and the write. */
+  readonly changedBeforeWrite?: Partial<AdminUserCredentialsDto>;
   readonly replaceRaise?: unknown;
   readonly revokeRaise?: unknown;
   readonly auditRaise?: unknown;
@@ -128,6 +131,8 @@ interface Harness {
   readonly revokedFor: string[];
   readonly auditEntries: AuditLogCreateInput[];
   readonly transactionOutcomes: Array<Result<unknown, unknown>>;
+  /** The stored row as the guarded write left it; `null` when no administrator is stored. */
+  readonly storedRow: () => AdminUserCredentialsDto | null;
 }
 
 function makeHarness(options: HarnessOptions = {}): Harness {
@@ -139,6 +144,8 @@ function makeHarness(options: HarnessOptions = {}): Harness {
   const auditEntries: AuditLogCreateInput[] = [];
   const transactionOutcomes: Array<Result<unknown, unknown>> = [];
   const stored = options.administrator === undefined ? makeAdministrator() : options.administrator;
+  // The row the guarded write sees: the one read, with what changed before the write.
+  let row = stored === null ? null : { ...stored, ...options.changedBeforeWrite };
 
   const administrators: ReissueAdministratorRepository = {
     async findCredentialsByEmail(email: string) {
@@ -155,7 +162,26 @@ function makeHarness(options: HarnessOptions = {}): Harness {
       if (options.replaceRaise !== undefined) {
         throw options.replaceRaise;
       }
-      return options.replaceAnswer ?? ok(true);
+      if (options.replaceAnswer !== undefined) {
+        return options.replaceAnswer;
+      }
+      if (
+        row === null ||
+        row.id !== replacement.id ||
+        row.passwordHash !== replacement.currentPasswordHash ||
+        row.passwordResetToken !== replacement.currentPasswordResetToken ||
+        !row.mustChangePassword ||
+        row.lastLoginAt !== null
+      ) {
+        return ok(false);
+      }
+      row = {
+        ...row,
+        passwordHash: replacement.passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      };
+      return ok(true);
     },
   };
   const sessions: ReissueSessionRepository = {
@@ -214,6 +240,7 @@ function makeHarness(options: HarnessOptions = {}): Harness {
     revokedFor,
     auditEntries,
     transactionOutcomes,
+    storedRow: () => row,
   };
 }
 
@@ -354,6 +381,32 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       expect(harness.revokedFor).toEqual([]);
       expect(harness.auditEntries).toEqual([]);
       expect(inspect(error, { depth: null, showHidden: true })).not.toContain(NEW_PASSWORD);
+    });
+
+    it("returns CONFLICT, leaving the stored hash and reset token as they are, ending no session and writing no audit record, when a password reset was requested between the read and the write", async () => {
+      const resetRequestedSince = "fixture-hash-of-a-reset-token-requested-since";
+      const harness = makeHarness({
+        changedBeforeWrite: { passwordResetToken: resetRequestedSince },
+      });
+
+      const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
+
+      const error = expectFailure(result);
+      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
+      expect(error.message).toBe(MESSAGES.changedSinceRead);
+      expect(harness.replacements).toEqual([
+        expect.objectContaining({ currentPasswordResetToken: PENDING_RESET_TOKEN }),
+      ]);
+      expect(harness.storedRow()).toEqual(
+        makeAdministrator({ passwordResetToken: resetRequestedSince })
+      );
+      expect(harness.journal).toEqual([
+        ...BEFORE_THE_TRANSACTION,
+        JOURNAL.replace,
+        JOURNAL.rollback,
+      ]);
+      expect(harness.revokedFor).toEqual([]);
+      expect(harness.auditEntries).toEqual([]);
     });
   });
 

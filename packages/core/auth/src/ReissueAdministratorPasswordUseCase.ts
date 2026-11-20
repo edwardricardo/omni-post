@@ -4,10 +4,10 @@
  *   nobody saw: one that exists, has never signed in and must still change the password. Every
  *   other administrator is refused and nothing is written. In one transaction the new hash
  *   replaces the one that was read and a pending password reset is cleared, every session of the
- *   administrator ends, and a system audit record of the re-issue is written. The mark to change the password, the sign-in date and the
- *   password history are left as they are, so the new password must be changed at the first
- *   sign-in as the old one had to be. The single-use password leaves the use case once, in its
- *   output.
+ *   administrator ends, and a system audit record of the re-issue is written. The mark to change
+ *   the password, the sign-in date and the password history are left as they are, so the new
+ *   password must be changed at the first sign-in as the old one had to be. The single-use
+ *   password leaves the use case once, in its output.
  * @layer application
  */
 
@@ -38,7 +38,7 @@ const MESSAGES = {
   readFailed: "Reading the administrator failed",
   replaceFailed: "Replacing the single-use password failed",
   changedSinceRead:
-    "The administrator changed between the read and the write (another re-issue, a password change or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
+    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
   revokeFailed: "Ending the administrator's sessions failed",
   auditFailed: "Writing the audit record of the re-issue failed",
   transactionFailed:

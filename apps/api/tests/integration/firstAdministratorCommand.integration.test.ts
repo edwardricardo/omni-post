@@ -73,7 +73,7 @@ const REFUSALS = {
   notMarked:
     "Refused: This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued\n",
   changedSinceRead:
-    "Refused: The administrator changed between the read and the write (another re-issue, a password change or a sign-in), so nothing was replaced: run the re-issue again to see what is true now\n",
+    "Refused: The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now\n",
 } as const;
 
 /** The arguments that switch the command to re-issuing the single-use password. */
