@@ -1,8 +1,9 @@
 /**
  * @file PrismaAdminSessionRepository.ts
  * @description Prisma adapter implementing AdminSessionRepository.
- *              Receives PrismaClient via constructor injection; mutations resolve
- *              the active UoW transaction client per call.
+ *              Receives PrismaClient via constructor injection; every query, read
+ *              or write, resolves the active UoW transaction client per call, so a
+ *              read inside a transaction sees what it wrote.
  * @layer infrastructure
  */
 
@@ -13,6 +14,7 @@ import type {
   AdminSessionDto,
   AdminSessionCreateInput,
   AdminSessionFindOptions,
+  AdminSessionRevokeReason,
 } from "@core/domain/repositories/AdminSessionRepository.js";
 
 /**
@@ -29,8 +31,8 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
   }
 
   /**
-   * Persist a new session.
-   *
+   * @method create
+   * @description Persist a new session.
    * @param input - Session fields; ipAddress/userAgent default to null when omitted
    * @returns The created session row as an AdminSessionDto
    */
@@ -49,7 +51,8 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
   }
 
   /**
-   * Write the stored refresh-token hash for a session.
+   * @method updateRefreshTokenHash
+   * @description Write the stored refresh-token hash for a session.
    *
    * This is the second step of session ISSUANCE, not a consumption of anything a caller
    * presented: `AuthServiceCore.createSession` inserts a throwaway hash nobody holds, mints
@@ -61,7 +64,6 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
    * is the only caller tree-wide (verified at the time of writing).
    * Remove-when: the session id is minted before the insert and the final hash is written on
    * create, at which point this method — and its exemption — can go.
-   *
    * @param id - AdminSession primary key
    * @param refreshTokenHash - New SHA-256 hex digest of the refresh token
    */
@@ -73,8 +75,8 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
   }
 
   /**
-   * List a user's sessions, newest first.
-   *
+   * @method findByUserId
+   * @description List a user's sessions, newest first.
    * @param userId - Owning AdminUser id
    * @param options - Optional active-only filter and result limit
    * @returns Matching session rows as AdminSessionDto records
@@ -83,7 +85,7 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
     userId: string,
     options?: AdminSessionFindOptions
   ): Promise<AdminSessionDto[]> {
-    const rows = await this.prisma.adminSession.findMany({
+    const rows = await this.getClient().adminSession.findMany({
       where: { userId, ...(options?.activeOnly && { isActive: true }) },
       orderBy: { createdAt: "desc" },
       ...(options?.limit !== undefined && { take: options.limit }),
@@ -93,22 +95,25 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
   }
 
   /**
-   * Revoke every active session belonging to a user.
-   *
+   * @method revokeAllForUser
+   * @description Revoke every active session belonging to a user, storing the reason in the
+   *   `revokeReason` column the other revocations write theirs to.
    * @param userId - Owning AdminUser id
+   * @param reason - Why the sessions end, one reason of `ADMIN_SESSION_REVOKE_REASONS`, stored on
+   *   each as its `revokeReason`
    * @returns Count of sessions revoked
    */
-  async revokeAllForUser(userId: string): Promise<number> {
+  async revokeAllForUser(userId: string, reason: AdminSessionRevokeReason): Promise<number> {
     const result = await this.getClient().adminSession.updateMany({
       where: { userId, isActive: true },
-      data: { isActive: false, revokedAt: new Date() },
+      data: { isActive: false, revokedAt: new Date(), revokeReason: reason },
     });
     return result.count;
   }
 
   /**
-   * Permanently delete every session belonging to a user.
-   *
+   * @method deleteAllForUser
+   * @description Permanently delete every session belonging to a user.
    * @param userId - Owning AdminUser id
    * @returns Count of sessions deleted
    */

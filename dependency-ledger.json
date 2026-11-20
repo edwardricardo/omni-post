@@ -2,15 +2,15 @@
   "version": 1,
   "floor": 3,
   "summary": {
-    "names": 160,
-    "production": 97,
+    "names": 159,
+    "production": 96,
     "devOnly": 63,
     "types": 9,
     "aboveFloor": 49,
-    "underFloor": 111,
+    "underFloor": 110,
     "atZero": 14,
-    "underFloorWithSites": 97,
-    "kept": 105,
+    "underFloorWithSites": 96,
+    "kept": 104,
     "remove": 6,
     "pending": 1
   },
@@ -301,27 +301,6 @@
       }
     },
     {
-      "name": "@fastify/cors",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/api/package.json",
-          "block": "dependencies",
-          "specifier": "literal"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "kept",
-      "sites": {
-        "runtime-import": {
-          "production": ["apps/api/src/security/securityHeaders.ts"]
-        }
-      }
-    },
-    {
       "name": "@fastify/helmet",
       "scope": "production",
       "typedTarget": null,
@@ -339,6 +318,9 @@
       "sites": {
         "runtime-import": {
           "production": ["apps/api/src/security/securityHeaders.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/security/noCorsHeaders.test.ts"]
         }
       }
     },
@@ -387,7 +369,10 @@
       "sites": {
         "runtime-import": {
           "production": ["apps/api/src/index.ts"],
-          "test": ["apps/api/tests/unit/lib/apiReference.test.ts"]
+          "test": [
+            "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts",
+            "apps/api/tests/unit/lib/apiReference.test.ts"
+          ]
         },
         "config-string": {
           "production": ["apps/api/src/lib/apiReference.ts"]
@@ -2548,11 +2533,14 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": ["apps/api/src/auth/passwordHashing.ts"],
+          "production": [
+            "apps/api/src/auth/passwordHashing.ts",
+            "infra/prisma/src/seedPasswordHashing.ts"
+          ],
           "test": [
             "apps/api/tests/integration/customerPasswordReset.integration.test.ts",
             "apps/api/tests/unit/admin/adminAuthService.test.ts",
@@ -3026,14 +3014,18 @@
         "runtime-import": {
           "production": ["apps/api/src/index.ts"],
           "test": [
+            "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts",
             "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
             "apps/api/tests/unit/accountRoutes.test.ts",
             "apps/api/tests/unit/accounts/accountDeleteOwnership.test.ts",
             "apps/api/tests/unit/accounts/accountDeletePermission.test.ts",
             "apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts",
+            "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts",
+            "apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts",
             "apps/api/tests/unit/auditRoutes.test.ts",
             "apps/api/tests/unit/authRoutes.test.ts",
             "apps/api/tests/unit/dashboardRoutes.test.ts",
+            "apps/api/tests/unit/health/healthRoutesReadiness.test.ts",
             "apps/api/tests/unit/healthRoutes.test.ts",
             "apps/api/tests/unit/mfaRoutes.test.ts",
             "apps/api/tests/unit/postRoutes.test.ts",
@@ -3052,6 +3044,7 @@
             "apps/api/tests/unit/accounts/accountDeletePermission.test.ts",
             "apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts",
             "apps/api/tests/unit/postRoutes.test.ts",
+            "apps/api/tests/unit/securityHeaders.test.ts",
             "apps/api/tests/unit/usage/usageRoutesOwnership.test.ts"
           ]
         }

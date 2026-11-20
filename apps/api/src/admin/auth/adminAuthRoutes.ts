@@ -671,12 +671,20 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // Required password change: it runs the sign-in's checks without a session, so it spends the
-  // sign-in's bucket, and an address gets one allowance for guessing passwords, not two
+  // sign-in's bucket, and an address gets one allowance for guessing passwords, not two.
+  // The body is declared so the published contract types it. A body the schema refuses is
+  // attached to the request rather than answered: the handler parses it again and answers in its
+  // own shape, the one the portal reads, and the rate limit is still spent on it.
   fastify.post(
     "/admin/auth/password/change-required",
     {
       preHandler: [rateLimit(loginRateMax, 60000, SIGN_IN_ROUTE)],
-      schema: { tags: ["Admin Auth"], summary: "Change a password that must be changed" },
+      attachValidation: true,
+      schema: {
+        tags: ["Admin Auth"],
+        summary: "Change a password that must be changed",
+        body: requiredPasswordChangeSchema,
+      },
     },
     async (request, reply) => handler.changeRequiredPassword(request, reply)
   );

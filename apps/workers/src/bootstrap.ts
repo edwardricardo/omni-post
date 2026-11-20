@@ -40,9 +40,7 @@
 
 import http from "http";
 import client from "prom-client";
-import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
-import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   createHealthCheckManager,
   ConsumerPresenceHealthChecker,
@@ -56,7 +54,9 @@ import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { env } from "./config/env.js";
 import { publishConsumerDependencyName } from "./health/readiness.js";
 import { createHealthRequestHandler } from "./health/healthRequestHandler.js";
+import { createHealthRedisConnection } from "./healthConnection.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
+import { createWorkerTaskScheduler } from "./lib/workerScheduler.js";
 
 const logger = createLogger("workers-bootstrap");
 
@@ -74,27 +74,12 @@ async function main(): Promise<void> {
   // and every 5 s while the last report is unhealthy, each check in one
   // attempt. The critical dependencies are the database, Redis and one
   // consumer per publish-pipeline queue (below).
-  const healthScheduler = new DefaultBackgroundTaskScheduler({
-    logger: {
-      error: (msg, data) => logger.error({ data }, msg),
-      info: (msg, data) => logger.info({ data }, msg),
-      debug: (msg, data) => logger.debug({ data }, msg),
-    },
-  });
+  const healthScheduler = createWorkerTaskScheduler(logger);
 
   // Dedicated Redis client for the RedisHealthChecker — does not share
   // the publish worker's saga notifyRedis (different connection lifecycle).
   // Uses env.REDIS_URL — no fallback (SECURITY_CANON §Secrets, CWE-798).
-  const healthRedis = new Redis(env.REDIS_URL, {
-    lazyConnect: true,
-    maxRetriesPerRequest: 1,
-    enableReadyCheck: false,
-    commandTimeout: 5_000,
-    connectTimeout: 5_000,
-  });
-  healthRedis.on("error", () => {
-    // Errors surface via the checker's PING failure path.
-  });
+  const healthRedis = createHealthRedisConnection(env.REDIS_URL, logger);
 
   const healthManager = createHealthCheckManager(undefined, healthScheduler);
   healthManager.register("database", new DatabaseHealthChecker(publishHandle.repo), {

@@ -47,7 +47,7 @@ pnpm db:seed
 ```
 
 - **The command** (`apps/api/src/cli/createFirstAdministrator.ts`) reads the API's environment, the root `.env`, and runs only with its output on a terminal. It creates the `SUPER_ADMIN` role and one administrator named after the e-mail's local part, and prints the e-mail and a single-use password. Signing in with it at `http://localhost:3100` leads to `/en/login/change-password`, which sets a new password; the new password then signs in. `--reissue --email <address>` prints a new single-use password for an administrator who has never signed in, and `--help` prints every rule.
-- **The seed** (`infra/prisma/seed.ts`) needs `ADMIN_PASSWORD`, in the environment or in the root `.env`, which `pnpm start:platform` does not generate, and refuses without it or under `NODE_ENV=production`. It writes demonstration data (accounts, projects, customer users, channels, subscriptions, pricing and roles, among others) and the administrator `admin@omnipost.local`, who signs in with `ADMIN_PASSWORD` and is not asked to change it. Each run sets that password again.
+- **The seed** (`infra/prisma/seed.ts`) needs `ADMIN_PASSWORD`, in the environment or in the root `.env`: `pnpm start:platform` generates it for a new `.env` and does not require it of an existing one, so a file written before that holds none until you add it. It refuses without it, and refuses unless `NODE_ENV` is `development` or `test`, or is unset, which counts as development (`staging`, an empty value and any other value are refused). It writes demonstration data (accounts, projects, customer users, channels, subscriptions, pricing and roles, among others) and the administrator `admin@omnipost.local`, who signs in with `ADMIN_PASSWORD` and is not asked to change it. Each run sets that password again.
 - **After the seed** the command refuses, with exit code 1: `Refused: An administrator already exists: the first administrator is created only on a database that has none`.
 
 What support needs to know about the command: [first-administrator.md](../support/first-administrator.md).
@@ -123,7 +123,7 @@ pnpm format:check  # Check formatting only
 pnpm db:up         # Start PostgreSQL and Redis with Docker Compose and wait until each answers; migrates nothing
 pnpm db:studio     # Open Prisma Studio
 pnpm db:migrate    # Run migrations
-pnpm db:seed       # Seed test data; needs ADMIN_PASSWORD, set in the environment or in the root .env
+pnpm db:seed       # Seed test data; needs ADMIN_PASSWORD (generated for a new .env) and NODE_ENV development, test or unset
 ```
 
 ### Test Commands

@@ -1,0 +1,18 @@
+{
+  // The type check of the development seed, which the build's project leaves out because the seed
+  // is a script that is run, never shipped. It emits nothing; `pnpm typecheck` runs it through the
+  // package's `typecheck` script. Its module settings are the build's, so the seed and the modules
+  // under src it imports are read the way they are compiled and run.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2023",
+    "skipLibCheck": true,
+    "isolatedModules": false,
+    "verbatimModuleSyntax": false,
+    "paths": {}
+  },
+  "include": ["seed.ts"]
+}

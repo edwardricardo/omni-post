@@ -94,9 +94,8 @@ export interface SystemRoleRepository {
   /**
    * Write the role so that, afterwards, its row carries the definition's fields and its
    * permissions are exactly the definition's, whatever the role held before. The write is
-   * atomic: it leaves either the whole definition or what was there before. It does not change
-   * whether an existing role is active, since the definition does not say; a role it creates
-   * is active.
+   * atomic: it leaves either the whole definition or what was there before. It leaves the role
+   * active, whether it creates the role or finds it deactivated.
    *
    * An error returned inside an open Unit of Work means the store may have aborted that
    * transaction: the caller returns the error so the transaction ends, and writes nothing more

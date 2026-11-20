@@ -60,9 +60,13 @@ import {
 import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { registerApiReference } from "./lib/apiReference.js";
-import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
+import { getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
-import { Queue } from "bullmq";
+import {
+  createAdminPublishQueue,
+  createApiRedisConnection,
+  createGatewaySwitchProcessorConnection,
+} from "./infrastructure/container/registerBootstrapConnections.js";
 import { logger } from "./lib/logger.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { setPublishQueueHealthProvider } from "./metrics/sagaRecoveryMetrics.js";
@@ -263,7 +267,7 @@ async function createApp(): Promise<FastifyInstance> {
   registerApiReference(typedApp, { enabled: env.API_DOCS_ENABLED });
 
   // Initialize Redis for advanced rate limiting
-  const redis = createRedisConnection();
+  const redis = createApiRedisConnection(createLogger("redis"));
 
   // Initialize unified authentication service with Redis
   setRedisInstance(redis);
@@ -344,16 +348,7 @@ async function createApp(): Promise<FastifyInstance> {
   // QueuePort does not expose, so this root builds that BullMQ queue for them and closes it
   // with the app. lazyConnect: true keeps its dedicated connection from blocking startup
   // when Redis is not yet reachable (e.g. Railway private network cold-start).
-  const publishQueueUrl = new URL(getRedisUrl());
-  const publishQueue = new Queue(QUEUE_NAMES.PUBLISH, {
-    connection: {
-      host: publishQueueUrl.hostname || "localhost",
-      port: Number(publishQueueUrl.port) || 6379,
-      ...(publishQueueUrl.password && { password: publishQueueUrl.password }),
-      lazyConnect: true,
-      enableOfflineQueue: true,
-    },
-  });
+  const publishQueue = createAdminPublishQueue(createLogger("redis"));
   typedApp.addHook("onClose", async () => {
     await publishQueue.close().catch((err: unknown) => {
       logger.warn(
@@ -410,27 +405,6 @@ async function createApp(): Promise<FastifyInstance> {
         "frame-ancestors": ["'none'"],
         "upgrade-insecure-requests": [],
       },
-    },
-    cors: {
-      enabled: true,
-      allowedOrigins: [
-        "http://localhost:3000", // API
-        "http://localhost:3100", // Admin
-        "http://localhost:3200", // Client
-        "https://localhost:3000",
-        "https://localhost:3100",
-        "https://localhost:3200",
-      ],
-      allowedMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-      allowCredentials: true,
-      maxAge: 86400,
-    },
-    hsts: {
-      enabled: true,
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true,
     },
   });
 
@@ -907,8 +881,7 @@ async function start() {
 
     // Gateway switch processor — BullMQ worker for reminder/suspend jobs
     const { GatewaySwitchProcessor } = await import("./billing/gatewaySwitchProcessor.js");
-    const switchProcessorRedis = createRedisConnection({ maxRetriesPerRequest: null });
-    switchProcessorRedis.on("error", () => {});
+    const switchProcessorRedis = createGatewaySwitchProcessorConnection(createLogger("redis"));
     const _gatewaySwitchProcessor = new GatewaySwitchProcessor(
       switchProcessorRedis,
       app.container!.resolve(TOKENS.PrismaClient),
