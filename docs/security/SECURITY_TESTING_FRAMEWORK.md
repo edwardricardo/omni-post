@@ -122,7 +122,18 @@ Trivy reads the image's Debian packages and each module's `package.json`, never
 the `node` executable the distroless base ships without a package record. The
 step before it holds that executable: it runs `node --version` in each image and
 fails when Node's release index lists a later release of the same major line
-marked as a security release, or when the index cannot be read:
+marked as a security release, or when the index cannot be read. Once
+`Container Security` is a required check, the step blocks every merge in two
+cases, and in both the scanner after it does not run and the images are not
+pushed on main: the index is unreachable after three attempts, or Node has
+published a security release of the images' line that their distroless base does
+not ship yet, which it followed by about two days for v26.13.1 (released on
+2026-11-10; the digest the images took for it, `80631bd2`, was uploaded on
+2026-11-12). In the first case, re-run
+the job once nodejs.org answers; in the second, raise the build stage to the
+release and wait for, or pin, the distroless digest that ships it, by the
+procedure of [base-images.md](../deployment/base-images.md) (§"How to extend",
+items 2 and 3).
 
 ```bash
 NODE_VERSION="$(docker run --rm --entrypoint /nodejs/bin/node local/api:scan --version)"

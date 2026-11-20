@@ -77070,98 +77070,98 @@
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 when a release of the image's line has a security flag that is $name",
-          "line": 174,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38b61f3b9460eb9322935bb6718228c7b25efb15f82f0d02e4a929f84ce5bf8c"
         },
         {
-          "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 when a release of the image's line has a date that is not YYYY-MM-DD",
-          "line": 195,
+          "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 when a release of the image's line has a date that is $name, not YYYY-MM-DD",
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "815c801567dc63e4e975f283b0a07be7ec189d88ac1230b3141ebfe765fd0772"
+          "bodyHash": "15103c23202fb7fb75dc2847bbb02518bf460217d71f2f6998cdb01ca25afe74"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 when the index lists the image's line but not the image's own version",
-          "line": 204,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4070d6a1850b1d0203c0af4bbd36aa0da25f31f4baf442565e6b9525196b41a1"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 when the index lists no release of the image's major line",
-          "line": 218,
+          "line": 229,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c04de2a677af39a516e42053a7d20ccf97c434bf08ed8fa87ca70054c3739f67"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 0 on stdout after fetching the index once, with a per-attempt signal, when the first answer is good",
-          "line": 229,
+          "line": 240,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36523cae9b1b684c1ddc1b6db48849b580aced468da7bc0d8f3806894d9176e1"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 1 on stderr with every verdict line when the image is behind a security release",
-          "line": 240,
+          "line": 251,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3c7dad3f6eba023274121c2f4afe862cc9751fd3de6a81d2f8a9b2aa57b4dcaf"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns the verdict of the second answer, after one wait, when the first answer is not a success status",
-          "line": 252,
+          "line": 263,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "60125ca5ebd41e59548170221f5d3c456c3310eb7592913b11ae246b91da845e"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 after exactly three attempts and two waits when every attempt fails",
-          "line": 263,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "762fed494c0eb957330cc45830f1511fd8512ce7fb193627744dce6d0dcdaede"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 after three attempts when every attempt hangs until its timeout aborts it",
-          "line": 285,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "02f038438c7d817b34239ffb62891fe42ae65d6045c087695b302b983b71c297"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 3 without a second attempt when the body is not JSON",
-          "line": 303,
+          "line": 314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "382d802dcc968d622d689e96ef9e1c56a88a23ecd4391ede5d170062c3c9355b"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 2 with the usage and fetches nothing when given $name",
-          "line": 317,
+          "line": 328,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f8f7458a5f46b0bdd7a97b56457687b733e4554895a24168a0cf09048e3888a"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::returns exit 2 with the usage and fetches nothing when --version has no value",
-          "line": 354,
+          "line": 365,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3773e5bfa6f36bf71a85c5cb6fd863370c59973017710342c2b4846546de319a"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::exits 2 with the usage on stderr when run as a process with no arguments",
-          "line": 366,
+          "line": 377,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba13a3795fd2759e3544c5c87e7be629878215732894775285276fbfa8d3f39e"
         },
         {
           "id": "apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts::names every image's Dockerfile, each of which pins Node in exactly the two stages the remedy names",
-          "line": 378,
+          "line": 389,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e1b02cb9114b539a0847a1f59b70e8175136e5ac06a8e1700655a5192f665c2"

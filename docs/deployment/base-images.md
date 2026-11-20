@@ -391,7 +391,17 @@ letting a silent pass read as more than it is.
 reads the `node` executable, so the `Node runtime advisory` step runs
 `node --version` in each image and `scripts/testing/node-runtime-advisory-gate.mjs`
 fails when `nodejs.org/dist/index.json` lists a later release of that major line
-with `security: true`, naming the release to raise both stages to.
+with `security: true`, naming the release to raise both stages to. Once
+`Container Security` is a required check, the step blocks every merge in two
+cases, and in both the scanner after it does not run and the images are not
+pushed on main: the index is unreachable after three attempts, or Node has
+published a security release of the images' line that the distroless base does
+not ship yet, which it followed by about two days for v26.13.1 (released on
+2026-11-10; the digest the images took for it, `80631bd2`, was uploaded on
+2026-11-12, §"Moved to Node 26.13.1 on 2026-11-14"). In the first case, re-run the job once nodejs.org answers; in the
+second, raise the build stage to the release and wait for, or pin, the distroless
+digest that ships it, by items 2 and 3 of §"How to extend" below, the way the
+move of 2026-11-14 did.
 
 ---
 

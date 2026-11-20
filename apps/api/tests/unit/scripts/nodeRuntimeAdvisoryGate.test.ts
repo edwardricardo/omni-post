@@ -149,6 +149,11 @@ describe("evaluate: the rule over Node's release index", () => {
 
   it.each([
     { name: "a version with no patch number", entry: makeRelease("v26.13"), shown: '"v26.13"' },
+    {
+      name: "a version with text after its patch number",
+      entry: makeRelease("v26.13.2x"),
+      shown: '"v26.13.2x"',
+    },
     { name: "a version that is a number", entry: makeRelease(26), shown: "26" },
     {
       name: "an entry with no version",
@@ -192,14 +197,20 @@ describe("evaluate: the rule over Node's release index", () => {
     }
   );
 
-  it("returns exit 3 when a release of the image's line has a date that is not YYYY-MM-DD", () => {
-    const index = [makeRelease("v26.13.2", { date: "17 Nov 2026" }), ...INDEX_CURRENT.slice(3)];
+  it.each([
+    { name: "written in words", date: "17 Nov 2026" },
+    { name: "a full instant", date: "2026-11-17T00:00:00Z" },
+  ])(
+    "returns exit 3 when a release of the image's line has a date that is $name, not YYYY-MM-DD",
+    ({ date }) => {
+      const index = [makeRelease("v26.13.2", { date }), ...INDEX_CURRENT.slice(3)];
 
-    expect(evaluate(IMAGE_CURRENT, index)).toEqual({
-      exitCode: 3,
-      lines: [notJudged(IMAGE_CURRENT, 'v26.13.2 has the date "17 Nov 2026", not YYYY-MM-DD')],
-    });
-  });
+      expect(evaluate(IMAGE_CURRENT, index)).toEqual({
+        exitCode: 3,
+        lines: [notJudged(IMAGE_CURRENT, `v26.13.2 has the date "${date}", not YYYY-MM-DD`)],
+      });
+    }
+  );
 
   it("returns exit 3 when the index lists the image's line but not the image's own version", () => {
     const image: ImageVersion = { text: "v26.13.9", major: 26, minor: 13, patch: 9 };

@@ -47,7 +47,11 @@
  *
  *   NODE'S OWN MODULES ONLY: the job runs this file on the runner's Node with nothing installed, so
  *   it imports no package and none of the shared helpers of `scripts/testing/lib/`
- *   (`record-helpers.mjs`, which holds `isEntryPoint`, loads prettier).
+ *   (`record-helpers.mjs`, which holds `isEntryPoint`, loads prettier). It needs Node 18.3.0 or
+ *   later: the global `fetch` runs without a flag from 18.0.0, `AbortSignal.timeout` exists from
+ *   17.3.0 and `util.parseArgs` from 18.3.0. The job sets up no Node, so it runs on the
+ *   `ubuntu-latest` image's own, Node.js 22.23.4 on Ubuntu 24.04 image 20261111.370.1 (the
+ *   runner-images readme, read on 2026-11-20).
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) The gate trusts the index's `security` flag: a
  *   fix released without it, or an advisory no release fixes yet, passes. (2) It judges the image
@@ -55,7 +59,17 @@
  *   the maturity watchlist's review reads Node's schedule. (3) It reads the version the executable
  *   prints, not how it was built: a base rebuilt with a backported fix still reads as its older
  *   version and fails. (4) A security release published between two runs of the job is seen by the
- *   next run only.
+ *   next run only. (5) What it costs as a required check. Every leg of `Container Security` runs
+ *   this step, and that job is becoming a required check, so two events block every merge: the
+ *   index is unreachable after the three attempts, or Node has published a security release of the
+ *   images' line that their base does not ship yet; the distroless image followed v26.13.1 by
+ *   about two days (the index dates the release 2026-11-10, and the digest the images took for it
+ *   was uploaded on 2026-11-12: `docs/deployment/base-images.md`, §"Moved to Node 26.13.1 on
+ *   2026-11-14"). In both cases the scanner step after this one does not run, and on main the
+ *   images are not pushed. On the first, the operator re-runs the job once nodejs.org answers. On
+ *   the second, the operator raises the build stage to the release and waits for, or pins, the
+ *   distroless digest that ships it, by the procedure of `docs/deployment/base-images.md`
+ *   (§"How to extend", items 2 and 3, and the move of 2026-11-14 as its worked case).
  *
  *   Usage: `node scripts/testing/node-runtime-advisory-gate.mjs --version <vX.Y.Z>`. Pinned by
  *   apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts.
