@@ -90,14 +90,16 @@
  *   they receive the API's environment without `NODE_ENV`, so they read the `.env` the run
  *   generated and checked and nothing else. The API still receives it.
  *
- *   DEGRADED. A degraded app answers 200, so its stage passes and the exit code does not change.
- *   Once the API answers, and again once the workers do, the run asks that app once for its
- *   detailed report (`/health/detailed`), for up to 10 s. When the report says `degraded`, one
- *   line names the app and each dependency the report gives as not healthy, with its status, and
- *   nothing else of the report. When the report cannot be read (another status than 200, no
- *   answer, a body that is not such a report), one line says so and why: a healthy report adds no
- *   line, so silence would read as one. Either line follows the app's stop line, on stdout, where
- *   every line of a run that goes on is written; stderr holds only the causes of a failure.
+ *   DEGRADED. A degraded app answers 200, so its stage passes and the exit code does not change,
+ *   and a report can say `healthy` overall while a dependency is not. Once the API answers, and
+ *   again once the workers do, the run asks that app once for its detailed report
+ *   (`/health/detailed`), waiting up to 10 s of silence. When the report gives a dependency as not
+ *   healthy, one line names the app, the report's overall status and each such dependency with
+ *   its status, and nothing else of the report. When the report cannot be read (another status
+ *   than 200, no answer, a body that is not such a report), one line says so and why: a report
+ *   whose every dependency is healthy adds no line, so silence would read as one. Either line
+ *   follows the app's stop line, on stdout, where every line of a run that goes on is written;
+ *   stderr holds only the causes of a failure.
  *
  *   ADMINISTRATION PORTAL. Once the workers answer, `pnpm --filter @apps/admin dev` starts the
  *   administration portal from source, detached, in the same stage again. Its port is the one its
@@ -287,9 +289,9 @@ line of their own: each stop line ends one app's session, so stopping the API le
 running. A run whose start of the workers fails ends their session alone; the API stays up.
 
 Once the API answers, and again once the workers do, the run asks that app once for
-/health/detailed. A report that says degraded adds a line naming the app and each dependency
-that is not healthy, with its status; a report that cannot be read adds a line that says so.
-Neither changes the exit code.
+/health/detailed, waiting up to 10 s of silence. A report that gives a dependency as not healthy,
+whatever its overall status, adds a line naming the app, that status and each such dependency
+with its own; a report that cannot be read adds a line that says so. Neither changes the exit code.
 
 The administration portal is started next, once the workers answer, the same way, with
 \`pnpm --filter @apps/admin dev\`, and left running, on the port its dev script fixes in
@@ -341,18 +343,24 @@ const PROBE_TIMEOUT_MS = 2000;
 const REPORT = "/health/detailed";
 
 /**
- * How long the read of a detailed report may wait for an answer. The report runs every check of
- * the app at once and answers when the last one ends, and each is cut at 5 s
- * (`HEALTH_CHECK_TIMEOUT_MS` and `checkAll` in `packages/monitoring/health-checks/src/index.ts`),
- * so an app with a slow dependency answers within about 5 s; twice that leaves room for a host
- * under the load of the start itself.
+ * How long the read of a detailed report waits in silence: it ends once the peer has sent nothing
+ * for this long, so it bounds each pause, not the whole read, and a peer that keeps sending keeps
+ * it going. Before an app answers, its report runs every check at once and answers when the last
+ * one ends, each cut at 5 s (`HEALTH_CHECK_TIMEOUT_MS` and `checkAll` in
+ * `packages/monitoring/health-checks/src/index.ts`). In the API a call to Redis comes first: the
+ * rate limit's pre-handler (`apps/api/src/security/httpRateLimitPreHandler.ts`) asks Redis once,
+ * on a connection whose commands are cut at 5 s (`apps/api/src/lib/redis.ts`), and lets the
+ * request through if that fails. So the bound covers a slow dependency, and a slow Redis, but not
+ * a Redis close to 5 s a call: then the pre-handler and the checks together can outlast it, and
+ * the run says that nothing answered the report rather than naming redis.
  */
 const REPORT_TIMEOUT_MS = 10_000;
 
 /**
  * The statuses a report gives a dependency (`HealthStatus` in
  * `packages/monitoring/health-checks/src/types.ts`). The line prints only these words, so a value
- * outside them, which could be any text, makes the body not a report.
+ * outside them, which could be any text or not be text at all, makes the body not a report.
+ * @type {ReadonlySet<unknown>}
  */
 const DEPENDENCY_STATUSES = new Set(["healthy", "degraded", "unhealthy"]);
 
@@ -1251,16 +1259,17 @@ function readReport(body) {
   } catch {
     return null;
   }
-  const { status, dependencies } = fieldsOf(parsed);
-  // `typeof` first: `isUsable` and the set take a string, and a value of another type passes neither.
-  if (typeof status !== "string" || !isUsable(status) || !Array.isArray(dependencies)) return null;
+  const fields = fieldsOf(parsed);
+  const { dependencies } = fields;
+  // Taken as a string without a test of its type: `isUsable` asks a set of strings, which answers
+  // false for a value of any other type, so such a value is refused there.
+  const status = /** @type {string} */ (fields.status);
+  if (!isUsable(status) || !Array.isArray(dependencies)) return null;
   /** @type {string[]} */
   const notHealthy = [];
   for (const entry of dependencies) {
     const { name, status: of } = fieldsOf(entry);
-    if (typeof name !== "string" || typeof of !== "string" || !DEPENDENCY_STATUSES.has(of)) {
-      return null;
-    }
+    if (typeof name !== "string" || !DEPENDENCY_STATUSES.has(of)) return null;
     if (of !== "healthy") notHealthy.push(`${name} ${of}`);
   }
   return { status, notHealthy };
@@ -1270,10 +1279,12 @@ function readReport(body) {
  * @function reportDegraded
  * @description Once an app answers, asks it once for its detailed report and says what the answer
  *   it was waited on for does not: `/health` names no dependency, and the workers' `/health/ready`
- *   never says degraded. When the report says `degraded`, one line names the app and each
- *   dependency the report gives as not healthy, with its status. When the report cannot be read,
- *   one line says so and why, since a healthy report adds no line and silence would read as one.
- *   Neither line fails the run: a degraded app is usable.
+ *   never says degraded. When the report gives a dependency as not healthy, one line names the app,
+ *   the report's overall status, which can be `healthy` all the same, and each such dependency with
+ *   its status. When the report cannot be read, one line says so and why, since a report whose
+ *   every dependency is healthy adds no line and silence would read as one. Neither line fails the
+ *   run: a degraded app is usable. A limit: a dependency's name is printed as the report gives it,
+ *   which is safe while the apps register literal names and one built from a queue's constant.
  * @param {App} app - The API or the workers, by its descriptor: its name, its words and its port.
  * @returns {Promise<void>}
  */
@@ -1283,7 +1294,7 @@ async function reportDegraded(app) {
   const unread = (/** @type {string} */ why) =>
     process.stdout.write(
       `${NAME}: the detailed report of the ${name} (${REPORT}) could not be read (${why}): ` +
-        `whether the ${name} answer${s} degraded is not known\n`
+        `whether every dependency of the ${name} is healthy is not known\n`
     );
   const answer = await reportOf(app.port);
   if (answer === null || answer.status !== 200) {
@@ -1295,9 +1306,9 @@ async function reportDegraded(app) {
     unread("it answered 200 with a body that is not a health report");
     return;
   }
-  if (report.status === "degraded") {
+  if (report.notHealthy.length > 0) {
     process.stdout.write(
-      `${NAME}: the ${name} answer${s} degraded: ${report.notHealthy.join(", ")}\n`
+      `${NAME}: the ${name} report${s} ${report.status} overall, with ${report.notHealthy.join(", ")}\n`
     );
   }
 }

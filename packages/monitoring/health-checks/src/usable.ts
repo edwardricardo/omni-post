@@ -3,7 +3,10 @@
  * @description The one rule every reader of a health status applies: a healthy or a degraded
  *              dependency can serve, since a degraded one still answers, slowly or close to a
  *              limit, and anything else cannot. The API's health routes answer 200 or 503 by it,
- *              and the workers' readiness counts a dependency ready by it.
+ *              and the workers' readiness counts a dependency ready by it. The start script
+ *              (`scripts/start/platform-start.mjs`), which Node runs directly, imports this file
+ *              through Node's type stripping, so it must stay erasable: no enum, no parameter
+ *              property, and every type-only import written with `import type`.
  * @layer infrastructure
  */
 import type { HealthStatus } from "./types.js";
