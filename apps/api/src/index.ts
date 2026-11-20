@@ -58,7 +58,11 @@ import {
   EXPENSIVE_ENDPOINT_RULES,
 } from "./security/httpRateLimitPreHandler.js";
 import type { RateLimiterPort } from "@ports/core";
-import { createErrorHandler } from "./lib/errors/errorHandler.js";
+import {
+  createErrorHandler,
+  createNotFoundHandler,
+  PROBLEM_OPENAPI_SCHEMA,
+} from "./lib/errors/errorHandler.js";
 import { registerApiReference } from "./lib/apiReference.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
@@ -239,6 +243,8 @@ async function createApp(): Promise<FastifyInstance> {
       },
       servers: [{ url: "/", description: "The origin that served this document" }],
       components: {
+        // The body of every failure the error handler answers, for the generated client.
+        schemas: { Problem: PROBLEM_OPENAPI_SCHEMA },
         securitySchemes: {
           bearerAuth: {
             type: "http",
@@ -487,6 +493,7 @@ async function createApp(): Promise<FastifyInstance> {
   // Never exposes stack traces, database schema, or internal paths in production
   const errorHandler = createErrorHandler(typedApp.log);
   typedApp.setErrorHandler(errorHandler);
+  typedApp.setNotFoundHandler(createNotFoundHandler(typedApp.log));
   typedApp.log.info("Centralized error handler enabled - all errors sanitized");
 
   // Rate limiting setup. The token-bucket limiter is resolved from the

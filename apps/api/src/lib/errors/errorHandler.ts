@@ -1,23 +1,39 @@
 /**
  * @file errorHandler.ts
- * @description Centralized Fastify error handler that sanitizes errors before sending
- *              to clients. Maps Prisma, Zod, and domain errors to appropriate HTTP responses.
+ * @description How Fastify answers with the API's one error body: the global error handler for
+ *   what is raised, the not-found handler for a path no route matches, both through `sendProblem`,
+ *   and the body's schema as the OpenAPI document publishes it. Beside them, the Prisma and Zod
+ *   converters to an `AppError`, which only their suites call.
  * @layer infrastructure
  */
-import type { FastifyBaseLogger, FastifyError, FastifyReply, FastifyRequest } from "fastify";
-import {
-  AppError,
-  ErrorCode,
-  getSafeErrorMessage,
-  getErrorCode,
-  getStatusCode,
-  isOperationalError,
-} from "./AppError.js";
-import { captureError } from "../../observability/sentryInit.js";
+import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
+import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
+import { HTTP_ERRORS, RegisteredError } from "@shared/types";
+import { AppError, ErrorCode, isOperationalError } from "./AppError.js";
+import { problemSchema } from "./problem.js";
+import { sendProblem } from "./sendProblem.js";
 import {
   violatedConstraint,
   type ViolatedConstraint,
 } from "@infra/prisma/extensions/constraintViolation.js";
+
+/** A schema object of the API's OpenAPI document, as the swagger plugin's options type it. */
+type OpenApiSchemaObject = Exclude<
+  NonNullable<
+    NonNullable<NonNullable<FastifyDynamicSwaggerOptions["openapi"]>["components"]>["schemas"]
+  >[string],
+  { $ref: string }
+>;
+
+/**
+ * The body's schema, published as `components.schemas.Problem`, at the OpenAPI 3.0 target the
+ * route schemas are converted to. Zod types a JSON Schema's `type` as a union OpenAPI's types do not
+ * take, so the value is typed by the document that holds it.
+ */
+export const PROBLEM_OPENAPI_SCHEMA = z.toJSONSchema(problemSchema, {
+  target: "openapi-3.0",
+}) as OpenApiSchemaObject;
 
 /**
  * Structural type for Prisma errors with a code and optional meta. Under Prisma 7 the meta holds
@@ -35,80 +51,32 @@ interface ZodErrorLike {
 
 /**
  * @function createErrorHandler
- * @description Builds the centralized Fastify error handler, which logs every error in full and
- *   answers the client with a sanitized body. SECURITY: never exposes stack traces, database
- *   schema, or internal paths in production.
- * @param logger - The logger the full error is written to.
+ * @description Builds the global error handler: whatever a route, a hook or the framework raises is
+ *   answered with its problem through `sendProblem`. It is the net for what is raised; a route
+ *   answers its own failures through `sendProblem` itself.
+ * @param logger - The logger each failure's one line is written to.
  * @returns The Fastify error handler.
  */
 export function createErrorHandler(logger: FastifyBaseLogger) {
-  return async function errorHandler(
-    error: FastifyError | AppError | Error,
+  return function errorHandler(
+    error: unknown,
     request: FastifyRequest,
     reply: FastifyReply
-  ) {
-    const requestId = request.id;
-    const method = request.method;
-    const url = request.url;
-    const ip = request.ip;
+  ): FastifyReply {
+    return sendProblem(request, reply, error, logger);
+  };
+}
 
-    // Log the full error internally (with stack trace) for debugging
-    const logContext = {
-      requestId,
-      method,
-      url,
-      ip,
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        ...(error instanceof AppError && { code: error.code, isOperational: error.isOperational }),
-      },
-    };
-
-    if (error instanceof AppError && error.isOperational) {
-      // Expected operational errors - log as warning
-      logger.warn(logContext, "Operational error occurred");
-    } else {
-      // Unexpected errors - log as error and report to Sentry
-      logger.error(logContext, "Unexpected error occurred");
-      captureError(error, { requestId, method, url, ip });
-    }
-
-    // Prepare safe response for client
-    const statusCode = getStatusCode(error);
-    const errorCode = getErrorCode(error);
-    const safeMessage = getSafeErrorMessage(error);
-
-    // Build response object
-    const response: {
-      ok: false;
-      error: {
-        code: string;
-        message: string;
-        requestId: string;
-        timestamp: string;
-        details?: Record<string, unknown>;
-      };
-    } = {
-      ok: false,
-      error: {
-        code: errorCode,
-        message: safeMessage,
-        requestId,
-        timestamp: new Date().toISOString(),
-      },
-    };
-
-    // Only include error details in development mode
-    if (process.env.NODE_ENV === "development") {
-      if (error instanceof AppError && error.details) {
-        response.error.details = error.details;
-      }
-    }
-
-    // Send response
-    return reply.status(statusCode).send(response);
+/**
+ * @function createNotFoundHandler
+ * @description Builds the not-found handler: a path no route matches, under any prefix, is answered
+ *   with ROUTE_NOT_FOUND's problem through `sendProblem`.
+ * @param logger - The logger each failure's one line is written to.
+ * @returns The Fastify not-found handler.
+ */
+export function createNotFoundHandler(logger: FastifyBaseLogger) {
+  return function notFoundHandler(request: FastifyRequest, reply: FastifyReply): FastifyReply {
+    return sendProblem(request, reply, RegisteredError.of(HTTP_ERRORS.ROUTE_NOT_FOUND), logger);
   };
 }
 

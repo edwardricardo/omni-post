@@ -25,13 +25,13 @@ The API is built with **Fastify** and **TypeScript**, featuring a comprehensive 
 
 The API answers in three shapes, depending on who sends the response.
 
-| Sent by                                                                         | Success body                 | Error body                                                      | `details`                                               |
-| ------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
-| A handler built on `BaseRouteHandler` (`lib/route-handler/BaseRouteHandler.ts`) | `{ ok: true, data }`         | `{ ok: false, error: "<message>" }`                             | next to `error`, only when the handler passes an object |
-| Fastify's error handler (`lib/errors/errorHandler.ts`)                          | none, it answers errors only | `{ ok: false, error: { code, message, requestId, timestamp } }` | inside `error`, only when `NODE_ENV` is `development`   |
-| The saga routes (`/sagas/...`, `saga/SagaIntegration.ts`)                       | `{ success: true, data }`    | the error handler's body, as its refusals go through it         | as for the error handler                                |
+| Sent by                                                                         | Success body                 | Error body                                              | `details`                                               |
+| ------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| A handler built on `BaseRouteHandler` (`lib/route-handler/BaseRouteHandler.ts`) | `{ ok: true, data }`         | `{ ok: false, error: "<message>" }`                     | next to `error`, only when the handler passes an object |
+| Fastify's error handler (`lib/errors/errorHandler.ts`)                          | none, it answers errors only | the problem body of [Error Handling](#error-handling)   | never                                                   |
+| The saga routes (`/sagas/...`, `saga/SagaIntegration.ts`)                       | `{ success: true, data }`    | the error handler's body, as its refusals go through it | as for the error handler                                |
 
-An error reaches Fastify's error handler when it is a schema or framework error, an `AppError` thrown by a service, or an unexpected failure.
+An error reaches Fastify's error handler when it is a schema or framework error, an `AppError` thrown by a service, or an unexpected failure. A path no route matches answers the same body, through the not-found handler.
 
 ```json
 { "ok": true, "data": { "message": "Logged out successfully" } }
@@ -47,17 +47,17 @@ An error reaches Fastify's error handler when it is a schema or framework error,
 
 ```json
 {
-  "ok": false,
-  "error": {
-    "code": "RESOURCE_NOT_FOUND",
-    "message": "Resource not found",
-    "requestId": "<request-id>",
-    "timestamp": "2026-11-14T10:30:00.000Z"
-  }
+  "type": "https://omnipost.app/problems/ROUTE_NOT_FOUND",
+  "title": "Route not found",
+  "status": 404,
+  "detail": "No route matches this method and path",
+  "code": "ROUTE_NOT_FOUND",
+  "correlationId": "<correlation-id>",
+  "timestamp": "2026-11-20T10:30:00.000Z"
 }
 ```
 
-An error that reaches Fastify's error handler, here a not-found.
+`GET /nowhere`, a path no route matches, 404, as `application/problem+json`.
 
 A few routes send a body of their own: `GET /health` and its siblings, `GET /metrics` and the 429 of the rate limiter. Each is described with its route.
 
@@ -863,33 +863,56 @@ Content-Type: application/json
 
 ## Error Handling
 
-### Standard Error Response
+### The error body
 
-The shape depends on who answers; see [Response Patterns](#response-patterns). An error that reaches Fastify's error handler answers:
+A failure the error handler answers, a request a route's schema refuses and a path no route matches all answer one body: an RFC 9457 problem, served as `application/problem+json; charset=utf-8` ([ADR-0047](../technical/ADR-0047-central-error-system.md)).
 
 ```json
 {
-  "ok": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Validation failed",
-    "requestId": "<request-id>",
-    "timestamp": "2026-11-14T10:30:00.000Z"
-  }
+  "type": "https://omnipost.app/problems/VALIDATION_FAILED",
+  "title": "Validation failed",
+  "status": 400,
+  "detail": "The request is not valid",
+  "code": "VALIDATION_FAILED",
+  "correlationId": "<correlation-id>",
+  "timestamp": "2026-11-20T10:30:00.000Z",
+  "issues": [
+    {
+      "part": "body",
+      "pointer": "/email",
+      "code": "invalid_format",
+      "detail": "Invalid email address"
+    }
+  ]
 }
 ```
 
-### Common Error Codes
+| Member          | What it holds                                                                                                                     |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `type`          | `https://omnipost.app/problems/` and the code: an identifier, not a page to fetch                                                 |
+| `title`         | The code in words                                                                                                                 |
+| `status`        | The HTTP status                                                                                                                   |
+| `detail`        | The registry's message for the code, worded with this occurrence's parameters; never the error's own text                         |
+| `code`          | The code; a front takes its user-facing text from its catalogs by this code                                                       |
+| `correlationId` | The request's correlation id, or its request id when the failure comes before the hook that sets the correlation id               |
+| `timestamp`     | When the failure was answered, ISO 8601, UTC                                                                                      |
+| `params`        | Only when the code declares parameters                                                                                            |
+| `issues`        | Only with `VALIDATION_FAILED`: one per refusal, its request `part`, a JSON `pointer` into it, the validator's `code` and `detail` |
 
-The `code` of that error is a value of `ErrorCode` (`packages/shared/src/errors.ts`):
+What decides the answer:
 
-- Authentication: `AUTH_INVALID_CREDENTIALS`, `AUTH_USER_NOT_FOUND`, `AUTH_TOKEN_EXPIRED`, `AUTH_TOKEN_INVALID`, `AUTH_INSUFFICIENT_PERMISSIONS`, `AUTH_MFA_REQUIRED`, `AUTH_MFA_INVALID`
-- Validation: `VALIDATION_ERROR`, `VALIDATION_MISSING_FIELD`, `VALIDATION_INVALID_FORMAT`
-- Resources: `RESOURCE_NOT_FOUND`, `RESOURCE_ALREADY_EXISTS`, `RESOURCE_CONFLICT`
-- Rate limiting: `RATE_LIMIT_EXCEEDED`
-- Database: `DATABASE_ERROR`, `DATABASE_CONNECTION_FAILED`
-- External services: `EXTERNAL_SERVICE_ERROR`, `PROVIDER_ERROR`
-- Other: `CONFIGURATION_ERROR`, `INTERNAL_SERVER_ERROR`, `BAD_REQUEST`, `FORBIDDEN`, `NOT_IMPLEMENTED`
+- A code in the `internal` or `configuration` category reaches the client as `INTERNAL_ERROR` at 500; its own code goes to the log.
+- A failure that carries no registered code keeps its status: an `AppError` answers its own code, and its message only when it is an expected failure below 500; any other value answers `INTERNAL_ERROR`'s code and text.
+- A route answers its own failures through `sendProblem` (`apps/api/src/lib/errors/index.ts`), the one function that writes the body; a route never raises to the error handler ([ADR-0006](../technical/ADR-0006-result-type-over-throws.md)).
+- The OpenAPI document publishes the body as `components.schemas.Problem`.
+
+### Routes not yet converted
+
+A route that answers a failure itself, by hand or through a helper such as `BaseRouteHandler`, still answers the body [Response Patterns](#response-patterns) gives for it, until the sweep of its context moves it to `sendProblem`.
+
+### Error codes
+
+Every code, with its status, its category and its message: [docs/api/ERROR_CODES.md](../api/ERROR_CODES.md), generated from the registry in `packages/shared/src/error-registry/`.
 
 ## Rate Limiting
 
