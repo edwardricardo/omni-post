@@ -1,12 +1,25 @@
 /**
  * @file readiness.ts
- * @description Readiness verdict for the workers process: which critical
+ * @description Health verdicts of the workers process: which critical
  *              dependencies cannot be used, asked ONE NAME AT A TIME so an
- *              unregistered checker is an answer, not an absence.
+ *              unregistered checker is an answer, not an absence, and the
+ *              status code their health report answers with.
  * @layer infrastructure
  */
 import type { Result } from "@shared/types";
 import { isUsable } from "@monitoring/health-checks";
+
+/**
+ * @function reportStatusCode
+ * @description The status code of the workers' `/health` and `/health/detailed`: 200 while the
+ *   report can serve, healthy or degraded, and 503 otherwise, by the rule the API's health routes
+ *   answer by. The body's status says which.
+ * @param overall - The report's overall status.
+ * @returns 200 or 503.
+ */
+export function reportStatusCode(overall: string): 200 | 503 {
+  return isUsable(overall) ? 200 : 503;
+}
 
 /**
  * @function publishConsumerDependencyName

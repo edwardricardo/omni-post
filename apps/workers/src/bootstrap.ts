@@ -53,7 +53,11 @@ import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { env } from "./config/env.js";
-import { evaluateReadiness, publishConsumerDependencyName } from "./health/readiness.js";
+import {
+  evaluateReadiness,
+  publishConsumerDependencyName,
+  reportStatusCode,
+} from "./health/readiness.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
 const logger = createLogger("workers-bootstrap");
@@ -195,9 +199,8 @@ async function main(): Promise<void> {
 
       if (url === "/health/detailed") {
         const report = await healthManager.checkAll();
-        const statusCode = report.overall === "unhealthy" ? 503 : 200;
         res.setHeader("Content-Type", "application/json");
-        res.statusCode = statusCode;
+        res.statusCode = reportStatusCode(report.overall);
         res.end(
           JSON.stringify({
             ok: report.overall !== "unhealthy",
@@ -223,9 +226,8 @@ async function main(): Promise<void> {
       if (url === "/health") {
         const cached = healthManager.getCurrentStatus();
         const status = cached ?? (await healthManager.checkAll());
-        const isHealthy = status.overall === "healthy";
         res.setHeader("Content-Type", "application/json");
-        res.statusCode = isHealthy ? 200 : 503;
+        res.statusCode = reportStatusCode(status.overall);
         res.end(
           JSON.stringify({
             status: status.overall,

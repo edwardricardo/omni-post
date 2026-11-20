@@ -11,7 +11,11 @@
  */
 import { describe, it, expect } from "vitest";
 import { ok, err, type Result } from "@shared/types";
-import { evaluateReadiness, publishConsumerDependencyName } from "../../src/health/readiness.js";
+import {
+  evaluateReadiness,
+  publishConsumerDependencyName,
+  reportStatusCode,
+} from "../../src/health/readiness.js";
 
 type DependencyReport = { name: string; status: "healthy" | "degraded" | "unhealthy" };
 type CheckResult = Result<DependencyReport, "NOT_FOUND" | "CHECK_FAILED">;
@@ -95,5 +99,11 @@ describe("worker readiness", () => {
     // The name travels into the readiness payload, so an operator reading a 503
     // learns WHICH queue is unattended without opening the source.
     expect(publishConsumerDependencyName("publish")).toBe("consumer:publish");
+  });
+});
+
+describe("the status code of the workers' health report", () => {
+  it("is 200 for a healthy or degraded report and 503 for an unhealthy one", () => {
+    expect(["healthy", "degraded", "unhealthy"].map(reportStatusCode)).toEqual([200, 200, 503]);
   });
 });
