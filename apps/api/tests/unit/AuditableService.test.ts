@@ -118,6 +118,20 @@ describe("AuditableService", () => {
       expect(details.method).toBe("password");
     });
 
+    it("stores a refused action as failed, with its code, when the entry names a failure", async () => {
+      await service.logUser(auditActor.admin("user-1"), {
+        action: "USER_LOGIN",
+        category: "AUTHENTICATION",
+        severity: "HIGH",
+        failure: "PASSWORD_CHANGE_REQUIRED",
+      });
+
+      expect(repo.rows).toHaveLength(1);
+      const row = repo.rows[0];
+      expect(row?.success).toBe(false);
+      expect(row?.error).toBe("PASSWORD_CHANGE_REQUIRED");
+    });
+
     it("omits optional fields when undefined and includes them when provided", async () => {
       await service.logUser(auditActor.admin("user-1"), {
         action: "NO_OPTIONAL",

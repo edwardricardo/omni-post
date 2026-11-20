@@ -88,6 +88,8 @@ export interface AuditLogEntry {
   ipAddress?: string;
   userAgent?: string;
   metadata?: Record<string, unknown>;
+  /** The code of the refusal or failure; the row is stored as failed with it. Absent: stored as successful. */
+  failure?: string;
 }
 
 export interface UserActionOptions {
@@ -97,6 +99,8 @@ export interface UserActionOptions {
   details?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
+  /** The code of the refusal or failure; the row is stored as failed with it. Absent: stored as successful. */
+  failure?: string;
 }
 
 export interface AccountActionOptions extends UserActionOptions {
@@ -148,6 +152,7 @@ export abstract class AuditableService extends BaseService {
       ...(options.details !== undefined && { details: options.details }),
       ...(options.ipAddress !== undefined && { ipAddress: options.ipAddress }),
       ...(options.userAgent !== undefined && { userAgent: options.userAgent }),
+      ...(options.failure !== undefined && { failure: options.failure }),
     };
 
     await this.writeAuditLog(entry);
@@ -354,7 +359,9 @@ export abstract class AuditableService extends BaseService {
         action: entry.action,
         actorType: actor.type,
         details: enrichedDetails,
-        success: true, // Default to success for normal audit logs
+        // An entry that names no failure is a completed action.
+        success: entry.failure === undefined,
+        ...(entry.failure !== undefined && { error: entry.failure }),
         ...actorFields,
         ...(entry.resourceType && { resource: entry.resourceType }),
         ...(entry.resourceId && { resourceId: entry.resourceId }),

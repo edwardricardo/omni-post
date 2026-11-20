@@ -1104,6 +1104,51 @@
     "successTitle": "Contraseña restablecida exitosamente",
     "successDesc": "Tu contraseña ha sido actualizada. Redirigiendo al inicio de sesión..."
   },
+  "requiredPasswordChange": {
+    "title": "Establezca una contraseña nueva",
+    "description": "Esta cuenta debe cambiar su contraseña antes de iniciar sesión. Ingrese la dirección de correo electrónico, la contraseña actual y una contraseña nueva. Aquí no se abre ninguna sesión: una vez cambiada la contraseña, inicie sesión con la nueva.",
+    "emailLabel": "Dirección de correo electrónico",
+    "currentPasswordLabel": "Contraseña actual",
+    "newPasswordLabel": "Contraseña nueva",
+    "confirmPasswordLabel": "Confirme la contraseña nueva",
+    "mfaCodeLabel": "Código de autenticación",
+    "policyTitle": "La contraseña nueva debe:",
+    "policy": {
+      "length": "tener entre {minLength} y {maxLength} caracteres",
+      "lowercase": "contener al menos una letra minúscula",
+      "uppercase": "contener al menos una letra mayúscula",
+      "number": "contener al menos un número",
+      "special": "contener al menos un carácter que no sea una letra ni un número",
+      "reuse": "ser distinta de la contraseña actual y de las {reusedPasswords} últimas contraseñas de la cuenta"
+    },
+    "submit": "Cambiar contraseña",
+    "submitting": "Cambiando contraseña...",
+    "backToSignIn": "Volver al inicio de sesión",
+    "invalidField": {
+      "email": "Ingrese una dirección de correo electrónico válida.",
+      "currentPassword": "Ingrese la contraseña actual.",
+      "newPassword": "Ingrese una contraseña nueva de {maxLength} caracteres como máximo.",
+      "mfaToken": "El código de autenticación tiene {mfaCodeLength} dígitos."
+    },
+    "passwordChanged": "La contraseña se cambió. Inicie sesión con la contraseña nueva."
+  },
+  "adminAuthErrors": {
+    "passwordMismatch": "La contraseña nueva y su confirmación no coinciden.",
+    "invalidCredentials": "La dirección de correo electrónico o la contraseña no son correctas.",
+    "mfaRequired": "Esta cuenta usa verificación en dos pasos. Ingrese el código de la aplicación de autenticación.",
+    "mfaInvalid": "El código de autenticación no es válido. Ingrese un código nuevo.",
+    "accountLocked": "Esta cuenta está bloqueada. Inténtelo de nuevo más tarde.",
+    "accountInactive": "Esta cuenta está inactiva.",
+    "passwordChangeNotRequired": "Esta cuenta no necesita cambiar la contraseña. Inicie sesión con su contraseña.",
+    "concurrentModification": "La cuenta cambió mientras se guardaba la contraseña. Inténtelo de nuevo.",
+    "passwordTooWeak": "La contraseña nueva no cumple los requisitos indicados debajo de ella.",
+    "passwordReused": "La contraseña nueva no puede ser la actual ni una de las {reusedPasswords} últimas. Elija otra.",
+    "rateLimitExceeded": "Demasiados intentos. Espere un momento e inténtelo de nuevo.",
+    "ipNotAllowed": "No se permite el acceso desde esta dirección de red.",
+    "validationFailed": "Algunos campos no son válidos.",
+    "internalError": "El servidor no pudo completar la solicitud. Inténtelo de nuevo más tarde.",
+    "unknown": "No se pudo completar la solicitud. Inténtelo de nuevo."
+  },
   "logs": {
     "title": "Registros de auditoría",
     "description": "Seguimiento de todos los eventos del sistema y actividades de usuarios (actualización automática cada 30s)",
