@@ -9,8 +9,8 @@
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { AUTH_ERRORS, type Result, ok, err } from "@shared/types";
+import { type UseCase, UseCaseError } from "@core/application/UseCase.js";
 import type {
   AdminUserCreateInput,
   AdminUserRepositoryPort,
@@ -35,34 +35,24 @@ import {
   type SystemAuditLog,
 } from "./singleUsePassword.js";
 
-const MESSAGES = {
-  invalidEmail: "The e-mail is not an address the administrators' sign-in accepts",
-  noLocalPart: "The e-mail has no local part to name the administrator after",
-  administratorExists:
-    "An administrator already exists: the first administrator is created only on a database that has none",
-  roleIdHeld:
-    "Another run of this command wrote the administration role first: check whether an administrator exists",
-  roleNameHeld:
-    "A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed",
-  roleWriteFailed: "Writing the administration role failed",
-  existenceReadFailed: "Reading whether an administrator exists failed",
-  createFailed: "Creating the administrator failed",
-  auditFailed: "Writing the audit record of the creation failed",
-  transactionFailed:
-    "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again, and when one exists whose password nobody saw, re-issue its single-use password",
-} as const;
-
 /** The audit record of a creation: what was done and the task that did it. */
 const AUDIT = {
   action: "FIRST_ADMINISTRATOR_CREATED",
   task: "create-first-admin",
 } as const;
 
-/** The refusal each collision of the role write is reported with: one entry per collision. */
-const ROLE_CONFLICT_MESSAGES: Readonly<Record<SystemRoleCollision, string>> = {
-  [SYSTEM_ROLE_COLLISIONS.ID]: MESSAGES.roleIdHeld,
-  [SYSTEM_ROLE_COLLISIONS.NAME]: MESSAGES.roleNameHeld,
-};
+/**
+ * The refusal a collision of the role write is reported with, one per collision. A switch with no
+ * default, so a collision the repository adds is a compile error here until it has its refusal.
+ */
+function roleConflictError(collision: SystemRoleCollision, cause: Error): UseCaseError {
+  switch (collision) {
+    case SYSTEM_ROLE_COLLISIONS.ID:
+      return UseCaseError.of(AUTH_ERRORS.ADMINISTRATION_ROLE_WRITTEN_BY_ANOTHER_RUN, { cause });
+    case SYSTEM_ROLE_COLLISIONS.NAME:
+      return UseCaseError.of(AUTH_ERRORS.ADMINISTRATION_ROLE_NAME_HELD, { cause });
+  }
+}
 
 /** The e-mail of the administrator to create, the command's only input. */
 export interface CreateFirstAdministratorInput {
@@ -124,10 +114,13 @@ export class CreateFirstAdministratorUseCase implements UseCase<
    *   the system audit record of the creation.
    * @param input - The e-mail of the administrator to create
    * @returns The administrator's id, e-mail and name with the single-use password on success;
-   *   VALIDATION_FAILED for an address the sign-in's rule refuses or one with no local part;
-   *   CONFLICT when an administrator exists or another writer holds the role; INTERNAL_ERROR
-   *   carrying the original error when the generator, the hasher, a repository, the audit log or
-   *   the transaction fails
+   *   ADMINISTRATOR_EMAIL_INVALID or ADMINISTRATOR_EMAIL_HAS_NO_LOCAL_PART, of the validation
+   *   category, for an address the sign-in's rule refuses or one with no local part;
+   *   ADMINISTRATOR_ALREADY_EXISTS, ADMINISTRATION_ROLE_WRITTEN_BY_ANOTHER_RUN or
+   *   ADMINISTRATION_ROLE_NAME_HELD, of the conflict category, when an administrator exists or
+   *   another writer holds the role's id or its name; an error of the internal category carrying
+   *   the original error when the generator, the hasher, a repository, the audit log or the
+   *   transaction fails
    */
   async execute(
     input: CreateFirstAdministratorInput
@@ -136,13 +129,13 @@ export class CreateFirstAdministratorUseCase implements UseCase<
     // The administrator must be able to sign in, and the command refuses a second run, so an
     // address the sign-in would refuse is refused before anything is written.
     if (!this.addressRule.accepts(email)) {
-      return err(new UseCaseError(MESSAGES.invalidEmail, USE_CASE_ERRORS.VALIDATION_FAILED));
+      return err(UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_EMAIL_INVALID));
     }
     // The name is required and comes from the local part, which ends at the last "@" since a
     // domain holds none; the rule's verdict is not trusted to guarantee there is one.
     const at = email.lastIndexOf("@");
     if (at < 1) {
-      return err(new UseCaseError(MESSAGES.noLocalPart, USE_CASE_ERRORS.VALIDATION_FAILED));
+      return err(UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_EMAIL_HAS_NO_LOCAL_PART));
     }
     const name = email.slice(0, at);
 
@@ -154,7 +147,7 @@ export class CreateFirstAdministratorUseCase implements UseCase<
     return runInTransaction(
       this.unitOfWork,
       () => this.createWithinTransaction(email, name, credential.value),
-      MESSAGES.transactionFailed
+      (cause) => UseCaseError.of(AUTH_ERRORS.FIRST_ADMINISTRATOR_OUTCOME_UNKNOWN, { cause })
     );
   }
 
@@ -173,23 +166,19 @@ export class CreateFirstAdministratorUseCase implements UseCase<
       // The conflict is recognised by its `collision` field, a value, and not by its class,
       // whose identity is not stable across the domain package's dual export.
       if (!("collision" in error)) {
-        return err(
-          new UseCaseError(MESSAGES.roleWriteFailed, USE_CASE_ERRORS.INTERNAL_ERROR, error)
-        );
+        return err(UseCaseError.of(AUTH_ERRORS.ADMINISTRATION_ROLE_WRITE_FAILED, { cause: error }));
       }
-      return err(
-        new UseCaseError(ROLE_CONFLICT_MESSAGES[error.collision], USE_CASE_ERRORS.CONFLICT, error)
-      );
+      return err(roleConflictError(error.collision, error));
     }
 
     const exists = await this.administrators.existsAny();
     if (!exists.ok) {
       return err(
-        new UseCaseError(MESSAGES.existenceReadFailed, USE_CASE_ERRORS.INTERNAL_ERROR, exists.error)
+        UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_EXISTENCE_READ_FAILED, { cause: exists.error })
       );
     }
     if (exists.value) {
-      return err(new UseCaseError(MESSAGES.administratorExists, USE_CASE_ERRORS.CONFLICT));
+      return err(UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_ALREADY_EXISTS));
     }
 
     const created = await this.createAdministrator({
@@ -205,7 +194,7 @@ export class CreateFirstAdministratorUseCase implements UseCase<
     const audited = await recordSystemAction(
       this.auditLog,
       { ...AUDIT, administratorId: created.value.id },
-      MESSAGES.auditFailed
+      (cause) => UseCaseError.of(AUTH_ERRORS.FIRST_ADMINISTRATOR_AUDIT_WRITE_FAILED, { cause })
     );
     if (!audited.ok) {
       return err(audited.error);
@@ -226,7 +215,7 @@ export class CreateFirstAdministratorUseCase implements UseCase<
       return ok(await this.administrators.create(fields));
     } catch (error: unknown) {
       return err(
-        new UseCaseError(MESSAGES.createFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
+        UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_CREATE_FAILED, { cause: asCause(error) })
       );
     }
   }

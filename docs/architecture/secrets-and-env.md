@@ -181,7 +181,7 @@ Production: separate runbook (`docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`) c
 
 ## Troubleshooting
 
-**"Environment validation failed. Refusing to boot."** — the schema rejected one or more values. The error lists every offending key with its constraint. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port).
+**"The environment was refused: these variables are missing or not valid: …"** — the schema rejected one or more values. The API's module raises the registry's `ENV_VARIABLES_REFUSED` (`environmentRefusal`, `apps/api/src/config/env.ts`), whose message names each refused variable and never a value. Its cause, **"Environment validation failed. Refusing to boot."**, lists every offending key with its constraint, and the API's start prints it under `[cause]`; the first-administrator command prints the names only, never the cause's text. The workers' module (`apps/workers/src/config/env.ts`) raises its own error, whose message is that cause's text. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port).
 
 **Test suite fails with the same error** — `.env.test` is missing a key the schema requires. Add it with a deterministic dummy value (`>= 32` chars).
 

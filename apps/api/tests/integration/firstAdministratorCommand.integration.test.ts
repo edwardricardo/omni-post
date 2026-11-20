@@ -18,7 +18,10 @@
  *              The two process cases run the command, once creating and once re-issuing, with its
  *              standard output a pseudo-terminal that util-linux `script` opens, and require that
  *              the terminal shows the block and nothing else (no line any imported module writes)
- *              and that the process ends by itself.
+ *              and that the process ends by itself. Two more run it the same way against a
+ *              database address nothing listens on and with variables the environment module
+ *              refuses, and require that the terminal names the failure, its code and the refused
+ *              variables, and never the address or a value.
  * @layer infrastructure
  */
 
@@ -26,6 +29,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { until } from "@packages/vitest-shared/determinism";
@@ -59,25 +63,55 @@ const PROCESS_LIMIT_MS = 60_000;
 
 const execFileAsync = promisify(execFile);
 
-/** The use case's refusals, as the operator reads them on standard error. */
+/** The use case's refusals, as the operator reads them on standard error, each closed by its code. */
 const REFUSALS = {
   administratorExists:
-    "Refused: An administrator already exists: the first administrator is created only on a database that has none\n",
+    "Refused: An administrator already exists: the first administrator is created only on a database that has none\nCode: ADMINISTRATOR_ALREADY_EXISTS\n",
   roleIdHeld:
-    "Refused: Another run of this command wrote the administration role first: check whether an administrator exists\n",
+    "Refused: Another run of this command wrote the administration role first: check whether an administrator exists\nCode: ADMINISTRATION_ROLE_WRITTEN_BY_ANOTHER_RUN\n",
   roleNameHeld:
-    "Refused: A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed\n",
+    "Refused: A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed\nCode: ADMINISTRATION_ROLE_NAME_HELD\n",
   notFound:
-    "Refused: No administrator has this e-mail: there is no single-use password to re-issue\n",
+    "Refused: No administrator has this e-mail: there is no single-use password to re-issue\nCode: ADMINISTRATOR_NOT_FOUND\n",
   hasSignedIn:
-    "Refused: This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued\n",
+    "Refused: This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued\nCode: PASSWORD_REISSUE_REFUSED_SIGNED_IN\n",
   notMarked:
-    "Refused: This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued\n",
+    "Refused: This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued\nCode: PASSWORD_REISSUE_REFUSED_NOT_MARKED\n",
   deactivated:
-    "Refused: This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued\n",
+    "Refused: This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued\nCode: PASSWORD_REISSUE_REFUSED_DEACTIVATED\n",
   changedSinceRead:
-    "Refused: The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now\n",
+    "Refused: The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now\nCode: PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ\n",
 } as const;
+
+/** A value no line of the command may print, planted in a refused variable or a database address. */
+const PLANTED = "planted-Value-k5w2";
+
+/** The argument words of the command's process, run from `apps/api` as its script runs it. */
+function processCommand(args: readonly string[]): string {
+  return [
+    process.execPath,
+    "--conditions",
+    "development",
+    "--import",
+    "tsx",
+    "src/cli/createFirstAdministrator.ts",
+    ...args,
+  ]
+    .map((word) => `'${word}'`)
+    .join(" ");
+}
+
+/** A loopback port nothing listens on: a server binds it and is closed before it is returned. */
+async function closedPort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve()))
+  );
+  assert.ok(address !== null && typeof address === "object", "a loopback port was bound");
+  return address.port;
+}
 
 /** The arguments that switch the command to re-issuing the single-use password. */
 const REISSUE = ["--reissue"] as const;
@@ -213,6 +247,9 @@ describe("The first-administrator command on a migrated database", { concurrency
       async () => ({
         createFirstAdministrator: composeCreateFirstAdministrator(client),
         reissueAdministratorPassword: composeReissueAdministratorPassword(client),
+        connect: async () => {
+          await client.$queryRaw`SELECT 1`;
+        },
         close: async () => undefined,
       })
     );
@@ -253,17 +290,21 @@ describe("The first-administrator command on a migrated database", { concurrency
 
   /**
    * Runs a shell command under `script`, which gives it a pseudo-terminal as its standard
-   * streams, with the database URL of the test's database, and resolves on its exit. A run that
-   * outlives `PROCESS_LIMIT_MS` is ended with SIGTERM and comes back with `killed` set.
+   * streams, with the database URL of the test's database and the variables `environment` sets
+   * over it, and resolves on its exit. A run that outlives `PROCESS_LIMIT_MS` is ended with
+   * SIGTERM and comes back with `killed` set.
    */
-  async function runInPseudoTerminal(command: string) {
+  async function runInPseudoTerminal(
+    command: string,
+    environment: Readonly<Record<string, string>> = {}
+  ) {
     try {
       const { stdout, stderr } = await execFileAsync(
         "script",
         ["--quiet", "--return", "--flush", "--command", command, "/dev/null"],
         {
           cwd: API_DIR,
-          env: { ...process.env, DATABASE_URL: scratchUrl },
+          env: { ...process.env, DATABASE_URL: scratchUrl, ...environment },
           timeout: PROCESS_LIMIT_MS,
           killSignal: "SIGTERM",
         }
@@ -724,6 +765,70 @@ describe("The first-administrator command on a migrated database", { concurrency
       const [administrator] = state.administrators;
       assert.ok(administrator);
       assert.equal(await hasher.verify(administrator.passwordHash, password), true);
+    }
+  );
+
+  it(
+    "runs as a process and names the unreachable database, never its address, when nothing listens at it",
+    TIMING,
+    async () => {
+      const port = await closedPort();
+
+      const run = await runInPseudoTerminal(
+        processCommand(["--email", "first.admin@example.com"]),
+        {
+          DATABASE_URL: `postgresql://first-admin:${PLANTED}@127.0.0.1:${String(port)}/first_admin`,
+        }
+      );
+
+      // A terminal ends its lines with CR LF; the text is compared with LF endings.
+      const terminal = run.stdout.replaceAll("\r\n", "\n");
+      assert.deepEqual(
+        { code: run.code, killed: run.killed, terminal, stderr: run.stderr },
+        {
+          code: 1,
+          killed: false,
+          terminal: [
+            "Failed: The database cannot be reached: no connection could be opened, and nothing was read or written",
+            "Cause: PrismaClientKnownRequestError, code P2010",
+            "Code: DATABASE_UNREACHABLE",
+            "",
+          ].join("\n"),
+          stderr: "",
+        }
+      );
+      assert.equal(terminal.includes(PLANTED) || terminal.includes(String(port)), false);
+    }
+  );
+
+  it(
+    "runs as a process and names the variables the environment module refuses, never their values",
+    TIMING,
+    async () => {
+      const run = await runInPseudoTerminal(
+        processCommand(["--email", "first.admin@example.com"]),
+        {
+          JWT_ACCESS_SECRET: PLANTED,
+          PORT: PLANTED,
+        }
+      );
+
+      const terminal = run.stdout.replaceAll("\r\n", "\n");
+      assert.deepEqual(
+        { code: run.code, killed: run.killed, terminal, stderr: run.stderr },
+        {
+          code: 1,
+          killed: false,
+          terminal: [
+            "Failed: The environment was refused: these variables are missing or not valid: JWT_ACCESS_SECRET, PORT",
+            "Cause: Error",
+            "Code: ENV_VARIABLES_REFUSED",
+            "",
+          ].join("\n"),
+          stderr: "",
+        }
+      );
+      assert.equal(terminal.includes(PLANTED), false);
     }
   );
 

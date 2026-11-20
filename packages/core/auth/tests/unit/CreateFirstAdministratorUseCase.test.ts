@@ -9,8 +9,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { inspect } from "node:util";
-import { ok, type Result } from "@shared/types";
-import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { ERROR_CATEGORY, ok, type Result } from "@shared/types";
+import type { UseCaseError } from "@core/application/UseCase.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
 import type { AdminUserCreateInput } from "@core/domain/repositories/AdminUserRepository.js";
@@ -43,26 +43,110 @@ const PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$Zml4dHVyZS1zYWx0$Zml4dHVyZ
 const CREATED_ADMIN_ID = "admin-uuid-001";
 const FIXED_DATE = new Date("2024-01-01T00:00:00Z");
 
-const MESSAGES = {
-  invalidEmail: "The e-mail is not an address the administrators' sign-in accepts",
-  noLocalPart: "The e-mail has no local part to name the administrator after",
-  administratorExists:
-    "An administrator already exists: the first administrator is created only on a database that has none",
-  roleIdHeld:
-    "Another run of this command wrote the administration role first: check whether an administrator exists",
-  roleNameHeld:
-    "A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed",
-  generateFailed: "Generating the single-use password failed",
-  hashFailed: "Hashing the single-use password failed",
-  roleWriteFailed: "Writing the administration role failed",
-  existenceReadFailed: "Reading whether an administrator exists failed",
-  createFailed: "Creating the administrator failed",
-  auditFailed: "Writing the audit record of the creation failed",
-  stepRaised:
-    "A step inside the transaction failed; the transaction was rolled back and nothing was written",
-  transactionFailed:
-    "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again, and when one exists whose password nobody saw, re-issue its single-use password",
+/** What each refusal and failure reports: the registry's code, category and status, and its text. */
+const FAILURES = {
+  invalidEmail: {
+    code: "ADMINISTRATOR_EMAIL_INVALID",
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message: "The e-mail is not an address the administrators' sign-in accepts",
+  },
+  noLocalPart: {
+    code: "ADMINISTRATOR_EMAIL_HAS_NO_LOCAL_PART",
+    category: ERROR_CATEGORY.VALIDATION,
+    status: 400,
+    message: "The e-mail has no local part to name the administrator after",
+  },
+  administratorExists: {
+    code: "ADMINISTRATOR_ALREADY_EXISTS",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "An administrator already exists: the first administrator is created only on a database that has none",
+  },
+  roleIdHeld: {
+    code: "ADMINISTRATION_ROLE_WRITTEN_BY_ANOTHER_RUN",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "Another run of this command wrote the administration role first: check whether an administrator exists",
+  },
+  roleNameHeld: {
+    code: "ADMINISTRATION_ROLE_NAME_HELD",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed",
+  },
+  generateFailed: {
+    code: "SINGLE_USE_PASSWORD_GENERATE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Generating the single-use password failed",
+  },
+  hashFailed: {
+    code: "SINGLE_USE_PASSWORD_HASH_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Hashing the single-use password failed",
+  },
+  roleWriteFailed: {
+    code: "ADMINISTRATION_ROLE_WRITE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Writing the administration role failed",
+  },
+  existenceReadFailed: {
+    code: "ADMINISTRATOR_EXISTENCE_READ_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Reading whether an administrator exists failed",
+  },
+  createFailed: {
+    code: "ADMINISTRATOR_CREATE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Creating the administrator failed",
+  },
+  auditFailed: {
+    code: "FIRST_ADMINISTRATOR_AUDIT_WRITE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Writing the audit record of the creation failed",
+  },
+  stepRaised: {
+    code: "SINGLE_USE_PASSWORD_STEP_RAISED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message:
+      "A step inside the transaction failed; the transaction was rolled back and nothing was written",
+  },
+  transactionFailed: {
+    code: "FIRST_ADMINISTRATOR_OUTCOME_UNKNOWN",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message:
+      "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again, and when one exists whose password nobody saw, re-issue its single-use password",
+  },
 } as const;
+
+/** How an error reads against the registry: its definition's code, category and status, and its text. */
+interface FailureReading {
+  readonly code: string;
+  readonly category: string | undefined;
+  readonly status: number | undefined;
+  readonly message: string;
+}
+
+/** Reads an error as the registry words it, so one comparison pins the code, category, status and text. */
+function readingOf(error: UseCaseError): FailureReading {
+  return {
+    code: error.code,
+    category: error.definition?.category,
+    status: error.definition?.status,
+    message: error.message,
+  };
+}
 
 const JOURNAL = {
   checkAddress: "address.accepts",
@@ -382,14 +466,13 @@ describe("CreateFirstAdministratorUseCase", () => {
   });
 
   describe("refusals", () => {
-    it("refuses with CONFLICT from inside the transaction when an administrator exists", async () => {
+    it("refuses with ADMINISTRATOR_ALREADY_EXISTS, a conflict, from inside the transaction when an administrator exists", async () => {
       const harness = makeHarness({ existsAny: ok(true) });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.administratorExists);
+      expect(readingOf(error)).toEqual(FAILURES.administratorExists);
       expect(error.cause).toBeUndefined();
       expect(harness.transactionOutcomes).toHaveLength(1);
       expect(harness.transactionOutcomes[0]).toEqual({ ok: false, error });
@@ -402,16 +485,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       expect(harness.createdInputs).toEqual([]);
     });
 
-    it("refuses with CONFLICT and its own message when another run holds the role's id", async () => {
+    it("refuses with ADMINISTRATION_ROLE_WRITTEN_BY_ANOTHER_RUN, a conflict with its own message, when another run holds the role's id", async () => {
       const conflict = makeRoleConflict(SYSTEM_ROLE_COLLISIONS.ID);
       const harness = makeHarness({ roleSave: { ok: false, error: conflict } });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.roleIdHeld);
-      expect(error.message).not.toBe(MESSAGES.administratorExists);
+      expect(readingOf(error)).toEqual(FAILURES.roleIdHeld);
       expect(error.cause).toBe(conflict);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([
@@ -422,15 +503,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       expect(harness.createdInputs).toEqual([]);
     });
 
-    it("refuses with CONFLICT and the message of a lasting refusal when a role of the same name holds another id", async () => {
+    it("refuses with ADMINISTRATION_ROLE_NAME_HELD, a conflict with the message of a lasting refusal, when a role of the same name holds another id", async () => {
       const conflict = makeRoleConflict(SYSTEM_ROLE_COLLISIONS.NAME);
       const harness = makeHarness({ roleSave: { ok: false, error: conflict } });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.roleNameHeld);
+      expect(readingOf(error)).toEqual(FAILURES.roleNameHeld);
       expect(error.cause).toBe(conflict);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([
@@ -443,7 +523,7 @@ describe("CreateFirstAdministratorUseCase", () => {
   });
 
   describe("failures", () => {
-    it("returns INTERNAL_ERROR carrying the repository's error when the role write fails", async () => {
+    it("returns ADMINISTRATION_ROLE_WRITE_FAILED, an internal failure carrying the repository's error, when the role write fails", async () => {
       const failure = new RepositoryFailureError(
         "Writing a system role failed",
         new Error("socket closed")
@@ -453,8 +533,7 @@ describe("CreateFirstAdministratorUseCase", () => {
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.roleWriteFailed);
+      expect(readingOf(error)).toEqual(FAILURES.roleWriteFailed);
       expect(error.cause).toBe(failure);
       expect(error.originalError).toBe(failure);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
@@ -466,7 +545,7 @@ describe("CreateFirstAdministratorUseCase", () => {
       expect(harness.createdInputs).toEqual([]);
     });
 
-    it("returns INTERNAL_ERROR carrying the repository's error when reading whether an administrator exists fails", async () => {
+    it("returns ADMINISTRATOR_EXISTENCE_READ_FAILED, an internal failure carrying the repository's error, when reading whether an administrator exists fails", async () => {
       const failure = new RepositoryFailureError(
         "Reading whether an admin user exists failed",
         new Error("connection reset")
@@ -476,8 +555,7 @@ describe("CreateFirstAdministratorUseCase", () => {
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.existenceReadFailed);
+      expect(readingOf(error)).toEqual(FAILURES.existenceReadFailed);
       expect(error.cause).toBe(failure);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([
@@ -489,15 +567,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       expect(harness.createdInputs).toEqual([]);
     });
 
-    it("returns INTERNAL_ERROR carrying the raised error, from inside the transaction, when creating the administrator fails", async () => {
+    it("returns ADMINISTRATOR_CREATE_FAILED, an internal failure carrying the raised error, from inside the transaction, when creating the administrator fails", async () => {
       const failure = new Error("unique constraint on email");
       const harness = makeHarness({ createFailure: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.createFailed);
+      expect(readingOf(error)).toEqual(FAILURES.createFailed);
       expect(error.cause).toBe(failure);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([
@@ -509,15 +586,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       ]);
     });
 
-    it("returns INTERNAL_ERROR whose cause names only the type when creating the administrator raises a value that is not an Error", async () => {
+    it("returns ADMINISTRATOR_CREATE_FAILED whose cause names only the type when creating the administrator raises a value that is not an Error", async () => {
       const raised = { detail: "socket closed" };
       const harness = makeHarness({ createFailure: raised });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.createFailed);
+      expect(readingOf(error)).toEqual(FAILURES.createFailed);
       expect(error.cause).toBeInstanceOf(Error);
       expect(error.originalError?.message).toBe(
         "A value that is not an Error was raised, of type object"
@@ -533,15 +609,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       ]);
     });
 
-    it("returns INTERNAL_ERROR carrying the hasher's error, before any transaction, when hashing fails", async () => {
+    it("returns SINGLE_USE_PASSWORD_HASH_FAILED, an internal failure carrying the hasher's error, before any transaction, when hashing fails", async () => {
       const failure = new Error("argon2 out of memory");
       const harness = makeHarness({ hashFailure: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.hashFailed);
+      expect(readingOf(error)).toEqual(FAILURES.hashFailed);
       expect(error.cause).toBe(failure);
       expect(harness.journal).toEqual([JOURNAL.checkAddress, JOURNAL.generate, JOURNAL.hash]);
       expect(harness.transactionOutcomes).toEqual([]);
@@ -549,30 +624,28 @@ describe("CreateFirstAdministratorUseCase", () => {
       expect(harness.createdInputs).toEqual([]);
     });
 
-    it("returns INTERNAL_ERROR carrying the generator's error, before hashing, when drawing the password fails", async () => {
+    it("returns SINGLE_USE_PASSWORD_GENERATE_FAILED, an internal failure carrying the generator's error, before hashing, when drawing the password fails", async () => {
       const failure = new Error("no random source");
       const harness = makeHarness({ generateFailure: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.generateFailed);
+      expect(readingOf(error)).toEqual(FAILURES.generateFailed);
       expect(error.cause).toBe(failure);
       expect(harness.journal).toEqual([JOURNAL.checkAddress, JOURNAL.generate]);
       expect(harness.hashedPlaintexts).toEqual([]);
       expect(harness.transactionOutcomes).toEqual([]);
     });
 
-    it("returns INTERNAL_ERROR carrying the raised error when the transaction itself fails", async () => {
+    it("returns FIRST_ADMINISTRATOR_OUTCOME_UNKNOWN, an internal failure carrying the raised error, when the transaction itself fails", async () => {
       const failure = new Error("could not commit");
       const harness = makeHarness({ commitFailure: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.transactionFailed);
+      expect(readingOf(error)).toEqual(FAILURES.transactionFailed);
       expect(error.cause).toBe(failure);
       expect(harness.journal).toEqual([
         ...BEFORE_THE_TRANSACTION,
@@ -584,15 +657,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       ]);
     });
 
-    it("returns INTERNAL_ERROR carrying the raised error as the outcome of the transaction's work, after the role and the administrator were written in it, when the audit write fails", async () => {
+    it("returns FIRST_ADMINISTRATOR_AUDIT_WRITE_FAILED, an internal failure carrying the raised error, as the outcome of the transaction's work, after the role and the administrator were written in it, when the audit write fails", async () => {
       const failure = new Error("audit table unavailable");
       const harness = makeHarness({ auditRaise: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.auditFailed);
+      expect(readingOf(error)).toEqual(FAILURES.auditFailed);
       expect(error.cause).toBe(failure);
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([
@@ -646,7 +718,7 @@ describe("CreateFirstAdministratorUseCase", () => {
       options: HarnessOptions;
       journalAfterOpen: readonly string[];
     }>)(
-      "returns INTERNAL_ERROR from inside the transaction, rolled back, when $call raises instead of returning its Result",
+      "returns SINGLE_USE_PASSWORD_STEP_RAISED, an internal failure, from inside the transaction, rolled back, when $call raises instead of returning its Result",
       async ({ options, journalAfterOpen }) => {
         const raised = options.saveRaise ?? options.existsAnyRaise;
         const harness = makeHarness(options);
@@ -654,8 +726,7 @@ describe("CreateFirstAdministratorUseCase", () => {
         const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
         const error = expectFailure(result);
-        expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-        expect(error.message).toBe(MESSAGES.stepRaised);
+        expect(readingOf(error)).toEqual(FAILURES.stepRaised);
         expect(error.cause).toBe(raised);
         expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
         expect(harness.journal).toEqual([
@@ -670,15 +741,14 @@ describe("CreateFirstAdministratorUseCase", () => {
       }
     );
 
-    it("returns INTERNAL_ERROR from inside the transaction, rolled back, whose cause names only the type when the role write raises a value that is not an Error", async () => {
+    it("returns SINGLE_USE_PASSWORD_STEP_RAISED from inside the transaction, rolled back, whose cause names only the type when the role write raises a value that is not an Error", async () => {
       const raised = "connection lost to the primary";
       const harness = makeHarness({ saveRaise: raised });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.stepRaised);
+      expect(readingOf(error)).toEqual(FAILURES.stepRaised);
       expect(error.cause).toBeInstanceOf(Error);
       expect(error.originalError?.message).toBe(
         "A value that is not an Error was raised, of type string"
@@ -697,28 +767,28 @@ describe("CreateFirstAdministratorUseCase", () => {
   });
 
   describe("validation", () => {
-    it("refuses with VALIDATION_FAILED, touching no other port, when the sign-in's rule refuses the normalized address", async () => {
+    it("refuses with ADMINISTRATOR_EMAIL_INVALID, a validation failure, touching no other port, when the sign-in's rule refuses the normalized address", async () => {
       const harness = makeHarness({ addressAccepted: false });
 
       const result = await harness.useCase.execute({ email: "  First.Admin@Example.COM " });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
-      expect(error.message).toBe(MESSAGES.invalidEmail);
+      expect(readingOf(error)).toEqual(FAILURES.invalidEmail);
+      expect(error.cause).toBeUndefined();
       expect(harness.checkedAddresses).toEqual([OPERATOR_EMAIL]);
       expect(harness.journal).toEqual([JOURNAL.checkAddress]);
     });
 
     it.each([{ email: "first.admin" }, { email: "@example.com" }])(
-      "refuses with VALIDATION_FAILED, touching no other port, when the rule accepts '$email', which has no local part",
+      "refuses with ADMINISTRATOR_EMAIL_HAS_NO_LOCAL_PART, a validation failure, touching no other port, when the rule accepts '$email', which has no local part",
       async ({ email }) => {
         const harness = makeHarness({ addressAccepted: true });
 
         const result = await harness.useCase.execute({ email });
 
         const error = expectFailure(result);
-        expect(error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
-        expect(error.message).toBe(MESSAGES.noLocalPart);
+        expect(readingOf(error)).toEqual(FAILURES.noLocalPart);
+        expect(error.cause).toBeUndefined();
         expect(harness.checkedAddresses).toEqual([email]);
         expect(harness.journal).toEqual([JOURNAL.checkAddress]);
       }

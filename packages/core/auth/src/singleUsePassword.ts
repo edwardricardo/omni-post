@@ -7,8 +7,8 @@
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
-import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { AUTH_ERRORS, type Result, ok, err } from "@shared/types";
+import { UseCaseError } from "@core/application/UseCase.js";
 import {
   AUDIT_ACTOR_TYPE,
   type AuditLogRepository,
@@ -16,13 +16,6 @@ import {
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { SingleUsePasswordGenerator } from "@ports/core";
-
-const MESSAGES = {
-  generateFailed: "Generating the single-use password failed",
-  hashFailed: "Hashing the single-use password failed",
-  stepRaised:
-    "A step inside the transaction failed; the transaction was rolled back and nothing was written",
-} as const;
 
 /** The resource every audit record of these use cases is about. */
 const AUDITED_RESOURCE = "AdminUser";
@@ -71,8 +64,9 @@ export function asCause(caught: unknown): Error {
  *   callers do it before their transaction opens.
  * @param generator - Draws the password
  * @param hasher - Hashes it
- * @returns The password with its hash; INTERNAL_ERROR carrying the original error when the
- *   generator or the hasher fails, with the password in neither
+ * @returns The password with its hash; SINGLE_USE_PASSWORD_GENERATE_FAILED or
+ *   SINGLE_USE_PASSWORD_HASH_FAILED, of the internal category, carrying the original error when
+ *   the generator or the hasher fails, with the password in neither
  */
 export async function issueSingleUseCredential(
   generator: SingleUsePasswordGenerator,
@@ -83,14 +77,14 @@ export async function issueSingleUseCredential(
     password = generator.generate();
   } catch (error: unknown) {
     return err(
-      new UseCaseError(MESSAGES.generateFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
+      UseCaseError.of(AUTH_ERRORS.SINGLE_USE_PASSWORD_GENERATE_FAILED, { cause: asCause(error) })
     );
   }
   try {
     return ok({ password, passwordHash: await hasher.hash(password) });
   } catch (error: unknown) {
     return err(
-      new UseCaseError(MESSAGES.hashFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
+      UseCaseError.of(AUTH_ERRORS.SINGLE_USE_PASSWORD_HASH_FAILED, { cause: asCause(error) })
     );
   }
 }
@@ -100,17 +94,20 @@ export async function issueSingleUseCredential(
  * @description Runs the writes of a use case in one transaction of the Unit of Work, which an
  *   `err` rolls back. A raise inside the work is returned as an `err` too, so the transaction
  *   rolls back and the outcome stays known; only what the Unit of Work itself raises, such as a
- *   failed commit, leaves the outcome unknown, and it is returned with the caller's message.
+ *   failed commit, leaves the outcome unknown, and that error is the caller's to build, since only
+ *   the caller knows what the unknown outcome may have left behind.
  * @param unitOfWork - The Unit of Work that opens the transaction
  * @param work - The writes, returning their outcome
- * @param unknownOutcomeMessage - The message of the error returned when the Unit of Work raises
- * @returns The outcome of the work; INTERNAL_ERROR carrying the original error when the work or
- *   the Unit of Work raises
+ * @param unknownOutcome - Builds the error returned when the Unit of Work raises, from what it
+ *   raised
+ * @returns The outcome of the work; SINGLE_USE_PASSWORD_STEP_RAISED, of the internal category,
+ *   carrying the original error when the work raises; the caller's error when the Unit of Work
+ *   raises
  */
 export async function runInTransaction<T>(
   unitOfWork: UnitOfWork,
   work: () => Promise<Result<T, UseCaseError>>,
-  unknownOutcomeMessage: string
+  unknownOutcome: (cause: Error) => UseCaseError
 ): Promise<Result<T, UseCaseError>> {
   try {
     return await unitOfWork.executeResultInTransaction(async () => {
@@ -118,14 +115,12 @@ export async function runInTransaction<T>(
         return await work();
       } catch (error: unknown) {
         return err(
-          new UseCaseError(MESSAGES.stepRaised, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
+          UseCaseError.of(AUTH_ERRORS.SINGLE_USE_PASSWORD_STEP_RAISED, { cause: asCause(error) })
         );
       }
     });
   } catch (error: unknown) {
-    return err(
-      new UseCaseError(unknownOutcomeMessage, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
-    );
+    return err(unknownOutcome(asCause(error)));
   }
 }
 
@@ -137,14 +132,13 @@ export async function runInTransaction<T>(
  *   of the write it records, so a failed audit write rolls that write back.
  * @param auditLog - The audit log to write to
  * @param record - What was done, to whom and by which task
- * @param failureMessage - The message of the error returned when the write fails
- * @returns `ok` once the record is written; INTERNAL_ERROR carrying the original error when the
- *   audit log raises
+ * @param failure - Builds the error returned when the write fails, from what the audit log raised
+ * @returns `ok` once the record is written; the caller's error when the audit log raises
  */
 export async function recordSystemAction(
   auditLog: SystemAuditLog,
   record: SystemActionRecord,
-  failureMessage: string
+  failure: (cause: Error) => UseCaseError
 ): Promise<Result<void, UseCaseError>> {
   try {
     await auditLog.create({
@@ -157,6 +151,6 @@ export async function recordSystemAction(
     });
     return ok(undefined);
   } catch (error: unknown) {
-    return err(new UseCaseError(failureMessage, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error)));
+    return err(failure(asCause(error)));
   }
 }
