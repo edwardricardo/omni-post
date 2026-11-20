@@ -70,12 +70,17 @@ const nativeLanguageLabel = (locale: string): string => {
 /**
  * @description The colour a CSS custom property resolves to where an element renders, as the
  *              browser computes it, so a story asserts that an element is drawn in a token's
- *              colour without restating the token's value.
+ *              colour without restating the token's value. A token that is not defined there
+ *              is an error: its probe would inherit the element's own colour, and a comparison
+ *              with the element would pass whatever the element is drawn in.
  * @param element - The element whose theme scope resolves the token
  * @param token - The custom property's name, such as `--error`
  * @returns The computed colour, in the form `getComputedStyle` reports a colour
  */
 export function tokenColor(element: HTMLElement, token: string): string {
+  if (getComputedStyle(element).getPropertyValue(token).trim() === "") {
+    throw new Error(`The token ${token} is not defined where the element renders`);
+  }
   const probe = document.createElement("span");
   probe.style.color = `var(${token})`;
   element.append(probe);
