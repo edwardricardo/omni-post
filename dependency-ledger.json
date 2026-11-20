@@ -3068,6 +3068,7 @@
             "apps/api/tests/unit/healthRoutes.test.ts",
             "apps/api/tests/unit/lib/errors/problem.test.ts",
             "apps/api/tests/unit/lib/errors/sendProblem.test.ts",
+            "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts",
             "apps/api/tests/unit/mfaRoutes.test.ts",
             "apps/api/tests/unit/postRoutes.test.ts",
             "apps/api/tests/unit/rbacRoutes.test.ts",

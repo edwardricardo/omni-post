@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1257  |
+| Files                   | 1258  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1085  |
+| KEEP                    | 1086  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1247  |
+| Machine rows            | 1248  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15812 |
+| Blocks                  | 15834 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -893,8 +893,9 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/integrationEventDeliveryHandler.test.ts`                                         | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/apiReference.test.ts`                                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts`                                            | test             | 25     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/lib/errors/problem.test.ts`                                                      | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/lib/errors/sendProblem.test.ts`                                                  | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/lib/errors/problem.test.ts`                                                      | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/lib/errors/sendProblem.test.ts`                                                  | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts`                                        | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/hardDeleteErrorMapping.test.ts`                                              | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/loggerPortContract.test.ts`                                                  | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/loggerPortContract.type-test.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -973,10 +974,10 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/dependencySites.test.ts`                                                 | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/enginesNodeGate.test.ts`                                                 | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/environmentVariablesPage.test.ts`                                        | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/errorReferencePage.test.ts`                                              | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/errorReferencePage.test.ts`                                              | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/errorRegistryGate.test.ts`                                               | test             | 86     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/errorScope.test.ts`                                                      | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/errorSitesGate.test.ts`                                                  | test             | 88     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/errorSitesGate.test.ts`                                                  | test             | 98     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts`                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts`                                            | test             | 62     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/hardProbe.test.ts`                                                       | test             | 63     | 0          | KEEP       | machine                     | behavioural          |
@@ -1044,7 +1045,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/settings/settingsSchemas.test.ts`                                                | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/shared/errorRegistry.test.ts`                                                    | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/shared/errorRegistry.type-test.ts`                                               | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/shared/registeredError.test.ts`                                                  | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/shared/registeredError.test.ts`                                                  | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/shared/registeredError.type-test.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/smoke/env-redis-required.test.ts`                                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/softDeletedIdentifierReuse.test.ts`                                              | test             | 5      | 1          | REWRITE    | machine                     | some-decorative      |
@@ -1156,10 +1157,10 @@ Deleted: 0 files, 31 blocks.
 | `apps/client/tests/integration/RepurposePage.test.tsx`                                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/SetPrimaryChannelButton.test.tsx`                                      | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/TrendsPage.test.tsx`                                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/client/tests/integration/authApiErrorBody.test.ts`                                              | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/client/tests/integration/authApiErrorBody.test.ts`                                              | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/authContext.test.tsx`                                                  | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/bulkSchedulingCsvParser.test.ts`                                       | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/client/tests/integration/requestErrorBody.test.ts`                                              | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/client/tests/integration/requestErrorBody.test.ts`                                              | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useABTests.test.ts`                                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useAnalyticsRealtime.test.tsx`                                         | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useAutoSave.test.ts`                                                   | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
@@ -1249,7 +1250,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/core/aiPromptTemplates/tests/unit/CreateAIPromptTemplateUseCase.test.ts`                    | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/analytics/tests/unit/GetCrossPlatformAnalyticsUseCase.test.ts`                         | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/apiKeys/tests/unit/ApiKeyUseCases.test.ts`                                             | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/application/tests/unit/UseCase.test.ts`                                                | test             | 30     | 1          | REWRITE    | machine                     | some-decorative      |
+| `packages/core/application/tests/unit/UseCase.test.ts`                                                | test             | 31     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/application/tests/unit/retryOnWriteConflict.test.ts`                                   | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/assets/tests/unit/CreateMediaAssetUseCase.test.ts`                                     | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts`                               | test             | 23     | 0          | ADJUDICATE | machine                     | opaque               |
@@ -1308,7 +1309,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/core/trends/tests/unit/FetchTrendingTopicsUseCase.test.ts`                                  | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/utm/tests/unit/GenerateUTMLinksUseCase.test.ts`                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/webhooks/tests/unit/RotateWebhookSecretKeyUseCase.test.ts`                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/eslint-plugin-errors/tests/no-inline-error.test.ts`                                         | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/eslint-plugin-errors/tests/no-inline-error.test.ts`                                         | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/eslint-plugin-testing/tests/assertions.test.ts`                                             | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/eslint-plugin-testing/tests/blocks.test.ts`                                                 | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/eslint-plugin-testing/tests/classified.test.ts`                                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
