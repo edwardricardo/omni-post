@@ -25,14 +25,20 @@
  *              `@shared/types` (a relative import inside the registry), and nothing else: not an
  *              object, a variable, a cast, a computed key, a spread, a call, a renamed, type-only,
  *              namespace or subpath import, nor a shadowed name. `defineErrors` is used only inside
- *              the registry's directory, where its declaration is not a use. `err` from the
+ *              the registry's directory; its declaration, as an overload or `declare` signature
+ *              included, is not a use in any file. `err` from the
  *              shared kernel is never given a string, a template or a `+` with a string in it, is
  *              never renamed and never used as a value; `err` from another module, and `err`
  *              given a value, a registered error or a number, are not reported.
  *
  *              A failure answered by hand closes the list. Any use of a legacy reply helper is
  *              reported, called, bound, destructured, passed on or read under a static key, and only
- *              the helper's own declaration is not; `replyHelpers` replaces its default. A `send`
+ *              the name the helper declares for itself is not: a function declaration, an overload
+ *              or `declare` signature, a method of a class (abstract and overload signatures
+ *              included) or of an object literal, and a method signature of an interface or a
+ *              type; a call beside each is still reported, and so is every other binding of the
+ *              name, a class field holding a function included. `replyHelpers` replaces its
+ *              default. A `send`
  *              on a reply (the identifier `reply`, or a chain that reads a member `reply`) is
  *              reported when its chain sets a status that is not a numeric literal below 400, or
  *              when it sends an object literal with an `error` key or `ok: false`, through type
@@ -656,6 +662,14 @@ ruleTester.run("no-inline-error: registryDefinition", rule, {
       filename: at(`${REGISTRY}/tables.ts`),
     },
     'log("defineErrors"); const defineErrorsCount = 1;',
+    {
+      code: lines(
+        "function defineErrors(domain: string): void;",
+        "function defineErrors(domain: unknown): void {}",
+        "export declare function defineErrors(domain: string, entries: object): object;"
+      ),
+      filename: FEATURE,
+    },
   ],
   invalid: [
     {
@@ -712,6 +726,30 @@ ruleTester.run("no-inline-error: replyHelper", rule, {
       code: "this.sendError(ctx, 400, 'text');",
       options: [{ replyHelpers: ["sendFailure"] }],
     },
+    lines(
+      "abstract class ReplyBase {",
+      "  protected abstract sendError(ctx: unknown, statusCode: number, message: string): void;",
+      "  protected abstract handleUnexpectedError(ctx: unknown, error: unknown): void;",
+      "}"
+    ),
+    lines(
+      "function handleOAuthError(error: string): void;",
+      "function handleOAuthError(error: unknown): void {}",
+      "declare function sendValidationError(ctx: unknown): void;"
+    ),
+    lines(
+      "interface ReplyHelpers {",
+      "  sendMfaLoginError(ctx: unknown): void;",
+      "}",
+      "type MappedReply = { sendMappedError(ctx: unknown): void };"
+    ),
+    lines(
+      "class Handler {",
+      "  sendError(ctx: unknown, message: string): void;",
+      "  sendError(ctx: unknown) {}",
+      "}",
+      "const handlers = { handleUnexpectedError(error: unknown) { return error; } };"
+    ),
   ],
   invalid: [
     {
@@ -754,6 +792,56 @@ ruleTester.run("no-inline-error: replyHelper", rule, {
       code: "this.sendFailure(ctx); this.sendError(ctx);",
       options: [{ replyHelpers: ["sendFailure"] }],
       errors: [replyHelper("sendFailure")],
+    },
+    {
+      code: lines(
+        "abstract class ReplyBase {",
+        "  protected abstract sendError(ctx: unknown): void;",
+        "  answer(ctx: unknown) { this.sendError(ctx); }",
+        "}",
+        "function handleOAuthError(error: string): void;",
+        "function handleOAuthError(error: unknown): void {}",
+        'handleOAuthError("denied");',
+        "interface ReplyHelpers { sendMfaLoginError(ctx: unknown): void; }",
+        "declare const helpers: ReplyHelpers;",
+        "helpers.sendMfaLoginError(ctx);",
+        "const handlers = { sendMappedError() {} };",
+        "handlers.sendMappedError();"
+      ),
+      errors: [
+        replyHelper("sendError", 3),
+        replyHelper("handleOAuthError", 7),
+        replyHelper("sendMfaLoginError", 10),
+        replyHelper("sendMappedError", 12),
+      ],
+    },
+    {
+      code: lines(
+        "class ReplyFields {",
+        "  sendError = (ctx: unknown) => ctx;",
+        "}",
+        "abstract class AbstractFields { abstract handleUnexpectedError: () => void; }",
+        "interface ReplyProperties { handleOAuthError: () => void; }",
+        "const wrap = function sendValidationError() {};",
+        "abstract class Computed { abstract [sendMfaLoginError](): void; }",
+        "interface ComputedSignature { [sendMappedError](): void; }",
+        "const computed = { [sendError]() {} };",
+        "function relay(handleUnexpectedError: () => void) {}",
+        "const sendMappedError = (ctx: unknown) => ctx;",
+        "const table = { sendValidationError: relayed };"
+      ),
+      errors: [
+        replyHelper("sendError", 2),
+        replyHelper("handleUnexpectedError", 4),
+        replyHelper("handleOAuthError", 5),
+        replyHelper("sendValidationError", 6),
+        replyHelper("sendMfaLoginError", 7),
+        replyHelper("sendMappedError", 8),
+        replyHelper("sendError", 9),
+        replyHelper("handleUnexpectedError", 10),
+        replyHelper("sendMappedError", 11),
+        replyHelper("sendValidationError", 12),
+      ],
     },
   ],
 });

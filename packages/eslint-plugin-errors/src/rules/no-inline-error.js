@@ -35,7 +35,8 @@
  *     shadows reads the shadowing binding, not the import.
  *   - `registryDefinition`: any use of the name `defineErrors` (an import or export specifier, a
  *     call, a member read, a static computed key) outside the registry's directory. The
- *     declaration of a function of that name is not a use.
+ *     declaration of a function of that name, as an overload signature or with `declare`
+ *     included, is not a use.
  *   - `codeLiteral`: a call of the kernel's `err` (imported by name, through a path of the kernel,
  *     read on a namespace import of it, or imported relatively by a file of the kernel itself)
  *     whose first argument holds a string or a template: through a `+`, either branch of a
@@ -43,8 +44,14 @@
  *     literal; an import or export of `err` under another name; and any other read of it as a
  *     value, an export included, since an alias would call it unseen.
  *   - `replyHelper`: any use of a name of the `replyHelpers` option, called or not (bound,
- *     destructured, passed on, read under a static key), except the declaration of the helper
- *     itself as a function or a method.
+ *     destructured, passed on, read under a static key), except the name the helper declares for
+ *     itself as a function or a method: a function declaration, its overload signatures and a
+ *     `declare` form; a method, not computed, of a class (with a body, as an overload signature,
+ *     or abstract) or of an object literal; and a method signature of an interface or a type
+ *     literal. Every other binding of the name is a use, since its value may be an alias of a
+ *     helper: a class field or an abstract property, even one that holds a function, a property
+ *     signature, a variable, a parameter, an object's property not written as a method, and the
+ *     name of a function expression.
  *   - `inlineReply`: a call of `send` on a reply, the chain whose root is the identifier `reply`
  *     or that reads a member `reply`, when a `status` or `code` call of the chain is given
  *     anything but a numeric literal below 400, or when `send` is given an object literal with a
@@ -84,8 +91,11 @@
  *   Matched by name, and so wider or narrower than the intent: `baseClasses` is a list of names,
  *   so a feature file may declare a class of one of those names that extends `Error`; a `new`
  *   inside the `static of` of the class it builds is exempt in any file, not only the registry's
- *   bases; and a class field, a const arrow, an interface member or an abstract member named like
- *   a reply helper is reported, where a method or a function declaration of that name is not.
+ *   bases; a function or a method declared under a reply helper's name is exempt whether or not
+ *   it is that helper; and a helper declared as a class field or a variable holding a function is
+ *   reported on its declaration, where the same helper declared as a function or a method is not.
+ *   A private name (`#sendError`) is not the option's name, so a private method of that name and
+ *   its calls are not seen.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -140,6 +150,19 @@ const STATUS_SETTERS = new Set(["status", "code"]);
 /** The lowest status that answers a failure. */
 const FIRST_FAILURE_STATUS = 400;
 
+/** The declarations that give a function its name: with a body, as an overload or `declare`. */
+const FUNCTION_DECLARATIONS = new Set(["FunctionDeclaration", "TSDeclareFunction"]);
+
+/**
+ * The members that give a method its name: of a class, with a body or as an overload signature,
+ * abstract, and a method signature of an interface or a type literal.
+ */
+const METHOD_DECLARATIONS = new Set([
+  "MethodDefinition",
+  "TSAbstractMethodDefinition",
+  "TSMethodSignature",
+]);
+
 /** TypeScript expressions that change the type of the expression they wrap and not its value. */
 const TYPE_WRAPPERS = new Set([
   "TSAsExpression",
@@ -152,6 +175,14 @@ const TYPE_WRAPPERS = new Set([
 /**
  * @typedef {{ type: string, [key: string]: unknown }} AstNode
  */
+
+/**
+ * @param {string} owner The class the call is written on.
+ * @returns {string} The call of the registry path on it, as the messages write it.
+ */
+function registryCall(owner) {
+  return `${owner}.${REGISTRY_PATH}(<TABLE>.<CODE>, params)`;
+}
 
 /**
  * @typedef {object} RuleOptions
@@ -304,11 +335,24 @@ function isInsideOwnOf(ancestors, name) {
       member.kind === "method" &&
       member.computed === false &&
       isNode(member.key) &&
-      member.key.name === "of" &&
+      member.key.name === REGISTRY_PATH &&
       ancestors[index + 3] === member.value
     );
   }
   return false;
+}
+
+/**
+ * @param {AstNode} identifier An identifier.
+ * @param {AstNode} parent Its parent.
+ * @returns {boolean} Whether it is the name, not computed, that a method declares: one of
+ *   `METHOD_DECLARATIONS`, or a method of an object literal.
+ */
+function isDeclaredMethodName(identifier, parent) {
+  if (parent.key !== identifier || parent.computed === true) return false;
+  return (
+    METHOD_DECLARATIONS.has(parent.type) || (parent.type === "Property" && parent.method === true)
+  );
 }
 
 /**
@@ -575,38 +619,39 @@ const rule = {
     messages: {
       construction:
         "`{{name}}` is built with `new`, so its code, status and text are written at this site. " +
-        "Build the error from the central registry, `packages/shared/src/error-registry/`, with " +
-        "`<Class>.of(<TABLE>.<CODE>, params)`, which takes no text.",
+        `Build the error from the central registry, \`${REGISTRY_DIRECTORY}\`, with ` +
+        `\`${registryCall("<Class>")}\`, which takes no text.`,
       errorClass:
         "`{{name}}` extends `Error`: a failure is a code registered in " +
-        "`packages/shared/src/error-registry/` and built with `RegisteredError.of(<TABLE>.<CODE>, " +
-        "params)` (`UseCaseError.of` in the core), not a class of its own.",
+        `\`${REGISTRY_DIRECTORY}\` and built with \`${registryCall("RegisteredError")}\` ` +
+        `(\`UseCaseError.${REGISTRY_PATH}\` in the core), not a class of its own.`,
       factory:
         "`{{name}}.{{member}}(…)` builds an error through a member of its class, which chooses " +
         "its code, status or text outside the registry. Build it from the central registry with " +
-        "`<Class>.of(<TABLE>.<CODE>, params)`.",
+        `\`${registryCall("<Class>")}\`.`,
       classReference:
         "`{{name}}` is used as a value, so what it builds is no longer seen where it is built. " +
-        "An error class is used only to build an error with `of`, on the right of `instanceof`, " +
-        "in an `extends` clause, through `.prototype` or `.name`, or as a type.",
+        `An error class is used only to build an error with \`${REGISTRY_PATH}\`, on the right ` +
+        "of `instanceof`, in an `extends` clause, through `.prototype` or `.name`, or as a type.",
       definitionSource:
-        "The first argument of `{{name}}.of` is not a definition read from a registry table: " +
-        "write `<TABLE>.<CODE>`, with the table imported by its own name from `@shared/types`.",
+        `The first argument of \`{{name}}.${REGISTRY_PATH}\` is not a definition read from a ` +
+        "registry table: write `<TABLE>.<CODE>`, with the table imported by its own name from " +
+        `\`${SHARED_KERNEL}\`.`,
       registryDefinition:
-        "`defineErrors` is used outside `packages/shared/src/error-registry/`: an error " +
-        "definition is made only in the registry.",
+        `\`${DEFINE_ERRORS}\` is used outside \`${REGISTRY_DIRECTORY}\`: an error definition is ` +
+        "made only in the registry.",
       codeLiteral:
-        "`err` from `@shared/types` is {{what}}. Return a registered error instead, " +
-        "`err(<Class>.of(<TABLE>.<CODE>, params))`, so the failure's code and text are the " +
-        "registry's.",
+        `\`${RESULT_FAILURE}\` from \`${SHARED_KERNEL}\` is {{what}}. Return a registered error ` +
+        `instead, \`${RESULT_FAILURE}(${registryCall("<Class>")})\`, so the failure's code and ` +
+        "text are the registry's.",
       replyHelper:
         "`{{name}}` is a legacy reply helper: it answers a failure with a status and a text " +
         "chosen at its call. Raise or return a registered error instead, which the one error " +
         "body answers.",
       inlineReply:
         "This reply answers a failure written in place: a status that is not a numeric literal " +
-        "below 400, or a body with an `error` key or `ok: false`. Raise or return a registered " +
-        "error instead, which the one error body answers.",
+        `below ${String(FIRST_FAILURE_STATUS)}, or a body with an \`error\` key or \`ok: false\`. ` +
+        "Raise or return a registered error instead, which the one error body answers.",
     },
   },
   create(context) {
@@ -844,11 +889,10 @@ const rule = {
       },
       Identifier(node) {
         const parent = asNode(node.parent);
-        // A helper's own declaration, as a function or as a method, is not a use of it.
-        if (parent.type === "FunctionDeclaration" && parent.id === node) return;
-        const isMethodName =
-          parent.type === "MethodDefinition" && parent.key === node && parent.computed !== true;
-        if (isMethodName && replyHelpers.has(node.name)) return;
+        // The name a function or a helper's method declares for itself is not a use of it; every
+        // other binding of the name may hold an alias, so it is.
+        if (FUNCTION_DECLARATIONS.has(parent.type) && parent.id === node) return;
+        if (replyHelpers.has(node.name) && isDeclaredMethodName(asNode(node), parent)) return;
         checkName(asNode(node), node.name);
       },
       CallExpression(node) {
