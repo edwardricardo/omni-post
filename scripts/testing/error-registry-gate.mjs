@@ -80,9 +80,9 @@
  *   such a read needs. R11 reads calls by their syntax: an `of` reached through an alias is the lint
  *   rule's `classReference`. R7 holds a text to the code it is keyed by, not to the meaning of the
  *   code: a translation that says something else passes it. R9 compares bytes, so it names a stale
- *   page without saying which line differs; and the check command the page names in its own header
- *   is this gate's, `CHECK_COMMAND` of `lib/error-reference-page.mjs`, the one place the change that
- *   adds `pnpm check:errors` rewrites so the page names that script.
+ *   page without saying which line differs. The check command the page names in its own header is
+ *   `pnpm check:errors`, the script that runs this gate and then the sites gate; it is written in
+ *   one place, `CHECK_COMMAND` of `lib/error-reference-page.mjs`.
  *
  *   Usage: `node scripts/testing/error-registry-gate.mjs [--write] [--root <dir>]`. The root
  *   defaults to the repository this file lives in, found from the script's own URL. Pinned by

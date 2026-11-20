@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1248  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15837 |
+| Blocks                  | 15840 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -964,7 +964,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/architectureBaseline.test.ts`                                            | test             | 6      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/batteryModes.test.ts`                                                    | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/batteryModes.test.ts`                                                    | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryStatic.test.ts`                                                   | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryVerdict.test.ts`                                                  | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
@@ -974,7 +974,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/dependencySites.test.ts`                                                 | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/enginesNodeGate.test.ts`                                                 | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/environmentVariablesPage.test.ts`                                        | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/errorReferencePage.test.ts`                                              | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/errorReferencePage.test.ts`                                              | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/errorRegistryGate.test.ts`                                               | test             | 86     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/errorScope.test.ts`                                                      | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/errorSitesGate.test.ts`                                                  | test             | 98     | 0          | KEEP       | machine                     | behavioural          |

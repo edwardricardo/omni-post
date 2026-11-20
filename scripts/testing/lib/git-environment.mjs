@@ -11,7 +11,7 @@
  */
 
 /** The git variables that point git at a repository other than the one the root holds. */
-export const FOREIGN_GIT_VARIABLES = Object.freeze(["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]);
+const FOREIGN_GIT_VARIABLES = Object.freeze(["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]);
 
 /**
  * @description The environment for a `git` call, without the variables that would point it at

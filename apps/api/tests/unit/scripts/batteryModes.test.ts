@@ -60,6 +60,7 @@ const STATIC_STEPS = [
   "support",
   "deps-ledger",
   "i18n",
+  "errors",
   "architecture",
   "floors",
   "record-coverage",
@@ -265,11 +266,11 @@ describe("battery.sh --list", () => {
     expect(lines(result.stdout)).toEqual(declaredSteps().map((step) => step.name));
   });
 
-  it("prints as many names as PLANNED_STEPS, which is 37, when --list is given alone", () => {
+  it("prints as many names as PLANNED_STEPS, which is 38, when --list is given alone", () => {
     const result = runBattery(["--list"]);
 
     expect(lines(result.stdout)).toHaveLength(plannedSteps());
-    expect(plannedSteps()).toBe(37);
+    expect(plannedSteps()).toBe(38);
   });
 
   it("prints the static steps in the script's order when --static --list is given", () => {
@@ -381,6 +382,28 @@ describe("battery.sh --static run", () => {
     expect(lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"))).toHaveLength(
       STATIC_STEPS.length
     );
+  });
+
+  it("hands the errors step origin/main as its base, the floors step's default, when FITNESS_BASE_REF is empty", () => {
+    const repo = createRepository();
+
+    runStatic(repo, { FITNESS_BASE_REF: "" });
+
+    const calls = lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"));
+    expect(calls.filter((call) => call.includes("pnpm check:errors"))).toEqual([
+      "--kill-after=30 3600 env FITNESS_BASE_REF=origin/main pnpm check:errors",
+    ]);
+  });
+
+  it("hands the errors step the FITNESS_BASE_REF the floors step reads when it is set", () => {
+    const repo = createRepository();
+
+    runStatic(repo, { FITNESS_BASE_REF: "feature-base" });
+
+    const calls = lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"));
+    expect(calls.filter((call) => call.includes("pnpm check:errors"))).toEqual([
+      "--kill-after=30 3600 env FITNESS_BASE_REF=feature-base pnpm check:errors",
+    ]);
   });
 
   it("prints STATIC RED naming the failing step and exits 1 when one static step fails", () => {

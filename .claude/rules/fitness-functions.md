@@ -16,6 +16,8 @@ paths:
   - "scripts/testing/lib/record-coverage-core.mjs"
   - "scripts/testing/instruction-context-gate.mjs"
   - "scripts/testing/plan-closure-gate.mjs"
+  - "scripts/testing/error-registry-gate.mjs"
+  - "scripts/testing/error-sites-gate.mjs"
   - "scripts/legal/**"
   - "scripts/support/**"
   - "packages/test-contracts/src/reach.ts"

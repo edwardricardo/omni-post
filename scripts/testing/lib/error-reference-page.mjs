@@ -21,8 +21,8 @@ import prettier from "prettier";
 export const PAGE = "docs/api/ERROR_CODES.md";
 /** The command that rewrites the page. */
 export const WRITE_COMMAND = "node scripts/testing/error-registry-gate.mjs --write";
-/** The command that fails when the page is stale. */
-export const CHECK_COMMAND = "node scripts/testing/error-registry-gate.mjs";
+/** The command that fails when the page is stale: fitness #57, whose first script checks it. */
+const CHECK_COMMAND = "pnpm check:errors";
 
 const GENERATOR = "scripts/testing/error-registry-gate.mjs";
 const HISTORY = "scripts/testing/error-sites-history/";
