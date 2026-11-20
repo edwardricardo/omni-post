@@ -250,18 +250,19 @@ describe("runFirstAdministratorCommand", () => {
           "is marked to change that password (mustChangePassword): sign in with\nit and change it at once.",
           "Without --reissue it creates an administrator once: once an administrator exists, every\nlater run without --reissue is refused.",
           "With --reissue it prints a new single-use password for the administrator with that e-mail",
-          "only for an active\nadministrator who has never signed in and is still marked to change the password.",
+          "instead, for when its single-use password was never seen. It serves any active administrator,\nnot only the first, who has never signed in and is still marked to change the password.",
           "Any\nother administrator is refused and nothing is changed; a deactivated one must be reactivated\nfirst.",
           "--email <address>  The e-mail of the administrator to create, or whose single-use password\n                     to re-issue.",
           "--reissue          Re-issues the single-use password instead of creating an administrator.",
           "Its standard output must be an interactive terminal",
           "0  The administrator was created, or its single-use password was re-issued.",
-          "1  Refused (an administrator exists, or the administration role is held; with --reissue, no\n     administrator has the e-mail, it has signed in, it is not marked, or it is deactivated) or\n     failed.",
+          "1  Refused (an administrator exists, or the administration role is held; with --reissue, no\n     administrator has the e-mail, it has signed in, it is not marked, it is deactivated, or it\n     changed between the read and the write) or failed.",
           "2  The arguments are wrong, the sign-in refuses the e-mail, or standard output is not a terminal.",
         ]) {
           expect(help).toContain(line);
         }
         expect(help).not.toContain("It runs once");
+        expect(help).not.toContain("the first administrator's password");
         expect(load).not.toHaveBeenCalled();
       }
     );
