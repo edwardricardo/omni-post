@@ -54,6 +54,9 @@ const CONTEXT: ProblemContext = {
 
 const INTERNAL_TEXT = "The server could not complete the request";
 
+/** The text a thrown plain object carries, which must reach no body. */
+const LOCKED_TEXT = "draft 42 of tenant acme is locked by user 7";
+
 /** `INTERNAL_ERROR`'s problem at a status, as every collapsed answer sends it. */
 function internalProblem(status: number) {
   return {
@@ -229,6 +232,11 @@ describe("toProblem", () => {
       app.setErrorHandler(async (error, _request, reply) => answerWithProblem(error, reply));
       app.post("/drafts", { schema: { body: draftBody }, bodyLimit: 64 }, async () => ({}));
       app.get("/drafts/:id", async () => ({}));
+      // A thrown plain object, not an Error: what some libraries reject with.
+      app.get("/locked/:status", async (request) => {
+        const { status } = request.params as { status: string };
+        return Promise.reject({ statusCode: Number(status), message: LOCKED_TEXT });
+      });
       app.get(
         "/drafts",
         { schema: { querystring: z.object({ page: z.coerce.number() }) } },
@@ -357,6 +365,16 @@ describe("toProblem", () => {
         loggedCode: "FST_ERR_MAX_PARAM_LENGTH",
         severity: "error",
       });
+    });
+
+    it("keeps the failure status a thrown plain object carries, and never sends its text", async () => {
+      const carried = await answerTo({ method: "GET", url: "/locked/409" });
+      const outOfRange = await answerTo({ method: "GET", url: "/locked/302" });
+
+      expect([carried.status, carried.answer.problem]).toEqual([409, internalProblem(409)]);
+      expect(carried.answer.source).toBe("status-carrier");
+      expect([outOfRange.status, outOfRange.answer.problem]).toEqual([500, internalProblem(500)]);
+      expect(JSON.stringify([carried.answer, outOfRange.answer])).not.toContain(LOCKED_TEXT);
     });
 
     it("reads an issue the validator does not describe as unknown, at the part itself", () => {

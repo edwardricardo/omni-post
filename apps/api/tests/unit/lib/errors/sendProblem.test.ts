@@ -78,6 +78,7 @@ describe("sendProblem", () => {
   let app: FastifyInstance;
   let replied: unknown;
   let returned: unknown;
+  let replyAfter: unknown;
 
   beforeAll(async () => {
     app = Fastify({ logger: false, genReqId: () => REQUEST_ID });
@@ -103,6 +104,13 @@ describe("sendProblem", () => {
     app.get("/returned", (request, reply) => {
       replied = reply;
       returned = sendProblem(request, reply, CONFLICT, logger);
+      return returned;
+    });
+    app.get("/answered-first", (request, reply) => {
+      reply.code(200).send({ ok: true });
+      replied = reply;
+      returned = sendProblem(request, reply, CONFLICT, logger);
+      replyAfter = [reply.statusCode, reply.getHeader("content-type")];
       return returned;
     });
     await app.ready();
@@ -153,7 +161,7 @@ describe("sendProblem", () => {
           correlationId: REQUEST_ID,
           method: "POST",
           url: "/posts/7?draft=1",
-          err: CONFLICT,
+          error: { name: "RegisteredError", message: CONFLICT.message, stack: CONFLICT.stack },
         },
         message: "Request failed",
       },
@@ -185,7 +193,7 @@ describe("sendProblem", () => {
           correlationId: REQUEST_ID,
           method: "GET",
           url: "/broken",
-          err: UNEXPECTED,
+          error: { name: "Error", message: UNEXPECTED.message, stack: UNEXPECTED.stack },
         },
         message: "Request failed",
       },
@@ -244,6 +252,34 @@ describe("sendProblem", () => {
     const response = await app.inject({ method: "GET", url: "/returned" });
 
     expect(response.statusCode).toBe(409);
+    expect(returned).toBe(replied);
+  });
+
+  it("leaves a reply already sent untouched, and writes one line saying the failure came after the answer", async () => {
+    const response = await app.inject({ method: "GET", url: "/answered-first" });
+
+    expect([response.statusCode, response.headers["content-type"]]).toEqual([
+      200,
+      "application/json; charset=utf-8",
+    ]);
+    expect(response.json()).toEqual({ ok: true });
+    expect(replyAfter).toEqual([200, "application/json; charset=utf-8"]);
+    expect(lines).toEqual([
+      {
+        level: "warn",
+        fields: {
+          code: "CONFLICT",
+          wireCode: "CONFLICT",
+          status: 409,
+          source: "registered",
+          correlationId: REQUEST_ID,
+          method: "GET",
+          url: "/answered-first",
+          error: { name: "RegisteredError", message: CONFLICT.message, stack: CONFLICT.stack },
+        },
+        message: "Request failed after its answer was sent",
+      },
+    ]);
     expect(returned).toBe(replied);
   });
 });

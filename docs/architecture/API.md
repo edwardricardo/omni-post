@@ -887,22 +887,23 @@ A failure the error handler answers, a request a route's schema refuses and a pa
 }
 ```
 
-| Member          | What it holds                                                                                                                     |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `type`          | `https://omnipost.app/problems/` and the code: an identifier, not a page to fetch                                                 |
-| `title`         | The code in words                                                                                                                 |
-| `status`        | The HTTP status                                                                                                                   |
-| `detail`        | The registry's message for the code, worded with this occurrence's parameters; never the error's own text                         |
-| `code`          | The code; a front takes its user-facing text from its catalogs by this code                                                       |
-| `correlationId` | The request's correlation id, or its request id when the failure comes before the hook that sets the correlation id               |
-| `timestamp`     | When the failure was answered, ISO 8601, UTC                                                                                      |
-| `params`        | Only when the code declares parameters                                                                                            |
-| `issues`        | Only with `VALIDATION_FAILED`: one per refusal, its request `part`, a JSON `pointer` into it, the validator's `code` and `detail` |
+| Member          | What it holds                                                                                                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`          | `https://omnipost.app/problems/` and the code: an identifier, not a page to fetch                                                                                                                         |
+| `title`         | The code in words                                                                                                                                                                                         |
+| `status`        | The HTTP status                                                                                                                                                                                           |
+| `detail`        | The registry's message for the code answered, worded with this occurrence's parameters; for an `AppError` whose code is not registered and that is an expected failure below 500, the error's own message |
+| `code`          | The code; a front takes its user-facing text from its catalogs by this code                                                                                                                               |
+| `correlationId` | The request's correlation id, or its request id when the failure comes before the hook that sets the correlation id                                                                                       |
+| `timestamp`     | When the failure was answered, ISO 8601, UTC                                                                                                                                                              |
+| `params`        | Only when the code declares parameters                                                                                                                                                                    |
+| `issues`        | Only with `VALIDATION_FAILED`: one per refusal, its request `part`, a JSON `pointer` into it, the validator's `code` and `detail`                                                                         |
 
 What decides the answer:
 
 - A code in the `internal` or `configuration` category reaches the client as `INTERNAL_ERROR` at 500; its own code goes to the log.
-- A failure that carries no registered code keeps its status: an `AppError` answers its own code, and its message only when it is an expected failure below 500; any other value answers `INTERNAL_ERROR`'s code and text.
+- A refusal of the framework answers the `http` code of its status (`MALFORMED_REQUEST`, `ROUTE_NOT_FOUND`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`); one whose status no `http` code holds answers `INTERNAL_ERROR`'s code and text at that status.
+- A failure that carries no registered code keeps its status: an `AppError` answers its own code, and its message only when it is an expected failure below 500; any other value answers `INTERNAL_ERROR`'s code and text, at the failure status it carries or else at 500.
 - A route answers its own failures through `sendProblem` (`apps/api/src/lib/errors/index.ts`), the one function that writes the body; a route never raises to the error handler ([ADR-0006](../technical/ADR-0006-result-type-over-throws.md)).
 - The OpenAPI document publishes the body as `components.schemas.Problem`.
 
