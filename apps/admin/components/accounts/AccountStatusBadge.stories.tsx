@@ -1,0 +1,85 @@
+/**
+ * @file AccountStatusBadge.stories.tsx
+ * @description Storybook stories for AccountStatusBadge, which picks one label and colour from an
+ *              account's state: an active account, a suspended one, one on trial with its days
+ *              left, and a suspended account still on trial, where suspension wins.
+ *              States covered: default (Active, Trial) and error (Suspended,
+ *              SuspendedDuringTrial).
+ *              Absent by decision: disabled and loading, because the badge is a static label
+ *              computed from an account already loaded; empty, because it always renders one of
+ *              the three labels.
+ * @layer infrastructure
+ */
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect } from "storybook/test";
+import type { AccountSummary } from "@/lib/apiClient";
+import { AccountStatusBadge } from "./AccountStatusBadge";
+
+const makeAccount = (
+  overrides: Partial<Pick<AccountSummary, "isActive" | "trial">> = {}
+): AccountSummary => ({
+  id: "account-001",
+  email: "owner@example.com",
+  name: "Example Account",
+  isActive: true,
+  createdAt: "2026-01-15T09:00:00Z",
+  lastLoginAt: "2026-11-19T08:30:00Z",
+  plan: {
+    type: "bundle",
+    name: "Bundle",
+    status: "active",
+    providers: ["x", "instagram"],
+    pricePerMonth: 49,
+  },
+  trial: { isOnTrial: false, trialDaysRemaining: 0, trialExpired: false },
+  usage: { projectsUsed: 2, projectsRemaining: 3, utilizationPercent: 40 },
+  ...overrides,
+});
+
+const meta = {
+  title: "Admin/Accounts/AccountStatusBadge",
+  component: AccountStatusBadge,
+  args: {
+    account: makeAccount(),
+  },
+} satisfies Meta<typeof AccountStatusBadge>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Active: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Active")).toBeVisible();
+  },
+};
+
+export const Suspended: Story = {
+  args: { account: makeAccount({ isActive: false }) },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Suspended")).toBeVisible();
+  },
+};
+
+export const Trial: Story = {
+  args: {
+    account: makeAccount({
+      trial: { isOnTrial: true, trialDaysRemaining: 12, trialExpired: false },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Trial (12d)")).toBeVisible();
+  },
+};
+
+export const SuspendedDuringTrial: Story = {
+  args: {
+    account: makeAccount({
+      isActive: false,
+      trial: { isOnTrial: true, trialDaysRemaining: 12, trialExpired: false },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Suspended")).toBeVisible();
+    await expect(canvas.queryByText("Trial (12d)")).toBeNull();
+  },
+};
