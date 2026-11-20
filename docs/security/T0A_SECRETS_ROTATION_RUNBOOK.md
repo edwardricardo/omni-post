@@ -95,12 +95,11 @@ done
 
 ### §2.3 Admin bootstrap
 
-| Key              | Service  | Action                                            | Priority |
-| ---------------- | -------- | ------------------------------------------------- | -------- |
-| `ADMIN_EMAIL`    | Internal | Change if the email was visible in public commits | MEDIUM   |
-| `ADMIN_PASSWORD` | Internal | Generate a strong one: `openssl rand -base64 24`  | CRITICAL |
+| Key              | Service  | Action                                           | Priority |
+| ---------------- | -------- | ------------------------------------------------ | -------- |
+| `ADMIN_PASSWORD` | Internal | Generate a strong one: `openssl rand -base64 24` | CRITICAL |
 
-**Note:** the development seed refuses to run when `ADMIN_PASSWORD` is absent or blank, and takes no default; it also refuses to run under a production environment (`NODE_ENV=production`).
+**Note:** the development seed refuses to run when `ADMIN_PASSWORD` is absent or blank, and takes no default; it runs only when `NODE_ENV` is `development` or `test`, or is unset, and refuses every other value, `production` included (`infra/prisma/src/seedGuard.ts`: "The development seed runs only when NODE_ENV is development or test, or is unset: NODE_ENV is <value>."). It reads no administrator e-mail: the administrator it writes is the fixed address `admin@omnipost.local`.
 
 ### §2.4 AI Providers
 

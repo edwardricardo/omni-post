@@ -581,6 +581,22 @@ describe("the shape of a closed feature's record", () => {
         "  - **DEF-1**: Closed by #916. Fixed.",
       ],
     ],
+    [
+      "a double-backtick span that holds a single backtick around an item-shaped text",
+      [
+        "- **Today:** the grammar is quoted as ``**B**: a ` mark`` in a span.",
+        "- **Attached (1):**",
+        "  - **DEF-1**: Closed by #916. Fixed.",
+      ],
+    ],
+    [
+      "a continuation that starts with a bold label, its colon inside the bold",
+      [
+        "- **Attached (1):**",
+        "  - **DEF-1**: Closed by #916. The start read the same file.",
+        "    **Who:** the operator who ran it.",
+      ],
+    ],
   ])("leaves alone %s", (_what, body) => {
     plantBody(body);
 
