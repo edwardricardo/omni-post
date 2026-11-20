@@ -136,6 +136,9 @@ export const HTTP_ERRORS = defineErrors("http", {
     params: {},
     fronts: [],
   },
+  // Answered at the status the refusal carries, any from 400 to 499, which this category's
+  // statuses need not hold (ADR-0047, decision 2.7): 400 is the status the entry declares, and a
+  // refusal answers it only when it carries 400.
   REQUEST_REFUSED: {
     category: ERROR_CATEGORY.VALIDATION,
     status: 400,

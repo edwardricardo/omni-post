@@ -226,15 +226,23 @@ function severityOf(status: number, expected: boolean): ProblemSeverity {
 }
 
 /**
- * @param expected - Whether the failure is one its raiser expected: a registered code with every
- *   declared parameter, a refusal of the framework or of a schema, or an operational `AppError`.
- *   A value nothing classifies is not.
+ * Whether a failure is one its raiser expected: a registered code with every declared parameter, a
+ * refusal of the framework or of a schema, or an operational `AppError`. A value nothing classifies
+ * is not, and neither is a carrier of a status the table has no row for.
+ */
+interface RaiserExpectation {
+  readonly expected: boolean;
+}
+
+/**
+ * The answer to a failure: its problem, where it comes from, the code its line names, and the
+ * severity its status and its raiser's expectation give it.
  */
 function answerOf(
   problem: Problem,
   source: ProblemSource,
   loggedCode: string,
-  expected: boolean
+  { expected }: RaiserExpectation
 ): ProblemAnswer {
   return {
     problem,
@@ -283,12 +291,12 @@ function registeredAnswer(error: unknown, context: ProblemContext): ProblemAnswe
       internalProblem(INTERNAL_ERROR.status, context),
       PROBLEM_SOURCE.REGISTERED,
       definition.code,
-      true
+      { expected: true }
     );
   }
   // A declared parameter the value did not carry leaves its placeholder in the text: a defect of
   // the code that raised it, which `of` makes unreachable for typed code.
-  const complete = Object.keys(definition.params).every(
+  const carriesEveryParameter = Object.keys(definition.params).every(
     (name) => params !== undefined && Object.hasOwn(params, name)
   );
   return answerOf(
@@ -298,7 +306,7 @@ function registeredAnswer(error: unknown, context: ProblemContext): ProblemAnswe
     ),
     PROBLEM_SOURCE.REGISTERED,
     definition.code,
-    complete
+    { expected: carriesEveryParameter }
   );
 }
 
@@ -335,7 +343,7 @@ function validationAnswer(error: unknown, context: ProblemContext): ProblemAnswe
     ),
     PROBLEM_SOURCE.VALIDATION,
     carriedCode(error) ?? VALIDATION_FAILED.code,
-    true
+    { expected: true }
   );
 }
 
@@ -348,7 +356,9 @@ function bodyStreamAnswer(error: unknown, context: ProblemContext): ProblemAnswe
   const code = carriedCode(error);
   const definition = code === undefined ? undefined : BODY_STREAM_CAUSES.get(code);
   if (code === undefined || definition === undefined) return undefined;
-  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, true);
+  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, {
+    expected: true,
+  });
 }
 
 /** A request the framework itself refused: the `http` code of its cause. */
@@ -356,7 +366,9 @@ function frameworkAnswer(error: unknown, context: ProblemContext): ProblemAnswer
   const code = carriedCode(error);
   const definition = code === undefined ? undefined : FRAMEWORK_CAUSES.get(code);
   if (code === undefined || definition === undefined) return undefined;
-  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, true);
+  return answerOf(definitionProblem(definition, context), PROBLEM_SOURCE.FRAMEWORK, code, {
+    expected: true,
+  });
 }
 
 /**
@@ -381,7 +393,7 @@ function appErrorAnswer(error: unknown, context: ProblemContext): ProblemAnswer 
     ),
     PROBLEM_SOURCE.APP_ERROR,
     error.code,
-    error.isOperational
+    { expected: error.isOperational }
   );
 }
 
@@ -401,7 +413,7 @@ function statusCarrierAnswer(error: unknown, context: ProblemContext): ProblemAn
     carriedProblem(definition, statusCode, context),
     PROBLEM_SOURCE.STATUS_CARRIER,
     carriedCode(error) ?? definition.code,
-    false
+    { expected: false }
   );
 }
 
@@ -426,7 +438,7 @@ export function toProblem(error: unknown, context: ProblemContext): ProblemAnswe
       internalProblem(INTERNAL_ERROR.status, context),
       PROBLEM_SOURCE.UNREGISTERED,
       carriedCode(error) ?? INTERNAL_ERROR.code,
-      false
+      { expected: false }
     )
   );
 }

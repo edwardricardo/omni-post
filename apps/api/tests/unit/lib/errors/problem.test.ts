@@ -368,60 +368,93 @@ describe("toProblem", () => {
 
     it("answers the http code of its own cause for each refusal of the framework, and logs Fastify's code", async () => {
       const json = { "content-type": "application/json" };
-      const refusals: readonly InjectOptions[] = [
-        { method: "POST", url: "/drafts", headers: json, payload: "{" },
-        { method: "POST", url: "/drafts", headers: json, payload: "" },
-        {
-          method: "POST",
-          url: "/drafts",
-          headers: { ...json, "content-length": "10" },
-          payload: "{}",
-        },
-        { method: "POST", url: "/drafts", headers: { "content-type": "text/csv" }, payload: "a,b" },
-        { method: "POST", url: "/drafts", headers: { "content-type": "not a type" }, payload: "a" },
-        { method: "POST", url: "/drafts", payload: { title: "x".repeat(80), tags: [] } },
-        { method: "GET", url: "/drafts/%E0%A4%A" },
-        { method: "GET", url: "/drafts/a-long-draft-id" },
-      ];
-
+      const injected =
+        (options: InjectOptions) => (): Promise<{ status: number; answer: ProblemAnswer }> =>
+          answerTo(options);
       // The inject's types take no QUERY request; Fastify's own error for one is read as raised.
-      const missingContentType = {
+      const raised = (error: unknown) => async () => ({
         status: 400,
-        answer: toProblem(new errorCodes.FST_ERR_ROUTE_MISSING_CONTENT_TYPE("QUERY"), CONTEXT),
-      };
+        answer: toProblem(error, CONTEXT),
+      });
+      // Each refusal beside the row it must give, so a row added or moved cannot shift the others.
+      const refusals = [
+        [
+          injected({ method: "POST", url: "/drafts", headers: json, payload: "{" }),
+          "400 400 JSON_BODY_NOT_PARSABLE FST_ERR_CTP_INVALID_JSON_BODY framework/warn",
+          HTTP_ERRORS.JSON_BODY_NOT_PARSABLE.message,
+        ],
+        [
+          injected({ method: "POST", url: "/drafts", headers: json, payload: "" }),
+          "400 400 JSON_BODY_EMPTY FST_ERR_CTP_EMPTY_JSON_BODY framework/warn",
+          HTTP_ERRORS.JSON_BODY_EMPTY.message,
+        ],
+        [
+          injected({
+            method: "POST",
+            url: "/drafts",
+            headers: { ...json, "content-length": "10" },
+            payload: "{}",
+          }),
+          "400 400 BODY_LENGTH_MISMATCH FST_ERR_CTP_INVALID_CONTENT_LENGTH framework/warn",
+          HTTP_ERRORS.BODY_LENGTH_MISMATCH.message,
+        ],
+        [
+          raised(new errorCodes.FST_ERR_ROUTE_MISSING_CONTENT_TYPE("QUERY")),
+          "400 400 CONTENT_TYPE_MISSING FST_ERR_ROUTE_MISSING_CONTENT_TYPE framework/warn",
+          HTTP_ERRORS.CONTENT_TYPE_MISSING.message,
+        ],
+        [
+          injected({
+            method: "POST",
+            url: "/drafts",
+            headers: { "content-type": "text/csv" },
+            payload: "a,b",
+          }),
+          "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
+          HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
+        ],
+        [
+          injected({
+            method: "POST",
+            url: "/drafts",
+            headers: { "content-type": "not a type" },
+            payload: "a",
+          }),
+          "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
+          HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
+        ],
+        [
+          injected({
+            method: "POST",
+            url: "/drafts",
+            payload: { title: "x".repeat(80), tags: [] },
+          }),
+          "413 413 PAYLOAD_TOO_LARGE FST_ERR_CTP_BODY_TOO_LARGE framework/warn",
+          HTTP_ERRORS.PAYLOAD_TOO_LARGE.message,
+        ],
+        [
+          injected({ method: "GET", url: "/drafts/%E0%A4%A" }),
+          "400 400 PATH_NOT_DECODABLE FST_ERR_BAD_URL framework/warn",
+          HTTP_ERRORS.PATH_NOT_DECODABLE.message,
+        ],
+        [
+          injected({ method: "GET", url: "/drafts/a-long-draft-id" }),
+          "414 414 ROUTE_PARAMETER_TOO_LONG FST_ERR_MAX_PARAM_LENGTH framework/warn",
+          HTTP_ERRORS.ROUTE_PARAMETER_TOO_LONG.message,
+        ],
+      ] as const;
 
-      const injected: Array<{ status: number; answer: ProblemAnswer }> = await Promise.all(
-        refusals.map((r) => answerTo(r))
-      );
-      injected.splice(3, 0, missingContentType);
+      const answers = await Promise.all(refusals.map(([answer]) => answer()));
 
       expect(
-        injected.map(
+        answers.map(
           ({ status, answer: { problem, loggedCode, source, severity } }) =>
             `${status} ${problem.status} ${problem.code} ${loggedCode} ${source}/${severity}`
         )
-      ).toEqual([
-        "400 400 JSON_BODY_NOT_PARSABLE FST_ERR_CTP_INVALID_JSON_BODY framework/warn",
-        "400 400 JSON_BODY_EMPTY FST_ERR_CTP_EMPTY_JSON_BODY framework/warn",
-        "400 400 BODY_LENGTH_MISMATCH FST_ERR_CTP_INVALID_CONTENT_LENGTH framework/warn",
-        "400 400 CONTENT_TYPE_MISSING FST_ERR_ROUTE_MISSING_CONTENT_TYPE framework/warn",
-        "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
-        "415 415 UNSUPPORTED_MEDIA_TYPE FST_ERR_CTP_INVALID_MEDIA_TYPE framework/warn",
-        "413 413 PAYLOAD_TOO_LARGE FST_ERR_CTP_BODY_TOO_LARGE framework/warn",
-        "400 400 PATH_NOT_DECODABLE FST_ERR_BAD_URL framework/warn",
-        "414 414 ROUTE_PARAMETER_TOO_LONG FST_ERR_MAX_PARAM_LENGTH framework/warn",
-      ]);
-      expect(injected.map(({ answer }) => answer.problem.detail)).toEqual([
-        HTTP_ERRORS.JSON_BODY_NOT_PARSABLE.message,
-        HTTP_ERRORS.JSON_BODY_EMPTY.message,
-        HTTP_ERRORS.BODY_LENGTH_MISMATCH.message,
-        HTTP_ERRORS.CONTENT_TYPE_MISSING.message,
-        HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
-        HTTP_ERRORS.UNSUPPORTED_MEDIA_TYPE.message,
-        HTTP_ERRORS.PAYLOAD_TOO_LARGE.message,
-        HTTP_ERRORS.PATH_NOT_DECODABLE.message,
-        HTTP_ERRORS.ROUTE_PARAMETER_TOO_LONG.message,
-      ]);
+      ).toEqual(refusals.map(([, row]) => row));
+      expect(answers.map(({ answer }) => answer.problem.detail)).toEqual(
+        refusals.map(([, , detail]) => detail)
+      );
     });
 
     it("answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code at warn", () => {
