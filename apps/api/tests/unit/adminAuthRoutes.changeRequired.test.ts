@@ -150,6 +150,11 @@ describe("POST /admin/auth/password/change-required", () => {
       "newPassword",
     ],
     ["an empty new password", { ...VALID_BODY, newPassword: "" }, "newPassword"],
+    [
+      "a new password of 129 characters",
+      { ...VALID_BODY, newPassword: "N".repeat(129) },
+      "newPassword",
+    ],
     ["a malformed second-factor code", { ...VALID_BODY, mfaToken: "12ab56" }, "mfaToken"],
   ])("refuses %s with 400 before the service runs", async (_case, payload, path) => {
     const res = await post(payload);
@@ -159,6 +164,18 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(body.error).toBe("Validation failed");
     expect(body.details.issues.map((issue: { path: string }) => issue.path)).toContain(path);
     expect(adminAuthStub.changeRequiredPassword).not.toHaveBeenCalled();
+  });
+
+  it("hands the service a new password of 128 characters, the longest the schema takes", async () => {
+    const longest = "N".repeat(128);
+
+    const res = await post({ ...VALID_BODY, newPassword: longest });
+
+    expect(res.statusCode).toBe(200);
+    expect(adminAuthStub.changeRequiredPassword).toHaveBeenCalledWith(
+      expect.objectContaining({ newPassword: longest }),
+      expect.anything()
+    );
   });
 
   it.each([

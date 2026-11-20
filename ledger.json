@@ -27,7 +27,7 @@
       "total": 1225
     },
     "blocks": {
-      "total": 15285,
+      "total": 15286,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14974
+        "BEHAVIOURAL": 14975
       }
     },
     "deleted": {
@@ -18851,7 +18851,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 200 with a message, without a session, and hands the service the normalized e-mail and both passwords",
@@ -18875,36 +18875,43 @@
           "bodyHash": "0139eb278afdadbd759d4468a2fbcdf114b213b85a8f1f0cde93eff81f89d2ef"
         },
         {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::hands the service a new password of 128 characters, the longest the schema takes",
+          "line": 169,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c8e0e3dc3276378ad7953791c45c070f482adfd5a18f113dcad5df50ef20870c"
+        },
+        {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with %i and the code",
-          "line": 164,
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c91c8520fc26c53db9278f86fd15b6d173da88c126a00962dc80e5d5f88e469f"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with the status the sign-in gives it",
-          "line": 186,
+          "line": 203,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9f466ae4f8c6b72182a23fbf2aab0a45d4fbbbf33c7dda9e6354472ee42603e"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::spends the sign-in's rate-limit bucket, with the sign-in's allowance",
-          "line": 203,
+          "line": 220,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ae939a95f0f81c20e339b6f3765756aaa7a6e7317915e676928ae0918ca0d89"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 429 and does not run the service when the rate limit refuses",
-          "line": 219,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7af988b068924c5cd0e0a1b7d1c8a624a569822272b19c87509d2787550106b1"
         },
         {
           "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::writes neither password into a response or a logged object",
-          "line": 228,
+          "line": 245,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e44a01e482f47801ddf026b96c7d6eb05794d6215382f1435c65860dec564d79"
