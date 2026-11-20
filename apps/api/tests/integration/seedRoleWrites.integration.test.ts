@@ -15,14 +15,15 @@
  *
  *              The seed runs as `pnpm db:seed` runs it (`tsx --conditions development seed.ts` in
  *              `infra/prisma`), under `NODE_ENV=test`, with a fake administrator password and a
- *              key of zeros, on the owner channel's connection to the scratch database. Each case
- *              first empties that database back to the state the migration left, with no row of
- *              the application, so it passes in any order: the first two run the seed once on it,
- *              and the third and the fourth run it to completion before they rerun.
+ *              key of zeros, on the owner channel's connection to the scratch database. The
+ *              database is emptied before each case, back to what the migration left, so a case
+ *              starts from no row of the application whatever ran before it: the first two find
+ *              their role unwritten, and the third and the fourth write everything before they
+ *              rerun.
  * @layer infrastructure
  */
 
-import { describe, it, before, after } from "node:test";
+import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
@@ -208,16 +209,19 @@ describe("The development seed's role writes on a migrated database", { concurre
     await database?.drop();
   }, HOOK_TIMING);
 
-  /**
-   * The scratch database's URL and client, after asserting the migration ran and emptying the
-   * database back to the state the migration left, whatever an earlier case wrote. The emptying
-   * runs here and not in `beforeEach`, so a migration that failed is reported with its own output.
-   */
-  async function freshlyMigrated(): Promise<{ url: string; client: PrismaClient }> {
+  // A hook that fails before a case fails that case with the hook's message, so a migration that
+  // did not finish is reported here, with its own output, before anything is emptied.
+  beforeEach(async () => {
+    assert.ok(database, "the scratch database was created");
+    database.assertMigrated();
+    await database.empty();
+  }, HOOK_TIMING);
+
+  /** The scratch database's URL and client, after asserting the migration ran. */
+  function migrated(): { url: string; client: PrismaClient } {
     assert.ok(database, "the scratch database was created");
     database.assertMigrated();
     assert.ok(scratch, "a client of the scratch database was built");
-    await database.empty();
     return { url: database.url, client: scratch };
   }
 
@@ -225,7 +229,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "leaves no row of an administration role whose permissions fail partway on a first run",
     caseTiming(1),
     async () => {
-      const { url, client } = await freshlyMigrated();
+      const { url, client } = migrated();
       await failPermissionRow(client, "RolePermission", "role-admin", "audit:read");
       try {
         const run = await runSeed(url);
@@ -252,7 +256,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "leaves no row of a customer role whose permissions fail partway on a first run",
     caseTiming(1),
     async () => {
-      const { url, client } = await freshlyMigrated();
+      const { url, client } = migrated();
       await failPermissionRow(client, "CustomerRolePermission", "role-manager", "approval:review");
       try {
         const run = await runSeed(url);
@@ -280,7 +284,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "keeps every row and the description a role held when a rerun fails partway through it",
     caseTiming(2),
     async () => {
-      const { url, client } = await freshlyMigrated();
+      const { url, client } = migrated();
       const complete = await runSeed(url);
       assert.deepStrictEqual(
         { code: complete.code, killed: complete.killed },
@@ -325,7 +329,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "removes a stale permission and restores the description when a rerun completes",
     caseTiming(2),
     async () => {
-      const { url, client } = await freshlyMigrated();
+      const { url, client } = migrated();
       const first = await runSeed(url);
       assert.deepStrictEqual(
         { code: first.code, killed: first.killed },
@@ -336,13 +340,13 @@ describe("The development seed's role writes on a migrated database", { concurre
         permissions: await adminRolePermissions(client, "role-support"),
         description: await adminRoleDescription(client, "role-support"),
       };
-      // The description must differ from the one the case writes next, or its restoring proves nothing.
       assert.ok(
         written.permissions !== null && written.description !== CHANGED_DESCRIPTION,
         "the first run wrote the role from its definition"
       );
-      await client.rolePermission.create({
-        data: { roleId: "role-support", permission: STALE_PERMISSION },
+      await client.rolePermission.createMany({
+        data: [{ roleId: "role-support", permission: STALE_PERMISSION }],
+        skipDuplicates: true,
       });
       await client.role.update({
         where: { id: "role-support" },
@@ -361,7 +365,10 @@ describe("The development seed's role writes on a migrated database", { concurre
           permissions: await adminRolePermissions(client, "role-support"),
           description: await adminRoleDescription(client, "role-support"),
         },
-        { permissions: written.permissions, description: written.description }
+        {
+          permissions: written.permissions.filter((permission) => permission !== STALE_PERMISSION),
+          description: written.description,
+        }
       );
     }
   );

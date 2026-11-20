@@ -3040,6 +3040,6 @@
 | SB-783 | The start writes 22 variables since `108a3d31` (the generated administrator password of the development seed), which the merge of the branch below brought; the suite passes on the tip, 185 of 185.   |
 | SB-784 | A duration assertion fails on a slow runner, the red this change repairs; a printed duration has no reader; each run's log shows the file's duration, and the plan item states the limit.              |
 | SB-785 | Fixed in `94535167`: the emptying statement ends with `RESTART IDENTITY`, and the suite passes with it in a random order.                                                                              |
-| SB-786 | Fixed in `94535167`: the fourth case asserts again that the first run's description differs from the one it writes next, with the reason in a comment.                                                 |
+| SB-786 | Fixed in `94535167`, and kept when the cases went back to their text of the base: the fourth case asserts that the first run's description differs from the one it writes next.                        |
 | SB-787 | Fixed in `94535167`: the line of what is left to build names the four open items of F-02's record.                                                                                                     |
 | SB-788 | Fixed in `6e9324c8`: a suite of the emptying's own holds the restart of the sequences, the foreign keys and the guard, each case failing with one mutant of the statement.                             |

@@ -10165,31 +10165,31 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::leaves no row of an administration role whose permissions fail partway on a first run",
-          "line": 224,
+          "line": 228,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "e694d99de373f63a803e2e4fb8f441864ff42dc3eb5f00428fc03d40824919f6"
+          "bodyHash": "c9e4ee7c4d7298ffe9e34a788d2cab56f2980635a5b79e20b8fedd1081d32855"
         },
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::leaves no row of a customer role whose permissions fail partway on a first run",
-          "line": 251,
+          "line": 255,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "04ed63c8ed7d3a868efdb994879022acf9a547ef890a06537b70743d4c22c33d"
+          "bodyHash": "5bb32e5be383a65bd88251bcf443d84a9cbe11e6d8e93c81ead0b01821771d7d"
         },
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::keeps every row and the description a role held when a rerun fails partway through it",
-          "line": 279,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fb31c05e63e236c97294386ebda4f3261336f9ab11d7a2afbf289973c725acb7"
+          "bodyHash": "d2c60bc5de4aec212e0eac87923690914515c88304dc06c024fa011584df8196"
         },
         {
           "id": "apps/api/tests/integration/seedRoleWrites.integration.test.ts::removes a stale permission and restores the description when a rerun completes",
-          "line": 324,
+          "line": 328,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f23a45c2ffb0f328e2a94a8145a8723419cb70672eecfc63484af5ecc7e2d92f"
+          "bodyHash": "c27fcba7ca4886f3f84b66df762bac0a05e7817dda65055a938f3e3a7ea7731f"
         }
       ],
       "verdict": "ADJUDICATE",
