@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1273  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16059 |
+| Blocks                  | 16065 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -905,7 +905,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts`                                            | test             | 25     | 2          | REWRITE    | machine                         | some-decorative      |
 | `apps/api/tests/unit/lib/errors/clientAddressSource.test.ts`                                          | test             | 2      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/lib/errors/clientAddressSourceSocketOnly.test.ts`                                | test             | 1      | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/lib/errors/clientErrors.test.ts`                                                 | test             | 38     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/lib/errors/clientErrors.test.ts`                                                 | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/lib/errors/closingServer.test.ts`                                                | test             | 1      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/lib/errors/connectionFailure.test.ts`                                            | test             | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/lib/errors/correlationId.test.ts`                                                | test             | 2      | 0          | KEEP       | machine                         | behavioural          |

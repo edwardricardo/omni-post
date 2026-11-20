@@ -27,7 +27,7 @@
       "total": 1285
     },
     "blocks": {
-      "total": 16059,
+      "total": 16065,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15748
+        "BEHAVIOURAL": 15754
       }
     },
     "deleted": {
@@ -60656,270 +60656,312 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 38,
+      "blockCount": 44,
       "blocks": [
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_LINE_NOT_PARSABLE at 400 to a request line the parser refuses, in one response that closes the connection, with one warn line",
-          "line": 404,
+          "line": 429,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3da5b3d84a48a9284e61a7d485953dfa5c20b440ce72d620647ebf6e24b1f52c"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_HEADERS_TOO_LARGE at 431 to headers over Node's limit, and keeps the headers out of the line and the answer",
-          "line": 438,
+          "line": 463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb22d784b2178e074ce2c44bcd95becaec0efbac29acd7027706a1ee75c27000"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::writes the line and nothing to a connection that can no longer be written",
-          "line": 472,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b8cecfa78de7527094ce6ddc7a953fbb1cfe8aebfaf5d6370370ad538f55003"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers CONTENT_TYPE_MISSING at 400 to a QUERY request with no content type, read once routed, with one warn line under Fastify's code",
-          "line": 514,
+          "line": 539,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f8522ecdc5e4d09c9111dc6b63560b055e1411bf668545bdf97b8eedac970011"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::leaves a connection the client reset as it is, and writes no line",
-          "line": 552,
+          "line": 577,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ac1562933c5976caf3cdb1af07eeada3712a6dbf88ac85f9a684deccbf438e4"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_HEADERS_NOT_PARSABLE at 400 to a header the parser refuses, with one warn line",
-          "line": 566,
+          "line": 591,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c887e070c22c71f4cd4a123fed7f6d364f47b18f29b6c0e02c33129c56c1db0f"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH at 400 to a request that sends both, with one warn line",
-          "line": 591,
+          "line": 616,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe21b0dd522c7c21c5a3c58dd1afb3406a738316bc495f1737259d15c31b9711"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a request whose chunked framing breaks after its headers were read once, under its own id, method and url, with no line for its body's failure",
-          "line": 626,
+          "line": 651,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d2213d78d80120fa096ce083a4a2ddb3c68343782e980a103f1e0fc30eeef68b"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a complete request as if nothing followed it, and logs the data after it as its own event, which a connection the request closes can no longer carry",
-          "line": 668,
+          "line": 693,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e28c64518330f8fb14aa770afa52fae6470b398ddc544ac526f42e650d2148f"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::lets a streamed answer finish when the next message fails, then answers that message on its own, in order",
-          "line": 697,
+          "line": 722,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea8ac3352a451fdfbf4655eedf1a11070583c018f84f8f85154117d251042de9"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a request in flight as if nothing followed it, then %s after it on its own, in order, and closes",
-          "line": 735,
+          "line": 760,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f75adac6b235ca84d9c9d8233d843afc0b8f9e93275d3ab340ba1c0d9f5cd90"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::ends its side of a connection whose client ends its own in the middle of a message that follows a request still unanswered, and writes nothing, with one line",
-          "line": 800,
+          "line": 825,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc66aed0835acdcbc1f596e1fde3ddc13b68612b13c73ab4666522ac3dff35ed"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::closes a connection whose client ends its side after a following message failed to parse, while the request in flight is unanswered, and writes nothing, with one line",
-          "line": 831,
+          "line": 856,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc1e56a45017a7b4485d264ddffe84addd96988f18a8b6c15f5eb058664420d5"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers CONNECT_NOT_IMPLEMENTED at 501 to a CONNECT request, in one response that closes the connection, with one error line and its report",
-          "line": 862,
+          "line": 887,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fdd8cbc26c7fabaaa56b104b87d6b45359e75af2b899db008e1cf2a163a26de"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a CONNECT request behind a request in flight after that request's answer, then closes, with the request it waited for on its line",
-          "line": 919,
+          "line": 944,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e38572a5140ea3ac3d0e0be5fb575068e4637036a40c3780e3fd1fe4002859c1"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::ends its side of a connection whose client ends its own while a CONNECT waits behind a request still unanswered, and writes nothing, with one line",
-          "line": 956,
+          "line": 981,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "33032dba7a709c3c484cf48aff7fa32a6a3a219fc97e91c01d0606970bf415b6"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::closes a connection whose client resets it while a CONNECT waits behind a request still unanswered, with one line and no error thrown",
-          "line": 991,
+          "line": 1016,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7b030890fcccefe68a22ca6a1931d4fe144471a5b66632dc3de31b2045941ac"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::ends its side of a connection whose client ends its own in the middle of a body behind a request still unanswered, and writes nothing, with the body's one line",
-          "line": 1019,
+          "line": 1044,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d14d7f16766214e63d2ce37b4593a2389455e3506686ab31c75f4c88955eb28b"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers at once, naming no request ahead, a request whose body breaks after the request before it on the connection was answered",
-          "line": 1054,
+          "line": 1079,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f34bc14df0f8633dd157730f7752d06bb7b8ad38e4b644f4032c4db61ac88fb1"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a request whose body breaks behind a request still in flight after that request's answer, under its own id, then closes",
-          "line": 1091,
+          "line": 1116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "555a2498fe45d4538ce617195e59baa0561deabf89546c89691c94678e6642d9"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers the oldest of three requests, then the failure of the second, and never reads the third, which follows a body the parser refused",
-          "line": 1140,
+          "line": 1165,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c949806f3fd878bf1122a7084073a11cc3179c5637fd6f519d4a58db948226d"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a request whose body breaks behind two requests in flight after both answers, waiting for the later one",
-          "line": 1175,
+          "line": 1200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9452b03bf3260e99d80af4ace9186dd6f8ae0aaec126f5c232d1e5063b35cda9"
         },
         {
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers at once, as with no request in flight, a message that fails in the chunk that completes a request answered before its body",
+          "line": 1240,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5ddcf063439977320dfd499e2fc71422da26b15ee65fcb63d5c3536b3d4be237"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers at once, under its own id and naming no request ahead, a body that breaks in the chunk that completes a request answered before its body",
+          "line": 1275,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9631fc0689d84ae48ac36c411a43fd650def892ebfc9cf7cdd23b879b08b6280"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers at once, naming no request ahead, a CONNECT in the chunk that completes a request answered before its body",
+          "line": 1312,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d9c5919332138d13721c331e8ce90cf7fa2f8d317b15dee15ad9ada1e149a2e3"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::forgets a request whose route hijacked its reply and ended it, so a failure after it is answered at once",
+          "line": 1339,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4822b1ae0493cf32a9c246654c5ede76cf7791ff36b7e14e67e162407b65429d"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::waits for a hijacked reply still streaming, then answers the failure after its last byte",
+          "line": 1367,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "feddedf9faf083467a5a5e85d64c0a1c2228e23bebd78569f74ddabb3f92aad5"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::writes nothing more when the route of a request in flight answers after the server ended its side for the client's end",
+          "line": 1398,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6bcc9fd158ee7528b0d465a136440c420b5ea165885ac3c9f01cb9026137cc95"
+        },
+        {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers the failure of a following message once, whatever the client sends after it",
-          "line": 1215,
+          "line": 1429,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d417c4d7361684e3998538b3d0e93c36ea2ea80697bf7b3b6009cefa24c4e67"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::writes no byte to a connection whose answer started before its own body failed, and one line saying the failure came after it",
-          "line": 1249,
+          "line": 1463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "293a53927d48ff42e808f5159b7162c602fffe5793f50a402505dcdf59a0b49a"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::names the headers, by Node's code, when a Transfer-Encoding the parser refuses is found once the request is in flight",
-          "line": 1289,
+          "line": 1503,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8fa0b10684698fae9f9674975f0b260d1618b56b38e141ac3bbf60f93ebbd025"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::names the body's framing, by the position, when a body breaks after its request was answered whole, and writes no byte after that answer",
-          "line": 1322,
+          "line": 1536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c483d46bd933a7752dd98925a91c33e542acb4567cb262e74103bfff6f87e41"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_INCOMPLETE at 400 when the client ends its side in the middle of %s with no request in flight, an answer it can still read",
-          "line": 1361,
+          "line": 1575,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41fd5dabcaad29f46dc41eb04e390101599dad91a4782b2951dffab1a8a79271"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_INCOMPLETE at 400, under the request's own id, when the client ends its side in the middle of %s",
-          "line": 1392,
+          "line": 1606,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6fc991bdb66e518634f5b6ca5b15ea09c8a95641bb288b5d85d4d4dfaa44f958"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers %s with the code its cause has, in one response that closes the connection",
-          "line": 1440,
+          "line": 1654,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1202fa39fd32764bfc0d2b6af39d334b8835c55dd48a893a517300f47d32e55c"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers EXPECTATION_UNSUPPORTED at 417 to an Expect header other than 100-continue, with one warn line under the request's id",
-          "line": 1512,
+          "line": 1726,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7585ba361ca9164f3665c50690c9fa6146d1b1fb82352d6f342d051e302f3e8"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a parser code its table does not name with REQUEST_REFUSED at 400 and one error line under Node's code",
-          "line": 1547,
+          "line": 1761,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d19cdedd24ef715dfa3b5a13dc70c6202c8e8d99bba2364c6c0455c506e86cb3"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::still answers 100 Continue to Expect: 100-continue, then the route, with no failure line",
-          "line": 1614,
+          "line": 1828,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66b6bee68ba4f5cf3b45094283c677dccddd631d6464ee27e9ca1ce7d3ae56b9"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::logs REQUEST_BODY_ABORTED at warn under the request's id, saying nothing could be sent, when the client resets its upload",
-          "line": 1636,
+          "line": 1850,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f255de19c49aa14bd86d4aa7a8fe58f86a8d7fcdee113bda9009a651297c99cb"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_TIMEOUT at 408, in one response that closes the connection, with one warn line",
-          "line": 1692,
+          "line": 1906,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b5ba79d94f91ad7d241c707278252fd56d59e6f440135c38b513d7a58edfa96"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers a request whose body does not arrive in time once, under its own id, method and url, with no line for its body's failure",
-          "line": 1718,
+          "line": 1932,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "952b49224475c8c0cce48bee3be1bc9f988d9299d63c46a872d0b3dcc1e5f1ae"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::ends its side once the client ends its own after the request timeout of a message that follows a request still unanswered, and writes nothing, with one line",
-          "line": 1755,
+          "line": 1969,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "44e084b277f83a09a23e8f851b98669d31a9b724c8a8c7f59cc84b8905bdd3bc"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers the request in flight, then the request timeout of the message after it, and never takes that message when it arrives whole too late, for %s",
-          "line": 1784,
+          "line": 1998,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3be039e89b8cc9a39b44688bf4c77ffb2dfcf7204aeeb4dd639f03049fbe66da"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::writes one line for each request read on a connection already refused, the timed-out message read whole and the one after it, naming the refusal: %s",
-          "line": 1827,
+          "line": 2041,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01726e49e417e9929466814d1d9af471664ac4fdfa3101ba99acb706c6e1f792"
@@ -61172,123 +61214,123 @@
           "line": 369,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "59f438b782967f1bd6017a0cd9586cafd962adeda5ba878bbf5ca08d3a800861"
+          "bodyHash": "042692b1ecbc3f53881fe74269c862a5bd26823cab4838e19ff79eaa78ac0399"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code at warn",
-          "line": 427,
+          "line": 460,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "703c7eb3572183157988ab53a580f28b162d325730f94db3dc8977dd6544896c"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::does not read an error of the same code that is not the request's own body stream's as its abort",
-          "line": 449,
+          "line": 482,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba2b17ca90822a48551cdd1d617a866e25ad2f0589cf11c1aba635ef7a767f14"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers a refusal of the framework whose cause no http code names as a carrier of its status, logged at error",
-          "line": 465,
+          "line": 498,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8573f6f467f4eb355ff790accda0147ba41eb94153a61f13da6aa13f2beb571c"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers a refusal no http code holds with REQUEST_REFUSED at its status, logged at error",
-          "line": 479,
+          "line": 512,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "146e157975e556120d81de2cea5cd030b3ef23d06d74b139962f1bb8d8336ce3"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps the failure status a thrown plain object carries, refused below 500 and internal above, and never sends its text",
-          "line": 498,
+          "line": 531,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c26bfb4a451a93c499a8b0273e21b81f5ad69ba5945e25ad2dcdc69375ef528"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::reads an issue the validator does not describe as unknown, at the part itself",
-          "line": 508,
+          "line": 541,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc528d6996116bc51ddb13010543690f9fc6a04ddecccbec2b04a46caf3e53f4"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::does not read a validation list outside a request part as the request's issues",
-          "line": 521,
+          "line": 554,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03bd66635e1770bf936882f86253f14e9c81843b72e9b16312dfc34220804227"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps its status and code, and shows its message when operational and below 500",
-          "line": 540,
+          "line": 573,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de954a12fc9d5a21548c46ad0c9f554a68a2f67b868efb1df815f70823108b03"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::hides its message at 500 or above, or when not operational, and logs both at error",
-          "line": 560,
+          "line": 593,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52b6c5890368b851905e19d44a9b25821db1466ae9fad36b110703ff07484637"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers INTERNAL_ERROR when its status is not a failure status",
-          "line": 575,
+          "line": 608,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "abc74b856b6a98ef8ba7626b393d2800feb4bf215c51c0545f385557f09bc9cc"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::keeps the failure status a value carries, REQUEST_REFUSED below 500 and INTERNAL_ERROR at 500 or above, and logs its code",
-          "line": 587,
+          "line": 620,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b70ebd31007bfe30d21c5284444188cae586e15463eb0b59036a3d993c4c8477"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::logs a numeric code a value carries as its decimal string, and no code of another kind",
-          "line": 612,
+          "line": 645,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bb553855b6b577aa3a2d44b2a16a97b8e508b780482b0ab2ffa6c3b248ac89d"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers a plugin's refusal and a thrown value with a 4xx status and no row with REQUEST_REFUSED at that status, at error",
-          "line": 626,
+          "line": 659,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eea2bf095092647d05b788a043ccc3f90fc6ad8f602b8dc78b04d13a9f16c568"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers INTERNAL_ERROR at 500 for anything else, and logs a code the value carries",
-          "line": 663,
+          "line": 696,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b6d20be5b87474e1dfa81120b2e143dd0705195adfbd65b994f7e7f1bdf2f0f3"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::is served as RFC 9457 problem JSON",
-          "line": 697,
+          "line": 730,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce012dc5cc36aa85ff69e1dec7d6cb15df006afeb64fc8eff51e3c55746fa7c0"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::accepts every body toProblem sends and refuses a code outside the grammar or a status that is no failure",
-          "line": 701,
+          "line": 734,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "21568021959bdbac99d2ef186293b28a756eb39d0bbac3367930a7c425102d3c"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/problem.test.ts::holds the twenty-three failures the HTTP boundary raises itself, one per cause, for operators only",
-          "line": 721,
+          "line": 754,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4cf21037e1aa8042b428fba348261a9bea52a536bf46f754cfa0b0a945209ccf"
