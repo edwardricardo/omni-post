@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1226  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15460 |
+| Blocks                  | 15464 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -985,7 +985,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/planClosureGate.test.ts`                                                 | test             | 40     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/planClosureGate.test.ts`                                                 | test             | 44     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 145    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 4      | 0          | KEEP       | machine                     | behavioural          |

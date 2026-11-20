@@ -27,7 +27,7 @@
       "total": 1236
     },
     "blocks": {
-      "total": 15460,
+      "total": 15464,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15149
+        "BEHAVIOURAL": 15153
       }
     },
     "deleted": {
@@ -77872,7 +77872,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 40,
+      "blockCount": 44,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::reads the chain table of the plan and the records of the chain and the areas",
@@ -77966,190 +77966,218 @@
           "bodyHash": "72a3eb754abfbf410eae3a80c11af25b74fd45e451a1b4e5c37e7c981f97487d"
         },
         {
-          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::leaves alone %s",
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on the continuation of a closed entry that starts like %s",
           "line": 546,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7cebc79bfb089a6381663d6a11867e271fc82fb24457ccedf8297fa4325fd08"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a line whose backticks do not pair, scanning it whole",
+          "line": 560,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "52b090f4c9e09479413e4b42a6a878fe78c2f21bcdf22648a7f6541eaad113b6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::leaves alone %s",
+          "line": 567,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83e4836b9fb695cf0e2b1bf5dd7b43f7ce17f757552962db5857841f3d9310c2"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::never reads a fenced table as the chain table",
-          "line": 577,
+          "line": 598,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "434631caa29d3854ff70c943672465c9a8b86eee1b6caf74f82b293a3a834fd6"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::never reads a line of a fenced example in a record as an item",
-          "line": 609,
+          "line": 630,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "752470d3bd30e1a5a4c752b9a00381bab94481523d4cf42f6806173f43a049c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence a closed feature's record opens and nothing closes",
-          "line": 629,
+          "line": 650,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71b8be656f0c6dc9546abf26df0a9712cf9e4e0db58fe4ed221bee83bfba1bd6"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence still open at the end of a file, outside every closed record",
-          "line": 645,
+          "line": 666,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3226f1683d0b84b07caa2efd61b580901db57c11a21296bb9d6dea9d137bdc18"
         },
         {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence the plan opens before its chain section, which it then cannot find",
+          "line": 681,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7862bcd9d7c06dffadf5269dac378465220536395262aaa8c03e4153e7f84561"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a fence the plan opens after its chain table, which it still reads",
+          "line": 697,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bbebbefe34cee9a4b17455ac25b6e7486e195c54220b109919bd46dc5375a9fc"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::never reads a fenced heading as the opening of a record",
-          "line": 660,
+          "line": 716,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3faf8f23d4fbd1d1e4c6cf372c0f8b38dc258e2c97fff74f45118a06a806f9e6"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the plan is missing, never reading the absent file as no closed feature",
-          "line": 675,
+          "line": 731,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "744449823f8019808d4ca0beb3e68491b650c356d3f00c2a8fb5e34d9d3b4058"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the record file %s is missing",
-          "line": 688,
+          "line": 744,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "502861963f3e93f0da0d29fa4036f4575e426f1f9411ca1b548226884e49cd82"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the plan has no chain section",
-          "line": 700,
+          "line": 756,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40feba5f441eba1964c7b7374c4d41cab19ca2f5baefb68969dd4235ee1dda95"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the plan opens the chain section twice",
-          "line": 712,
+          "line": 768,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7512f2383e5e80648912644ac6ca12c3ba95aa689c3089c324a9a359a08b1518"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain table has no # column",
-          "line": 727,
+          "line": 783,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1cb5294998e3df66eb11e7c36582b612a82278db263a75b505c25b233cbc9af8"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a row whose cells are not the header's",
-          "line": 739,
+          "line": 795,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4490606c1178f031b4344b42ce52d312ea8c1884d4261e997742c214058b56e3"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a row with no feature id",
-          "line": 753,
+          "line": 809,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a904ba307aa09f89f7ef3e6d56c94ff40e90e30c4b185265704f7607c057df2"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a feature the chain table lists twice",
-          "line": 762,
+          "line": 818,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45c7010551311c97b1b0108aacb4f503c9475197ff831375e5acc6b0dedcc77b"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 over exit 1, printing the unreadable entry and the open item",
-          "line": 779,
+          "line": 835,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "35074059b5791ec46aa401e2136593bb838ce21b5c72b63f9cf83669982b4fb0"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain section holds no table",
-          "line": 795,
+          "line": 851,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1cc56b91a3976717e25c95433038791800700c1f17d3f6a123e49d645644e8ea"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain table holds no feature row",
-          "line": 812,
+          "line": 868,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb64f0d1a8b26705d7303c84528a1e8d404c0049114a2506b22cee3f0b946635"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain table has no State column",
-          "line": 823,
+          "line": 879,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fabbfdbb0bbdb70baa7ef416cc25334af3214c913434863540e56dcd10181fdc"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 on a state that is not open, in progress or closed",
-          "line": 835,
+          "line": 891,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2866727c65d41cbcab637a6634796a5296698e23353973b992cd5d2c9506d0de"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when a closed feature's record is not found",
-          "line": 846,
+          "line": 902,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "394cc6714c1b314396fd73173560ea5c4ab3a9a286ced384f3272bbaf8f8b350"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when a closed feature's record is opened twice, in the chain and in the areas",
-          "line": 857,
+          "line": 913,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "878a6c8287778f96229434b988cf89edf57a46b68c7361288e4315c2be733d9e"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when a closed feature's record holds no attached list",
-          "line": 872,
+          "line": 928,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7cfa9d982bae28d7a9947d5077182effc656295b0c320d84841ad56ce81e5fb3"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the attached count the record states differs from the items read under it",
-          "line": 886,
+          "line": 942,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8acc9cb1869e8f6c3a9b1446e7f3281969d3db0e64b60d97c27f0a5857924f9a"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when an item list holds a line that is neither an item nor a note",
-          "line": 900,
+          "line": 956,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4608641b4bf34b6e21fd525a5d741c491cd8677a691a707350f4102a81fe528"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits with the verdict's code and writes each line to its stream",
-          "line": 926,
+          "line": 982,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4a8f6f015f2a590f7978638f1fe81df3e7d574945083a75c9622e1b38e76e1c"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 0 with its one line on stdout over a plan with nothing open under a closed feature",
-          "line": 937,
+          "line": 993,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a934ab97c4621d970d1f079586a6490f15725e3d201476cc3a9d4e087c69b002"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 2 on the usage error %j",
-          "line": 949,
+          "line": 1005,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11fb98672b7209a75ab9ac15129c5c37f71e6c872cfbb500e2631c9bda4b0f05"
