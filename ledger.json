@@ -27,7 +27,7 @@
       "total": 1236
     },
     "blocks": {
-      "total": 15409,
+      "total": 15410,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15098
+        "BEHAVIOURAL": 15099
       }
     },
     "deleted": {
@@ -83735,28 +83735,35 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::names no CORS response header and loads no CORS plugin in any source file of the API",
-          "line": 73,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bfdc7f1887ed88596bd94438d97a68b53a1e1060d172aeb128f8ebb36f6d264"
         },
         {
-          "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::declares no CORS plugin among the API's dependencies",
-          "line": 86,
+          "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::declares no CORS plugin among the API's dependencies, by name or by specifier",
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fac8c484b3624d64ba1051320f823fc2d0ef7862742146ea7b04ce7a4a1fdbfd"
+          "bodyHash": "e4c95d2d8ad1189cd42e95bb76c894d5180e194b59516df4f9270fb1cea66f4d"
         },
         {
           "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::finds a header in a string, a key or a template and a plugin by name or path, never in a comment",
-          "line": 102,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ca8ffba4af21478ef5640040d144e1f7ddcc817ea12f175212e93d003b09d4cc"
+          "bodyHash": "7787cf10a0fc5c3acc92d97a5c8575995f2684981448cb1aa590d40a0b860e5e"
+        },
+        {
+          "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::finds a CORS plugin in a dependency's name or in its specifier, an npm alias included",
+          "line": 154,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6b26f35cdd1267a4d1cc75484ef895f8477e28f2863c4656bf60c3f38bdb235e"
         }
       ],
       "verdict": "KEEP",
