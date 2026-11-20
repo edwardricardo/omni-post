@@ -2207,6 +2207,49 @@ pnpm check:record-coverage   # expect exit 0, 0 refused, and first one line:
 # showing no budget is needed.
 node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line:
 #   instruction-context-gate: <F> auto-loaded files, <B> bytes of a budget of <B> (within the target of 250000); <R> records, <G> globs (<E> empty by entry); 4 of 4 hook entries wired; 0 violations
+
+# 56. No closed feature has an open item under its record.
+# Threat: a feature closes while items of its record are open, and those items lose their date and
+# their owner: no slice opens the feature again, so nothing schedules them and nothing says they
+# wait. Measured on 2026-11-20: F-01 closed with #916 while 24 rows of its record were open (the
+# cross-cutting item ROWS-WAIT-UNDER-CLOSED-F-01), and F-02 came within one change of closing
+# with 22. The Product Owner's rule of that day: no feature closes with an open item (ADR-0046).
+# WHAT IT RUNS: `pnpm check:plan-closure`, which is `node scripts/testing/plan-closure-gate.mjs`,
+# pinned by apps/api/tests/unit/scripts/planClosureGate.test.ts. The script's header states the
+# rule in full, and this block summarises it. It reads the first table of `## The chain` in
+# docs/product/PLAN.md by its `#` and `State` columns and, for each row whose State is `closed`,
+# the record that the one heading of docs/product/plan/chain.md or docs/product/plan/areas.md whose
+# text starts with that id opens, up to the next heading of its level or above. The record's items
+# are the entries of its `Attached (<n>)` list and of every list whose bold label starts with
+# `Findings`, each `  - **<id>**: <text>` with an optional `(<reference>)` after the id; a
+# `  - Note: <text>` entry is not an item, and every other list of the record is prose. An item is
+# closed when its text starts with one of two forms: `Closed by #<n>`, or `Closed by decision of
+# the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`, the date a calendar date. Every
+# other item is open.
+# WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing: the gate reads
+# three Markdown files and imports nothing beyond Node's own modules. The battery runs it through
+# its alias, `pnpm check:plan-closure`, as its static step `plan-closure`.
+# WHAT FAILS, exit 1, each on stderr as `plan-closure-gate: <problem>`: an open item under a closed
+# feature, named with the feature, its line in the table, the item's id, its line and its list; an
+# item that starts `Closed by` in neither form, named as such; then the line `<k> open items under
+# <c> closed features`. A feature that is `open` or `in progress` is never judged.
+# FAIL-CLOSED, exit 3, which wins over 1: the plan, chain.md or areas.md that cannot be read; no
+# `## The chain` section, or two; a section with no table; a table with no `#` or no `State`
+# column, a row whose cells are not the header's, a row with no id, an id listed twice, or no
+# feature row; a state other than open, in progress and closed; a closed feature whose record no
+# heading opens, or more than one does; a record with no `Attached (<n>)` list, or whose `<n>` is
+# not the number of items read under it; and an entry of an item list that is neither an item nor a
+# note. A usage error, anything but no argument or `--root <dir>`, exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) it reads the plan by its line shapes, not with a
+# Markdown parser; (2) it proves the form of a marker, never that pull request #<n> resolved the
+# item or that the decision was taken; (3) an item attached to a closed feature from outside its
+# record, such as a cross-cutting row that names the feature, is not read; (4) a record's prose
+# lists (`Wrong as read`, `To build`) are not items, so a defect they describe is not judged; (5)
+# the table's `Closed by` column is not compared with the items.
+# RETIRES WHEN: the plan leaves the tree under the Plan closure rule of CLAUDE.md, or a recorded
+# decision of the Product Owner lets a feature close with an open item.
+node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
+#   plan-closure-gate: <N> features in the chain table, <C> closed; <I> items under the records of the closed features, every one closed
 ````
 
 ## Not a numbered check
