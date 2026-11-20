@@ -36,6 +36,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
 import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it } from "vitest";
+import { hasProcessEnded } from "../helpers/processState.js";
 
 type Result<T> = { value: T } | { error: string };
 type Outcome = "GREEN" | "RED" | "LOAD-ERROR";
@@ -2206,23 +2207,7 @@ describe("pendingTempPath", () => {
 });
 
 /** Whether a process still runs: absent, a zombie or dead in `/proc` is not running. */
-const running = (pid: number): boolean => {
-  if (existsSync("/proc/self/stat")) {
-    try {
-      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-      const state = stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3);
-      return state !== "Z" && state !== "X";
-    } catch {
-      return false;
-    }
-  }
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
+const running = (pid: number): boolean => !hasProcessEnded(pid);
 
 /** A node process that starts a worker of its own, prints the worker's pid, then ends or waits. */
 const parentOfWorker = (then: "ends" | "waits"): string[] => [

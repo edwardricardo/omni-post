@@ -47,9 +47,9 @@ export class PrismaSystemRoleRepository implements SystemRoleRepository {
    *   the update branch sets the definition's fields, deletes every permission the definition
    *   does not hold and inserts the ones it does, skipping those already there. Each of those
    *   two nested operations leaves the same rows whichever runs first, so the outcome does not
-   *   depend on an order Prisma does not document. Neither branch sends `isActive`: the write
-   *   does not change whether an existing role is active, and a role it creates takes the
-   *   column's default, active.
+   *   depend on an order Prisma does not document. Both branches write `isActive` true: a system
+   *   role exists to be held, so a write of its definition leaves it active, the one it creates
+   *   and an existing one that was deactivated alike.
    * @param definition - The role as code defines it
    * @returns Ok when written, Err(SystemRoleConflictError) naming the key on a unique violation
    *   of the role's id or name, Err(RepositoryFailureError) whose cause is what the client raised
@@ -63,6 +63,7 @@ export class PrismaSystemRoleRepository implements SystemRoleRepository {
       description: definition.description,
       level: definition.level,
       isSystem: definition.isSystem,
+      isActive: true,
     };
     const grant = {
       createMany: {

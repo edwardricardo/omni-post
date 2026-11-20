@@ -17,19 +17,33 @@
  *
  *   The seed loads its env file before its guard runs. In the first case an env file at the
  *   repository root, when the machine has one, is therefore loaded, but it cannot override a
- *   variable the process already sets, and the production rule, which reads only `NODE_ENV`, ends
+ *   variable the process already sets, and the environment rule, which reads only `NODE_ENV`, ends
  *   the run before anything else is read, so the outcome is the same with no file and with a
  *   well-formed one. A file Node cannot parse ends the seed with the loader's own error before the
  *   guard runs.
+ *
+ *   The guard accepts only `development`, `test` and an unset `NODE_ENV`. A case sets `staging` in
+ *   the process and runs the seed in a fixture with no generated client linked and an env file
+ *   that sets nothing: it ends exactly as under production, with the reason naming `staging`,
+ *   before the seed loads any module with an effect.
  *
  *   The seed also takes no default administrator password. Under a development environment with no
  *   `ADMIN_PASSWORD` it ends with exit code 1, writes the password rule's reason to stderr and
  *   nothing to stdout, and opens no connection. That case runs in a fixture whose env file sets no
  *   password, so an env file at the repository root cannot change its result. A last case sets
  *   `ADMIN_PASSWORD` only in the fixture's env file: the seed is not refused, goes on and opens a
- *   connection, which shows it reads the variable after its env file is loaded. The two cases under
- *   production set no password and still end with the production reason: the production rule runs
- *   first.
+ *   connection, which shows it reads the variable after its env file is loaded. The cases under
+ *   production and staging set no password and still end with the environment rule's reason: that
+ *   rule runs first.
+ *
+ *   The seed loads every module that is not pure data only once both rules allow it to run. One
+ *   case runs it under production in a fixture with no generated client linked: it still ends with
+ *   the guard's reason, not with the loader's error. Another sets `LOG_LEVEL` only in the fixture's
+ *   env file, to a level pino does not know: pino checks the level when the logger is built and
+ *   refuses an unknown one with an error that names it, so a run that ends with that refusal,
+ *   before any connection, shows the logger was built from the env file's value. A known level
+ *   would leave nothing to observe here, since the seed writes its first line only after the
+ *   database has answered.
  *
  *   The database is a loopback socket this suite opens: it counts the connections it receives and
  *   closes each one at once, so no server ever answers and a seed that did try to connect fails fast
@@ -70,9 +84,17 @@ const TSX_CLI = createRequire(path.join(PRISMA_DIR, "package.json")).resolve("ts
  */
 const LINKED_PRISMA_ENTRIES = ["package.json", "node_modules", "generated", "src"] as const;
 
+/** The same entries without the generated client, as in a checkout that never generated it. */
+const LINKED_PRISMA_ENTRIES_WITHOUT_CLIENT = LINKED_PRISMA_ENTRIES.filter(
+  (entry) => entry !== "generated"
+);
+
+/** A level pino does not know, which a case sets only in the env file. */
+const ENV_FILE_ONLY_LOG_LEVEL = "level-set-only-in-the-env-file";
+
 /** The reason the seed's guard gives under a production environment. */
 const PRODUCTION_REASON =
-  "The development seed does not run under a production environment: NODE_ENV is production.";
+  'The development seed runs only when NODE_ENV is development or test, or is unset: NODE_ENV is "production".';
 
 /** The outcome every production run must have, the sensor's count included. */
 const REFUSED_RUN = {
@@ -81,6 +103,13 @@ const REFUSED_RUN = {
   stdout: "",
   stderr: `${PRODUCTION_REASON}\n`,
   connections: 0,
+} as const;
+
+/** The outcome of a run under staging: the production run's, with a reason that names staging. */
+const REFUSED_UNDER_STAGING_RUN = {
+  ...REFUSED_RUN,
+  stderr:
+    'The development seed runs only when NODE_ENV is development or test, or is unset: NODE_ENV is "staging".\n',
 } as const;
 
 /** The reason the seed's password rule gives when `ADMIN_PASSWORD` is absent or blank. */
@@ -162,18 +191,21 @@ function envFileWithFakeAdminPassword(): string {
 }
 
 /**
- * A checkout of the seed of its own: a copy of `infra/prisma/seed.ts` at the same depth, the real
- * `package.json`, `node_modules`, `generated` and `src` linked beside it, and an env file at the
- * root that holds `envFileText`, by default only `NODE_ENV=production`. Returns the directory the
- * seed runs from.
+ * A checkout of the seed of its own: a copy of `infra/prisma/seed.ts` at the same depth, the
+ * entries of `infra/prisma` named by `linkedEntries` linked beside it, by default the real
+ * `package.json`, `node_modules`, `generated` and `src`, and an env file at the root that holds
+ * `envFileText`, by default only `NODE_ENV=production`. Returns the directory the seed runs from.
  */
-function makeEnvFileFixture(envFileText = "NODE_ENV=production\n"): string {
+function makeEnvFileFixture(
+  envFileText = "NODE_ENV=production\n",
+  linkedEntries: readonly string[] = LINKED_PRISMA_ENTRIES
+): string {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "seed-env-file-")));
   fixtures.push(root);
   const prismaDir = path.join(root, "infra", "prisma");
   mkdirSync(prismaDir, { recursive: true });
   copyFileSync(path.join(PRISMA_DIR, "seed.ts"), path.join(prismaDir, "seed.ts"));
-  for (const entry of LINKED_PRISMA_ENTRIES) {
+  for (const entry of linkedEntries) {
     symlinkSync(path.join(PRISMA_DIR, entry), path.join(prismaDir, entry));
   }
   writeFileSync(path.join(root, ".env"), envFileText);
@@ -212,13 +244,16 @@ async function runSeed(
   }
 }
 
+/** Removes every fixture and closes every sensor the case made, whatever its result. */
+async function releaseCaseResources(): Promise<void> {
+  for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true });
+  await Promise.all(
+    servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
+  );
+}
+
 describe("the development seed under a production environment", () => {
-  afterEach(async () => {
-    for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true });
-    await Promise.all(
-      servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
-    );
-  });
+  afterEach(releaseCaseResources);
 
   it(
     "refuses to run, with the guard's reason and no connection, when NODE_ENV is production",
@@ -244,15 +279,49 @@ describe("the development seed under a production environment", () => {
     },
     SEED_CASE_TIMEOUT_MS
   );
+
+  it(
+    "refuses to run, with the guard's reason and no connection, when the generated client cannot be loaded",
+    async () => {
+      const database = await openDatabaseSensor();
+      const prismaDir = makeEnvFileFixture(undefined, LINKED_PRISMA_ENTRIES_WITHOUT_CLIENT);
+
+      const run = await runSeed(seedEnvironment(database.url), prismaDir);
+
+      assert.deepStrictEqual({ ...run, connections: database.connections() }, REFUSED_RUN);
+    },
+    SEED_CASE_TIMEOUT_MS
+  );
+});
+
+describe("the development seed under an environment other than development or test", () => {
+  afterEach(releaseCaseResources);
+
+  it(
+    "refuses to run, with a reason naming the value and no connection, when NODE_ENV is staging",
+    async () => {
+      const database = await openDatabaseSensor();
+      const prismaDir = makeEnvFileFixture(
+        ENV_FILE_WITHOUT_ADMIN_PASSWORD,
+        LINKED_PRISMA_ENTRIES_WITHOUT_CLIENT
+      );
+
+      const run = await runSeed(
+        { ...seedEnvironment(database.url), NODE_ENV: "staging" },
+        prismaDir
+      );
+
+      assert.deepStrictEqual(
+        { ...run, connections: database.connections() },
+        REFUSED_UNDER_STAGING_RUN
+      );
+    },
+    SEED_CASE_TIMEOUT_MS
+  );
 });
 
 describe("the development seed without an administrator password", () => {
-  afterEach(async () => {
-    for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true });
-    await Promise.all(
-      servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
-    );
-  });
+  afterEach(releaseCaseResources);
 
   it(
     "refuses to run, with the password reason and no connection, when ADMIN_PASSWORD is absent under a development environment",
@@ -288,6 +357,34 @@ describe("the development seed without an administrator password", () => {
           reachedTheDatabase: database.connections() >= 1,
         },
         { refusedForPassword: false, reachedTheDatabase: true }
+      );
+    },
+    SEED_CASE_TIMEOUT_MS
+  );
+});
+
+describe("the development seed's logger", () => {
+  afterEach(releaseCaseResources);
+
+  it(
+    "is built with the LOG_LEVEL only the env file sets, before any connection is opened",
+    async () => {
+      const database = await openDatabaseSensor();
+      const prismaDir = makeEnvFileFixture(
+        `${envFileWithFakeAdminPassword()}LOG_LEVEL=${ENV_FILE_ONLY_LOG_LEVEL}\n`
+      );
+
+      const run = await runSeed(developmentSeedEnvironment(database.url), prismaDir);
+
+      assert.deepStrictEqual(
+        {
+          code: run.code,
+          killed: run.killed,
+          stdout: run.stdout,
+          refusedTheLevel: run.stderr.includes(ENV_FILE_ONLY_LOG_LEVEL),
+          connections: database.connections(),
+        },
+        { code: 1, killed: false, stdout: "", refusedTheLevel: true, connections: 0 }
       );
     },
     SEED_CASE_TIMEOUT_MS

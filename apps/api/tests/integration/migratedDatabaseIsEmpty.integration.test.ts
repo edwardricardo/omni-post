@@ -12,15 +12,20 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
-import { assertSeedChannelConfigured, resolveSeedDatabaseUrl } from "./helpers/seedPrismaClient.js";
+import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
+import {
+  createMigratedScratchDatabase,
+  type MigratedScratchDatabase,
+} from "./helpers/migratedScratchDatabase.js";
 
 assertSeedChannelConfigured();
+
+/** Budget for every test and hook in this file: the migration in `before` blocks for minutes. */
+const TIMING = { timeout: 180_000 } as const;
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const BASELINE_REMOVAL = path.join(
@@ -30,9 +35,6 @@ const BASELINE_REMOVAL = path.join(
 
 /** Prisma's own record of the migrations it applied: not data of the application. */
 const MIGRATION_RECORD = "public._prisma_migrations";
-
-/** Long enough for every migration on a loaded runner; a hung migration still ends the suite. */
-const MIGRATION_TIMEOUT_MS = 120_000;
 
 /**
  * The three values every row of the rotation log's removed baseline carries. The migration names
@@ -65,13 +67,6 @@ const makeRotation = (id: string, overrides: Partial<RotationRow> = {}): Rotatio
   ...overrides,
 });
 
-/** The connection string of another database on the same server, with the same credentials. */
-function urlOfDatabase(ownerUrl: string, database: string): string {
-  const url = new URL(ownerUrl);
-  url.pathname = `/${database}`;
-  return url.toString();
-}
-
 /** Every table outside the server's own catalogs that holds at least one row, as `schema.table`. */
 async function tablesHoldingRows(client: PrismaClient): Promise<string[]> {
   const tables = await client.$queryRawUnsafe<Array<{ name: string; quoted: string }>>(
@@ -92,10 +87,8 @@ async function tablesHoldingRows(client: PrismaClient): Promise<string[]> {
 }
 
 describe("A database migrated from empty", { concurrency: 1 }, () => {
-  const database = `omnipost_empty_${randomBytes(6).toString("hex")}`;
-  let owner: PrismaClient | undefined;
+  let database: MigratedScratchDatabase | undefined;
   let scratch: PrismaClient | undefined;
-  let migration: SpawnSyncReturns<string> | undefined;
 
   /**
    * The migrated database, or a failed assertion that carries the migration's own output. The
@@ -103,54 +96,21 @@ describe("A database migrated from empty", { concurrency: 1 }, () => {
    * cancelling every case instead of failing one with the reason.
    */
   function migratedDatabase(): PrismaClient {
-    assert.ok(migration, `the migration of ${database} ran`);
-    // A child that never started, or that the timeout stopped, has no status: the reason is in
-    // its error or its signal, and its output may be missing.
-    const outcome = [
-      `status ${String(migration.status)}`,
-      ...(migration.signal ? [`signal ${migration.signal}`] : []),
-      ...(migration.error ? [migration.error.message] : []),
-    ].join(", ");
-    const output = [migration.stdout, migration.stderr].filter(Boolean).join("\n");
-    assert.equal(
-      migration.status,
-      0,
-      `the migration of ${database} ended with ${outcome}:\n${output}`
-    );
-    assert.ok(scratch, `a client of ${database} was built`);
+    assert.ok(database, "the scratch database was created");
+    database.assertMigrated();
+    assert.ok(scratch, `a client of ${database.name} was built`);
     return scratch;
   }
 
   before(async () => {
-    const ownerUrl = resolveSeedDatabaseUrl();
-    owner = createTestPrismaClient(ownerUrl);
-    await owner.$executeRawUnsafe(`CREATE DATABASE "${database}"`);
-
-    const scratchUrl = urlOfDatabase(ownerUrl, database);
-    migration = spawnSync("pnpm", ["--filter", "@infra/prisma", "run", "migrate"], {
-      cwd: REPOSITORY_ROOT,
-      env: {
-        ...process.env,
-        MIGRATE_DATABASE_URL: scratchUrl,
-        // Prisma refuses an empty shadow URL, and one that names the database it migrates,
-        // although applying migrations never opens the shadow database. A caller that exports
-        // none gets the name of a database nobody creates, and so a verdict on the rule.
-        SHADOW_DATABASE_URL:
-          process.env.SHADOW_DATABASE_URL || urlOfDatabase(ownerUrl, `${database}_shadow`),
-      },
-      encoding: "utf8",
-      timeout: MIGRATION_TIMEOUT_MS,
-    });
-    scratch = createTestPrismaClient(scratchUrl);
-  });
+    database = await createMigratedScratchDatabase("omnipost_empty");
+    scratch = createTestPrismaClient(database.url);
+  }, TIMING);
 
   after(async () => {
     await scratch?.$disconnect();
-    if (owner) {
-      await owner.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
-      await owner.$disconnect();
-    }
-  });
+    await database?.drop();
+  }, TIMING);
 
   it("holds no row but Prisma's own record of the migrations it applied", async () => {
     const client = migratedDatabase();
