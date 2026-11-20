@@ -66,10 +66,10 @@
     "@vitest/browser": {
       "status": "kept",
       "grounds": "plugin",
-      "utility": "Browser mode of apps/client/vitest.stories.config.ts, which runs every story in Chromium (ADR-0035).",
+      "utility": "Browser mode of the vitest.stories.config.ts of apps/client and apps/admin, which runs every story in Chromium (ADR-0035).",
       "replacement": "None: the story runner is vitest browser mode by decision.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client."
+      "note": "Declared in apps/admin and apps/client (apps/admin since 2026-11-20, when its Storybook was re-created on the client's runner)."
     },
     "msw": {
       "status": "kept",
@@ -717,23 +717,15 @@
       "utility": "String in .storybook/main.ts addons; axe checks of test:stories (parameters.a11y) — loader: vitest.stories.config.ts via addon-vitest, CI job Storybook Stories.",
       "replacement": "None: the axe checks of test:stories (ADR-0035).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client (devDependencies)."
-    },
-    "@storybook/addon-vitest": {
-      "status": "kept",
-      "grounds": "plugin",
-      "utility": "storybookTest() plugin of vitest.stories.config.ts — the stories gate (CI Storybook Stories, battery step stories).",
-      "replacement": "None: the plugin of the stories gate (ADR-0035).",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client (devDependencies)."
+      "note": "Declared in apps/admin and apps/client (devDependencies; apps/admin since 2026-11-20)."
     },
     "@storybook/nextjs-vite": {
       "status": "kept",
       "grounds": "plugin",
       "utility": "The framework string of .storybook/main.ts; the rest are type-only.",
-      "replacement": "None: the framework of the client Storybook (ADR-0035), patched for next 16.4 (ADR-0037).",
+      "replacement": "None: the framework of the client and admin Storybooks (ADR-0035), patched for next 16.4 (ADR-0037).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client (devDependencies)."
+      "note": "Declared in apps/admin and apps/client (devDependencies; apps/admin since 2026-11-20)."
     },
     "@tailwindcss/postcss": {
       "status": "kept",

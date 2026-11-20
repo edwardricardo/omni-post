@@ -886,9 +886,11 @@ jobs:
         run: pnpm --filter @apps/client test
 
   # ── Tier 0: Storybook stories as vitest browser tests (headless Chromium) ──
-  # Every client story renders in a real browser through @storybook/addon-vitest:
-  # its play function runs, axe fails it at `error` over WCAG 2.1 A/AA, and a
-  # console error or warning fails it. A job of its own because `test-frontend`
+  # Every story of the client portal, of packages/ui and of the administration
+  # portal renders in a real browser through @storybook/addon-vitest: its play
+  # function runs, axe fails it at `error` over WCAG 2.1 A/AA, and a console error
+  # or warning fails it. One Chromium serves both portals: each resolves the same
+  # playwright driver from the catalog. A job of its own because `test-frontend`
   # (Frontend Tests, above) runs the jsdom suite, which must never start a browser.
   stories:
     name: Storybook Stories
@@ -936,6 +938,9 @@ jobs:
 
       - name: Run the stories (vitest browser mode)
         run: pnpm --filter @apps/client test:stories
+
+      - name: Run the administration portal's stories (vitest browser mode)
+        run: pnpm --filter @apps/admin test:stories
 
   # ── The documented start, repeated on a clean checkout ──
   # A job of its own, and not a step of `Integration Tests`, whose service containers, synthesized

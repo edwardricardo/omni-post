@@ -11,7 +11,8 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./determinism": "./src/determinism/index.ts"
+    "./determinism": "./src/determinism/index.ts",
+    "./story-console-contract": "./src/storyConsoleContract.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

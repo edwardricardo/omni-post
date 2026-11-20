@@ -1,15 +1,16 @@
 /**
- * @file vitest.setup.ts
- * @description Setup file of the story tests: a story that writes to console.error or
- *              console.warn while it renders or plays fails its test. React reports a missing
+ * @file storyConsoleContract.ts
+ * @description Setup module of every portal's story tests: a story that writes to console.error
+ *              or console.warn while it renders or plays fails its test. React reports a missing
  *              key, an update outside act() and an invalid DOM property there, so a story can
- *              pass axe and its play function and still be broken.
+ *              pass axe and its play function and still be broken. A portal's
+ *              vitest.stories.config.ts names it in setupFiles; importing it registers the hooks.
  * @layer infrastructure
  */
 import { afterEach, beforeEach, type MockInstance, vi } from "vitest";
 
 // @storybook/addon-vitest provisions the preview annotations itself (Storybook 10.3 and later),
-// so this file carries only the console contract.
+// so this module carries only the console contract.
 
 const CONSOLE_METHODS = ["error", "warn"] as const;
 

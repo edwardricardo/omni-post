@@ -6,11 +6,11 @@
     "production": 97,
     "devOnly": 63,
     "types": 9,
-    "aboveFloor": 48,
-    "underFloor": 112,
+    "aboveFloor": 49,
+    "underFloor": 111,
     "atZero": 14,
-    "underFloorWithSites": 98,
-    "kept": 106,
+    "underFloorWithSites": 97,
+    "kept": 105,
     "remove": 6,
     "pending": 1
   },
@@ -1051,26 +1051,10 @@
       "typedTarget": null,
       "declarations": [
         {
-          "manifest": "apps/client/package.json",
+          "manifest": "apps/admin/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "kept",
-      "sites": {
-        "config-string": {
-          "config": ["apps/client/.storybook/main.ts"]
-        }
-      }
-    },
-    {
-      "name": "@storybook/addon-vitest",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
+        },
         {
           "manifest": "apps/client/package.json",
           "block": "devDependencies",
@@ -1082,19 +1066,43 @@
       "real": 2,
       "decision": "kept",
       "sites": {
-        "runtime-import": {
-          "config": ["apps/client/vitest.stories.config.ts"]
-        },
         "config-string": {
-          "config": ["apps/client/.storybook/main.ts"]
+          "config": ["apps/admin/.storybook/main.ts", "apps/client/.storybook/main.ts"]
         }
       }
+    },
+    {
+      "name": "@storybook/addon-vitest",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
     },
     {
       "name": "@storybook/nextjs-vite",
       "scope": "dev-only",
       "typedTarget": null,
       "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
         {
           "manifest": "apps/client/package.json",
           "block": "devDependencies",
@@ -1103,19 +1111,25 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "type-only": {
           "test": [
+            "apps/admin/components/accounts/AccountStatusBadge.stories.tsx",
+            "apps/admin/components/ui/Badge.stories.tsx",
             "apps/client/stories/foundation/Colors.stories.tsx",
             "apps/client/stories/foundation/Spacing.stories.tsx",
             "apps/client/stories/foundation/Typography.stories.tsx"
           ],
-          "config": ["apps/client/.storybook/main.ts", "apps/client/.storybook/preview.tsx"]
+          "config": [
+            "apps/admin/.storybook/main.ts",
+            "apps/client/.storybook/main.ts",
+            "apps/client/.storybook/preview.tsx"
+          ]
         },
         "config-string": {
-          "config": ["apps/client/.storybook/main.ts"]
+          "config": ["apps/admin/.storybook/main.ts", "apps/client/.storybook/main.ts"]
         }
       }
     },
@@ -1136,6 +1150,7 @@
       "decision": "kept",
       "sites": {
         "type-only": {
+          "production": ["packages/ui/src/storybook/index.tsx"],
           "test": [
             "packages/ui/src/components/avatar.stories.tsx",
             "packages/ui/src/components/badge.stories.tsx",
@@ -2425,6 +2440,11 @@
       "typedTarget": null,
       "declarations": [
         {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "apps/client/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -2442,6 +2462,11 @@
       "typedTarget": null,
       "declarations": [
         {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "apps/client/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -2449,11 +2474,11 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "config": ["apps/client/vitest.stories.config.ts"]
+          "config": ["apps/admin/vitest.stories.config.ts", "apps/client/vitest.stories.config.ts"]
         }
       }
     },
@@ -3796,6 +3821,11 @@
       "typedTarget": null,
       "declarations": [
         {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "apps/client/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -4167,6 +4197,11 @@
       "scope": "dev-only",
       "typedTarget": null,
       "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
         {
           "manifest": "apps/client/package.json",
           "block": "devDependencies",
@@ -4935,7 +4970,7 @@
       "decision": "kept",
       "sites": {
         "type-only": {
-          "config": ["apps/client/.storybook/preview.tsx"]
+          "config": ["apps/admin/.storybook/preview.tsx", "apps/client/.storybook/preview.tsx"]
         }
       }
     },
