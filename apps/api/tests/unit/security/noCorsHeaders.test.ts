@@ -6,8 +6,10 @@
  *   the webhook stream pin the two sites that had one through `app.inject`; no unit test boots
  *   `createApp()`, so this suite reads every source file under `apps/api/src` instead and fails on
  *   CORS written anywhere: a CORS response header named in code (`Access-Control-Allow-*`,
- *   `Access-Control-Expose-*`, `Access-Control-Max-Age`), a string that names a CORS plugin, which
- *   catches an import, a `require`, a dynamic import and a load by path, or a CORS plugin in
+ *   `Access-Control-Expose-*`, `Access-Control-Max-Age`), a string that names `@fastify/cors` or
+ *   `fastify-cors`, which catches an import, a `require`, a dynamic import and a load by path, the
+ *   bare name `cors` as a module specifier (after `from` or `import`, or inside `import(`,
+ *   `require(`, `require.resolve(` or `import.meta.resolve(`), or a CORS plugin in
  *   `apps/api/package.json`, by its name or by its specifier, so an npm alias
  *   (`"my-cors": "npm:@fastify/cors@11.1.0"`) fails too. Each finding names its file and line.
  *
@@ -27,7 +29,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
 import { describe, expect, it } from "vitest";
 
@@ -40,7 +42,9 @@ type Scanner = {
 type Manifest = Record<string, Record<string, string> | undefined>;
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
-const scan = (await import(path.join(REPO_ROOT, "scripts/legal/lib/source-scan.mjs"))) as Scanner;
+const scan = (await import(
+  pathToFileURL(path.join(REPO_ROOT, "scripts/legal/lib/source-scan.mjs")).href
+)) as Scanner;
 
 const API_SOURCE = "apps/api/src";
 const API_MANIFEST = "apps/api/package.json";
@@ -61,7 +65,7 @@ const CORS_PLUGIN_SPECIFIER = /(?:^|[:/])(?:@fastify\/cors|fastify-cors|cors)(?:
 const FINDINGS: readonly RegExp[] = [
   /(access-control-(?:allow-[a-z-]*|expose-[a-z-]*|max-age))/gi,
   /(@fastify\/cors|fastify-cors)/g,
-  /(?:\bfrom\s*|\b(?:import|require)\s*\(\s*)(["'`]cors(?:\/[^"'`\n]*)?["'`])/g,
+  /(?:\b(?:from|import)\s*|\b(?:import(?:\.meta\.resolve)?|require(?:\.resolve)?)\s*\(\s*)(["'`]cors(?:\/[^"'`\n]*)?["'`])/g,
 ];
 
 /**
@@ -148,6 +152,30 @@ describe("the API sends no CORS header", () => {
       'sample.ts:8: "cors"',
       "sample.ts:11: Access-Control-Allow-Credentials",
       "sample.ts:12: Access-Control-Allow-Methods",
+    ]);
+  });
+
+  it("finds the bare name cors in a side-effect import, and not in a word that only contains it", () => {
+    const sample = ['import "cors";', "import 'cors/lib/index.js';", 'import "cors-utils";'].join(
+      "\n"
+    );
+
+    expect(corsFindings("sample.ts", sample)).toEqual([
+      'sample.ts:1: "cors"',
+      "sample.ts:2: 'cors/lib/index.js'",
+    ]);
+  });
+
+  it("finds the bare name cors where a module is resolved rather than loaded", () => {
+    const sample = [
+      'const where = require.resolve("cors");',
+      'const url = import.meta.resolve("cors");',
+      'const mode = { mode: "cors" };',
+    ].join("\n");
+
+    expect(corsFindings("sample.ts", sample)).toEqual([
+      'sample.ts:1: "cors"',
+      'sample.ts:2: "cors"',
     ]);
   });
 

@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1226  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15410 |
+| Blocks                  | 15414 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1002,14 +1002,14 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/channelCredentialsCrypto.shared.test.ts`                                | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/csrfMiddleware.test.ts`                                                 | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/decryptAuditContext.test.ts`                                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`                                        | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`                                        | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`                                      | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/inputValidation.mutations.test.ts`                                      | test             | 161    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigest.test.ts`                                                     | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestCanonicalize.test.ts`                                         | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestUnicodeTable.test.ts`                                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/noCorsHeaders.test.ts`                                                  | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/noCorsHeaders.test.ts`                                                  | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.parity.test.ts`                                         | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.test.ts`                                                | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/sanitizerOutputs.test.ts`                                               | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
@@ -1070,7 +1070,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/videoProcessor.codecs-watermark.test.ts`                                         | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.metadata-processing.test.ts`                                      | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 40     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 41     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookDashboardService.test.ts`                                                 | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.processing.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
