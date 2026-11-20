@@ -1,10 +1,11 @@
 /**
  * @file migratedScratchDatabase.ts
- * @description A database of a suite's own, created empty on the server of the owner channel and
- *              migrated with the script CI and the start command run, and the wait that observes
- *              backends of that database blocked on a lock. A suite that must start from a
- *              migrated empty database, or force two writers to overlap, uses these instead of
- *              sharing the integration database.
+ * @description A database of a suite's own, created empty on the server of the owner channel,
+ *              migrated with the script CI and the start command run, and emptied on request back
+ *              to the state the migration left, and the wait that observes backends of that
+ *              database blocked on a lock. A suite that must start from a migrated empty database,
+ *              or force two writers to overlap, uses these instead of sharing the integration
+ *              database.
  * @layer infrastructure
  */
 
@@ -137,15 +138,55 @@ export interface MigratedScratchDatabase {
    * every case instead of failing one with the reason.
    */
   assertMigrated(): void;
-  /** Drops the database, closing its open connections, and disconnects the owner client. */
+  /**
+   * Removes every row of every table of the database but Prisma's record of the migrations it
+   * applied, and starts again the sequences those tables' columns own. No migration inserts a
+   * row of the application, so the database then holds what the migration left, whatever a case
+   * wrote before. It runs on a connection of this database only.
+   */
+  empty(): Promise<void>;
+  /** Drops the database, closing its open connections, and disconnects both clients. */
   drop(): Promise<void>;
 }
 
-/** The connection string of another database on the same server, with the same credentials. */
-function urlOfDatabase(ownerUrl: string, database: string): string {
+/**
+ * @function urlOfDatabase
+ * @description The connection string of another database on the same server, with the same
+ *   credentials.
+ * @param ownerUrl - The owner channel's connection string
+ * @param database - The name of the other database
+ * @returns The connection string of `database`
+ */
+export function urlOfDatabase(ownerUrl: string, database: string): string {
   const url = new URL(ownerUrl);
   url.pathname = `/${database}`;
   return url.toString();
+}
+
+/**
+ * @function emptyingStatement
+ * @description The one statement that empties `database`: every table of the public schema but
+ *   `_prisma_migrations`, in one `TRUNCATE`, so the foreign keys among them hold, with the
+ *   sequences their columns own started again, so a generated number does not depend on what ran
+ *   before. It raises, and removes nothing, when the database of the connection that runs it is
+ *   not `database`: a client of the owner channel's own database that ran it would otherwise
+ *   empty that database.
+ * @param database - The name of the only database the statement may empty
+ * @returns The statement, run as one raw command
+ */
+export function emptyingStatement(database: string): string {
+  return `DO $$
+    DECLARE tables text;
+    BEGIN
+      IF current_database() <> '${database}' THEN
+        RAISE EXCEPTION 'the emptying of ${database} ran on %', current_database();
+      END IF;
+      SELECT string_agg(format('%I.%I', schemaname, tablename), ', ')
+        INTO tables
+        FROM pg_tables
+       WHERE schemaname = 'public' AND tablename <> '_prisma_migrations';
+      EXECUTE 'TRUNCATE TABLE ' || tables || ' RESTART IDENTITY';
+    END $$`;
 }
 
 /**
@@ -153,9 +194,10 @@ function urlOfDatabase(ownerUrl: string, database: string): string {
  * @description Creates an empty database named after `prefix` and a random suffix on the owner
  *   channel's server, and applies every migration to it in a process group of its own, which ends
  *   whole when the migration outlives its limit. The migration's failure is not thrown:
- *   `assertMigrated` reports it.
+ *   `assertMigrated` reports it. `empty` runs on a client of that database the helper builds
+ *   from the URL of the database it created, never on the owner client.
  * @param prefix - The start of the database's name, which names the suite that owns it
- * @returns The database, its URL, the owner client and the migration's verdict
+ * @returns The database, its URL, the owner client, the migration's verdict and its emptying
  */
 export async function createMigratedScratchDatabase(
   prefix: string
@@ -182,6 +224,7 @@ export async function createMigratedScratchDatabase(
       timeoutMs: MIGRATION_TIMEOUT_MS,
     }
   );
+  const scratch = createTestPrismaClient(url);
 
   return {
     name,
@@ -202,7 +245,11 @@ export async function createMigratedScratchDatabase(
         `the migration of ${name} ended with ${outcome}:\n${output}`
       );
     },
+    async empty() {
+      await scratch.$executeRawUnsafe(emptyingStatement(name));
+    },
     async drop() {
+      await scratch.$disconnect();
       await owner.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
       await owner.$disconnect();
     },
