@@ -47,8 +47,9 @@
  *   RED, never a waived warning.
  *
  *   Its residual limits, stated rather than implied. (1) A title may not hold every character: a
- *   carriage return before the line's end, U+2028 or U+2029 makes the line read whole (RED), and a
- *   line feed splits it into lines that are each read whole. (2) That a path holds no `:` is
+ *   carriage return before the line's end, U+2028 or U+2029 makes the line read whole, so a
+ *   warning word in its title counts again, and a line feed splits it into lines that are each
+ *   read whole. (2) That a path holds no `:` is
  *   assumed, never checked: a path holding `::` has the text after its first `::` read as the
  *   title, and a path holding a single `:` makes the line read whole. (3) No detail is known to hold
  *   no ` (<kind>): `: a behaviour-change detail lists changed file names and record file names, and
