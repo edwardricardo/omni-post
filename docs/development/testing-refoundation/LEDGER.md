@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1239  |
+| Files                   | 1242  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1069  |
+| KEEP                    | 1072  |
 | ADJUDICATE              | 97    |
 | unmeasured              | 0     |
-| Machine rows            | 1229  |
+| Machine rows            | 1232  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15454 |
+| Blocks                  | 15460 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -552,7 +552,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/admin/secretsRotationRoutes.test.ts`                                             | test             | 4      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/webhookAdminRoutes.test.ts`                                                | test             | 8      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/adminAuthMiddleware.rateLimit.test.ts`                                           | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts`                                          | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts`                                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -771,6 +771,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/domain/repositories/SubscriptionStatsQueryRepository.test.ts`                    | test             | 4      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/domain/repositories/ThreadReadRepository.test.ts`                                | test             | 9      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/domain/repositories/TrackedTermQuery.test.ts`                                    | test             | 3      | 0          | ADJUDICATE | machine                     | subject-not-imported |
+| `apps/api/tests/unit/domain/repositories/adminSessionRevokeReasonContract.type-test.ts`               | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/domain/security/rotationStatusRules.test.ts`                                     | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/value-objects.approval-status.test.ts`                                    | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/value-objects.fixtures.ts`                                                | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -790,6 +791,8 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/helpers/mockAuthMiddleware.ts`                                                   | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/mockPrisma.ts`                                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/prismaKnownRequestErrors.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `apps/api/tests/unit/helpers/processState.test.ts`                                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/helpers/processState.ts`                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/seedCustomerRoles.ts`                                                    | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/seedPrismaClient.resolution.test.ts`                                     | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/helpers/seedSystemRoles.ts`                                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
