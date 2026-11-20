@@ -388,14 +388,15 @@ the whole of their coverage — the step says so in its own output rather than
 letting a silent pass read as more than it is.
 
 **And the Node the images run is held to its own release line.** Trivy never
-reads the `node` executable, so the `Node runtime advisory` step runs
-`node --version` in each image and `scripts/testing/node-runtime-advisory-gate.mjs`
-fails when `nodejs.org/dist/index.json` lists a later release of that major line
-with `security: true`, naming the release to raise both stages to. Once
-`Container Security` is a required check, the step blocks every merge in two
-cases, and in both the scanner after it does not run and the images are not
-pushed on main: the index is unreachable after three attempts, or Node has
-published a security release of the images' line that the distroless base does
+reads the `node` executable, so each leg of `Container Security` reports the
+`node --version` its image prints, and the `Node Runtime Advisory` job runs
+`scripts/testing/node-runtime-advisory-gate.mjs` on the four versions: it fails
+when `nodejs.org/dist/index.json` lists a later release of that major line with
+`security: true`, naming the release to raise both stages to. No ruleset
+requires that job and no other job needs it, so its red blocks no merge, no
+scan and no push, and every run judges the images again. It is red in two cases
+the team cannot repair at once: the index is unreachable after three attempts,
+or Node has published a security release of the images' line that the distroless base does
 not ship yet, which it followed by about two days for v26.13.1 (dated
 2026-11-10 by the index; the digest the images took for it, `80631bd2`, was uploaded on
 2026-11-12, §"Moved to Node 26.13.1 on 2026-11-14"). In the first case, re-run the job once nodejs.org answers; in the

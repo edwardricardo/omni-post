@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1260  |
+| Files                   | 1261  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1091  |
+| KEEP                    | 1092  |
 | ADJUDICATE              | 96    |
 | unmeasured              | 0     |
-| Machine rows            | 1248  |
+| Machine rows            | 1249  |
 | Confirmed rows          | 12    |
-| Blocks                  | 15613 |
+| Blocks                  | 15634 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -996,6 +996,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/maturityWatchlist.test.ts`                                               | test             | 30     | 0          | ADJUDICATE | machine                         | opaque               |
 | `apps/api/tests/unit/scripts/mutationDiff.test.ts`                                                    | test             | 64     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/mutationDiffNode.test.ts`                                                | test             | 16     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts`                                         | test             | 21     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/nodeSummaryReporter.test.ts`                                             | test             | 15     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/oauthScopesInventory.test.ts`                                            | test             | 15     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                         | behavioural          |

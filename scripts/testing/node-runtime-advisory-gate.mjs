@@ -1,9 +1,9 @@
 // @ts-check
 /**
  * @file node-runtime-advisory-gate.mjs
- * @description The Node runtime advisory gate, run by the `Container Security` job of
- *   `.github/workflows/production-ci.yml` on the version each image's `node --version` prints. The
- *   image scanner reads an image's OS packages and the `package.json` of each module, never the
+ * @description The Node runtime advisory gate, run by the `Node Runtime Advisory` job of
+ *   `.github/workflows/production-ci.yml` on the version each image's `node --version` prints, which
+ *   each leg of the `Container Security` job reports. The image scanner reads an image's OS packages and the `package.json` of each module, never the
  *   `node` executable a distroless base ships without a package record, so an image could run a Node
  *   release with published advisories while every scan passed. This gate holds that executable to
  *   Node's own release index, `https://nodejs.org/dist/index.json`.
@@ -59,15 +59,17 @@
  *   the maturity watchlist's review reads Node's schedule. (3) It reads the version the executable
  *   prints, not how it was built: a base rebuilt with a backported fix still reads as its older
  *   version and fails. (4) A security release published between two runs of the job is seen by the
- *   next run only. (5) What it costs as a required check. Every leg of `Container Security` runs
- *   this step, and that job is becoming a required check, so two events block every merge: the
- *   index is unreachable after the three attempts, or Node has published a security release of the
- *   images' line that their base does not ship yet; the distroless image followed v26.13.1 by
- *   about two days (the index dates the release 2026-11-10, and the digest the images took for it
- *   was uploaded on 2026-11-12: `docs/deployment/base-images.md`, §"Moved to Node 26.13.1 on
- *   2026-11-14"). In both cases the scanner step after this one does not run, and on main the
- *   images are not pushed. On the first, the operator re-runs the job once nodejs.org answers. On
- *   the second, the operator raises the build stage to the release and waits for, or pins, the
+ *   next run only. (5) Where it runs, and what its red costs. The `Node Runtime Advisory` job runs
+ *   it; no ruleset requires that job and no other job needs it, so its red blocks no merge, no image
+ *   scan and no push, and every run of the workflow judges the images again, keeping nothing from
+ *   the run before. Two events turn it red that the team cannot repair at once: the index is
+ *   unreachable after the three attempts, or Node has published a security release of the images'
+ *   line that their base does not ship yet; the distroless image followed v26.13.1 by about two
+ *   days (the index dates the release 2026-11-10, and the digest the images took for it was
+ *   uploaded on 2026-11-12: `docs/deployment/base-images.md`, §"Moved to Node 26.13.1 on
+ *   2026-11-14"). An image whose leg of `Container Security` reported no version never reaches this
+ *   script: the job names it as not checked. On the first event, the operator re-runs the job once
+ *   nodejs.org answers. On the second, the operator raises the build stage to the release and waits for, or pins, the
  *   distroless digest that ships it, by the procedure of `docs/deployment/base-images.md`
  *   (§"How to extend", items 2 and 3, and the move of 2026-11-14 as its worked case).
  *

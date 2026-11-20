@@ -1,7 +1,7 @@
 /**
  * @file nodeRuntimeAdvisoryGate.test.ts
- * @description Pins `scripts/testing/node-runtime-advisory-gate.mjs`, the gate the `Container
- *   Security` job runs on the Node version each image prints: it exits 1 when Node's release index
+ * @description Pins `scripts/testing/node-runtime-advisory-gate.mjs`, the gate the `Node Runtime
+ *   Advisory` job runs on the Node version each image prints: it exits 1 when Node's release index
  *   lists a later stable release of the image's major line with `security: true`, 0 when none, 2 on a
  *   usage error and 3, never 0 and never 1, when the index cannot be read in full.
  *
