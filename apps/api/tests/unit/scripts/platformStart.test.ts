@@ -143,6 +143,49 @@ const SECRETS = [
   "ADMIN_PASSWORD",
 ];
 
+/** Lowercase hex of `bytes` random bytes: two characters per byte. */
+const hexOf = (bytes: number): RegExp => new RegExp(`^[0-9a-f]{${String(bytes * 2)}}$`);
+
+/** The value a secret is held to, read off the generated environment. */
+type SecretReading = (values: Record<string, string | undefined>) => string;
+
+/** The variable's own value. */
+const own =
+  (key: string): SecretReading =>
+  (values) =>
+    values[key] ?? "";
+
+/**
+ * Every generated secret with the value it is held to and its size and alphabet, as the generator
+ * draws it: each password 24 random bytes in hex, each key and HMAC secret 32 in hex, the platform
+ * encryption key 32 in base64, and the key ring one entry of 32 in hex under generation 1.
+ */
+const SECRET_SHAPES: ReadonlyArray<[string, SecretReading, RegExp]> = [
+  ["POSTGRES_PASSWORD", own("POSTGRES_PASSWORD"), hexOf(24)],
+  ["GF_SECURITY_ADMIN_PASSWORD", own("GF_SECURITY_ADMIN_PASSWORD"), hexOf(24)],
+  ["MINIO_ROOT_PASSWORD", own("MINIO_ROOT_PASSWORD"), hexOf(24)],
+  ["JWT_ACCESS_SECRET", own("JWT_ACCESS_SECRET"), hexOf(32)],
+  ["JWT_REFRESH_SECRET", own("JWT_REFRESH_SECRET"), hexOf(32)],
+  ["CUSTOMER_JWT_SECRET", own("CUSTOMER_JWT_SECRET"), hexOf(32)],
+  ["ADMIN_JWT_ACCESS_SECRET", own("ADMIN_JWT_ACCESS_SECRET"), hexOf(32)],
+  ["ADMIN_JWT_REFRESH_SECRET", own("ADMIN_JWT_REFRESH_SECRET"), hexOf(32)],
+  ["COOKIE_SECRET", own("COOKIE_SECRET"), hexOf(32)],
+  ["PLATFORM_ENCRYPTION_KEY", own("PLATFORM_ENCRYPTION_KEY"), /^[A-Za-z0-9+/]{43}=$/],
+  ["OAUTH_ENCRYPTION_KEY", own("OAUTH_ENCRYPTION_KEY"), hexOf(32)],
+  [
+    "DELETION_NAME_DIGEST_KEY_RING",
+    (values) =>
+      JSON.stringify(Object.keys(JSON.parse(values.DELETION_NAME_DIGEST_KEY_RING ?? "{}"))),
+    /^\["1"\]$/,
+  ],
+  [
+    "DELETION_NAME_DIGEST_KEY_RING's entry",
+    (values) => String(JSON.parse(values.DELETION_NAME_DIGEST_KEY_RING ?? "{}")["1"] ?? ""),
+    hexOf(32),
+  ],
+  ["ADMIN_PASSWORD", own("ADMIN_PASSWORD"), hexOf(24)],
+];
+
 /** Which database a connection reached, as the command asks a server for it. */
 const WHICH_DATABASE =
   "(SELECT system_identifier FROM pg_control_system())::text || ' ' || (SELECT oid FROM pg_database WHERE datname = current_database())::text";
@@ -902,6 +945,15 @@ describe("the generated environment", () => {
       password: values.ADMIN_PASSWORD,
     });
   });
+
+  it.each(SECRET_SHAPES)(
+    "draws %s at the size and in the alphabet the generator means",
+    (_name, read, shape) => {
+      const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+      expect(read(values)).toMatch(shape);
+    }
+  );
 
   it("gives the platform encryption key exactly 32 bytes, written in base64", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));

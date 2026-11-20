@@ -4,9 +4,13 @@
  *              its own migrated from empty. Each case installs a trigger that fails one permission
  *              row of one role, partway through that role's list, so the seed dies while it writes
  *              that role. The role then holds what it held before the run: no row on a first run,
- *              its whole list on a rerun. The trigger counts each time it fires on a sequence,
- *              which a rollback does not undo, so a case also shows that the run died on that row
- *              and not before it.
+ *              and on a rerun the rows and the description it held, a stale permission row and a
+ *              changed description the case wrote before the rerun included, which a rerun that
+ *              completed would have removed and restored. The trigger counts each time it fires on
+ *              a sequence, which a rollback does not undo, so a case also shows that the run died
+ *              on that row and not before it. Each case asserts how the run ended first, with the
+ *              seed's output as the message, and then the rows, with no message, so a failure
+ *              shows the rows that differed.
  *
  *              The seed runs as `pnpm db:seed` runs it (`tsx --conditions development seed.ts` in
  *              `infra/prisma`), under `NODE_ENV=test`, with a fake administrator password and a
@@ -51,6 +55,12 @@ const FAILURE = {
 
 /** The two tables of permission rows, one per kind of role. */
 type PermissionTable = "RolePermission" | "CustomerRolePermission";
+
+/** A permission no definition holds, which a completed run deletes from the role. */
+const STALE_PERMISSION = "probe:stale";
+
+/** A description no definition holds, which a completed run overwrites with the definition's. */
+const CHANGED_DESCRIPTION = "A description the case wrote before the rerun";
 
 const execFileAsync = promisify(execFile);
 
@@ -162,6 +172,15 @@ async function customerRolePermissions(
   return role === null ? null : role.permissions.map((row) => row.permission).sort();
 }
 
+/** The description of an administration role, or null when the role has no row. */
+async function adminRoleDescription(client: PrismaClient, roleId: string): Promise<string | null> {
+  const role = await client.role.findUnique({
+    where: { id: roleId },
+    select: { description: true },
+  });
+  return role?.description ?? null;
+}
+
 describe("The development seed's role writes on a migrated database", { concurrency: 1 }, () => {
   let database: MigratedScratchDatabase | undefined;
   let scratch: PrismaClient | undefined;
@@ -194,21 +213,16 @@ describe("The development seed's role writes on a migrated database", { concurre
         const run = await runSeed(url);
 
         assert.deepStrictEqual(
+          { code: run.code, killed: run.killed, fired: await failuresFired(client) },
+          { code: 1, killed: false, fired: 1 },
+          run.output
+        );
+        assert.deepStrictEqual(
           {
-            code: run.code,
-            killed: run.killed,
-            fired: await failuresFired(client),
             superAdmin: await adminRolePermissions(client, SUPER_ADMIN_ROLE.id),
             admin: await adminRolePermissions(client, "role-admin"),
           },
-          {
-            code: 1,
-            killed: false,
-            fired: 1,
-            superAdmin: [...SUPER_ADMIN_ROLE.permissions].sort(),
-            admin: null,
-          },
-          run.output
+          { superAdmin: [...SUPER_ADMIN_ROLE.permissions].sort(), admin: null }
         );
       } finally {
         await removeFailure(client, "RolePermission");
@@ -225,23 +239,18 @@ describe("The development seed's role writes on a migrated database", { concurre
       try {
         const run = await runSeed(url);
 
+        assert.deepStrictEqual(
+          { code: run.code, killed: run.killed, fired: await failuresFired(client) },
+          { code: 1, killed: false, fired: 1 },
+          run.output
+        );
         const owner = await customerRolePermissions(client, "role-owner");
         assert.deepStrictEqual(
           {
-            code: run.code,
-            killed: run.killed,
-            fired: await failuresFired(client),
             ownerHoldsTheFailedPermission: owner?.includes("approval:review") ?? false,
             manager: await customerRolePermissions(client, "role-manager"),
           },
-          {
-            code: 1,
-            killed: false,
-            fired: 1,
-            ownerHoldsTheFailedPermission: true,
-            manager: null,
-          },
-          run.output
+          { ownerHoldsTheFailedPermission: true, manager: null }
         );
       } finally {
         await removeFailure(client, "CustomerRolePermission");
@@ -250,7 +259,7 @@ describe("The development seed's role writes on a migrated database", { concurre
   );
 
   it(
-    "keeps every permission a role held when a rerun fails partway through it",
+    "keeps every row and the description a role held when a rerun fails partway through it",
     TIMING,
     async () => {
       const { url, client } = migrated();
@@ -261,20 +270,32 @@ describe("The development seed's role writes on a migrated database", { concurre
         complete.output
       );
       const held = await adminRolePermissions(client, "role-support");
-      assert.ok(held?.includes("audit:read"), "the role holds the permission the case fails");
+      assert.ok(
+        held !== null && held.includes("audit:read"),
+        "the role holds the permission the case fails"
+      );
+      await client.rolePermission.create({
+        data: { roleId: "role-support", permission: STALE_PERMISSION },
+      });
+      await client.role.update({
+        where: { id: "role-support" },
+        data: { description: CHANGED_DESCRIPTION },
+      });
       await failPermissionRow(client, "RolePermission", "role-support", "audit:read");
       try {
         const rerun = await runSeed(url);
 
         assert.deepStrictEqual(
-          {
-            code: rerun.code,
-            killed: rerun.killed,
-            fired: await failuresFired(client),
-            support: await adminRolePermissions(client, "role-support"),
-          },
-          { code: 1, killed: false, fired: 1, support: held },
+          { code: rerun.code, killed: rerun.killed, fired: await failuresFired(client) },
+          { code: 1, killed: false, fired: 1 },
           rerun.output
+        );
+        assert.deepStrictEqual(
+          {
+            permissions: await adminRolePermissions(client, "role-support"),
+            description: await adminRoleDescription(client, "role-support"),
+          },
+          { permissions: [...held, STALE_PERMISSION].sort(), description: CHANGED_DESCRIPTION }
         );
       } finally {
         await removeFailure(client, "RolePermission");

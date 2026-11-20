@@ -41,17 +41,21 @@ export interface ProcessGroupOptions {
 }
 
 /**
- * Ends every process of the group `pid` leads. A group is named by its leader's negative pid, and
- * `kill(-0)` names this process's own group while `kill(-1)` names every process it may signal, so
- * a pid that is missing or not above 1 ends nothing. A group that already ended is not an error.
+ * Ends every process of the group `pid` leads, which is named by its leader's negative pid. A
+ * group that already ended is not an error. Any other failure is returned, never raised, because
+ * the caller runs in a timer, where a raise would end the whole test run.
+ * @returns The reason the group could not be signalled, or `undefined`.
  */
-function endProcessGroup(pid: number | undefined): void {
-  if (pid === undefined || !Number.isInteger(pid) || pid <= 1) return;
+function endProcessGroup(pid: number | undefined): Error | undefined {
+  // -1 would signal every process this one may, and -0 its own group: a pid not above 1 ends nothing.
+  if (pid === undefined || !Number.isInteger(pid) || pid <= 1) return undefined;
   try {
     process.kill(-pid, "SIGKILL");
+    return undefined;
   } catch (error: unknown) {
     const code = error instanceof Error && "code" in error ? error.code : undefined;
-    if (code !== "ESRCH") throw error;
+    if (code === "ESRCH") return undefined;
+    return error instanceof Error ? error : new Error(String(error));
   }
 }
 
@@ -61,7 +65,9 @@ function endProcessGroup(pid: number | undefined): void {
  *   event loop, so the hook or test that waits for it keeps its own timeout. When the command
  *   outlives `timeoutMs`, the whole group ends, the processes it started included, and the outcome
  *   carries an error that names the limit. The outcome is resolved once the process has ended and
- *   every holder of its output has closed it.
+ *   every holder of its output has closed it. When the group cannot be signalled, the outcome is
+ *   resolved at once, with no status and no signal, and its error names the limit and carries the
+ *   refusal as its cause: the process may still be running.
  * @param command - The program to run
  * @param args - Its arguments
  * @param options - The working directory, the environment and the limit in milliseconds
@@ -84,10 +90,15 @@ export function runInOwnProcessGroup(
     let failure: Error | undefined;
     let settled = false;
     const timer = setTimeout(() => {
-      failure = new Error(
-        `${command} outlived its limit of ${String(options.timeoutMs)} ms, so its process group was ended`
-      );
-      endProcessGroup(child.pid);
+      const limit = `${command} outlived its limit of ${String(options.timeoutMs)} ms`;
+      const refusal = endProcessGroup(child.pid);
+      if (refusal === undefined) {
+        failure = new Error(`${limit}, so its process group was ended`);
+        return;
+      }
+      const reason = `${limit}, and its process group could not be ended: ${refusal.message}`;
+      failure = new Error(reason, { cause: refusal });
+      settle(null, null);
     }, options.timeoutMs);
     const settle = (status: number | null, signal: NodeJS.Signals | null): void => {
       if (settled) return;
