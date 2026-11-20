@@ -4,8 +4,10 @@
  *              in one Chromium browser, against an administration portal and an API that are
  *              already running on a database that holds no administrator yet. The spec spends a
  *              single-use password, so it is never retried, and it types passwords into the
- *              browser, so the run keeps no trace, no screenshot and no video, uses no reporter
- *              that lists steps, and writes no snapshot of the page of a failed test.
+ *              browser, so the run keeps no trace, no screenshot and no video, reports through
+ *              `list` and `github` only, which print no fill step, and writes no snapshot of the
+ *              page of a failed test. A run that overrides this configuration on the command line,
+ *              with `--trace on` or `--reporter html` for example, is not guarded.
  * @layer infrastructure
  */
 import { defineConfig, devices } from "@playwright/test";
@@ -31,7 +33,9 @@ export default defineConfig({
   // A retry would sign in again with a password the first attempt may already have spent.
   retries: 0,
 
-  // The title of a fill step carries the value it typed, so no reporter that lists steps is used.
+  // The title of a fill step carries the value it typed. `list` prints only `test.step` steps,
+  // even under PLAYWRIGHT_LIST_PRINT_STEPS, and `github` only failures; `html`, `json` and `blob`
+  // would record the fill.
   reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
 
   use: {

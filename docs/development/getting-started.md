@@ -61,7 +61,7 @@ pnpm --filter @apps/admin exec playwright install chromium   # once per Playwrig
 pnpm --filter @apps/admin run test:first-administrator
 ```
 
-The command reads the root `.env`, as the API does. A second run fails, because the command refuses once an administrator exists: start again from an empty database first. The run is never retried and keeps no trace, screenshot, video or step report, since it types passwords. The CI job `Platform Start` runs it after its empty-database check.
+Like the API, the command reads the root `.env` (`.env.test` when `NODE_ENV=test`), and a variable the shell already exports wins over the file. A second run fails, because the command refuses once an administrator exists: start again from an empty database first. Since it types passwords, the run is never retried and its configuration keeps no trace, screenshot or video and reports through `list` and `github` only; `--trace` or `--reporter` on the command line overrides that. The CI job `Platform Start` runs it after its empty-database check.
 
 ## Environment Configuration
 

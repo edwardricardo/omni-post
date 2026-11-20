@@ -355,6 +355,25 @@ export default defineConfig([
     plugins: { testing: testingPlugin },
     rules: { "testing/no-child-process-in-unit": "error" },
   },
+  // The first administrator's journey types passwords into the portal. A Playwright page or
+  // locator matcher that fails attaches an aria snapshot of the page, which holds the value of
+  // every input, to the error context Playwright writes to a file; `expect.poll` over a value
+  // attaches none. The names are every method of `PageAssertions` and `LocatorAssertions` in
+  // Playwright's own types; no value matcher has one of them.
+  {
+    files: ["apps/admin/e2e/first-administrator/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.type='MemberExpression'][callee.property.name=/^(toBeAttached|toBeChecked|toBeDisabled|toBeEditable|toBeEmpty|toBeEnabled|toBeFocused|toBeHidden|toBeInViewport|toBeVisible|toContainClass|toContainText|toHaveAccessibleDescription|toHaveAccessibleErrorMessage|toHaveAccessibleName|toHaveAttribute|toHaveCSS|toHaveClass|toHaveCount|toHaveId|toHaveJSProperty|toHaveRole|toHaveScreenshot|toHaveText|toHaveTitle|toHaveURL|toHaveValue|toHaveValues|toMatchAriaSnapshot)$/]",
+          message:
+            "A failed page or locator matcher writes an aria snapshot of the page, with every typed password in it, to the error context file: assert with expect.poll over a value instead.",
+        },
+      ],
+    },
+  },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,
   // K6 performance test files

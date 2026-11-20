@@ -5,18 +5,21 @@
  *              operator would, on the database the running API uses, which must hold no
  *              administrator; it reads the single-use password from the block the command prints.
  *              Then, in the browser: the sign-in with that password leads to the page of the
- *              required change and opens no session; the change leads back to the sign-in with its
- *              notice; the sign-in with the new password opens the dashboard and its session. The
- *              journey makes three requests to the sign-in's rate limit and fails none.
+ *              required change, and the browser holds no session cookie of the portal; the change
+ *              leads back to the sign-in with its notice, still with no session cookie; the sign-in
+ *              with the new password opens the dashboard, and the browser holds the portal's
+ *              session cookie. The journey makes three requests to the sign-in's rate limit and
+ *              fails none.
  *
  *              The passwords stay in this process. Every assertion is `expect.poll` over a URL, a
  *              visibility or a list of texts, or `expect` over the names of the cookies, and never
  *              an `expect(page)` or `expect(locator)` matcher: a failed matcher of those two kinds
  *              attaches an aria snapshot of the page, which holds the value of every input, a
  *              password field's included, to the error context Playwright writes to a file, and a
- *              poll attaches none. The command's failure leaves the password's line out. The
- *              configuration beside this file turns off the snapshot of the page of a failed test,
- *              the trace, screenshots and videos, and uses no reporter that lists steps.
+ *              poll attaches none. The lint configuration refuses those matchers in this directory.
+ *              The command's failure leaves the password's line out. The configuration beside this
+ *              file turns off the snapshot of the page of a failed test, the trace, screenshots and
+ *              videos, and reports through `list` and `github` only.
  * @layer infrastructure
  */
 import { randomBytes } from "node:crypto";

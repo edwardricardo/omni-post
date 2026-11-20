@@ -4,8 +4,8 @@
     "files": {
       "total": 1262,
       "byShape": {
-        "test": 1013,
-        "integration-test": 92,
+        "test": 1012,
+        "integration-test": 93,
         "live-test": 17,
         "spec": 10,
         "k6": 6,
@@ -27,7 +27,7 @@
       "total": 1262
     },
     "blocks": {
-      "total": 15619,
+      "total": 15620,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15308
+        "BEHAVIOURAL": 15309
       }
     },
     "deleted": {
@@ -479,7 +479,7 @@
       "blocks": [
         {
           "id": "apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts::the first administrator signs in with the single-use password, sets a new one and signs in with it",
-          "line": 87,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f9256ad2050f7a6f7cd3042aced2aab9c8fc03b9d83ee77600fa1f7defa0956"
@@ -7596,6 +7596,65 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a5d93c3bd4ab00e8e69b8ca561efe8f6642e212a9d101cb58c1a189cbc13c5b7"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 6,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::gives the command a terminal as its standard input, output and error",
+          "line": 40,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b9b9cbb65ff3b2de9a4ef46e0eb8d6f5ed99e4c246efa8f2d48491b37012738b"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns the command's exit code and what it wrote, its lines ending CR LF",
+          "line": 51,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "478a43c784d5762aa081f2a045a2a1c3a73612eec915aed0eab732914a0477f9"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns 128 plus the signal's number when a signal ends the command",
+          "line": 62,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "27cdf3096496a02801ffe0633b3a29a87196f82cc89ad1a043eb1c3147cd26c3"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::runs the command in the given directory with only the given environment",
+          "line": 73,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a29fe3ee808bb0f5d1ecc41f0e726f7172fdc0d5a8d122ffc36043fcc9eade6b"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::ends a command that outlives its limit and returns no exit code, killed",
+          "line": 89,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f5aaf92d5506663380722ee9933df1438ac7cc4c4351d39ba655b80c9fbcd118"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns no exit code and nothing written when script cannot be started",
+          "line": 110,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "186d41d1da504ee27ae3c3bf03898069f4c70561869446962d11978eaacdd182"
         }
       ],
       "verdict": "KEEP",
@@ -132778,62 +132837,6 @@
       "status": "machine",
       "sliceId": null,
       "subject": null,
-      "duplicate": null,
-      "importers": null
-    },
-    {
-      "path": "packages/vitest-shared/tests/pseudoTerminal.test.ts",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": ["vitest:packages/vitest-shared/vitest.config.ts"],
-      "quarantined": null,
-      "blockCount": 5,
-      "blocks": [
-        {
-          "id": "packages/vitest-shared/tests/pseudoTerminal.test.ts::gives the command a terminal as its standard input, output and error",
-          "line": 31,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "a5e463ccbdf2410067bfdfbdfe5d78b24ad108a55eb8b93dc84433ca19c70736"
-        },
-        {
-          "id": "packages/vitest-shared/tests/pseudoTerminal.test.ts::returns the command's exit code and what it wrote, its lines ending CR LF",
-          "line": 42,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "f3c32195b8fb4ccd8ff1d353fe440082040983b46372d09d949a456b5c75ebd0"
-        },
-        {
-          "id": "packages/vitest-shared/tests/pseudoTerminal.test.ts::runs the command in the given directory with only the given environment",
-          "line": 53,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "b2f9ba277b254379176cd60feb815b2ffa32734356e3e0d4f25432a0fd6ffb61"
-        },
-        {
-          "id": "packages/vitest-shared/tests/pseudoTerminal.test.ts::ends a command that outlives its limit and returns no exit code, killed",
-          "line": 71,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "4e201e51fea50257b8cadd0b1d5be7efdd1098e40fd126106261079ee2c61710"
-        },
-        {
-          "id": "packages/vitest-shared/tests/pseudoTerminal.test.ts::returns no exit code and nothing written when script cannot be started",
-          "line": 92,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "9b493e0c632f927f8b80e9de0bde6088dd7ead8a7dfa72fa6a60dc8d74713ae4"
-        }
-      ],
-      "verdict": "KEEP",
-      "basis": "behavioural",
-      "status": "machine",
-      "sliceId": null,
-      "subject": {
-        "stem": "pseudoTerminal",
-        "module": "packages/vitest-shared/src/pseudoTerminal.ts",
-        "imported": true
-      },
       "duplicate": null,
       "importers": null
     },
