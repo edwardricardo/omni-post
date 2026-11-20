@@ -71,7 +71,7 @@ A few routes send a body of their own: `GET /health` and its siblings, `GET /met
 GET /health
 ```
 
-**Response**: `{ status: "healthy" | "degraded" | "unhealthy", timestamp: string, uptime?: number }`, with 200 when `status` is `healthy` and 503 otherwise, `degraded` included. `uptime` is absent until the health checks have run once.
+**Response**: `{ status: "healthy" | "degraded" | "unhealthy", timestamp: string, uptime?: number }`, with 200 when `status` is `healthy` or `degraded`, since a degraded dependency still answers, and 503 when it is `unhealthy`. `GET /health/ready` and `GET /health/dependency/:name` answer by the same rule. The report is refreshed every 30 s, and every 5 s while it is `unhealthy`. `uptime` is absent until the health checks have run once.
 
 #### Detailed Health Check
 
@@ -950,11 +950,11 @@ The API registers no WebSocket route. Real-time delivery uses Server-Sent Events
 - A handler built on `BaseRouteHandler` validates the body, the path parameters and the query string with Zod schemas, and answers 400 when they fail (`apps/api/src/lib/route-handler/BaseRouteHandler.ts`)
 - Database access goes through Prisma
 - The server template engine's `sanitize` method runs DOMPurify over HTML content (`apps/api/src/lib/templates/ServerTemplateEngine.ts:190`)
-- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, required password change, refresh, password-reset and password-validation paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:540-542`)
+- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, required password change, refresh, password-reset and password-validation paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:514-516`)
 
 ### Security Headers
 
-- CORS allows the origins `http://localhost` and `https://localhost` on ports 3000, 3100 and 3200, the methods `GET`, `POST`, `PUT`, `DELETE`, `PATCH` and `OPTIONS`, the request headers `Content-Type`, `Authorization` and `X-Requested-With`, and credentials, with a preflight cache of 86,400 seconds (`apps/api/src/index.ts:414-424`)
+- No CORS header on any response, a preflight included: no browser calls the API cross-origin, since both portals call their own `/api/backend/*` and their servers call the API. A feature that needs a cross-origin caller defines its own policy for its routes
 - Content-Security-Policy on every response: `default-src 'self'`, `script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'` and the other directives of `apps/api/src/index.ts:398-413`
 - `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `Strict-Transport-Security` (one year, subdomains, preload)
 - `Cache-Control: no-store` on every response whose route has not set its own policy

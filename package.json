@@ -29,7 +29,7 @@
     "dev:all": "turbo run dev --filter=@apps/api --filter=@apps/workers --filter=@apps/admin --filter=@apps/client",
     "dev": "turbo run dev --filter=@apps/api --filter=@apps/workers",
     "start:platform": "node scripts/start/platform-start.mjs",
-    "db:up": "bash scripts/db-up.sh",
+    "db:up": "node scripts/start/platform-start.mjs --services-only",
     "db:studio": "pnpm --filter @infra/prisma studio",
     "db:migrate": "pnpm --filter @infra/prisma migrate",
     "db:seed": "pnpm --filter @infra/prisma seed",

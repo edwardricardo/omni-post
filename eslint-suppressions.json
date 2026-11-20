@@ -1912,7 +1912,7 @@
   },
   "packages/adapters/db-prisma/src/AccountRepository.ts": {
     "errors/no-inline-error": {
-      "count": 11
+      "count": 10
     }
   },
   "packages/adapters/db-prisma/src/AnalyticsRepository.ts": {
@@ -1943,6 +1943,11 @@
   "packages/adapters/db-prisma/src/ThreadRepository.ts": {
     "errors/no-inline-error": {
       "count": 16
+    }
+  },
+  "packages/adapters/db-prisma/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 1
     }
   },
   "packages/adapters/db-prisma/src/post/PrismaPostRepository.ts": {

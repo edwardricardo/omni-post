@@ -8,6 +8,7 @@ import * as WebSocket from "ws";
 import { Redis } from "ioredis";
 import type { PrismaClient, Provider, WebhookEventType } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { logConnectionErrors } from "@observability/logger";
 import { webhookLogger } from "../lib/logger.js";
 import { duplicateForSubscriber } from "../lib/redis.js";
 
@@ -84,7 +85,19 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Add WebSocket connection for webhook events
+   * @method addConnection
+   * @description Registers a WebSocket connection for webhook events and indexes it by account
+   *   and by project. Every connection is indexed under its account, so it receives every
+   *   event of that account whatever its project list; the project list does not narrow that,
+   *   it adds the events that name one of those projects, and nothing checks that those
+   *   projects belong to the account. Only the event-type and provider filters narrow what it
+   *   receives.
+   * @param connectionId - Identifier of the connection.
+   * @param userId - User who opened the connection.
+   * @param accountId - Account whose events the connection receives.
+   * @param socket - The WebSocket the events are sent on.
+   * @param config - Project list, event-type filter and provider filter; an empty filter
+   *   matches every value.
    */
   addConnection(
     connectionId: string,
@@ -131,7 +144,9 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Remove WebSocket connection
+   * @method removeConnection
+   * @description Removes a WebSocket connection and its account and project index entries.
+   * @param connectionId - Identifier of the connection; an unknown one is ignored.
    */
   removeConnection(connectionId: string): void {
     const subscription = this.connections.get(connectionId);
@@ -162,7 +177,9 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Broadcast webhook event to relevant connections
+   * @method broadcastWebhookEvent
+   * @description Sends a webhook event to the connections whose filters match it.
+   * @param event - The webhook event to send.
    */
   async broadcastWebhookEvent(event: WebhookEventBroadcast): Promise<void> {
     const relevantConnections = this.getRelevantConnections(event);
@@ -211,7 +228,13 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Broadcast engagement update to specific post subscribers
+   * @method broadcastEngagementUpdate
+   * @description Sends a post's engagement update to the connections of its account; a post
+   *   that does not exist sends nothing.
+   * @param postId - The post whose engagement changed.
+   * @param provider - Provider the metrics come from.
+   * @param metrics - The current counts.
+   * @param delta - The change since the previous update, when known.
    */
   async broadcastEngagementUpdate(
     postId: string,
@@ -266,7 +289,13 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Broadcast post status change
+   * @method broadcastPostStatusChange
+   * @description Sends a post's status change to the connections of its account; a post that
+   *   does not exist sends nothing.
+   * @param postId - The post whose status changed.
+   * @param newStatus - The status it changed to; `PUBLISHED` is sent as a publish event.
+   * @param provider - Provider the change comes from.
+   * @param metadata - Extra fields carried in the payload.
    */
   async broadcastPostStatusChange(
     postId: string,
@@ -310,7 +339,15 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Broadcast system alert (rate limits, errors, etc.)
+   * @method broadcastSystemAlert
+   * @description Sends a system alert (a rate limit, a quota, an API or webhook error) to an
+   *   account's connections.
+   * @param accountId - The account the alert is for.
+   * @param alertType - Kind of alert: `rate_limit` is sent as a `RATE_LIMIT_REACHED` event and
+   *   every other kind (a quota, an API or a webhook error) as an `API_ERROR` event.
+   * @param message - Text of the alert.
+   * @param details - Extra fields; its `provider` names the event's provider, which is `"X"`
+   *   when it is absent.
    */
   async broadcastSystemAlert(
     accountId: string,
@@ -338,8 +375,11 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Subscribe an SSE client to webhook events for a given account.
-   * Returns an unsubscribe function that must be called on client disconnect.
+   * @method subscribeSSE
+   * @description Subscribes an SSE client to the webhook events of an account.
+   * @param accountId - The account whose events the client receives.
+   * @param callback - Called with each event.
+   * @returns The unsubscribe function, which must be called when the client disconnects.
    */
   subscribeSSE(accountId: string, callback: SSEListenerCallback): () => void {
     const subscriptionId = `sse_${accountId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -614,6 +654,9 @@ export class RealtimeWebhookBroadcaster {
     // entirely so a blocking subscribe never arms a spurious "Command timed out"
     // timer (see duplicateForSubscriber in lib/redis.ts).
     const subscriber = duplicateForSubscriber(this.redis);
+    // An ioredis client with no `error` listener writes each reconnection error with
+    // console.error, outside the structured logger.
+    logConnectionErrors(subscriber, webhookLogger, "redis:realtime-webhook-broadcaster-subscriber");
 
     subscriber.subscribe("webhook_events", (err) => {
       if (err) {
@@ -696,7 +739,10 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Get connection statistics
+   * @method getConnectionStats
+   * @description Counts the open WebSocket connections, by account and by project, and the SSE
+   *   subscriptions.
+   * @returns The counts.
    */
   getConnectionStats(): {
     totalConnections: number;
@@ -725,7 +771,9 @@ export class RealtimeWebhookBroadcaster {
   }
 
   /**
-   * Shutdown the broadcaster
+   * @method shutdown
+   * @description Stops the heartbeat, closes every open WebSocket connection and clears the
+   *   connection and subscription indexes.
    */
   shutdown(): void {
     this.scheduler.unregister(this.heartbeatTaskId);

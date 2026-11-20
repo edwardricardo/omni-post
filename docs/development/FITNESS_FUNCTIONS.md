@@ -2290,7 +2290,7 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # about 12 vocabularies held about 200 codes, the API answered a failure in 6 body shapes, about
 # 100 places turned a code into a status, and core and API held about 500 inline English
 # sentences (ADR-0047, Context). The lint rule errors/no-inline-error refuses a new one. The sites
-# the tree held when it was turned on, 3,492 in 521 files and 129 contexts on 2026-11-20, are a
+# the tree held when it was turned on, 3,492 in 522 files and 129 contexts on 2026-11-20, are a
 # list that could stand still, rise, or fall with no conversion while every other check stays
 # green. This check holds the registry whole and that list to falling only.
 # WHAT IT RUNS: `pnpm check:errors`, which is `node scripts/testing/error-registry-gate.mjs &&

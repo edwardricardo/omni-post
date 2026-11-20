@@ -92,6 +92,36 @@ describe("createPrismaRepoAdapter — DI contract (PR1)", () => {
     });
   });
 
+  describe("ping()", () => {
+    it("asks the INJECTED client one SELECT 1 and answers ok", async () => {
+      const mockClient = makeMockPrismaClient();
+      // A scheduler keeps the connection monitor from querying on its own.
+      const adapter = createPrismaRepoAdapter({
+        prisma: mockClient,
+        scheduler: makeMockScheduler(),
+      });
+
+      const result = await adapter.ping();
+      // A tagged template reaches the client as its array of literal parts.
+      const queries = vi.mocked(mockClient.$queryRaw).mock.calls.map(([sql]) => String(sql));
+
+      expect({ ok: result.ok, queries }).toEqual({ ok: true, queries: ["SELECT 1"] });
+    });
+
+    it("answers DATABASE_ERROR when the database does not answer", async () => {
+      const mockClient = makeMockPrismaClient();
+      vi.mocked(mockClient.$queryRaw).mockRejectedValueOnce(new Error("connection refused"));
+      const adapter = createPrismaRepoAdapter({
+        prisma: mockClient,
+        scheduler: makeMockScheduler(),
+      });
+
+      const result = await adapter.ping();
+
+      expect(result).toEqual({ ok: false, error: "DATABASE_ERROR" });
+    });
+  });
+
   describe("close() (line-183 footgun guard)", () => {
     it("calls $disconnect on the INJECTED client", async () => {
       const mockClient = makeMockPrismaClient();

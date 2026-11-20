@@ -17,8 +17,8 @@
 │  apps/admin, apps/client    → useLogger() from @observability/       │
 │  (browser code)               browser-logger (Sentry/console adapter)│
 │                                                                      │
-│  apps/workers/**            → inline pino() factory in worker entry  │
-│                               (workers manage their own config)      │
+│  apps/workers/**            → createLogger() from @observability/    │
+│                               logger (redacts REDACT_PATHS)          │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -53,7 +53,29 @@ const baseOptions: LoggerOptions = {
 };
 ```
 
-The list itself, with the threat each added entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …) and the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`).
+The list itself, with the threat each added entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …), the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`) and the arguments of a Redis command an error carries (`*.command.args`, `*.*.command.args`, `*.*.*.command.args`).
+
+Those last three close a leak that needs no developer mistake. ioredis attaches the failed command to the error it emits, `command: { name, args }`, and on an AUTH failure `args` is the password. Pino's error serializer copies every enumerable property of an error, so `logger.error({ err })` wrote the password once per reconnection attempt. Two layers hold it now:
+
+- The list masks `command.args` up to three levels down. That covers an error logged under `err` or `error` (the keys the repository uses), an error one or two levels below them, an array of errors one level down (`{ job: { errors: [err] } }`), and the nested errors of an `AggregateError` logged as the raw object, which the serializer writes under `err.aggregateErrors[i]`.
+- The connection-error listener (`createThrottledErrorListener` in `@observability/logger`) never hands the logger the error object. It writes an allow-list: the error's type and message, the diagnostics `code`, `errno`, `syscall`, `address`, `port` and `hostname`, the command's name, the stack, and an `AggregateError`'s nested errors described the same way (at most 4 per level, 2 levels down, the rest counted). It never writes a command's arguments, so it does not depend on the list.
+
+Both layers are pinned by cases that write through the real factories: `packages/observability/logger/tests/redaction.test.ts` and `apps/api/tests/unit/lib/loggerCommandArgsRedaction.test.ts`.
+
+**What the list does not cover.** No production code logs an error in these shapes today; a change that starts to must describe the error instead of logging the object:
+
+- An error four or more levels down, such as `{ a: { b: { c: { err } } } }`, or an array of errors two levels down, `{ a: { b: { errors: [err] } } }`.
+- An `AggregateError` nested in another one, which the serializer writes five levels down.
+- An error passed as a `%o` or `%j` argument of the message. It is formatted into the message string, where no path applies.
+
+Each further wildcard level makes pino walk every key of that level on every line written, so the list stops at three.
+
+**What the connection-error listener guarantees.** It throttles each error identity (name and message) to one line per window. Its header in `packages/observability/logger/src/throttledErrorListener.ts` states two invariants, and its cases pin them:
+
+- Every held-back error is counted in exactly one later written line: the next line of its own identity, the next recovery line, or, when its window expired first, the next line of either kind under `suppressedByExpiredWindows`.
+- The last line a source that is ready again wrote is never an error line. `logConnectionErrors` writes a recovery line on `ready` whenever an error line was written since the last one. It writes none when every error since then was held back, which is what a connection that flaps on one error inside its window does.
+
+A BullMQ queue or worker emits no `ready`, so the second invariant applies only to the Redis connections. Where a queue stops failing, its last line can be an error.
 
 If a developer creates a side `pino()` instance without these paths, **the redaction is silently bypassed**. There's no compile-time check or runtime warning. Logs get aggregated, the secret is in plain text, and the threat-model assumes secrets never reach disk — but they did. That class of bug is exactly OWASP A09:2025 (Security Logging and Alerting Failures).
 
@@ -91,14 +113,9 @@ The browser is a different world:
 
 Forcing the api factory into the browser would pull `pino` and its destination handling into the bundle. Forcing the browser factory into Node ignores stdout-based aggregation. Different transports demand different factories.
 
-### Workers — separate process, inline factory accepted
+### Workers — separate process, the shared factory
 
-Workers (`apps/workers/**`) run as standalone Node processes with distinct config (separate Redis, separate metrics endpoint, no Fastify). They use inline `pino()` factories in the entry file (`autoRenewalWorker.ts:19`, etc.) for two reasons:
-
-1. The worker is its own composition root — there's no `lib/logger.ts` to share with other entries.
-2. The worker's redaction needs differ (queue payloads have known shapes; full-blown api redaction is overkill).
-
-Future cleanup could extract a `@workers/logger` factory if scope grows; for now, the inline pattern is acceptable.
+Workers (`apps/workers/**`) run as standalone Node processes with distinct config: a separate Redis, a separate metrics endpoint and no Fastify. Every logger there comes from `createLogger` of `@observability/logger`, in `bootstrap.ts`, `publishWorker.ts`, `mentionIngestWorker.ts` and `telemetry/initialization.ts`; no worker builds its own `pino()`. The workers' lines therefore carry the same `REDACT_PATHS` as the packages' base logger.
 
 ---
 

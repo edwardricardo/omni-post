@@ -8,8 +8,20 @@
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { createHealthCheckManager, type HealthChecker } from "@monitoring/health-checks";
+import { createHealthCheckManager, isUsable, type HealthChecker } from "@monitoring/health-checks";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+
+/**
+ * @function statusCodeFor
+ * @description The status code of every health route: 200 when each status it answers about can
+ *   serve, healthy or degraded, and 503 when one cannot. The body says which status it was. A
+ *   check that gave no status is passed as `undefined` and cannot serve.
+ * @param statuses - The statuses the route answers about: one report, or each critical dependency.
+ * @returns 200 or 503.
+ */
+function statusCodeFor(statuses: ReadonlyArray<string | undefined>): 200 | 503 {
+  return statuses.every((status) => status !== undefined && isUsable(status)) ? 200 : 503;
+}
 
 /** What the composition root hands the health routes. */
 interface HealthRoutesOptions {
@@ -28,32 +40,20 @@ interface HealthRoutesOptions {
 }
 
 /**
- * Health check routes for monitoring and Kubernetes probes
- *
- * Endpoints:
- * - GET /health - Simple health check
- * - GET /health/detailed - Comprehensive health status
- * - GET /health/live - Kubernetes liveness probe
- * - GET /health/ready - Kubernetes readiness probe
- * - GET /health/dependency/:name - Individual dependency health
+ * @function healthRoutes
+ * @description Registers the health routes for monitoring and Kubernetes probes:
+ *   `GET /health` (the last refreshed report), `GET /health/detailed`, `GET /health/live`,
+ *   `GET /health/ready` and `GET /health/dependency/:name`. The manager behind them refreshes on
+ *   the package's timing: every 30 s, every 5 s while the last report is unhealthy, each check in
+ *   one attempt. Each route but the liveness probe answers 200 while what it reports on is
+ *   healthy or degraded and 503 otherwise (`statusCodeFor`).
+ * @param fastify - The Fastify instance the routes are registered on.
+ * @param options - The scheduler the refresh runs on and the checker of each probed dependency.
  */
 export async function healthRoutes(fastify: FastifyInstance, options: HealthRoutesOptions) {
   const { scheduler, checkers } = options;
 
-  // Initialize health check manager
-  const healthManager = createHealthCheckManager(
-    {
-      timeout: 5000,
-      interval: 30000,
-      retries: 3,
-      alertThresholds: {
-        degradedLatency: 1000,
-        unhealthyLatency: 5000,
-        criticalFailureCount: 3,
-      },
-    },
-    scheduler
-  );
+  const healthManager = createHealthCheckManager(undefined, scheduler);
 
   // Register health checkers
   healthManager.register("database", checkers.database, {
@@ -87,8 +87,8 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
   });
 
   /**
-   * Simple health check
-   * Returns 200 if system is healthy, 503 if unhealthy
+   * Simple health check, from the last refreshed report: 200 while it is healthy or degraded,
+   * 503 when it is unhealthy, and the status says which.
    *
    * This is the fastest health check endpoint.
    */
@@ -112,17 +112,14 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
       if (!status) {
         // Health checks not yet initialized, perform quick check
         const quickCheck = await healthManager.checkAll();
-        const isHealthy = quickCheck.overall === "healthy";
 
-        return reply.status(isHealthy ? 200 : 503).send({
+        return reply.status(statusCodeFor([quickCheck.overall])).send({
           status: quickCheck.overall,
           timestamp: new Date().toISOString(),
         });
       }
 
-      const isHealthy = status.overall === "healthy";
-
-      return reply.status(isHealthy ? 200 : 503).send({
+      return reply.status(statusCodeFor([status.overall])).send({
         status: status.overall,
         timestamp: status.timestamp.toISOString(),
         uptime: status.uptime,
@@ -140,8 +137,7 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const report = await healthManager.checkAll();
 
-      const statusCode =
-        report.overall === "healthy" ? 200 : report.overall === "degraded" ? 200 : 503;
+      const statusCode = statusCodeFor([report.overall]);
 
       return reply.status(statusCode).send({
         ok: report.overall !== "unhealthy",
@@ -213,7 +209,7 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
 
   /**
    * Kubernetes readiness probe
-   * Returns 200 if the application is ready to serve traffic
+   * Returns 200 while every critical dependency is healthy or degraded, so it still serves
    *
    * This probe checks critical dependencies. If it fails, Kubernetes
    * will stop routing traffic to this pod but won't restart it.
@@ -244,13 +240,13 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
       const results = await Promise.all(
         criticalChecks.map((name) => healthManager.checkDependency(name))
       );
+      const statuses = results.map((result) => (result.ok ? result.value.status : undefined));
 
-      const allHealthy = results.every((result) => result.ok && result.value.status === "healthy");
-
-      if (!allHealthy) {
-        const unhealthyDeps = results
-          .filter((result) => !result.ok || result.value.status !== "healthy")
-          .map((result, idx) => criticalChecks[idx]);
+      if (statusCodeFor(statuses) === 503) {
+        const unhealthyDeps = criticalChecks.filter((_name, index) => {
+          const status = statuses[index];
+          return status === undefined || !isUsable(status);
+        });
 
         return reply.status(503).send({
           status: "not ready",
@@ -269,7 +265,7 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
 
   /**
    * Individual dependency health check
-   * Returns health status of a specific dependency
+   * Returns health status of a specific dependency: 200 while it is healthy or degraded
    */
   fastify.get(
     "/health/dependency/:name",
@@ -309,10 +305,9 @@ export async function healthRoutes(fastify: FastifyInstance, options: HealthRout
         }
 
         const dependency = result.value;
-        const isHealthy = dependency.status === "healthy";
 
-        return reply.status(isHealthy ? 200 : 503).send({
-          ok: isHealthy,
+        return reply.status(statusCodeFor([dependency.status])).send({
+          ok: isUsable(dependency.status),
           dependency: name,
           status: dependency.status,
           latency: dependency.latency,

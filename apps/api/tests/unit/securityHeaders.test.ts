@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Unit Tests for securityHeaders (SecurityManager)
- * Testing security headers, CSP, CORS, and request validation
+ * Testing security headers, CSP, the absence of CORS, and request validation
  *
  * Coverage Target: 95%+
  *
@@ -10,9 +10,11 @@
  * @layer infrastructure
  */
 
-import { describe, it, expect } from "vitest";
-import { SecurityManager, SecurityConfigs } from "../../src/security/securityHeaders.js";
-import type { FastifyRequest, FastifyReply } from "fastify";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import Fastify from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { SecurityManager } from "../../src/security/securityHeaders.js";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 
 // ============================================================================
 // Test Utilities
@@ -96,7 +98,6 @@ describe("SecurityManager Tests", () => {
 
       expect(config).toBeTruthy();
       expect(config.contentSecurityPolicy.enabled).toBe(true);
-      expect(config.cors.enabled).toBe(true);
       expect(config.hsts.enabled).toBe(true);
       expect(config.xssProtection).toBe(true);
       expect(config.noSniff).toBe(true);
@@ -123,23 +124,6 @@ describe("SecurityManager Tests", () => {
 
       const config = securityManager.getConfig();
       expect(config.frameOptions).toBe("SAMEORIGIN");
-    });
-
-    it("should have development config preset", () => {
-      const devConfig = SecurityConfigs.development;
-
-      expect(devConfig.contentSecurityPolicy.enabled).toBe(false);
-      expect(devConfig.cors.enabled).toBe(true);
-      expect(devConfig.hsts.enabled).toBe(false);
-    });
-
-    it("should have production config preset", () => {
-      const prodConfig = SecurityConfigs.production;
-
-      expect(prodConfig.contentSecurityPolicy.enabled).toBe(true);
-      expect(prodConfig.cors.enabled).toBe(true);
-      expect(prodConfig.hsts.enabled).toBe(true);
-      expect(prodConfig.hsts.preload).toBe(true);
     });
   });
 
@@ -598,55 +582,7 @@ describe("SecurityManager Tests", () => {
   });
 
   // ============================================================================
-  // Test Group 7: CORS Configuration
-  // ============================================================================
-
-  describe("CORS Configuration", () => {
-    it("should have default CORS origins", () => {
-      securityManager = new SecurityManager();
-      const config = securityManager.getConfig();
-
-      expect(config.cors.allowedOrigins.includes("http://localhost:3000")).toBeTruthy();
-      expect(config.cors.allowedOrigins.includes("http://localhost:3100")).toBeTruthy();
-      expect(config.cors.allowedOrigins.includes("http://localhost:3200")).toBeTruthy();
-    });
-
-    it("should have default CORS methods", () => {
-      securityManager = new SecurityManager();
-      const config = securityManager.getConfig();
-
-      expect(config.cors.allowedMethods.includes("GET")).toBeTruthy();
-      expect(config.cors.allowedMethods.includes("POST")).toBeTruthy();
-      expect(config.cors.allowedMethods.includes("PUT")).toBeTruthy();
-      expect(config.cors.allowedMethods.includes("DELETE")).toBeTruthy();
-      expect(config.cors.allowedMethods.includes("PATCH")).toBeTruthy();
-    });
-
-    it("should have default CORS headers", () => {
-      securityManager = new SecurityManager();
-      const config = securityManager.getConfig();
-
-      expect(config.cors.allowedHeaders.includes("Content-Type")).toBeTruthy();
-      expect(config.cors.allowedHeaders.includes("Authorization")).toBeTruthy();
-    });
-
-    it("should allow credentials by default", () => {
-      securityManager = new SecurityManager();
-      const config = securityManager.getConfig();
-
-      expect(config.cors.allowCredentials).toBe(true);
-    });
-
-    it("should have 24-hour max age", () => {
-      securityManager = new SecurityManager();
-      const config = securityManager.getConfig();
-
-      expect(config.cors.maxAge).toBe(86400);
-    });
-  });
-
-  // ============================================================================
-  // Test Group 8: HSTS Configuration
+  // Test Group 7: HSTS Configuration
   // ============================================================================
 
   describe("HSTS Configuration", () => {
@@ -690,7 +626,7 @@ describe("SecurityManager Tests", () => {
   });
 
   // ============================================================================
-  // Test Group 9: Frame Options
+  // Test Group 8: Frame Options
   // ============================================================================
 
   describe("Frame Options", () => {
@@ -721,7 +657,7 @@ describe("SecurityManager Tests", () => {
   });
 
   // ============================================================================
-  // Test Group 10: Referrer Policy
+  // Test Group 9: Referrer Policy
   // ============================================================================
 
   describe("Referrer Policy", () => {
@@ -739,6 +675,81 @@ describe("SecurityManager Tests", () => {
 
       const config = securityManager.getConfig();
       expect(config.referrerPolicy).toBe("no-referrer");
+    });
+  });
+
+  // ============================================================================
+  // Test Group 10: Registered on a Fastify app
+  // ============================================================================
+
+  describe("Registered on a Fastify app", () => {
+    // No browser calls the API cross-origin: both portals call their own
+    // `/api/backend/*` and their servers call the API. A response that carried
+    // an `Access-Control-*` header would let a browser on another origin read it.
+    const ORDINARY_ROUTE = "/ordinary";
+    let app: FastifyInstance;
+
+    const accessControlHeaders = (headers: Record<string, unknown>): string[] =>
+      Object.keys(headers).filter((name) => name.toLowerCase().startsWith("access-control-"));
+
+    beforeEach(async () => {
+      const typedApp = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+      await new SecurityManager().register(typedApp);
+      typedApp.get(ORDINARY_ROUTE, async () => ({ ok: true }));
+      await typedApp.ready();
+      app = typedApp;
+    });
+
+    afterEach(async () => {
+      await app.close();
+    });
+
+    it("answers a preflight to an ordinary route with no Access-Control header", async () => {
+      const response = await app.inject({
+        method: "OPTIONS",
+        url: ORDINARY_ROUTE,
+        headers: {
+          origin: "http://localhost:3200",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type",
+        },
+      });
+
+      expect(accessControlHeaders(response.headers)).toEqual([]);
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("answers a GET with a foreign Origin with no Access-Control header", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: ORDINARY_ROUTE,
+        headers: { origin: "https://foreign.example" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ok: true });
+      expect(accessControlHeaders(response.headers)).toEqual([]);
+    });
+
+    it("keeps helmet, HSTS, the content security policy and the custom headers", async () => {
+      const response = await app.inject({ method: "GET", url: ORDINARY_ROUTE });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["strict-transport-security"]).toBe(
+        "max-age=31536000; includeSubDomains; preload"
+      );
+      expect(response.headers["x-frame-options"]).toBe("DENY");
+      expect(response.headers["x-content-type-options"]).toBe("nosniff");
+      expect(response.headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+      expect(response.headers["x-dns-prefetch-control"]).toBe("off");
+      expect(response.headers["content-security-policy"]).toContain("default-src 'self'");
+      expect(response.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+      expect(response.headers["permissions-policy"]).toContain('camera=("none")');
+      expect(response.headers["cross-origin-opener-policy"]).toBe("same-origin");
+      expect(response.headers["cross-origin-embedder-policy"]).toBe("require-corp");
+      expect(response.headers["x-permitted-cross-domain-policies"]).toBe("none");
+      expect(response.headers["cache-control"]).toBe("no-store");
+      expect(response.headers["x-api-version"]).toBe("1.0");
     });
   });
 });

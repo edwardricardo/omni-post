@@ -47,7 +47,6 @@
 | fastify                   | 5.12.6  | HTTP server             | 2x Express throughput, native TypeScript, schema-first routes |
 | fastify-plugin            | 5.0.1   | Plugin system           |                                                               |
 | fastify-type-provider-zod | 6.1.0   | Zod schema integration  | Type-safe request/response validation                         |
-| @fastify/cors             | 11.1.0  | CORS middleware         |                                                               |
 | @fastify/cookie           | 11.0.2  | Cookie handling         | httpOnly cookies for auth sessions                            |
 | @fastify/helmet           | 13.0.1  | Security headers        |                                                               |
 | @fastify/swagger          | 9.7.0   | OpenAPI spec generation |                                                               |

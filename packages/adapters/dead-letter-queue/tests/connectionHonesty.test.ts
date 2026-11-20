@@ -103,14 +103,18 @@ const loggerError = vi.fn();
 const loggerWarn = vi.fn();
 const loggerInfo = vi.fn();
 
-vi.mock("@observability/logger", () => ({
-  createLogger: () => ({
-    info: loggerInfo,
-    warn: loggerWarn,
-    error: loggerError,
-    debug: vi.fn(),
-  }),
-}));
+vi.mock("@observability/logger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@observability/logger")>();
+  return {
+    ...actual,
+    createLogger: () => ({
+      info: loggerInfo,
+      warn: loggerWarn,
+      error: loggerError,
+      debug: vi.fn(),
+    }),
+  };
+});
 
 const { DeadLetterQueueManager } = await import("../src/index.js");
 
@@ -179,6 +183,28 @@ describe("DeadLetterQueueManager — connection honesty", { concurrent: false },
     }, "an unlistened error event throws ERR_UNHANDLED_ERROR");
 
     expect(loggerError).toHaveBeenCalled();
+  });
+
+  it("routes a Worker error to the logger as one worker-error line for two identical errors", async () => {
+    const manager = buildManager();
+    await manager.startProcessing();
+    const worker = workerInstances[0];
+    const error = new Error("connect ECONNREFUSED 127.0.0.1:1");
+
+    expect(() => {
+      worker?.emitter.emit("error", error);
+      worker?.emitter.emit("error", error);
+    }).not.toThrow();
+    expect(loggerError.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          worker: "bullmq-worker:test-dlq",
+          suppressed: 0,
+        },
+        "Worker error",
+      ],
+    ]);
   });
 
   it("constructs QueueEvents with autorun disabled", () => {
