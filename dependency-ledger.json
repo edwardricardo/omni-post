@@ -3025,6 +3025,7 @@
             "apps/api/tests/unit/auditRoutes.test.ts",
             "apps/api/tests/unit/authRoutes.test.ts",
             "apps/api/tests/unit/dashboardRoutes.test.ts",
+            "apps/api/tests/unit/health/healthRoutesReadiness.test.ts",
             "apps/api/tests/unit/healthRoutes.test.ts",
             "apps/api/tests/unit/mfaRoutes.test.ts",
             "apps/api/tests/unit/postRoutes.test.ts",
