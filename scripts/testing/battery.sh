@@ -217,18 +217,22 @@ battery_steps() {
   # the rules, equal .claude/instruction-manifest.json and fit its byte budget, and each moved record
   # keeps a live path-scoped rule and is never loaded. It reads git's listing and the files only.
   step static instruction-context pnpm check:instruction-context
-  # Every client story as a vitest browser test in headless Chromium: it renders,
+  # Every story of a portal as a vitest browser test in headless Chromium: it renders,
   # its play function runs, and axe at `error` and the console contract can fail it.
   # The preflight turns a missing browser into a one-line verdict instead of a
   # Playwright stack trace deep in the run; nothing is downloaded either way.
   # Quoting, outside in: the step runs `bash -c "<double-quoted>"`, which expands
   # STORIES_PREFLIGHT once; node then receives the single-quoted JavaScript whole.
   # The probe's own error (an ENOENT naming the missing binary) stays on stderr,
-  # followed by the remedy, so an unrelated failure is never mislabelled.
+  # followed by the remedy, so an unrelated failure is never mislabelled. Both
+  # portals share the browser, so both remedies name the header's install command.
   local STORIES_PREFLIGHT='require("fs").accessSync(require("playwright").chromium.executablePath())'
-  step suite stories bash -c "pnpm --filter @apps/client exec node -e '$STORIES_PREFLIGHT' || { echo 'stories: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/client exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter @apps/client test:stories"
-  # Every admin story, under the same runner, criterion and preflight.
-  step suite stories-admin bash -c "pnpm --filter @apps/admin exec node -e '$STORIES_PREFLIGHT' || { echo 'stories-admin: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/admin exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter @apps/admin test:stories"
+  # The command of one portal's stories step: $1 is its pnpm filter, $2 the step's name.
+  stories_command() {
+    printf '%s' "pnpm --filter $1 exec node -e '$STORIES_PREFLIGHT' || { echo '$2: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/client exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter $1 test:stories"
+  }
+  step suite stories bash -c "$(stories_command @apps/client stories)"
+  step suite stories-admin bash -c "$(stories_command @apps/admin stories-admin)"
   step suite scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
   step suite api-common pnpm --filter @packages/api-common test
   step suite workers pnpm --filter @apps/workers test
