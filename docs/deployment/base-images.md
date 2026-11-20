@@ -392,9 +392,10 @@ reads the `node` executable, so each leg of `Container Security` reports the
 `node --version` its image prints, and the `Node Runtime Advisory` job runs
 `scripts/testing/node-runtime-advisory-gate.mjs` on the four versions: it fails
 when `nodejs.org/dist/index.json` lists a later release of that major line with
-`security: true`, naming the release to raise both stages to. No ruleset
+`security: true`, naming the release to raise both stages to. It is skipped
+when `Container Security` was skipped, since no image was built. No ruleset
 requires that job and no other job needs it, so its red blocks no merge, no
-scan and no push, and every run judges the images again. It is red in two cases
+scan and no push, and every run judges the images again. It exists for two cases
 the team cannot repair at once: the index is unreachable after three attempts,
 or Node has published a security release of the images' line that the distroless base does
 not ship yet, which it followed by about two days for v26.13.1 (dated
@@ -402,7 +403,9 @@ not ship yet, which it followed by about two days for v26.13.1 (dated
 2026-11-12, §"Moved to Node 26.13.1 on 2026-11-14"). In the first case, re-run the job once nodejs.org answers; in the
 second, raise the build stage to the release and wait for, or pin, the distroless
 digest that ships it, by items 2 and 3 of §"How to extend" below, the way the
-move of 2026-11-14 did.
+move of 2026-11-14 did. Its other red cases are the team's to repair: an image
+not checked, whose leg's log says why no version came, and a version the gate
+refuses as not a stable vX.Y.Z, which points at the image's Node base.
 
 ---
 

@@ -2,10 +2,11 @@
 /**
  * @file node-runtime-advisory-gate.mjs
  * @description The Node runtime advisory gate, run by the `Node Runtime Advisory` job of
- *   `.github/workflows/production-ci.yml` on the version each image's `node --version` prints, which
- *   each leg of the `Container Security` job reports. The image scanner reads an image's OS packages and the `package.json` of each module, never the
- *   `node` executable a distroless base ships without a package record, so an image could run a Node
- *   release with published advisories while every scan passed. This gate holds that executable to
+ *   `.github/workflows/production-ci.yml` on the version each image's `node --version` prints,
+ *   which each leg of the `Container Security` job reports. The image scanner reads an image's OS
+ *   packages and the `package.json` of each module, never the `node` executable a distroless base
+ *   ships without a package record, so an image could run a Node release with published
+ *   advisories while every scan passed. This gate holds that executable to
  *   Node's own release index, `https://nodejs.org/dist/index.json`.
  *
  *   THE RULE. The releases of the image's major line are the index entries whose version starts
@@ -49,9 +50,10 @@
  *   it imports no package and none of the shared helpers of `scripts/testing/lib/`
  *   (`record-helpers.mjs`, which holds `isEntryPoint`, loads prettier). It needs Node 18.3.0 or
  *   later: the global `fetch` runs without a flag from 18.0.0, `AbortSignal.timeout` exists from
- *   17.3.0 and `util.parseArgs` from 18.3.0. The job sets up no Node, so it runs on the
- *   `ubuntu-latest` image's own, Node.js 22.23.4 on Ubuntu 24.04 image 20261111.370.1 (the
- *   runner-images readme, read on 2026-11-20).
+ *   17.3.0 and `util.parseArgs` from 18.3.0. The job sets up no Node, so it runs on the Node of
+ *   the `ubuntu-latest` image, which is GitHub's Ubuntu 24.04 runner image and carries Node 22: the
+ *   label's image is in the table of `actions/runner-images`' `README.md`, and its Node in that
+ *   image's `images/ubuntu/Ubuntu2404-Readme.md`, which moves to each new patch release.
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) The gate trusts the index's `security` flag: a
  *   fix released without it, or an advisory no release fixes yet, passes. (2) It judges the image
@@ -60,18 +62,21 @@
  *   prints, not how it was built: a base rebuilt with a backported fix still reads as its older
  *   version and fails. (4) A security release published between two runs of the job is seen by the
  *   next run only. (5) Where it runs, and what its red costs. The `Node Runtime Advisory` job runs
- *   it; no ruleset requires that job and no other job needs it, so its red blocks no merge, no image
- *   scan and no push, and every run of the workflow judges the images again, keeping nothing from
- *   the run before. Two events turn it red that the team cannot repair at once: the index is
- *   unreachable after the three attempts, or Node has published a security release of the images'
- *   line that their base does not ship yet; the distroless image followed v26.13.1 by about two
- *   days (the index dates the release 2026-11-10, and the digest the images took for it was
- *   uploaded on 2026-11-12: `docs/deployment/base-images.md`, §"Moved to Node 26.13.1 on
- *   2026-11-14"). An image whose leg of `Container Security` reported no version never reaches this
- *   script: the job names it as not checked. On the first event, the operator re-runs the job once
- *   nodejs.org answers. On the second, the operator raises the build stage to the release and waits for, or pins, the
- *   distroless digest that ships it, by the procedure of `docs/deployment/base-images.md`
- *   (§"How to extend", items 2 and 3, and the move of 2026-11-14 as its worked case).
+ *   it; no ruleset requires that job and no other job needs it, so its red blocks no merge, no
+ *   image scan and no push, and every run of the workflow judges the images again, keeping nothing
+ *   from the run before; the job is skipped when `Container Security` was skipped, since no image
+ *   was built. It exists for two events the team cannot repair at once: the index is unreachable
+ *   after the three attempts, or Node has published a security release of the images' line that
+ *   their base does not ship yet; the distroless image followed v26.13.1 by about two days (the
+ *   index dates the release 2026-11-10, and the digest the images took for it was uploaded on
+ *   2026-11-12: `docs/deployment/base-images.md`, §"Moved to Node 26.13.1 on 2026-11-14"). Its
+ *   other red cases are the team's to repair: a version this script refuses, exit 2, and an image
+ *   whose leg of `Container Security` reported no version, which never reaches this script and
+ *   which the job names as not checked. On the first event, the operator re-runs the job once
+ *   nodejs.org answers. On the second, the operator raises the build stage to the release and
+ *   waits for, or pins, the distroless digest that ships it, by the procedure of
+ *   `docs/deployment/base-images.md` (§"How to extend", items 2 and 3, and the move of 2026-11-14
+ *   as its worked case).
  *
  *   Usage: `node scripts/testing/node-runtime-advisory-gate.mjs --version <vX.Y.Z>`. Pinned by
  *   apps/api/tests/unit/scripts/nodeRuntimeAdvisoryGate.test.ts.

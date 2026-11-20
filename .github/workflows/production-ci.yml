@@ -327,9 +327,12 @@ jobs:
       # nodejs.org that does not answer, must not stop this job's smoke, scan or push. This leg
       # only reports the version its image's own executable prints. Read right after the build,
       # so the version reaches that job even when the smoke or the scan then fails.
-      # `continue-on-error`, because nothing here may fail on the advisory's account: an image
-      # whose Node cannot print a version fails step 1 of the smoke below, which names it, and
-      # the advisory job reports the image as not checked rather than passing it.
+      # `continue-on-error`, because nothing here may fail on the advisory's account. When this
+      # step fails, its own log says why, its image reaches the advisory job with no version, and
+      # that job names the image as not checked rather than passing it. A Node that cannot run at
+      # all also fails step 1 of the smoke below, so this leg goes red as well; any other failure
+      # of this step, such as its write to `$GITHUB_OUTPUT`, leaves this leg green, and the
+      # advisory job's "not checked" is then the only red that shows it.
       - name: Node version — reported to the Node Runtime Advisory job
         id: node-version
         continue-on-error: true
@@ -605,10 +608,14 @@ jobs:
   # The image scanner reads an image's OS packages and its module manifests, never the `node`
   # executable a distroless base ships without a package record, so this job holds that executable
   # to Node's own release index. It is a job of its own, not a required check, and nothing needs
-  # it: its two red cases, a Node security release the images' base has not shipped yet and an
-  # index nodejs.org does not serve, are outside the team's repair, so they block no merge, no
-  # scan and no push. Its verdict is the gate's on this run's images alone, so the first run after
-  # the base is raised, or after the index answers again, is green.
+  # it, because the two cases it exists for are outside the team's repair: a Node security release
+  # the images' base has not shipped yet, and an index nodejs.org does not serve. Its other red
+  # cases are failures the team repairs, each named by its annotation: an image not checked, whose
+  # leg's `Node version` step or an earlier step of that leg says why no version came; the gate's
+  # code 2, a printed version that is not a stable vX.Y.Z, which points at the image's Node base;
+  # and a code the gate does not define, which points at the gate's own output. None of them
+  # blocks a merge, a scan or a push. Its verdict is the gate's on this run's images alone, so the
+  # first run after the cause is repaired, or after the index answers again, is green.
   node-runtime-advisory:
     name: Node Runtime Advisory
     runs-on: ubuntu-latest
@@ -616,9 +623,12 @@ jobs:
     # four take at most seven minutes.
     timeout-minutes: 10
     needs: container-security
-    # A failed leg must not skip this job, because a skipped job reads as a check with nothing to
-    # report; it runs, and names each image whose leg reported no version as not checked.
-    if: ${{ !cancelled() }}
+    # Skipped when Container Security was skipped, because a job above it did not succeed: no
+    # image was built, nothing could be validated, and a red here would not be about Node. A leg
+    # that ran and failed does not skip it: the job runs and names each image whose leg reported
+    # no version as not checked. `!cancelled()` keeps a cancelled run from starting it, and naming
+    # it drops the implicit `success()`, which would skip the job whenever any leg failed.
+    if: ${{ !cancelled() && needs.container-security.result != 'skipped' }}
     permissions:
       contents: read
 
@@ -645,7 +655,7 @@ jobs:
             VERSION_VAR="NODE_VERSION_${SERVICE^^}"
             NODE_VERSION="${!VERSION_VAR:-}"
             if [ -z "$NODE_VERSION" ]; then
-              echo "::error title=Node runtime advisory: $SERVICE not checked::Container Security ($SERVICE) reported no Node version, and Container Security ended $CONTAINER_SECURITY_RESULT, so the $SERVICE image was not judged. The failure to repair is in that leg's log or, when Container Security was skipped, in the job it needs; this job is red because the image went unchecked, not for an advisory."
+              echo "::error title=Node runtime advisory: $SERVICE not checked::Container Security ($SERVICE) reported no Node version, and Container Security ended $CONTAINER_SECURITY_RESULT, so the $SERVICE image was not judged. That leg's log says why: a step before its Node version step did not complete, or that step failed itself; this job is red because the image went unchecked, not for an advisory."
               FAILED=1
               continue
             fi
