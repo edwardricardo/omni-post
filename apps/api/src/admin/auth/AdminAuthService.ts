@@ -73,12 +73,20 @@ export class AdminAuthService {
    * @method login
    * @description Signs an administrator in: runs the sign-in's checks, then opens a session,
    *   writes `lastLoginAt`, clears the brute-force counters and records the sign-in.
+   *
+   *   An administrator whose password must be changed is refused once every check has passed,
+   *   before anything is written: no session, no token, no `lastLoginAt`, no session cleanup or
+   *   cap, no cleared counters and no recorded sign-in. The credentials were right, so no failed
+   *   attempt is recorded either. The refusal comes after the second factor, so a caller who
+   *   holds the password but not the second factor learns nothing of the mark, and the code
+   *   that verified is spent by the refused sign-in.
    * @param request - The e-mail, the password, the second factor's code when there is one, and
    *   whether the session is remembered
    * @param device - The caller's device, whose address and agent the session and the attempt
    *   records carry
    * @returns The administrator's profile and the session's tokens; otherwise the code of the
-   *   check that failed, or `INTERNAL_ERROR` when the profile cannot be read back
+   *   check that failed, `PASSWORD_CHANGE_REQUIRED` for a password that must be changed, or
+   *   `INTERNAL_ERROR` when the profile cannot be read back
    */
   async login(
     request: LoginRequest,
@@ -92,6 +100,10 @@ export class AdminAuthService {
       return err(verified.error);
     }
     const user = verified.value;
+
+    if (user.mustChangePassword) {
+      return err("PASSWORD_CHANGE_REQUIRED");
+    }
 
     // Cleanup expired sessions
     await this.sessionManager.cleanupExpiredSessions(user.id);

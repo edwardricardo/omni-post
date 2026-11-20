@@ -8,9 +8,11 @@
  *   The first block pins what `login` does at each of its checks (the brute-force gate and its
  *   delay, the lookup by normalized e-mail, the manual lock, the active check, the password, the
  *   second factor) and what it does once they pass, since the replacement runs the same checks.
- *   The second block covers the replacement: every refusal with its code and nothing written,
- *   the one guarded write, no session and no sign-in, and a row moved between the read and the
- *   write refused as a concurrent modification.
+ *   The second block pins that `login` refuses an administrator who must change the password
+ *   once every check has passed, and runs nothing a sign-in runs after them. The third block
+ *   covers the replacement: every refusal with its code and nothing written, the one guarded
+ *   write, no session and no sign-in, and a row moved between the read and the write refused as
+ *   a concurrent modification.
  * @layer infrastructure
  */
 
@@ -24,7 +26,7 @@ import {
 import type { PrismaClient } from "@infra/prisma";
 import { AdminAuthService } from "../../../src/admin/auth/AdminAuthService.js";
 import type { MfaService } from "../../../src/admin/auth/MfaService.js";
-import type { DeviceFingerprint, SecurityEvent } from "../../../src/admin/auth/adminAuthTypes.js";
+import type { DeviceFingerprint } from "../../../src/admin/auth/adminAuthTypes.js";
 import { hashPassword, verifyPassword } from "../../../src/auth/passwordHashing.js";
 import {
   createStatefulAdminUserPrismaFake,
@@ -56,23 +58,6 @@ const DEVICE: DeviceFingerprint = {
   userAgent: "fixture-agent/2.0",
   ipAddress: "203.0.113.24",
 };
-
-/** A location the device resolves to, so the event's conditional field is observable. */
-const LOCATION = { city: "Fixture City", countryCode: "FX" };
-
-/** The same device with its location known. */
-const LOCATED_DEVICE: DeviceFingerprint = { ...DEVICE, location: LOCATION };
-
-/**
- * Records each security event the service builds, field for field, before it is persisted:
- * the audit row keeps only some of them.
- */
-function spyOnSecurityEvents(service: AdminAuthService) {
-  return vi.spyOn(
-    service as unknown as { logSecurityEvent(event: SecurityEvent): Promise<void> },
-    "logSecurityEvent"
-  );
-}
 
 /** The attempt every brute-force call carries: the e-mail as typed, the address, the agent. */
 const ATTEMPT = { identifier: TYPED_EMAIL, ip: DEVICE.ipAddress, userAgent: DEVICE.userAgent };
@@ -108,6 +93,8 @@ interface Harness {
   readonly verifyMfaToken: ReturnType<typeof vi.fn>;
   readonly audit: Record<string, unknown>[];
   readonly sessionCreates: Record<string, unknown>[];
+  /** The name of every session operation the service called, in order. */
+  readonly sessionCalls: string[];
   readonly lookups: { count: number };
   /** Runs `hook` once, right after the next administrator lookup resolves. */
   afterNextLookup(hook: () => void): void;
@@ -154,6 +141,7 @@ function makeHarness(
 
   const audit: Record<string, unknown>[] = [];
   const sessionCreates: Record<string, unknown>[] = [];
+  const sessionCalls: string[] = [];
   const lookups = { count: 0 };
   let afterLookup: (() => void) | null = null;
   const inner = fake.client as unknown as { adminUser: Delegate; adminSession: Delegate };
@@ -173,7 +161,16 @@ function makeHarness(
     },
     adminSession: {
       ...inner.adminSession,
+      updateMany: async (args: Record<string, unknown>) => {
+        sessionCalls.push("updateMany");
+        return inner.adminSession.updateMany?.(args);
+      },
+      findMany: async () => {
+        sessionCalls.push("findMany");
+        return [];
+      },
       create: async (args: Record<string, unknown>) => {
+        sessionCalls.push("create");
         sessionCreates.push(args);
         return { id: "session-a-sign-in-would-open" };
       },
@@ -199,6 +196,7 @@ function makeHarness(
     verifyMfaToken,
     audit,
     sessionCreates,
+    sessionCalls,
     lookups,
     afterNextLookup(hook) {
       afterLookup = hook;
@@ -430,6 +428,7 @@ describe("AdminAuthService.login — the sign-in's checks", () => {
     };
     const userUpdates: Record<string, unknown>[] = [];
     const sessionCreates: Record<string, unknown>[] = [];
+    const auditRows: Record<string, unknown>[] = [];
     const client = {
       adminUser: {
         findUnique: async (args: { where: { email?: string; id?: string } }) =>
@@ -455,29 +454,12 @@ describe("AdminAuthService.login — the sign-in's checks", () => {
         },
       },
     } as unknown as PrismaClient;
-    const auditRows: Record<string, unknown>[] = [];
     const bruteForce = makeBruteForce();
     const service = new AdminAuthService(client, bruteForce, {} as unknown as MfaService);
-    const securityEvents = spyOnSecurityEvents(service);
 
-    const result = await service.login(signInRequest(SINGLE_USE_PASSWORD), LOCATED_DEVICE);
+    const result = await service.login(signInRequest(SINGLE_USE_PASSWORD), DEVICE);
 
     expect(result.ok).toBe(true);
-    expect(securityEvents.mock.calls).toEqual([
-      [
-        {
-          type: "LOGIN_SUCCESS",
-          userId: ADMIN_ID,
-          email: ADMIN_EMAIL,
-          ipAddress: DEVICE.ipAddress,
-          userAgent: DEVICE.userAgent,
-          deviceId: DEVICE.deviceId,
-          location: LOCATION,
-          success: true,
-          timestamp: expect.any(Date),
-        },
-      ],
-    ]);
     expect(auditRows).toEqual([
       {
         action: "LOGIN_SUCCESS",
@@ -498,6 +480,74 @@ describe("AdminAuthService.login — the sign-in's checks", () => {
     expect(bruteForce.recordSuccessfulAttempt).toHaveBeenCalledTimes(1);
     expect(bruteForce.recordSuccessfulAttempt).toHaveBeenCalledWith(ATTEMPT);
     expect(bruteForce.recordFailedAttempt).not.toHaveBeenCalled();
+  });
+});
+
+describe("AdminAuthService.login — an administrator who must change the password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("refuses the right password with PASSWORD_CHANGE_REQUIRED and runs nothing a sign-in runs after its checks", async () => {
+    const harness = makeHarness();
+
+    const result = await harness.service.login(signInRequest(SINGLE_USE_PASSWORD), DEVICE);
+
+    expect(result).toEqual(err("PASSWORD_CHANGE_REQUIRED"));
+    expect(harness.sessionCalls).toEqual([]);
+    expect(harness.fake.writes()).toEqual([]);
+    expect(storedAdmin(harness).lastLoginAt).toBeNull();
+    expect(harness.fake.readSessions(ADMIN_ID).map((s) => s.isActive)).toEqual([true]);
+    expect(harness.bruteForce.checkLoginAttempt).toHaveBeenCalledWith(ATTEMPT);
+    expect(harness.bruteForce.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(harness.bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+    expect(harness.audit).toEqual([]);
+  });
+
+  it("refuses with PASSWORD_CHANGE_REQUIRED after the second factor's code verifies, once", async () => {
+    const harness = makeHarness({ mfaEnabled: true });
+
+    const result = await harness.service.login(
+      signInRequest(SINGLE_USE_PASSWORD, MFA_CODE),
+      DEVICE
+    );
+
+    expect(result).toEqual(err("PASSWORD_CHANGE_REQUIRED"));
+    expect(harness.verifyMfaToken).toHaveBeenCalledTimes(1);
+    expect(harness.verifyMfaToken).toHaveBeenCalledWith(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: ADMIN_ID },
+      MFA_CODE
+    );
+    expect(harness.sessionCalls).toEqual([]);
+    expect(harness.fake.writes()).toEqual([]);
+    expect(harness.bruteForce.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(harness.bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+    expect(harness.audit).toEqual([]);
+  });
+
+  it("asks for the missing second factor without saying the password must be changed", async () => {
+    const harness = makeHarness({ mfaEnabled: true });
+
+    const result = await harness.service.login(signInRequest(SINGLE_USE_PASSWORD), DEVICE);
+
+    expect(result).toEqual(err("MFA_REQUIRED"));
+    expect(harness.verifyMfaToken).not.toHaveBeenCalled();
+    expect(harness.sessionCalls).toEqual([]);
+  });
+
+  it("answers a wrong password with INVALID_CREDENTIALS and records INVALID_PASSWORD, as for any administrator", async () => {
+    const harness = makeHarness();
+
+    const result = await harness.service.login(signInRequest(WRONG_PASSWORD), DEVICE);
+
+    expect(result).toEqual(err("INVALID_CREDENTIALS"));
+    expect(harness.bruteForce.recordFailedAttempt).toHaveBeenCalledTimes(1);
+    expect(harness.bruteForce.recordFailedAttempt).toHaveBeenCalledWith({
+      ...ATTEMPT,
+      failureReason: "INVALID_PASSWORD",
+    });
+    expect(harness.sessionCalls).toEqual([]);
+    expect(harness.fake.writes()).toEqual([]);
   });
 });
 
@@ -552,35 +602,21 @@ describe("AdminAuthService.changeRequiredPassword — replacing a password that 
     ]);
   });
 
-  it("records the change as a successful PASSWORD_CHANGED event and clears the counters with the checked attempt", async () => {
+  it("stores the change as a successful PASSWORD_CHANGED audit row and clears the counters with the checked attempt", async () => {
     const harness = makeHarness();
-    const securityEvents = spyOnSecurityEvents(harness.service);
 
-    await harness.service.changeRequiredPassword(changeRequest(NEW_PASSWORD), LOCATED_DEVICE);
+    await harness.service.changeRequiredPassword(changeRequest(NEW_PASSWORD), DEVICE);
 
-    expect(securityEvents.mock.calls).toEqual([
-      [
-        {
-          type: "PASSWORD_CHANGED",
-          userId: ADMIN_ID,
-          email: ADMIN_EMAIL,
-          ipAddress: DEVICE.ipAddress,
-          userAgent: DEVICE.userAgent,
-          deviceId: DEVICE.deviceId,
-          location: LOCATION,
-          success: true,
-          timestamp: expect.any(Date),
-        },
-      ],
-    ]);
     expect(harness.audit).toEqual([
-      expect.objectContaining({
+      {
         action: "PASSWORD_CHANGED",
-        userId: ADMIN_ID,
+        resource: "AdminAuth",
         success: true,
+        userId: ADMIN_ID,
+        actorType: "ADMIN",
         ipAddress: DEVICE.ipAddress,
         userAgent: DEVICE.userAgent,
-      }),
+      },
     ]);
     expect(harness.bruteForce.checkLoginAttempt).toHaveBeenCalledWith(ATTEMPT);
     expect(harness.bruteForce.recordSuccessfulAttempt).toHaveBeenCalledTimes(1);
@@ -862,6 +898,25 @@ describe("AdminAuthService.changeRequiredPassword — replacing a password that 
     expect(row.passwordHash).toBe(hashes.singleUse);
     expect(row.mustChangePassword).toBe(true);
     expect(harness.verifyMfaToken).not.toHaveBeenCalled();
+    expect(harness.fake.readSessions(ADMIN_ID).map((s) => s.isActive)).toEqual([true]);
+    expect(harness.audit).toEqual([]);
+  });
+
+  it("returns CONCURRENT_MODIFICATION and writes nothing when the second factor was disabled after the read", async () => {
+    const harness = makeHarness({ mfaEnabled: true });
+    harness.afterNextLookup(() => harness.fake.mutateAdmin(ADMIN_ID, { mfaEnabled: false }));
+
+    const result = await harness.service.changeRequiredPassword(
+      changeRequest(NEW_PASSWORD, { mfaToken: MFA_CODE }),
+      DEVICE
+    );
+
+    expect(result).toEqual(err("CONCURRENT_MODIFICATION"));
+    const row = storedAdmin(harness);
+    expect(row.passwordHash).toBe(hashes.singleUse);
+    expect(row.mustChangePassword).toBe(true);
+    expect(row.mfaEnabled).toBe(false);
+    expect(harness.verifyMfaToken).toHaveBeenCalledTimes(1);
     expect(harness.fake.readSessions(ADMIN_ID).map((s) => s.isActive)).toEqual([true]);
     expect(harness.audit).toEqual([]);
   });
