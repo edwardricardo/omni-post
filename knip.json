@@ -133,6 +133,9 @@
       "entry": ["src/reach.ts", "src/scopes.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"]
     },
+    "packages/vitest-shared": {
+      "ignoreBinaries": ["script"]
+    },
     "infra/prisma": {
       "project": ["src/**/*.ts"],
       "ignore": ["src/**/*.d.ts"],

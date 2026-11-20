@@ -2,12 +2,12 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1260,
+      "total": 1262,
       "byShape": {
         "test": 1012,
-        "integration-test": 92,
+        "integration-test": 93,
         "live-test": 17,
-        "spec": 9,
+        "spec": 10,
         "k6": 6,
         "runner": 0,
         "helper": 124,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1091,
-        "ADJUDICATE": 96,
+        "KEEP": 1092,
+        "ADJUDICATE": 97,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1248,
+      "machine": 1250,
       "confirmed": 12,
-      "total": 1260
+      "total": 1262
     },
     "blocks": {
-      "total": 15613,
+      "total": 15621,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15302
+        "BEHAVIOURAL": 15310
       }
     },
     "deleted": {
@@ -469,6 +469,30 @@
     }
   },
   "files": [
+    {
+      "path": "apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts",
+      "shape": "spec",
+      "framework": "vitest",
+      "collectors": ["playwright:apps/admin/e2e/first-administrator/playwright.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts::the first administrator signs in with the single-use password, sets a new one and signs in with it",
+          "line": 88,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2f9256ad2050f7a6f7cd3042aced2aab9c8fc03b9d83ee77600fa1f7defa0956"
+        }
+      ],
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
     {
       "path": "apps/admin/lib/http/__tests__/forwardedFor.test.ts",
       "shape": "test",
@@ -6082,147 +6106,147 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates one administrator with the SUPER_ADMIN role and prints its password once, when the database is empty",
-          "line": 438,
+          "line": 418,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd01cbe7eeaadd5f3004b61a140831d5e24bb96000db8583591b606d02921284"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a second run with exit code 1 and leaves the first administrator unchanged",
-          "line": 480,
+          "line": 460,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8c72e7c89e73ac14465ea685240e8b08b5a61d280976bdad92dad8b29320af9"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses and rolls the role write back when an administrator exists under another role and no SUPER_ADMIN row does",
-          "line": 496,
+          "line": 476,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa9e4e6ed6ad7b0c7f244ca48c86c573ce39a4f071417793dd031c105fb15fc0"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator and refuses the other run as a concurrent one, when two runs start at once on an empty database",
-          "line": 524,
+          "line": 504,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "576796c16b43cf2203d32cf3a59009a23ebc56d208cc9092008b8e2d3301fe9f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::makes the SUPER_ADMIN role exactly its definition and creates the administrator, when the role holds other fields and permissions",
-          "line": 557,
+          "line": 537,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4d82c695437327650a49aafa89d3a277cb69940d9041f58a985342954fdbcd6"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::activates the SUPER_ADMIN role with its definition's permissions and creates the administrator, when the role was deactivated and no administrator exists",
-          "line": 602,
+          "line": 582,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc8c400fe4d66df961391ecfe20f04ab3cb55b99fe86a3506495d9d7b2554cec"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses with the message of a lasting refusal and creates nothing, when a role of that name holds another id",
-          "line": 632,
+          "line": 612,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01429c11f87a339d76826c49fb229e77f8a71725e0802fc881d64bdd7eab7a9f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator when two runs start at once on a database where the SUPER_ADMIN role exists and no administrator does",
-          "line": 653,
+          "line": 633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0cd389a2558df3bbefb6f6da7615b8acc0af547ef6105961d5b25e24c72c15a"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::runs as a process in a pseudo-terminal, shows only the block and ends by itself",
-          "line": 691,
+          "line": 671,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d304b81d51f40f154329b17f2386ec95719fa3376537290ec02a8d9dbb127799"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues a different password that replaces the old one, ends every session and leaves one system audit record per run",
-          "line": 727,
+          "line": 707,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41b2a0272936b5faa3b916e76d268eebd55b3bb5655597d1fe4e85ecfe0f3bf6"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when no administrator has the e-mail",
-          "line": 839,
+          "line": 819,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2acf862f8539d062accfac4e690e5e9170a0237fe76ac317bd03337e77c753d"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator has signed in",
-          "line": 854,
+          "line": 834,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b20534682e83a2b28783e7a9b626bfb967c9938d9afe6aec1dcd17fceffb2e68"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator is no longer marked to change the password",
-          "line": 875,
+          "line": 855,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ddd79bf9c0b8463900667010d640dcc4db34330f44b95be4764d509cef532df"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator is deactivated",
-          "line": 895,
+          "line": 875,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d1ecb21a647021e2b958a3aec43f3125ace333672a2250883486f2a57f077b65"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue as changed since its read and changes nothing more, when the administrator is deactivated between the read and the write",
-          "line": 916,
+          "line": 896,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8ec0f4c918353f502c8c4e625825e4447b2baa438ff5db2ac1060ba3753346a"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues exactly once when two re-issues start at once, and the stored hash is the printed password's",
-          "line": 956,
+          "line": 936,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ec1ac1b2679b6ef2e0ae2cbf841d497c1e57b5f338b327fcb6e3bcbb1d0a14a"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues as a process in a pseudo-terminal, shows only the block and ends by itself",
-          "line": 997,
+          "line": 977,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ea5832fdcb52d69712f4dcec9c043b1c6fd329ca1887be8ed899eac6fa20f0f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves no role and no administrator when the audit write of the creation fails inside its transaction",
-          "line": 1034,
+          "line": 1014,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dff4607a048bfb7f7c7f4c6c75439930272f8deab28a81127469a4a382196c1e"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves the stored hash, the mark and the sessions as they were when the audit write of a re-issue fails inside its transaction",
-          "line": 1063,
+          "line": 1043,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "620dda401af55b3e03e3f0bedf388d87f98bccdc090dda2750799eda1608deb0"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets exactly one of a re-issue and the administrator's own required change win when both wait on the administrator's row",
-          "line": 1089,
+          "line": 1069,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "734c33ecdcd1f4db58ed108442c1d351ccc938bb69b2216fc22fcd91ae8a260f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets the required change win and refuses the re-issue as changed since its read, when the required change queues for the administrator's row first",
-          "line": 1151,
+          "line": 1131,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8986679845b7ccccd59a259d2e8b1f30783c943fa2f41175b702bd84d1d525f6"
@@ -7572,6 +7596,72 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a5d93c3bd4ab00e8e69b8ca561efe8f6642e212a9d101cb58c1a189cbc13c5b7"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 7,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::gives the command a terminal as its standard input, output and error",
+          "line": 41,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b9b9cbb65ff3b2de9a4ef46e0eb8d6f5ed99e4c246efa8f2d48491b37012738b"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns the command's exit code and what it wrote, its lines ending CR LF",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "478a43c784d5762aa081f2a045a2a1c3a73612eec915aed0eab732914a0477f9"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns 128 plus the signal's number when a signal ends the command",
+          "line": 63,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "27cdf3096496a02801ffe0633b3a29a87196f82cc89ad1a043eb1c3147cd26c3"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::runs the command in the given directory with only the given environment",
+          "line": 74,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a29fe3ee808bb0f5d1ecc41f0e726f7172fdc0d5a8d122ffc36043fcc9eade6b"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::ends a command that outlives its limit and returns no exit code, killed",
+          "line": 90,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6868ccb2f7841d0bc448592c74d06afdbbc6363c4da481f6a7bedfbb0ec40338"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns no exit code and nothing written when script cannot be started",
+          "line": 113,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "186d41d1da504ee27ae3c3bf03898069f4c70561869446962d11978eaacdd182"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::passes each word commandLine joins to the command as one unchanged argument",
+          "line": 124,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7e007a539edbe184b94ca88ee74b85b7d1054e38fe16c6a794fce9ce43f953b4"
         }
       ],
       "verdict": "KEEP",
