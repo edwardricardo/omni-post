@@ -19,6 +19,9 @@ import type { RoleRepository, RoleDto } from "@core/domain/repositories/RoleRepo
 import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 
+/** The temporary password a caller supplies when it creates an administrator. */
+const SUPPLIED_PASSWORD = "Fixture-Supplied-Pw-3x!";
+
 function makeDto(overrides: Partial<AdminUserDto> = {}): AdminUserDto {
   return {
     id: "u-1",
@@ -68,6 +71,9 @@ function makeAdminUserRepo(seed: AdminUserDto[]): AdminUserRepositoryPort {
         email: input.email,
         name: input.name,
         role: input.roleId as AdminUserDto["role"],
+        ...(input.mustChangePassword !== undefined && {
+          mustChangePassword: input.mustChangePassword,
+        }),
       });
       users.push(u);
       return u;
@@ -121,6 +127,24 @@ describe("AdminUserAdminService", () => {
         expect(result.value.temporaryPassword).toHaveLength(16);
       }
     });
+
+    it.each([
+      { source: "generated", password: undefined },
+      { source: "supplied by the caller", password: SUPPLIED_PASSWORD },
+    ])(
+      "creates the user marked to change the password when the temporary password is $source",
+      async ({ password }) => {
+        const result = await service.create({
+          email: "marked@test.com",
+          name: "Marked",
+          role: "ADMIN",
+          ...(password !== undefined && { password }),
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.ok && result.value.user.mustChangePassword).toBe(true);
+      }
+    );
   });
 
   describe("getDetail", () => {

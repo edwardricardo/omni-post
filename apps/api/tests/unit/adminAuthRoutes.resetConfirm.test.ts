@@ -27,6 +27,7 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const { adminAuthRoutes } = await import("../../src/admin/auth/adminAuthRoutes.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
@@ -44,8 +45,11 @@ const emailStub = { send: vi.fn(async () => ok(undefined)) };
 /** Always allows: the limiter is registered so `rateLimit` resolves, not to be tested. */
 const limiterStub = { tryConsume: vi.fn(async () => ({ allowed: true })) };
 
+/** The routes over the stubs, on an app with the Zod compilers `createApp()` sets. */
 function buildApp() {
   const app = Fastify({ logger: false });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
   const container = new Container();
   container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
   container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);

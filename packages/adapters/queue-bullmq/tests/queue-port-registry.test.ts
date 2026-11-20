@@ -6,15 +6,17 @@
  * @layer infrastructure
  */
 
+import { EventEmitter } from "node:events";
 import { describe, it, beforeEach, vi, expect } from "vitest";
 
 const queueConstructor = vi.fn();
 const mockQueueClose = vi.fn(async () => {});
 
+// An EventEmitter, as BullMQ's Queue is: the adapter attaches its `error` listener to it.
 vi.mock("bullmq", () => ({
   Queue: vi.fn(function MockQueue(name: string, opts: unknown) {
     queueConstructor(name, opts);
-    return {
+    return Object.assign(new EventEmitter(), {
       add: vi.fn(),
       close: mockQueueClose,
       getWaiting: vi.fn(async () => []),
@@ -22,7 +24,7 @@ vi.mock("bullmq", () => ({
       getCompleted: vi.fn(async () => []),
       getFailed: vi.fn(async () => []),
       getJob: vi.fn(),
-    };
+    });
   }),
 }));
 

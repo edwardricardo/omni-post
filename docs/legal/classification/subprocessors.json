@@ -76,10 +76,6 @@
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
     },
-    "@fastify/cors": {
-      "status": "library",
-      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
-    },
     "@fastify/helmet": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."

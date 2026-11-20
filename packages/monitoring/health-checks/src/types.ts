@@ -51,9 +51,12 @@ export interface HealthAlert {
 }
 
 export interface HealthCheckConfig {
+  /** How long a check's one attempt may take, in milliseconds, before it reports a failure. */
   timeout: number;
+  /** The refresh interval, in milliseconds, while the last report is healthy or degraded. */
   interval: number;
-  retries: number;
+  /** The refresh interval, in milliseconds, while the last report is unhealthy. */
+  unhealthyInterval: number;
   alertThresholds: {
     degradedLatency: number;
     unhealthyLatency: number;

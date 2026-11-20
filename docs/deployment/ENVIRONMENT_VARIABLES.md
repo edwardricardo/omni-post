@@ -269,7 +269,7 @@ Set `TRACING_ENABLED=true` to activate OpenTelemetry SDK initialization. The tra
 
 ## Workers
 
-The workers validate their variables through their own schema, [`apps/workers/src/config/env.ts`](../../apps/workers/src/config/env.ts), and load the root `.env` when it is present, or `.env.test` when `NODE_ENV` is `test`.
+The workers validate their variables through their own schema, [`apps/workers/src/config/env.ts`](../../apps/workers/src/config/env.ts). Their `dev` script names the root `.env` on Node's command line, as the API's does, so the file is loaded before any module runs. The schema module then loads the root `.env`, or `.env.test` when `NODE_ENV` is `test`, when that file is present, and a variable already set keeps its value: under `NODE_ENV=test`, `dev` reads `.env`, and `.env.test` sets only what `.env` leaves unset.
 
 | Variable                  | Required | Default       | Description                                                                                                                                                                                   |
 | ------------------------- | -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

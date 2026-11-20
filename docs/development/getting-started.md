@@ -46,8 +46,8 @@ cd apps/api && pnpm --silent create-first-admin --email admin@example.com
 pnpm db:seed
 ```
 
-- **The command** (`apps/api/src/cli/createFirstAdministrator.ts`) reads the API's environment, the root `.env`, and runs only with its output on a terminal. It creates the `SUPER_ADMIN` role and one administrator named after the e-mail's local part, and prints the e-mail and a single-use password. Signing in with it at `http://localhost:3100` leads to `/en/login/change-password`, which sets a new password; the new password then signs in. `--reissue --email <address>` prints a new single-use password for an administrator who has never signed in, and `--help` prints every rule.
-- **The seed** (`infra/prisma/seed.ts`) needs `ADMIN_PASSWORD`, in the environment or in the root `.env`, which `pnpm start:platform` does not generate, and refuses without it or under `NODE_ENV=production`. It writes demonstration data (accounts, projects, customer users, channels, subscriptions, pricing and roles, among others) and the administrator `admin@omnipost.local`, who signs in with `ADMIN_PASSWORD` and is not asked to change it. Each run sets that password again.
+- **The command** (`apps/api/src/cli/createFirstAdministrator.ts`) reads the API's environment, the root `.env`, and runs only with its output on a terminal. It creates the `SUPER_ADMIN` role and one administrator named after the e-mail's local part, and prints the e-mail and a single-use password. Signing in with it at `http://localhost:3100` leads to `/en/login/change-password`, which sets a new password; the new password then signs in. `--reissue --email <address>` prints a new single-use password for any administrator who is active, has never signed in and is still marked to change the password, and `--help` prints every rule.
+- **The seed** (`infra/prisma/seed.ts`) needs `ADMIN_PASSWORD`, in the environment or in the root `.env`: `pnpm start:platform` generates it for a new `.env` and does not require it of an existing one, so a file written before that holds none until you add it. It refuses without it, and refuses unless `NODE_ENV` is `development` or `test`, or is unset, which counts as development (`staging`, an empty value and any other value are refused). It writes demonstration data (accounts, projects, customer users, channels, subscriptions, pricing and roles, among others) and the administrator `admin@omnipost.local`, who signs in with `ADMIN_PASSWORD` and is not asked to change it. Each run sets that password again.
 - **After the seed** the command refuses, with exit code 1: `Refused: An administrator already exists: the first administrator is created only on a database that has none`.
 
 What support needs to know about the command: [first-administrator.md](../support/first-administrator.md).
@@ -69,7 +69,7 @@ The `docker-compose.yml` starts these services, each bound to `127.0.0.1`. `pnpm
 | Grafana    | 3001        | Dashboards (credentials from `GF_SECURITY_ADMIN_*`) |
 | Jaeger     | 16686       | Distributed tracing UI (OTLP HTTP receiver on 4318) |
 
-`pnpm db:up` does not start containers: it resolves, reaches and authenticates against the PostgreSQL and Redis named by `DATABASE_URL` and `REDIS_URL` in `.env`, local or shared, and fails with an actionable message when one is not usable.
+`pnpm db:up` starts PostgreSQL and Redis the way `pnpm start:platform` does and stops there, so a migration can follow: it writes the root `.env` when the checkout has none and checks the one it has, runs `docker compose up -d postgres redis`, prints one line for each service as it answers (PostgreSQL a query with the user, password and database of `.env`, Redis `PING`), and exits 0. A service that does not answer within the wait (60 s, `--wait-seconds` of `scripts/start/platform-start.mjs --services-only`) ends it with exit 1 and a line that names the service. It migrates nothing and starts no application.
 
 ### Storage, tracing and mail
 
@@ -120,10 +120,10 @@ pnpm format:check  # Check formatting only
 ### Database Commands
 
 ```bash
-pnpm db:up         # Preflight only, starts nothing: resolve, reach and authenticate DATABASE_URL and REDIS_URL from .env (start local ones first with docker compose up -d)
+pnpm db:up         # Start PostgreSQL and Redis with Docker Compose and wait until each answers; migrates nothing
 pnpm db:studio     # Open Prisma Studio
 pnpm db:migrate    # Run migrations
-pnpm db:seed       # Seed test data; needs ADMIN_PASSWORD, set in the environment or in the root .env
+pnpm db:seed       # Seed test data; needs ADMIN_PASSWORD (generated for a new .env) and NODE_ENV development, test or unset
 ```
 
 ### Test Commands
@@ -174,10 +174,10 @@ docker compose ps
 
 ```bash
 curl http://localhost:3000/health
-# {"ok":true,"timestamp":"..."}
+# {"status":"healthy","timestamp":"...","uptime":...}: 200 for healthy or degraded, 503 for unhealthy
 
-curl http://localhost:3000/health/full
-# Shows database and Redis status
+curl http://localhost:3000/health/detailed
+# Shows the status of each dependency
 
 curl http://localhost:3300/health/ready   # the workers
 curl http://localhost:3100/api/health     # the administration portal
