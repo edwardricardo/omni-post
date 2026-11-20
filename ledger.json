@@ -2,10 +2,10 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1259,
+      "total": 1260,
       "byShape": {
         "test": 1012,
-        "integration-test": 91,
+        "integration-test": 92,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1088,
+        "KEEP": 1089,
         "ADJUDICATE": 98,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1249,
+      "machine": 1250,
       "confirmed": 10,
-      "total": 1259
+      "total": 1260
     },
     "blocks": {
-      "total": 15610,
+      "total": 15613,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15299
+        "BEHAVIOURAL": 15302
       }
     },
     "deleted": {
@@ -6406,7 +6406,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 5
+      "importers": 6
     },
     {
       "path": "apps/api/tests/integration/helpers/postTrioFixtures.ts",
@@ -6486,7 +6486,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 88
+      "importers": 89
     },
     {
       "path": "apps/api/tests/integration/inboxRoutes.live.test.ts",
@@ -10013,6 +10013,44 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a246d468ca177d711d9609eecb8a00bafb4c7bdd3960d155f9d2d97f95728b71"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/integration/scratchDatabaseEmptying.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/scratchDatabaseEmptying.integration.test.ts::removes the rows of every table in one statement but the migrations' record",
+          "line": 118,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "45a41f3a62cebddb9cc4e94ce68958a0cedb955028088fce3a5a92324e0f0cbf"
+        },
+        {
+          "id": "apps/api/tests/integration/scratchDatabaseEmptying.integration.test.ts::starts the sequences again, so a new row is numbered as in a fresh table",
+          "line": 131,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "dd56f0102dd27f6c1679a35d43dc641350e96fa32e9ae489ded91979da8262f8"
+        },
+        {
+          "id": "apps/api/tests/integration/scratchDatabaseEmptying.integration.test.ts::raises, naming both databases, and removes nothing on another database",
+          "line": 143,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "302eeec2b90bc1136a78f549b2df74b145515f64d239ef59df4f420bd9914956"
         }
       ],
       "verdict": "KEEP",

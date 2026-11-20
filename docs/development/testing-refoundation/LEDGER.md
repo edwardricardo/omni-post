@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1259  |
+| Files                   | 1260  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1088  |
+| KEEP                    | 1089  |
 | ADJUDICATE              | 98    |
 | unmeasured              | 0     |
-| Machine rows            | 1249  |
+| Machine rows            | 1250  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15610 |
+| Blocks                  | 15613 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -478,6 +478,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/sagaPublishNowPromotion.integration.test.ts`                              | integration-test | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/sagaTenantIsolation.integration.test.ts`                                  | integration-test | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/scheduledReportTenantIsolation.integration.test.ts`                       | integration-test | 11     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/integration/scratchDatabaseEmptying.integration.test.ts`                              | integration-test | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/security-endpoints.live.test.ts`                                          | live-test        | 11     | 11         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/integration/seedRoleWrites.integration.test.ts`                                       | integration-test | 4      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/integration/sendReplyGuardrail.live.test.ts`                                          | live-test        | 2      | 0          | KEEP       | machine                     | behavioural          |

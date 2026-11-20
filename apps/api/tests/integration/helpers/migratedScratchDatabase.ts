@@ -149,21 +149,32 @@ export interface MigratedScratchDatabase {
   drop(): Promise<void>;
 }
 
-/** The connection string of another database on the same server, with the same credentials. */
-function urlOfDatabase(ownerUrl: string, database: string): string {
+/**
+ * @function urlOfDatabase
+ * @description The connection string of another database on the same server, with the same
+ *   credentials.
+ * @param ownerUrl - The owner channel's connection string
+ * @param database - The name of the other database
+ * @returns The connection string of `database`
+ */
+export function urlOfDatabase(ownerUrl: string, database: string): string {
   const url = new URL(ownerUrl);
   url.pathname = `/${database}`;
   return url.toString();
 }
 
 /**
- * The one statement that empties `database`: every table of the public schema but
- * `_prisma_migrations`, in one `TRUNCATE`, so the foreign keys among them hold, with the sequences
- * their columns own started again, so a generated number does not depend on what ran before. It raises, and
- * removes nothing, when the database of the connection that runs it is not `database`: a client
- * of the owner channel's own database that ran it would otherwise empty that database.
+ * @function emptyingStatement
+ * @description The one statement that empties `database`: every table of the public schema but
+ *   `_prisma_migrations`, in one `TRUNCATE`, so the foreign keys among them hold, with the
+ *   sequences their columns own started again, so a generated number does not depend on what ran
+ *   before. It raises, and removes nothing, when the database of the connection that runs it is
+ *   not `database`: a client of the owner channel's own database that ran it would otherwise
+ *   empty that database.
+ * @param database - The name of the only database the statement may empty
+ * @returns The statement, run as one raw command
  */
-function emptyingStatement(database: string): string {
+export function emptyingStatement(database: string): string {
   return `DO $$
     DECLARE tables text;
     BEGIN
