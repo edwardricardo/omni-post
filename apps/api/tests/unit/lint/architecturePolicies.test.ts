@@ -6,7 +6,10 @@
  *   entry only where it has entries, so a rule with none (`workers-no-api`,
  *   `shared-depends-only-on-shared`, the domain and ports rules) could be deleted or widened while
  *   `pnpm check:architecture` still exits 0. Each rule is stated once below, in the config's own
- *   shape, so a policy change is a change to this table.
+ *   shape, so a policy change is a change to this table. A table pins strings only: a pattern
+ *   narrowed in the config and in the table together still passes it, so the test-code rule's own
+ *   patterns, read from the loaded config, are also run on sample paths the way dependency-cruiser
+ *   runs them.
  * @layer infrastructure
  */
 import { createRequire } from "node:module";
@@ -15,7 +18,9 @@ import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
 import { describe, expect, it } from "vitest";
 
-type Rule = { name: string; severity: string; from: object; to: object };
+type Pattern = string | string[];
+type Condition = { path?: Pattern; pathNot?: Pattern };
+type Rule = { name: string; severity: string; from: Condition; to: Condition };
 type Config = { forbidden: Rule[]; options: { exclude: { path: string[] } } };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
@@ -187,5 +192,62 @@ describe("the policy of the architecture gate (.dependency-cruiser.cjs)", () => 
     expect(CONFIG.options.exclude.path).toContain("(^|/)reports/mutation/");
     expect(excluded("apps/api/src/reports/reportRoutes.ts")).toBe(false);
     expect(excluded("packages/core/reports/src/index.ts")).toBe(false);
+  });
+});
+
+/** A pattern as dependency-cruiser compiles it: a list is one alternation, with no flags. */
+const compile = (pattern: Pattern): RegExp =>
+  new RegExp(Array.isArray(pattern) ? pattern.join("|") : pattern);
+
+/** Whether a path, relative to the root, meets a rule's `from` or `to` on `path` and `pathNot`. */
+const meets = (condition: Condition, file: string): boolean =>
+  (condition.path === undefined || compile(condition.path).test(file)) &&
+  (condition.pathNot === undefined || !compile(condition.pathNot).test(file));
+
+describe("production-imports-no-test-code, run on sample paths with the config's own patterns", () => {
+  const rule = CONFIG.forbidden.find(
+    (candidate) => candidate.name === "production-imports-no-test-code"
+  );
+
+  it.each([
+    [
+      "a source module importing an app's tests directory",
+      "apps/api/src/a.ts",
+      "apps/x/tests/y.ts",
+    ],
+    ["a source module importing a test file", "apps/api/src/a.ts", "apps/api/src/a.test.ts"],
+    ["a source module importing a spec file", "packages/ui/src/a.ts", "packages/ui/src/a.spec.mts"],
+    ["a source module importing a package's tests", "apps/api/src/a.ts", "packages/a/tests/y.ts"],
+    [
+      "a source module importing a grouped package's tests",
+      "apps/api/src/a.ts",
+      "packages/a/b/tests/y.ts",
+    ],
+    [
+      "a package's source importing its own tests",
+      "packages/core/auth/src/a.ts",
+      "packages/core/auth/tests/y.ts",
+    ],
+  ])("flags %s", (_case, from, to) => {
+    expect(rule, "production-imports-no-test-code is missing from the config").toBeDefined();
+    expect(rule !== undefined && meets(rule.from, from) && meets(rule.to, to)).toBe(true);
+  });
+
+  it.each([
+    ["a test file inside a source tree as the origin", "apps/x/src/a.test.ts", "apps/x/tests/y.ts"],
+    [
+      "a module outside a source tree as the origin",
+      "apps/api/scripts/a.ts",
+      "apps/api/tests/y.ts",
+    ],
+    [
+      "a tests directory deeper than a grouped package",
+      "apps/api/src/a.ts",
+      "packages/a/b/c/tests/y.ts",
+    ],
+    ["a source module importing another source module", "apps/api/src/a.ts", "apps/api/src/b.ts"],
+  ])("does not flag %s", (_case, from, to) => {
+    expect(rule, "production-imports-no-test-code is missing from the config").toBeDefined();
+    expect(rule !== undefined && meets(rule.from, from) && meets(rule.to, to)).toBe(false);
   });
 });
