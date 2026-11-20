@@ -257,7 +257,10 @@ describe("webhookDashboardRoutes", () => {
     app = await createTestApp();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Each case starts with no task, whatever a stream an earlier case opened left behind.
+    await scheduler.shutdownAll();
+
     // Mock authentication service
     vi.spyOn(authService, "verifyAccessToken").mockImplementation(async (token: string) => {
       if (token && token !== "invalid-token") {
@@ -725,9 +728,14 @@ describe("webhookDashboardRoutes", () => {
         const aborted = once(stream, "error");
         controller.abort();
         await aborted;
-        await until(() => unsubscribe.mock.calls.length > 0, {
-          description: "the stream's teardown on close",
-        });
+        await until(
+          () => unsubscribe.mock.calls.length > 0 && scheduler.getActiveTasks().length === 0,
+          {
+            description: "the stream's teardown on close: unsubscribed and no task left",
+            // Below the case's own timeout, so a missing teardown fails with this description.
+            timeoutMs: 2_000,
+          }
+        );
 
         expect(unsubscribe).toHaveBeenCalledTimes(1);
         expect(scheduler.getActiveTasks()).toEqual([]);

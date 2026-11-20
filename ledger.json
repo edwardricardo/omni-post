@@ -90933,287 +90933,287 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should return metrics with valid authentication",
-          "line": 296,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1b06ca1fffb3908823d78ec59d9c10f3e632b512f35350aaa4cc9ded238684d"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept valid timeRange query parameter",
-          "line": 315,
+          "line": 318,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "86f696ffec7657706c1d0d8733351232445340df4ae52d9de17a9f679ac7f45b"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept valid provider filter",
-          "line": 325,
+          "line": 328,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f29c43285cd939486401d3e4b2514fc66e5c53af50f7e5bc5c7ffe7fa9b35ecd"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept valid projectId filter",
-          "line": 335,
+          "line": 338,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be2ad98fd7a28531b8e1fa5e213a5a6c991ddb0e33a7381598c7dc23c6b95d27"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept valid status filter",
-          "line": 345,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbb4b40bd36acbb328bab7787c7f78f8d38bed34ebcb14b3a12179e1f6d92bec"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid timeRange",
-          "line": 355,
+          "line": 358,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71b28216f70fd12e4549b86addb04808fb3391323821528e5e1de8550b552081"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid provider",
-          "line": 365,
+          "line": 368,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d2358c39f9e700efb156c04be3adbc32e7fa96427490dfba36121919d47576a"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid projectId format",
-          "line": 375,
+          "line": 378,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d465faca9c23e64eb3ef482a160db0e15aa1d75558b90b09fd121114b977ed9e"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid status",
-          "line": 385,
+          "line": 388,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e5a5b78585b78d0c2bd1a4d30ccfd5e6bdf7f27eb80ce6038e71b9d0d691ffb"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject without authentication",
-          "line": 395,
+          "line": 398,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f72c3938893f1a8a98b0af4e4adf95c897bca3695b7543814e129698b0281903"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should return paginated events",
-          "line": 406,
+          "line": 409,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae067de818d89b26eb3aba4b814253aa2a33a4c403751aa2a7e6f4e876555cea"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept page parameter",
-          "line": 424,
+          "line": 427,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "54fd89f0d2c5250397a40f950feb5ed2f6c34de1ab2a5d6a5ca7677fbd322f80"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept limit parameter",
-          "line": 434,
+          "line": 437,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03a9b981ed7798031ed27703e61e519bf002bf2a260936add0b8f932b3d29231"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept provider filter",
-          "line": 444,
+          "line": 447,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "effa563644d6c0c4aa64fcaf99f8a473c05051749692fe454d3d731ee87d4dd8"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept status filter",
-          "line": 454,
+          "line": 457,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a6f2a5d295601f7ed203110512fab580717b458565890dda833ff09b1cb86860"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept search parameter",
-          "line": 464,
+          "line": 467,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d6afbc0d5a5e2c3dc98282d13a28337919b00b50a7348467a43772aaa6652297"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject page less than 1",
-          "line": 474,
+          "line": 477,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01dec73236338202ff3c585b301e12fa7ba9e6e2158475ccb162295e6989fddf"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject limit greater than 100",
-          "line": 484,
+          "line": 487,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a1ee067799a1e530aa3fcd1d4b15e5bf8e46e174f81b0627297a348061bb431"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid provider in events",
-          "line": 494,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c68801e3b0448792af23a9e6269a44d9b2c67ed11282c295f59da1f4b9263c4"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject without authentication #2",
-          "line": 504,
+          "line": 507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "64bc0b3aaa16f18d70d2f652ccb2a205bbaa0ced24c23d45ad8ab9bdaf3a32ab"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should return event details with valid UUID",
-          "line": 515,
+          "line": 518,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b628d7173a9d686c28ea29108011bf9f246889d0f35069c55299eb15285dbfd1"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid UUID format",
-          "line": 533,
+          "line": 536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b5a8297a766842064cee0f3b2e59ad981a61734ead17f9525e401bd8e581554"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject without authentication #3",
-          "line": 543,
+          "line": 546,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "822b2b633d788abf5828cf823f0998ca7c74350089332d42b5af259ab5fdc8a8"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should return subscriptions list",
-          "line": 554,
+          "line": 557,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b936209dc0bfe37262273831b648f7eb62080acaa7a4f47c09638a2fdae77766"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject without authentication #4",
-          "line": 571,
+          "line": 574,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f1f83ad4caa0c1a0d81b440f0c62da2e7f6366005e8b4169a3f89fc239847f4"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should return dead letter queue events",
-          "line": 582,
+          "line": 585,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b070387fb4fdfa886c36b0abf04332e478b414c7191cd703af68cf50f5aae2a9"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept pagination for dead letter queue",
-          "line": 597,
+          "line": 600,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "22335b269dd5bb67af7afb7c067a09de658d319e7fe34107d74a09e3c982cb1c"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept provider filter for DLQ",
-          "line": 607,
+          "line": 610,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7056cdbeb9fb5854db0b4df77fcfe51382fb973db71b960203c5ab6e0a5b9f00"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid pagination parameters",
-          "line": 617,
+          "line": 620,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e104890a77fec24b115efaa699efd083a372cf7ae88829f42857bc1bb7dd7562"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject without authentication #5",
-          "line": 627,
+          "line": 630,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ac79b4b977031589cd2e0f15a118a8d626a1fc8c1f9a8c0e8c3cf664754cf25"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should retry dead letter event successfully",
-          "line": 638,
+          "line": 641,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e28337a32a88369c1a7119f85ec24232dcc502183cfc26ceedcf107ed653a787"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid event ID for retry",
-          "line": 653,
+          "line": 656,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28e3d5350fb6686035572aa9e5bbf4ac9a72023a5b9a9932e29220d7fbd0ec89"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject retry without authentication",
-          "line": 663,
+          "line": 666,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66bc3a769df04fe3f5bff2dd891f8229254e41316b2c7fd25c070a93a897c84f"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::opens the event stream with no Access-Control header for a foreign Origin",
-          "line": 674,
+          "line": 677,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0eff2ef8db90036462af4c23fc0f7a79ea9298defec33ec871be4e5efdc9c9d"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::drops its heartbeat task and its broadcaster subscription once the connection closes",
-          "line": 704,
+          "line": 707,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "5fd4e4563dbe30f2bffc3bd5e0113fcb9f598234ca0530e6e4785c660c0b11c5"
+          "bodyHash": "5f1bd259f3088e0079d5dc98f0e2d37f724d8048f03e4eeb865abc1dd71ea1cf"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject SSE without authentication",
-          "line": 739,
+          "line": 747,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e2d3ebf75b477e4ddb64884513d5f8a4e057fb08e1d050aca65770dbc4e21d7"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should export webhook events as CSV",
-          "line": 750,
+          "line": 758,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c542ab33be8da1ff7d8baedabc1d125d1fe9fd74f3105188cf22378ddaa9414"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept timeRange for export",
-          "line": 764,
+          "line": 772,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6c7e45955c7fb0b71277494ed0e1e836aab19bc52874d95717414432dddb59f"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should accept provider filter for export",
-          "line": 778,
+          "line": 786,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b0a33e9bed8b8ac2df5a1d0c52ec6577c241dcb4ab55947923080acf46d59fd"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject invalid query params for export",
-          "line": 788,
+          "line": 796,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2523b2231738945b26da317987eb7800bd31b798a307fbb915c308f1358fa6c0"
         },
         {
           "id": "apps/api/tests/unit/webhookDashboardRoutes.test.ts::should reject export without authentication",
-          "line": 798,
+          "line": 806,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7769c34b34cf449ba052ed2797838cf4afa19b1d8de46908fea2cd3e32a89634"
