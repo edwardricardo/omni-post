@@ -4,8 +4,9 @@
  *              program that writes only to a terminal, such as the first-administrator command,
  *              which refuses to print its single-use password anywhere else. util-linux `script`
  *              opens the terminal: `--command` runs the line through the shell, `--return` ends
- *              `script` with the command's exit code, `--flush` writes the terminal's output as it
- *              comes, and `/dev/null` keeps the session's transcript out of every file. The test
+ *              `script` with the command's exit code, or 128 plus the number of the signal that
+ *              ended the command, `--flush` writes the terminal's output as it comes, and
+ *              `/dev/null` keeps the session's transcript out of every file. The test
  *              that runs the program in a terminal and the browser journey that signs in with the
  *              password it printed both run it through this module.
  * @layer infrastructure
@@ -26,7 +27,11 @@ export interface PseudoTerminalOptions {
 
 /** How the command ended and what it wrote. */
 export interface PseudoTerminalRun {
-  /** The command's exit code; -1 when it ended without one: a signal, or `script` never ran. */
+  /**
+   * `script`'s exit code: the command's, or 128 plus the number of the signal that ended the
+   * command. -1 when `script` itself ended without one, by the time limit or another signal, or
+   * never started.
+   */
   readonly code: number;
   /** Whether the command outlived its time limit and was ended. */
   readonly killed: boolean;
