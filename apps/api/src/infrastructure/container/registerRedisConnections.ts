@@ -8,9 +8,11 @@
  * @layer infrastructure
  */
 import type { Redis } from "ioredis";
+import { logConnectionErrors } from "@observability/logger";
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { createRedisConnection } from "../../lib/redis.js";
+import { createLogger } from "../../lib/logger.js";
 
 /**
  * @function registerRedisConnections
@@ -19,7 +21,10 @@ import { createRedisConnection } from "../../lib/redis.js";
  *   no `process.env` fallback). BullMQ canon (docs.bullmq.io/guide/connections):
  *   worker and subscriber connections require `maxRetriesPerRequest: null`;
  *   counters use the finite-retry default. Each is a singleton; lifecycle
- *   (quit) is owned by the apps/api shutdown handler.
+ *   (quit) is owned by the apps/api shutdown handler. Each connection writes its
+ *   errors through a throttled listener on the `redis` logger, which also reports
+ *   when it is ready again: an ioredis client with no `error` listener writes every
+ *   reconnection error with console.error.
  *
  *   - `BullMQWorkerConnection` — shared by all in-process BullMQ consumers
  *     (Worker requirement: null retries + keepAlive, no commandTimeout since
@@ -32,15 +37,25 @@ import { createRedisConnection } from "../../lib/redis.js";
  * @param container - The DI container to register the connections into.
  */
 export function registerRedisConnections(container: Container): void {
+  const redisLogger = createLogger("redis");
+  const listened = (connection: Redis, name: string): Redis => {
+    logConnectionErrors(connection, redisLogger, name);
+    return connection;
+  };
+
   container.register<Redis>(
     TOKENS.BullMQWorkerConnection,
-    () => createRedisConnection({ maxRetriesPerRequest: null }),
+    () => listened(createRedisConnection({ maxRetriesPerRequest: null }), "redis:bullmq-worker"),
     true
   );
   container.register<Redis>(
     TOKENS.SagaSubscriberConnection,
-    () => createRedisConnection({ maxRetriesPerRequest: null }),
+    () => listened(createRedisConnection({ maxRetriesPerRequest: null }), "redis:saga-subscriber"),
     true
   );
-  container.register<Redis>(TOKENS.AnalyticsRedisConnection, () => createRedisConnection(), true);
+  container.register<Redis>(
+    TOKENS.AnalyticsRedisConnection,
+    () => listened(createRedisConnection(), "redis:analytics"),
+    true
+  );
 }

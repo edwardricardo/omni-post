@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, vi, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import { drainTarget } from "../../src/lib/gracefulShutdown.js";
 import type { ShutdownTarget, ShutdownLogger } from "../../src/lib/gracefulShutdown.js";
@@ -197,17 +197,23 @@ vi.mock("../../src/lib/gracefulShutdown.js", async (importActual) => {
   };
 });
 
-vi.mock("@observability/logger", () => ({
-  createLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  }),
+// The module builds its logger at load, so the double lives in the hoisted scope; the
+// throttled listener stays real, so the saga-notify connection's lines are observable.
+const { workerLogger, schedulerOptions } = vi.hoisted(() => ({
+  workerLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  schedulerOptions: [] as Array<
+    { logger?: { error(message: string, data?: unknown): void } } | undefined
+  >,
 }));
 
+vi.mock("@observability/logger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@observability/logger")>();
+  return { ...actual, createLogger: () => workerLogger };
+});
+
 vi.mock("@observability/background-scheduler", () => {
-  function DefaultBackgroundTaskScheduler() {
+  function DefaultBackgroundTaskScheduler(options?: (typeof schedulerOptions)[number]) {
+    schedulerOptions.push(options);
     return {
       shutdownAll: vi.fn().mockResolvedValue({ timedOut: false }),
     };
@@ -332,6 +338,49 @@ describe("startPublishWorker", () => {
       0,
       "registerGracefulShutdown must NOT be called when registerShutdown: false"
     );
+  });
+
+  it("builds its task scheduler with the logger adapter, so a task error reaches the worker's log", async () => {
+    schedulerOptions.length = 0;
+    const { startPublishWorker } = await import("../../src/publishWorker.js");
+    const { workerPrisma } = await import("../../src/container/workerContainer.js");
+    await startPublishWorker({ prisma: workerPrisma, registerShutdown: false });
+
+    schedulerOptions[0]?.logger?.error("task failed", { taskId: "cleanup" });
+
+    expect(workerLogger.error).toHaveBeenCalledWith({ data: { taskId: "cleanup" } }, "task failed");
+  });
+
+  it("logs one line for two errors of the saga-notify connection and reports it ready again", async () => {
+    const { startPublishWorker } = await import("../../src/publishWorker.js");
+    const { workerPrisma } = await import("../../src/container/workerContainer.js");
+    await startPublishWorker({ prisma: workerPrisma, registerShutdown: false });
+    const listenerFor = (event: string) =>
+      notifyRedisInstance()?.on.mock.calls.find(([name]) => name === event)?.[1] as
+        ((value?: unknown) => void) | undefined;
+    const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
+
+    listenerFor("error")?.(error);
+    listenerFor("error")?.(error);
+    listenerFor("ready")?.();
+
+    const notifyLines = (calls: unknown[][]) =>
+      calls.filter(
+        ([context]) => (context as { connection?: unknown }).connection === "redis:saga-notify"
+      );
+    expect(notifyLines(workerLogger.error.mock.calls)).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "redis:saga-notify",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
+    expect(notifyLines(workerLogger.info.mock.calls)).toEqual([
+      [{ connection: "redis:saga-notify", suppressed: 1 }, "Connection ready again"],
+    ]);
   });
 
   // ---------------------------------------------------------------------------

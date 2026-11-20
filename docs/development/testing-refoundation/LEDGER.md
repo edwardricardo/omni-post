@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1243  |
+| Files                   | 1251  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1073  |
+| KEEP                    | 1081  |
 | ADJUDICATE              | 97    |
 | unmeasured              | 0     |
-| Machine rows            | 1233  |
+| Machine rows            | 1241  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15507 |
+| Blocks                  | 15562 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -292,7 +292,7 @@ Deleted: 0 files, 52 blocks.
 | `packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts` | test  | 16     | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/fallback-strategies/tests/index.test.ts`                  | test  | 25     | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts`              | test  | 8      | 0          | KEEP    | machine | behavioural     |
-| `packages/adapters/queue-bullmq/tests/queue-adapter.test.ts`                 | test  | 15     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/queue-bullmq/tests/queue-adapter.test.ts`                 | test  | 16     | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts`           | test  | 6      | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/queue-bullmq/tests/resilience.test.ts`                    | test  | 27     | 0          | KEEP    | machine | behavioural     |
 | `packages/adapters/storage-cloudinary/tests/index.test.ts`                   | test  | 9      | 0          | KEEP    | machine | behavioural     |
@@ -707,6 +707,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/billing/GatewayBillingService.test.ts`                                           | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/billing/billingWebhookIdempotency.test.ts`                                       | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/billing/dunning.test.ts`                                                         | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/billing/gatewaySwitchProcessor.test.ts`                                          | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/billing/subscription/SubscriptionService.test.ts`                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/billingService.test.ts`                                                          | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/bootstrap/schedulerTickTenantScope.test.ts`                                      | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
@@ -836,6 +837,8 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/infrastructure/constraintViolation.test.ts`                                      | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/containerSetupOptionsContract.type-test.ts`             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/infrastructure/container/firstAdministratorRole.test.ts`                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts`                  | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts`                   | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/setupAccountUseCases.test.ts`                           | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/setupExternalNotificationUseCases.test.ts`              | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/setupGuardrailUseCases.test.ts`                         | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -893,6 +896,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/lib/apiReference.test.ts`                                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts`                                            | test             | 25     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/lib/hardDeleteErrorMapping.test.ts`                                              | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/lib/loggerCommandArgsRedaction.test.ts`                                          | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/loggerPortContract.test.ts`                                                  | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/loggerPortContract.type-test.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/lib/loggerRedaction.test.ts`                                                     | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
@@ -929,6 +933,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/realtimeWebhookBroadcaster.broadcasting.test.ts`                                 | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/realtimeWebhookBroadcaster.connections.test.ts`                                  | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/realtimeWebhookBroadcaster.stats-shutdown.test.ts`                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/realtimeWebhookBroadcaster.subscriberErrors.test.ts`                             | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/realtimeWebhookBroadcaster.test-helpers.ts`                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts`                                           | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/retention/DeletionRecordDegrader.test.ts`                                        | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
@@ -1029,8 +1034,8 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/seedGuard.test.ts`                                                               | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/seedPasswordHashing.test.ts`                                                     | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts`                                     | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/services/NotificationBroadcaster.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts`                                     | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/services/NotificationBroadcaster.test.ts`                                        | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/StreamConnectionTracker.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/audit.test.ts`                                                          | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/settings/SettingsService.test.ts`                                                | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
@@ -1194,9 +1199,11 @@ Deleted: 0 files, 31 blocks.
 | `apps/workers/tests/setup-env.ts`                                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/workers/tests/setup.ts`                                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/workers/tests/unit/env.unit.test.ts`                                                            | test             | 10     | 0          | ADJUDICATE | machine                     | subject-not-imported |
+| `apps/workers/tests/unit/healthConnection.unit.test.ts`                                               | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/unit/publishWorker.drain-order.test.ts`                                           | test             | 1      | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/workers/tests/unit/publishWorker.unit.test.ts`                                                  | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
+| `apps/workers/tests/unit/publishWorker.unit.test.ts`                                                  | test             | 10     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/workers/tests/unit/readiness.unit.test.ts`                                                      | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/workers/tests/unit/workerScheduler.unit.test.ts`                                                | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/worker.smoke.ts`                                                                  | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `packages/adapters/cache-redis/tests/access-patterns.test.ts`                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/cache-manager.test.ts`                                           | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
@@ -1212,7 +1219,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/adapters/db-prisma/tests/postRepositoryStoredValues.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/subRepos.di.test.ts`                                               | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/uniqueViolationMapping.test.ts`                                    | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts`                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts`                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts`                            | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/dead-letter-queue/tests/mutation-killing.test.ts`                                  | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/external-apis/tests/circuitBreakerC1bHardening.test.ts`                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
@@ -1313,7 +1320,8 @@ Deleted: 0 files, 31 blocks.
 | `packages/observability/background-scheduler/tests/noop-scheduler.test.ts`                            | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/console-adapter.test.ts`                                 | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/port.test.ts`                                            | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/logger/tests/redaction.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/logger/tests/redaction.test.ts`                                               | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/logger/tests/throttledErrorListener.test.ts`                                  | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts`                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fsSpans.test.ts`                                          | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |

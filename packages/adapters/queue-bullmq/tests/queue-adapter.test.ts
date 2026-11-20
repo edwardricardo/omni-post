@@ -7,7 +7,20 @@
  * @layer infrastructure
  */
 
+import { EventEmitter } from "node:events";
 import { describe, it, beforeEach, vi, expect } from "vitest";
+
+// The adapter builds its logger at module load, before this file's body runs, so the
+// double the factory returns is created in the hoisted scope.
+const { mockLoggerError } = vi.hoisted(() => ({ mockLoggerError: vi.fn() }));
+
+vi.mock("@observability/logger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@observability/logger")>();
+  return {
+    ...actual,
+    createLogger: () => ({ error: mockLoggerError, warn: vi.fn(), info: vi.fn() }),
+  };
+});
 
 const mockQueueAdd = vi.fn(async (_name: string, _payload: unknown, _opts: unknown) => ({
   id: "stub-job-id",
@@ -24,12 +37,16 @@ const mockQueueGetFailedCount = vi.fn(async () => 0);
 const mockQueueGetWorkers = vi.fn(async (): Promise<{ name?: string }[]> => []);
 const mockQueueGetJob = vi.fn(async (_id: string) => null);
 const queueConstructor = vi.fn();
+// Each double is a plain EventEmitter: an `error` it emits with no listener attached throws,
+// where BullMQ's Queue would catch it and write it with console.error. Either way the error
+// only reaches the structured logger through a listener the adapter attaches.
+const queueInstances: EventEmitter[] = [];
 
 vi.mock("bullmq", () => {
   return {
     Queue: vi.fn(function MockQueue(name: string, opts: unknown) {
       queueConstructor(name, opts);
-      return {
+      const queue = Object.assign(new EventEmitter(), {
         add: mockQueueAdd,
         close: mockQueueClose,
         getWaiting: mockQueueGetWaiting,
@@ -42,7 +59,9 @@ vi.mock("bullmq", () => {
         getFailedCount: mockQueueGetFailedCount,
         getWorkers: mockQueueGetWorkers,
         getJob: mockQueueGetJob,
-      };
+      });
+      queueInstances.push(queue);
+      return queue;
     }),
   };
 });
@@ -83,6 +102,28 @@ function makeConnectionDouble(): import("ioredis").default {
 describe("createBullMQQueueAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queueInstances.length = 0;
+  });
+
+  it("logs one line, with the queue's name, for two errors the queue emits", () => {
+    createBullMQQueueAdapter({ queueName: "publish", connection: makeConnectionDouble() });
+    const queue = queueInstances[0];
+    const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
+
+    expect(() => {
+      queue?.emit("error", error);
+      queue?.emit("error", error);
+    }).not.toThrow();
+    expect(mockLoggerError.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "bullmq-queue:publish",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
   });
 
   it("throws identifying the missing connection when none is injected (runtime safety net)", () => {

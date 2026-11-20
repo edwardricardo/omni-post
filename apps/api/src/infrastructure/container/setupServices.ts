@@ -144,6 +144,7 @@ import {
   DefaultBackgroundTaskScheduler,
   type BackgroundTaskScheduler,
 } from "@observability/background-scheduler";
+import { logConnectionErrors } from "@observability/logger";
 import { env } from "../../config/env.js";
 
 /**
@@ -161,6 +162,11 @@ export function setupServices(
   if (integrationEventPublisher) {
     container.registerInstance(TOKENS.IntegrationEventPublisher, integrationEventPublisher);
   }
+
+  // The connections built below write their errors here, each through a throttled listener
+  // that also reports when the connection is ready again: while Redis is down every
+  // connection errs on each reconnection attempt.
+  const redisLogger = createLogger("redis");
 
   // Register BackgroundTaskScheduler (centralised setInterval registry).
   // Singleton — one registry per process, flushed on SIGTERM/SIGINT.
@@ -278,10 +284,13 @@ export function setupServices(
   // ephemeral orchestrator throttles against the same buckets.
   container.register<RateLimiterPort>(
     TOKENS.RateLimiterPort,
-    () =>
-      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+    () => {
+      const redis = createRedisConnection();
+      logConnectionErrors(redis, redisLogger, "redis:ai-provider-rate-limiter");
+      return new RedisTokenBucketRateLimiter(redis, {
         capacity: env.AI_PROVIDER_REQUESTS_PER_MIN,
-      }),
+      });
+    },
     true
   );
   // Cross-pod token-bucket limiter for INBOUND HTTP requests (same port +
@@ -290,10 +299,13 @@ export function setupServices(
   // from the rule table passed per call by the HTTP preHandler.
   container.register<RateLimiterPort>(
     TOKENS.HttpRateLimiter,
-    () =>
-      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+    () => {
+      const redis = createRedisConnection();
+      logConnectionErrors(redis, redisLogger, "redis:http-rate-limiter");
+      return new RedisTokenBucketRateLimiter(redis, {
         keyPrefix: "http:ratelimit:",
-      }),
+      });
+    },
     true
   );
   // AIRequestExecutor adapter wraps AIProviderFactory + AIOrchestrator so
@@ -607,7 +619,7 @@ export function setupServices(
     TOKENS.RealtimeWebhookBroadcaster,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      logConnectionErrors(redis, redisLogger, "redis:realtime-webhook-broadcaster");
       return new RealtimeWebhookBroadcaster(
         container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient),
         redis,
@@ -654,6 +666,8 @@ export function setupServices(
         commandTimeout: 5_000,
         connectTimeout: 5_000,
       });
+      // No listener of its own: BullMQ attaches one to a client it is given and re-emits the
+      // client's errors on each queue, whose adapter logs them throttled under the queue's name.
       const defaultJobOptionsByQueue = {
         [QUEUE_NAMES.PUBLISH]: {
           attempts: 3,
@@ -709,7 +723,7 @@ export function setupServices(
     TOKENS.ContentVersionManager,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      logConnectionErrors(redis, redisLogger, "redis:content-version-manager");
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
@@ -728,7 +742,7 @@ export function setupServices(
     TOKENS.PlatformContentAdapter,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      logConnectionErrors(redis, redisLogger, "redis:platform-content-adapter");
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
@@ -746,7 +760,7 @@ export function setupServices(
     TOKENS.SyncEngine,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      logConnectionErrors(redis, redisLogger, "redis:sync-engine");
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
@@ -809,10 +823,11 @@ export function setupServices(
     TOKENS.NotificationBroadcaster,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      logConnectionErrors(redis, redisLogger, "redis:notification-broadcaster");
       const broadcaster = new NotificationBroadcaster(
         redis,
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        redisLogger
       );
       broadcaster.initialize();
       return broadcaster;
@@ -825,10 +840,11 @@ export function setupServices(
     TOKENS.AnalyticsStreamBroadcaster,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {});
+      logConnectionErrors(redis, redisLogger, "redis:analytics-stream-broadcaster");
       const broadcaster = new AnalyticsStreamBroadcaster(
         redis,
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        redisLogger
       );
       broadcaster.initialize();
       return broadcaster;
@@ -852,9 +868,7 @@ export function setupServices(
     TOKENS.BruteForceProtectionPort,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {
-        // Errors surface via the adapter's fail-open path (logged + metric).
-      });
+      logConnectionErrors(redis, redisLogger, "redis:brute-force-protection");
       return new RedisBruteForceAdapter(
         redis,
         container.resolve<AuditService>(TOKENS.AuditService),
@@ -873,9 +887,7 @@ export function setupServices(
     TOKENS.MfaChallengeStore,
     () => {
       const redis = createRedisConnection();
-      redis.on("error", () => {
-        // Faults surface via the adapter's typed err("STORE_ERROR") path.
-      });
+      logConnectionErrors(redis, redisLogger, "redis:mfa-challenge-store");
       return new RedisMfaChallengeStoreAdapter(redis);
     },
     true

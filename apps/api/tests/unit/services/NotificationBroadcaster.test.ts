@@ -51,6 +51,10 @@ function makeScheduler() {
   return { register: vi.fn(), unregister: vi.fn() };
 }
 
+function makeLogger() {
+  return { error: vi.fn(), info: vi.fn() };
+}
+
 const makeNotification = (id: string): NotificationEventPayload => ({
   id,
   type: "POST_PUBLISHED",
@@ -64,7 +68,11 @@ describe("NotificationBroadcaster", () => {
 
   beforeEach(() => {
     vi.mocked(duplicateForSubscriber).mockClear();
-    broadcaster = new NotificationBroadcaster(makeRedis() as never, makeScheduler() as never);
+    broadcaster = new NotificationBroadcaster(
+      makeRedis() as never,
+      makeScheduler() as never,
+      makeLogger()
+    );
   });
 
   it("delivers a broadcast notification to a subscriber for that recipient", async () => {
@@ -121,7 +129,7 @@ describe("NotificationBroadcaster", () => {
 
   it("publishes to the recipient's Redis channel on broadcast (cross-pod fan-out)", async () => {
     const redis = makeRedis();
-    const b = new NotificationBroadcaster(redis as never, makeScheduler() as never);
+    const b = new NotificationBroadcaster(redis as never, makeScheduler() as never, makeLogger());
     await b.broadcast(makeNotification("n-9"), "recipient-9");
     expect(redis.publish).toHaveBeenCalledTimes(1);
     expect(redis.publish.mock.calls[0]?.[0]).toBe("notifications:recipient-9");
@@ -129,7 +137,32 @@ describe("NotificationBroadcaster", () => {
 
   it("builds its subscriber connection via the canonical duplicateForSubscriber helper", () => {
     const redis = makeRedis();
-    new NotificationBroadcaster(redis as never, makeScheduler() as never);
+    new NotificationBroadcaster(redis as never, makeScheduler() as never, makeLogger());
     expect(duplicateForSubscriber).toHaveBeenCalledWith(redis);
+  });
+
+  it("logs one line for two errors of its subscriber connection through the injected logger", () => {
+    const redis = makeRedis();
+    const logger = makeLogger();
+    new NotificationBroadcaster(redis as never, makeScheduler() as never, logger);
+    const subscriber = redis.duplicate.mock.results[0]?.value as StubRedis;
+    const onError = subscriber.on.mock.calls.find(([event]) => event === "error")?.[1] as (
+      error: unknown
+    ) => void;
+    const error = new Error("connect ECONNREFUSED 127.0.0.1:6379");
+
+    onError(error);
+    onError(error);
+
+    expect(logger.error.mock.calls).toEqual([
+      [
+        {
+          err: expect.objectContaining({ type: "Error", message: error.message }),
+          connection: "redis:notification-broadcaster-subscriber",
+          suppressed: 0,
+        },
+        "Connection error",
+      ],
+    ]);
   });
 });

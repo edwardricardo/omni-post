@@ -112,14 +112,18 @@ vi.mock("uuid", () => ({
 // The unit logs through `createLogger` from @observability/logger. Mocking `pino` instead
 // would only intercept that package's transitive dependency, which is a coincidence rather
 // than a contract.
-vi.mock("@observability/logger", () => ({
-  createLogger: () => ({
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-    debug: () => undefined,
-  }),
-}));
+vi.mock("@observability/logger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@observability/logger")>();
+  return {
+    ...actual,
+    createLogger: () => ({
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+      debug: () => undefined,
+    }),
+  };
+});
 
 // ── Import source ────────────────────────────────────────────────────────────
 
