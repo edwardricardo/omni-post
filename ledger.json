@@ -27,7 +27,7 @@
       "total": 1227
     },
     "blocks": {
-      "total": 15326,
+      "total": 15327,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15015
+        "BEHAVIOURAL": 15016
       }
     },
     "deleted": {
@@ -109728,81 +109728,88 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/auth/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns the new single-use password once, after replacing the hash as read, ending every session and writing one system audit record",
-          "line": 230,
+          "line": 257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50b509ea6f6ccb563a13f02c145232f2d87827a8353eb71b347811348d1cfb07"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns the password under the key password and nowhere else, and writes it to no port",
-          "line": 268,
+          "line": 295,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "847aea9a05ea4988db5703b3bf4669663d15b34e308529ab88bb2ed9756e8f8d"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses with its own message, drawing no password and writing nothing, when $reason",
-          "line": 289,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d014173c7c9615b25acdc8ed0d1de7b36eeda7d70f4add7d11ec50f913f8d2ab"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses as signed in, not as unmarked, when the administrator has signed in and is no longer marked",
-          "line": 327,
+          "line": 354,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d39c92e5993f77877054e87a0bb75caf636697ef429f1d0254af432155eaa84a"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns CONFLICT, rolled back, ending no session and writing no audit record, when the guarded write matches no row",
-          "line": 340,
+          "line": 367,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2bdf1fa4aaa1224fbf752e2123a6d39989bdb903ec4e0d68e1ea7038ae4215ee"
         },
         {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns CONFLICT, leaving the stored hash and reset token as they are, ending no session and writing no audit record, when a password reset was requested between the read and the write",
+          "line": 386,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "75577d0661792f6a9c53d4d84dd44b10c8950ef72c01bcb76ab5803897184b43"
+        },
+        {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error, drawing no password, when reading the administrator raises",
-          "line": 361,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d58b206e771f71767ee7e296b3f8bce2ed6f383e55fc219b92c225f069f6b253"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR before any transaction when $step fails",
-          "line": 374,
+          "line": 427,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "86b51d6eda08279fabf2f4baf8c4c7e0968f630899fa9aa6b2f6c2ac3ff0db9e"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error, rolled back, when the guarded write fails",
-          "line": 408,
+          "line": 461,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7695fa728f412d38cdebf57695fcc7ecba6d63d8b9b669b6dcacf4279a2c1435"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR as the failed outcome of the transaction's work, after its earlier writes in it, when $step",
-          "line": 430,
+          "line": 483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3d7850595f28101b988f36f0876533304423039da1d2ec4a73ec406a12eb3e5"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR whose cause names only the type when the guarded write raises a value that is not an Error",
-          "line": 475,
+          "line": 528,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1560f6f94b3be89475105b2aee24525ec74ef9b8504c2c1ae996e367b8bb6cb1"
         },
         {
           "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR with the message of an unknown outcome when the transaction itself fails",
-          "line": 489,
+          "line": 542,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85509aecdd94452e1907c2806799bbcd0c9f8adfd49f2a0a443892ba8c76bb69"

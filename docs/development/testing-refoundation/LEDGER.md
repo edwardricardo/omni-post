@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1217  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15326 |
+| Blocks                  | 15327 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1224,7 +1224,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/core/application/tests/unit/retryOnWriteConflict.test.ts`                                   | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/assets/tests/unit/CreateMediaAssetUseCase.test.ts`                                     | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts`                               | test             | 23     | 0          | ADJUDICATE | machine                     | opaque               |
-| `packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts`                           | test             | 11     | 0          | ADJUDICATE | machine                     | opaque               |
+| `packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts`                           | test             | 12     | 0          | ADJUDICATE | machine                     | opaque               |
 | `packages/core/auth/tests/unit/RoleManagementService.test.ts`                                         | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/auth/tests/unit/useCaseDoubles.ts`                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `packages/core/billing/tests/unit/CreateAccountSubscriptionUseCase.test.ts`                           | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
