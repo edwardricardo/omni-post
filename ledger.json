@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1225,
+      "total": 1226,
       "byShape": {
-        "test": 984,
+        "test": 985,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1059,
+        "KEEP": 1060,
         "ADJUDICATE": 93,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1215,
+      "machine": 1216,
       "confirmed": 10,
-      "total": 1225
+      "total": 1226
     },
     "blocks": {
-      "total": 15286,
+      "total": 15297,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14975
+        "BEHAVIOURAL": 14986
       }
     },
     "deleted": {
@@ -2554,6 +2554,100 @@
         "module": "apps/admin/components/shared/SkipLink.tsx",
         "imported": true
       },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 11,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::wraps the story in the light theme's class when the theme global is light",
+          "line": 83,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cb8a160e86761254433ae4431cbd2a7824d96e18c507fb1309ff7f1ac75622ae"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::wraps the story in the portal's default theme when the theme global is not a theme",
+          "line": 90,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0bc5d537ee5bb1d9346c217163de238937ee5d7e60c10c905d8c61a351c64ad1"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider the locale and the catalog whose file name ends in it when the locale is declared",
+          "line": 99,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1850d7cdf29604f4153538bb4db36e1b5f8dd687b67228c03b1f38ea0440b7ae"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider the routing's default locale and its catalog when the locale is not declared",
+          "line": 106,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b9cf4c7773114d432a53322a3a447fc2dc10faf93891645fc6121f98974a5cbd"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider an empty catalog when the declared locale has none",
+          "line": 113,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cc8a6c69c5cbdb8aecebb88cfa1505f955051b35fb81819c02d90b5a45df3a80"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::starts every story in the portal's default theme and the routing's default locale",
+          "line": 121,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e63144135f23de35fc0669d7c5b9a800dc4bc319e02b941a55aa2234c5b3bcf7"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::offers every locale of the routing, each named in its own language",
+          "line": 126,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fed01f966917478a39481adbcbdbc25b133bc1d4c84acc9fb42c23cd365a7966"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::offers exactly the themes the decorator renders in, each with its label and icon",
+          "line": 134,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d1a77f7d9253d5f276938195d7f3b604a3cfb38b5f2df3b32dc3d34ec7df2370"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::returns the colour a token resolves to where the element renders, not the element's own",
+          "line": 158,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7f1e9ab5c2b307a40e8d27078b3e6fdb974a3fdd469ce0f1fb87c76d63c1ef3c"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::leaves the element's content as it found it after reading the token",
+          "line": 164,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "12af96f749687739be58c64c7d37ee33b71245f726a4ccaf43dda214c547617b"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::throws naming the token when the token is not defined where the element renders",
+          "line": 173,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "81609606ea01bea914c4d1cb958aef3f51b93e4a8f3d79c17f21bd06aa5cdcb1"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
       "duplicate": null,
       "importers": null
     },
