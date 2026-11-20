@@ -4059,3 +4059,23 @@ describe("db:up, the services alone (--services-only)", () => {
     expect(manifest.scripts["db:up"]).toBe("node scripts/start/platform-start.mjs --services-only");
   });
 });
+
+describe("the services step of the full start", () => {
+  it("says in one line that both services accept connections, naming neither on a line of its own", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect({
+      code: result.code,
+      services: result.stdout
+        .split("\n")
+        .filter((line) => /^platform-start: (Postgres|Redis) on /.test(line)),
+    }).toEqual({
+      code: 0,
+      services: [
+        `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} and Redis on 127.0.0.1:${staged.redis.port} accept connections`,
+      ],
+    });
+  });
+});

@@ -31,10 +31,11 @@
  *   one checked here ends the run in one line that names the variable. `--wait-seconds` bounds
  *   each service: a query still running when
  *   it runs out is stopped, and an attempt on a port that says nothing ends at most two seconds
- *   after it. A line names each service as it answers.
+ *   after it. One line says when both accept connections.
  *
- *   SERVICES ONLY. `--services-only`, which `pnpm db:up` runs, ends the run once both services
- *   answer: the environment file is kept or written as above, no app's port is read, nothing is
+ *   SERVICES ONLY. `--services-only`, which `pnpm db:up` runs, prints one line for each service
+ *   as it answers instead, and ends the run once both answer: the environment file is kept or
+ *   written as above, no app's port is read, nothing is
  *   migrated and no app is started, so a migration can follow.
  *
  *   MIGRATION. `pnpm --filter @infra/prisma run migrate`, the script CI runs (`prisma migrate
@@ -246,9 +247,9 @@ Last come the administration portal and the client portal, each held to answer t
 A checkout with no ${ENVIRONMENT_FILE} file receives one, its secrets random; an existing file is
 never written, and the run fails naming each required variable it lacks. POSTGRES_HOST_PORT and
 REDIS_HOST_PORT, set when the file is generated, choose the host ports the compose file publishes
-Postgres and Redis on. A line names each service as it answers. With --services-only the run
-ends there, with the environment file kept or written alike and no app's port read, so a
-migration can follow (pnpm db:migrate).
+Postgres and Redis on. One line says when both accept connections. With --services-only a line
+names each service as it answers instead, and the run ends there, with the environment file kept
+or written alike and no app's port read, so a migration can follow (pnpm db:migrate).
 
 The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pnpm must be on PATH,
 and only after Prisma proves, through the connection the migration will use, that it reaches the
@@ -902,16 +903,18 @@ async function waitFor(failure, seconds, probe) {
 /**
  * @function startServices
  * @description Starts Postgres and Redis from the compose file and waits until both accept a
- *   connection, Postgres first, printing one line for each as it answers.
+ *   connection, Postgres first.
  * @param {string} root - The checkout, where `docker-compose.yml` and the environment file are.
  * @param {string} file - The environment file's path, for the messages.
  * @param {Record<string, string>} values - What the environment file holds.
  * @param {{ Postgres: number, Redis: number }} ports - The host port each service is published on.
  * @param {number} waitSeconds - How long each service may take.
+ * @param {boolean} announceEach - Whether to print one line for each service as it answers, as
+ *   the services-only run does; the full start prints one line once both answer.
  * @returns {Promise<string>} Resolves once both accept a connection, with what Postgres answered
  *   inside the container when asked which database it is.
  */
-async function startServices(root, file, values, ports, waitSeconds) {
+async function startServices(root, file, values, ports, waitSeconds, announceEach) {
   const env = shellEnvironment();
   /**
    * @param {string[]} args - Docker's arguments.
@@ -991,14 +994,21 @@ async function startServices(root, file, values, ports, waitSeconds) {
       return select.status === 0;
     }
   );
-  process.stdout.write(`${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} answers a query\n`);
+  if (announceEach) {
+    process.stdout.write(`${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} answers a query\n`);
+  }
   await waitFor(
     `Redis did not answer PING on ${LOOPBACK}:${ports.Redis} within ${waitSeconds} s ` +
       `(\`docker compose logs redis\`)`,
     waitSeconds,
     () => answers(ports.Redis, "PING\r\n", (reply) => reply.startsWith("+PONG"))
   );
-  process.stdout.write(`${NAME}: Redis on ${LOOPBACK}:${ports.Redis} answers PING\n`);
+  process.stdout.write(
+    announceEach
+      ? `${NAME}: Redis on ${LOOPBACK}:${ports.Redis} answers PING\n`
+      : `${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} and Redis on ${LOOPBACK}:${ports.Redis} ` +
+          `accept connections\n`
+  );
   return answered;
 }
 
@@ -1787,7 +1797,7 @@ async function main(argv) {
   try {
     if (options.servicesOnly) {
       const { values, ports } = prepareServicesEnvironment(file);
-      await startServices(options.root, file, values, ports, options.waitSeconds);
+      await startServices(options.root, file, values, ports, options.waitSeconds, true);
       return 0;
     }
     const portals = PORTALS.map(({ app, manifest }) => {
@@ -1795,10 +1805,13 @@ async function main(argv) {
       return { app, manifest, at, ...manifestPort(at) };
     });
     const { values, ports, api, workers } = prepareEnvironment(file, portals);
-    const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
-    process.stdout.write(
-      `${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} and Redis on ${LOOPBACK}:${ports.Redis} ` +
-        `accept connections\n`
+    const answered = await startServices(
+      options.root,
+      file,
+      values,
+      ports,
+      options.waitSeconds,
+      false
     );
     migrateDatabase(options.root, file, answered, options.waitSeconds);
     await startApp(options.root, { ...API, port: api }, options.waitSeconds);

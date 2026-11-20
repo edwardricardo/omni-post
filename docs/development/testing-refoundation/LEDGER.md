@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1241  |
+| Files                   | 1242  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1072  |
+| KEEP                    | 1073  |
 | ADJUDICATE              | 96    |
 | unmeasured              | 0     |
-| Machine rows            | 1231  |
+| Machine rows            | 1232  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15457 |
+| Blocks                  | 15464 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -777,8 +777,9 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/errorHandler.test.ts`                                                            | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/generateCacheKey.base64.test.ts`                                                 | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/consumerPresenceHealthChecker.test.ts`                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/health/databaseHealthChecker.test.ts`                                            | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/health/healthCheckManager.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/health/databaseHealthChecker.test.ts`                                            | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/health/healthCheckManager.test.ts`                                               | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/health/healthRoutesReadiness.test.ts`                                            | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/queueHealthChecker.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/usableStatus.test.ts`                                                     | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/helpers/InMemoryAdminUserRepository.ts`                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -988,7 +989,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 152    | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 153    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |

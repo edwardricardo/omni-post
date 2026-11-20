@@ -8,13 +8,18 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ok, type Result } from "@shared/types";
 import {
+  DatabaseHealthChecker,
   HealthCheckManager,
   type HealthChecker,
   type HealthCheckResult,
   type HealthStatus,
 } from "@monitoring/health-checks";
-import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import {
+  DefaultBackgroundTaskScheduler,
+  NoopBackgroundTaskScheduler,
+} from "@observability/background-scheduler";
 
 /** The id the manager registers its refresh under. */
 const REFRESH_TASK = "health-check-manager-periodic";
@@ -191,6 +196,134 @@ describe("HealthCheckManager check attempts", () => {
       details: { connectedClients: 4 },
       lastChecked: expect.any(Date),
       critical: false,
+    });
+  });
+});
+
+describe("HealthCheckManager re-arming on the scheduler the applications run", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps one task under the refresh's id, firing at the new interval and never at the old one", async () => {
+    const scheduler = new DefaultBackgroundTaskScheduler();
+    const manager = new HealthCheckManager(undefined, scheduler);
+    const { checker, state } = makeChecker("unhealthy");
+    manager.register("database", checker, { type: "database", critical: true });
+
+    manager.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const tasksAt5s = scheduler.getActiveTasks();
+    // Six 5 s refreshes in 30 s: a 30 s timer left armed would add a seventh.
+    await vi.advanceTimersByTimeAsync(30_000);
+    const checksAt5s = checker.check.mock.calls.length;
+
+    state.status = "healthy";
+    await vi.advanceTimersByTimeAsync(5_000);
+    const checksAtRecovery = checker.check.mock.calls.length;
+    const tasksAt30s = scheduler.getActiveTasks();
+    // At 30 s, one refresh per 30 s: a 5 s timer left armed would add five more.
+    await vi.advanceTimersByTimeAsync(29_999);
+    const checksBeforeTheNext = checker.check.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1);
+    const checksAtTheNext = checker.check.mock.calls.length;
+    manager.stop();
+    await scheduler.shutdownAll();
+
+    expect({
+      tasksAt5s,
+      checksAt5s,
+      tasksAt30s,
+      afterRecovery: checksBeforeTheNext - checksAtRecovery,
+      atTheNext: checksAtTheNext - checksAtRecovery,
+    }).toEqual({
+      tasksAt5s: [REFRESH_TASK],
+      checksAt5s: 7,
+      tasksAt30s: [REFRESH_TASK],
+      afterRecovery: 0,
+      atTheNext: 1,
+    });
+  });
+});
+
+describe("HealthCheckManager latency bands of the database check", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The status the manager reports for a database whose ping answers after `ms`. */
+  async function statusForPingOf(ms: number): Promise<string> {
+    const database = {
+      ping: () =>
+        // fixed-wait: latency-injection — the ping's latency is the input under test, on the faked clock
+        new Promise<Result<void, "DATABASE_ERROR">>((resolve) => {
+          setTimeout(() => resolve(ok(undefined)), ms);
+        }),
+    };
+    const manager = new HealthCheckManager(undefined, new NoopBackgroundTaskScheduler());
+    manager.register("database", new DatabaseHealthChecker(database), {
+      type: "database",
+      critical: true,
+    });
+    const pending = manager.checkDependency("database");
+    await vi.advanceTimersByTimeAsync(ms + 1);
+    const result = await pending;
+    return result.ok ? result.value.status : result.error;
+  }
+
+  it("reads healthy up to 1000 ms, degraded above it until the 5000 ms timeout, and unhealthy past it", async () => {
+    const bands: Record<number, string> = {};
+    for (const ms of [1_000, 1_001, 4_999, 5_001]) bands[ms] = await statusForPingOf(ms);
+
+    expect(bands).toEqual({
+      1000: "healthy",
+      1001: "degraded",
+      4999: "degraded",
+      5001: "unhealthy",
+    });
+  });
+});
+
+describe("HealthCheckManager re-arming after an on-demand check", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("registers the refresh again only when the interval changes, so it keeps its phase", async () => {
+    const { checker, state } = makeChecker("healthy");
+    const { scheduler, manager } = startManager(checker);
+    const register = vi.spyOn(scheduler, "register");
+
+    for (let probe = 0; probe < 3; probe += 1) await manager.checkDependency("database");
+    const whileHealthy = register.mock.calls.length;
+    state.status = "unhealthy";
+    for (let probe = 0; probe < 3; probe += 1) await manager.checkDependency("database");
+
+    expect({
+      whileHealthy,
+      afterTurningUnhealthy: register.mock.calls.map(([, , intervalMs]) => intervalMs),
+    }).toEqual({ whileHealthy: 0, afterTurningUnhealthy: [5_000] });
+  });
+
+  it("does not re-arm the refresh from an on-demand check once the manager stopped", async () => {
+    const { checker } = makeChecker("unhealthy");
+    const { scheduler, manager } = startManager(checker);
+    manager.stop();
+    const register = vi.spyOn(scheduler, "register");
+
+    await manager.checkDependency("database");
+
+    expect({ registered: register.mock.calls.length, tasks: scheduler.getActiveTasks() }).toEqual({
+      registered: 0,
+      tasks: [],
     });
   });
 });

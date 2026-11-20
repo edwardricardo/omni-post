@@ -81,3 +81,28 @@ describe("DatabaseHealthChecker", () => {
     });
   });
 });
+
+describe("DatabaseHealthChecker when the port's ping raises", () => {
+  it("reports unhealthy with the raised error's message, type and code", async () => {
+    const raised = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    const database = {
+      ping: async (): Promise<Result<void, "DATABASE_ERROR">> => {
+        throw raised;
+      },
+    };
+
+    const result = await new DatabaseHealthChecker(database).check();
+
+    expect({
+      status: result.status,
+      message: result.message,
+      error: result.error,
+      details: result.details,
+    }).toEqual({
+      status: "unhealthy",
+      message: "Database connection failed",
+      error: "socket hang up",
+      details: { errorType: "Error", code: "ECONNRESET" },
+    });
+  });
+});
