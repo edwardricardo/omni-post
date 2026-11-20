@@ -395,6 +395,18 @@ describe("battery verdict", () => {
         `${numericRecord(40, "queue paused")} warning: unused variable`,
       ],
       ["a line that starts as a warn record and is cut", '{"level":40,"time":1,"msg":"a warning'],
+      [
+        "a warn record that names a warning after a leading space",
+        ` ${numericRecord(40, "a warning was raised")}`,
+      ],
+      [
+        "a warn record that another tool's JSON line holds",
+        '{"tool":"x","record":{"level":40,"msg":"a warning was raised"}}',
+      ],
+      [
+        "a cut warn record that a whole record follows on the line",
+        '{"level":40,"time":1,"msg":"cut{"level":30,"msg":"a warning was raised"}',
+      ],
     ])("returns RED over %s", async (_form, line) => {
       const outDir = makeLogDir({ logs: { "api-1.log": `ok\n${line}\n` } });
 

@@ -26,11 +26,14 @@
  *   the verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
  *   own pino records at level "warn" — the code under test logging on the failure paths its tests
  *   exercise. Those records are counted per message, so a new one is visible without failing the
- *   run. Pino writes the level in two spellings, and both are that record: the label, as the API's
- *   logger formats it (`"level":"warn"`), and the number, pino's default, which the packages'
- *   loggers write (`{"level":40,` at the start of a line that is one JSON object). A record at any
- *   other level, and a line that only quotes the numeric record or continues after it, is read
- *   whole.
+ *   run. Pino writes the level in two spellings, and both are that record. The label, as the API's
+ *   logger formats it (`"level":"warn"`): a line that holds that text anywhere is taken for the
+ *   record, whatever else the line says. The number, pino's default, written by every logger that
+ *   sets no level formatter (the packages' loggers, Fastify's own): a line that starts with
+ *   `{"level":40,` and parses as one JSON object, so a numeric record at another level, a line that
+ *   only quotes the record, one that continues after it and one that is cut are read whole. Pino
+ *   writes its own level first, so a record at another level cannot start that way; a logger that
+ *   defined a custom level numbered 40 would, and the repository defines none.
  * @layer infrastructure
  */
 import { readdirSync, readFileSync } from "node:fs";
@@ -168,8 +171,8 @@ function readSteps(outDir) {
 /**
  * @param {string} line A line of a step's log.
  * @returns {boolean} Whether the line is an application record at warn: it holds the level's label,
- *   or it starts with the level's number and is one JSON object from its first character to its
- *   last, so another tool's text before or after the record leaves the line a line to read.
+ *   or it starts with the level's number and parses as one JSON object, so another tool's text
+ *   before or after the record leaves the line a line to read.
  */
 function isAppWarnRecord(line) {
   if (line.includes(APP_WARN_RECORD)) return true;
