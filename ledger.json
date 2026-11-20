@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1240,
+      "total": 1241,
       "byShape": {
-        "test": 997,
+        "test": 998,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1071,
+        "KEEP": 1072,
         "ADJUDICATE": 96,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1230,
+      "machine": 1231,
       "confirmed": 10,
-      "total": 1240
+      "total": 1241
     },
     "blocks": {
-      "total": 15455,
+      "total": 15457,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15144
+        "BEHAVIOURAL": 15146
       }
     },
     "deleted": {
@@ -50339,11 +50339,11 @@
           "bodyHash": "c35e465a29c5db516baa378e92275ee541974dcc85a71353b1b9a64d21b69175"
         },
         {
-          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::keeps the report's fields: latency, message and the four details",
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports its latency, its message and the response time and engine in its details",
           "line": 70,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "e62746ed92f0051afac91faaf18faa9037f3eb4b9629e4992e3cc53bf5b01738"
+          "bodyHash": "c2a3a89f82823282d5f880270fa1efa6d5ada0594a91b26badfcc0325cff9d60"
         }
       ],
       "verdict": "KEEP",
@@ -78063,7 +78063,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 154,
+      "blockCount": 152,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
@@ -79128,20 +79128,6 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0563564201b9299cf7c6df6af98833195f4016267f85a21ad709ee11387e6a9"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names each app that answers degraded, with every dependency its report gives as not healthy",
-          "line": 4116,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "1f3e27f60ccd337dab64b9da5100072520a290a4d850c2b916f05f423fac377a"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints no such line when the apps' reports are healthy",
-          "line": 4136,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "7ac7beb4c68cf2d38bf4b8fd54682cc8d2aaa443c91c55aa43fb3ef1d6217675"
         }
       ],
       "verdict": "KEEP",
@@ -103812,6 +103798,55 @@
         "stem": "env",
         "module": "apps/workers/src/config/env.ts",
         "imported": false
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/workers/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::answers /health with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 73,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "808a6a6d82de52ca0159edec182411a1bc96ba5093b53c9410da7653c63cde13"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::answers /health/detailed with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 81,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b8300ae0c3b97ff065b5114c320af77482c96589416a7e74a8ff10409610bf43"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::answers /health/ready with ready for healthy or degraded critical dependencies and 503 for unhealthy ones",
+          "line": 89,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "53e9d3a995e66060b73cb2f3484737b6805117e060da36747fb6c4c993595450"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::moves to 5 s when /health/ready records an unhealthy dependency, and back to 30 s once it recovers",
+          "line": 99,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d3860336613fa792bf32554ddd882bcbc6528c69fd55e7c572c4da9e52d59c85"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "healthRequestHandler",
+        "module": "apps/workers/src/health/healthRequestHandler.ts",
+        "imported": true
       },
       "duplicate": null,
       "importers": null
