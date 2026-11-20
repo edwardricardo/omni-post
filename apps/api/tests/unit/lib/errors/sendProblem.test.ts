@@ -166,6 +166,7 @@ describe("sendProblem", () => {
           method: "POST",
           url: "/posts/7?draft=1",
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "RegisteredError",
             message: CONFLICT.message,
@@ -204,6 +205,7 @@ describe("sendProblem", () => {
           method: "GET",
           url: "/broken",
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "Error",
             message: UNEXPECTED.message,
@@ -224,6 +226,7 @@ describe("sendProblem", () => {
           method: "GET",
           url: "/broken",
           ip: CLIENT_IP,
+          ipSource: "peer",
         },
       ],
     ]);
@@ -244,6 +247,7 @@ describe("sendProblem", () => {
           method: "GET",
           url: "/health",
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "RegisteredError",
             message: TRANSIENT.message,
@@ -264,6 +268,7 @@ describe("sendProblem", () => {
           method: "GET",
           url: "/health",
           ip: CLIENT_IP,
+          ipSource: "peer",
         },
       ],
     ]);
@@ -332,6 +337,7 @@ describe("sendProblem", () => {
           method: "GET",
           url: "/answered-first",
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "RegisteredError",
             message: CONFLICT.message,

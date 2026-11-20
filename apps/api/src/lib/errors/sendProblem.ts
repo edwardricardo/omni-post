@@ -17,7 +17,7 @@ import type { Socket } from "node:net";
 import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";
 import { AppError, type Problem } from "@shared/types";
 import { captureError } from "../../observability/sentryInit.js";
-import { resolveClientIp } from "../../security/resolveClientIp.js";
+import { resolveClientAddress, type ClientAddress } from "../../security/resolveClientIp.js";
 import { createCorrelationId } from "./correlationId.js";
 import { PROBLEM_MEDIA_TYPE, carriedCode, toProblem } from "./problem.js";
 
@@ -56,8 +56,8 @@ interface FailedRequest {
   readonly correlationId: string;
   readonly method: string | null;
   readonly url: string | null;
-  /** The client's address, as `resolveClientIp` derives it. */
-  readonly ip: string;
+  /** The client's address and where it comes from, as `resolveClientAddress` derives them. */
+  readonly address: ClientAddress;
 }
 
 /**
@@ -67,11 +67,12 @@ interface FailedRequest {
 const answeredOnTheirConnection = new WeakSet<FastifyRequest>();
 
 /**
- * Each request's client address, as `resolveClientIp` derived it when the request arrived: Node no
- * longer gives a destroyed connection's peer address, so the line of a request whose client went
- * away before its failure was logged still names it.
+ * Each request's client address and its source, as `resolveClientAddress` derived them when the
+ * request arrived: Node no longer gives a destroyed connection's peer address, so the line of a
+ * request whose client went away before its failure was logged still names it, and where it came
+ * from.
  */
-const clientAddresses = new WeakMap<FastifyRequest, string>();
+const clientAddresses = new WeakMap<FastifyRequest, ClientAddress>();
 
 /**
  * @description Keeps a request's client address while its connection can still give it, for its
@@ -79,7 +80,7 @@ const clientAddresses = new WeakMap<FastifyRequest, string>();
  * @param request - The request, as it arrives.
  */
 export function keepClientAddress(request: FastifyRequest): void {
-  clientAddresses.set(request, resolveClientIp(request));
+  clientAddresses.set(request, resolveClientAddress(request));
 }
 
 /** The request a connection's failure belongs to, while the server is still answering it. */
@@ -123,7 +124,7 @@ function failedRequestOf(request: FastifyRequest): FailedRequest {
     correlationId: request.correlationId ?? request.id,
     method: request.method,
     url: request.url,
-    ip: clientAddresses.get(request) ?? resolveClientIp(request),
+    address: clientAddresses.get(request) ?? resolveClientAddress(request),
   };
 }
 
@@ -135,9 +136,10 @@ function connectionOf(socket: Socket): FailedRequest {
     correlationId: id,
     method: null,
     url: null,
-    // A request read from this socket with no forwarding header would carry the peer as its `ip`;
-    // the resolver answers "unknown" when the socket has no peer address.
-    ip: resolveClientIp({ ip: socket.remoteAddress ?? "", socket }),
+    // A request read from this socket with no forwarding header would carry the peer as its `ip`,
+    // so the resolver names the peer, a trusted proxy's own address included; it answers
+    // "unknown" when the socket has no peer address.
+    address: resolveClientAddress({ ip: socket.remoteAddress ?? "", socket }),
   };
 }
 
@@ -152,7 +154,10 @@ function answerFailure(
   message: string,
   bodyStreamError?: Error | null
 ) {
-  const { requestId, correlationId, method, url, ip } = failed;
+  const { requestId, correlationId, method, url } = failed;
+  // The address never travels without its source: `ip` alone reads alike for a client a trusted
+  // proxy reported and for the proxy itself.
+  const { ip, source: ipSource } = failed.address;
   const answer = toProblem(error, {
     correlationId,
     now: new Date(),
@@ -168,11 +173,20 @@ function answerFailure(
     method,
     url,
     ip,
+    ipSource,
     error: failureFields(error),
   };
   if (answer.severity === "error") {
     logger.error(fields, message);
-    captureError(error, { requestId, correlationId, code: answer.loggedCode, method, url, ip });
+    captureError(error, {
+      requestId,
+      correlationId,
+      code: answer.loggedCode,
+      method,
+      url,
+      ip,
+      ipSource,
+    });
   } else {
     logger.warn(fields, message);
   }

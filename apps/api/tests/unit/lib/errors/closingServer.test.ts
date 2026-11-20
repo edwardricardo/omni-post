@@ -150,6 +150,7 @@ describe("a request that reaches the server createServer builds while it closes"
           method: "GET",
           url: "/things",
           ip: HOST,
+          ipSource: "peer",
           error: {
             name: "RegisteredError",
             message: HTTP_ERRORS.SERVER_CLOSING.message,
@@ -171,6 +172,7 @@ describe("a request that reaches the server createServer builds while it closes"
           method: "GET",
           url: "/things",
           ip: HOST,
+          ipSource: "peer",
         },
       ],
     ]);

@@ -6,12 +6,14 @@
  *              zone), socket-only ignoring every forwarding header, trusted-
  *              ranges keying on the address a TRUSTED proxy vouched for, and
  *              fail-closed-to-socket whenever the IMMEDIATE PEER is not itself a
- *              configured proxy — never the client-controlled entry.
+ *              configured proxy — never the client-controlled entry; and, for each
+ *              branch, the source of the address it chooses: `peer` or `forwarded`.
  * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";
 import {
+  resolveClientAddress,
   resolveClientIp,
   normalizeIp,
   type ClientIpRequest,
@@ -215,5 +217,55 @@ describe("resolveClientIp — fail-closed to socket (MERGE-BLOCKING)", () => {
     // No socket means no peer to validate, so nothing may be believed.
     const req: ClientIpRequest = { ip: "203.0.113.9", socket: undefined };
     expect(resolveClientIp(req, TRUSTED_RANGES)).toBe("unknown");
+  });
+});
+
+describe("resolveClientAddress — the address and where it comes from, from the same branches", () => {
+  it.each([
+    [
+      "socket-only, whatever the chain says",
+      SOCKET_ONLY,
+      makeRequest({ socket: "203.0.113.5", xff: ["9.9.9.9"] }),
+      { ip: "203.0.113.5", source: "peer" },
+    ],
+    [
+      "trusted-ranges, a trusted peer forwarding a client",
+      TRUSTED_RANGES,
+      makeRequest({ socket: "10.0.0.1", xff: ["198.51.100.7"] }),
+      { ip: "198.51.100.7", source: "forwarded" },
+    ],
+    [
+      "trusted-ranges, a trusted peer forwarding nobody",
+      TRUSTED_RANGES,
+      makeRequest({ socket: "10.0.0.1" }),
+      { ip: "10.0.0.1", source: "peer" },
+    ],
+    [
+      "trusted-ranges, a peer outside the ranges",
+      TRUSTED_RANGES,
+      makeRequest({ socket: "203.0.113.5", xff: ["198.51.100.7"] }),
+      { ip: "203.0.113.5", source: "peer" },
+    ],
+    [
+      "trusted-ranges, a forwarded token that is not a valid address",
+      TRUSTED_RANGES,
+      { ip: "not-an-ip", socket: { remoteAddress: "10.0.0.1" } },
+      { ip: "10.0.0.1", source: "peer" },
+    ],
+    [
+      "socket-only, no peer address at all",
+      SOCKET_ONLY,
+      { ip: "198.51.100.7", socket: undefined },
+      { ip: "unknown", source: "peer" },
+    ],
+    [
+      "trusted-ranges, no peer address at all",
+      TRUSTED_RANGES,
+      { ip: "198.51.100.7", socket: undefined },
+      { ip: "unknown", source: "peer" },
+    ],
+  ] as const)("under %s, names the address and its source", (_name, policy, request, expected) => {
+    expect(resolveClientAddress(request, policy)).toEqual(expected);
+    expect(resolveClientIp(request, policy)).toBe(expected.ip);
   });
 });

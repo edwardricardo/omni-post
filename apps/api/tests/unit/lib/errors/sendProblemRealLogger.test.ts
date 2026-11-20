@@ -191,6 +191,7 @@ describe("sendProblem on the real pino logger", () => {
           method: "GET",
           url,
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: projectionOf(errorName, body.detail, { code }),
         }),
       ]);

@@ -163,6 +163,10 @@ resolveClientIp(request, policy = configured) -> string  // normalized, stable b
   return normalize(request.ip) ?? socket                          // proxy-addr's trusted-peer walk
 ```
 
+`resolveClientAddress` is the same decision returning `{ ip, source }`:
+`forwarded` when a trusted proxy reported an address other than its own, `peer`
+in every other branch. `resolveClientIp` returns its `ip`.
+
 `normalize` MUST, via `ipaddr.js`: strip a port suffix (bracket-aware for
 `[2001:db8::1]:443`; also plain `1.2.3.4:5678` from Azure App Gateway et al.),
 canonicalize IPv6 (`::ffff:` IPv4-mapped, case, drop `%zone`), and return a
@@ -213,9 +217,6 @@ check that cannot actually decide. The parity test pins both behaviours.
   ignores it entirely. Migration: `0` becomes `TRUSTED_PROXY_MODE=socket-only`;
   any non-zero value becomes `TRUSTED_PROXY_MODE=trusted-ranges` plus the real
   proxy addresses in `TRUSTED_PROXY_RANGES`.
-- **Follow-up (backlog, not this change):** a read-only display of the effective
-  topology (mode + ranges) on an operator surface, so a misconfigured deployment
-  is visible without reading env.
 
 ### Frontend client-IP relay
 

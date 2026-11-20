@@ -192,6 +192,7 @@ function connectionLine(
       method: null,
       url: null,
       ip: HOST,
+      ipSource: "peer",
       error: {
         name: "RegisteredError",
         message: definition.message,
@@ -245,6 +246,7 @@ function requestLine(
       method: fields.method,
       url: fields.url,
       ip: HOST,
+      ipSource: "peer",
       error: fields.error,
     },
     message,
@@ -427,6 +429,7 @@ describe("a connection whose request cannot be read, on the server createServer 
           method: "QUERY",
           url: "/things",
           ip: HOST,
+          ipSource: "peer",
           error: {
             name: "FastifyError",
             message: "Method 'QUERY' must provide a 'Content-Type' header.",
@@ -709,6 +712,7 @@ describe("a connection whose request cannot be read, on the server createServer 
           method: null,
           url: null,
           ip: HOST,
+          ipSource: "peer",
           error: {
             name: "Error",
             message: "Parse Error: Something new",
@@ -730,6 +734,7 @@ describe("a connection whose request cannot be read, on the server createServer 
           method: null,
           url: null,
           ip: HOST,
+          ipSource: "peer",
         },
       ],
     ]);

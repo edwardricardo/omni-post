@@ -128,6 +128,7 @@ describe("the framework's refusals on the server createServer builds", () => {
           method: "GET",
           url: `/things/${OVER_LIMIT}?draft=1`,
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "FastifyError",
             message: `'/things/${OVER_LIMIT}' is exceeding the max param length`,
@@ -169,6 +170,7 @@ describe("the framework's refusals on the server createServer builds", () => {
           method: "GET",
           url: `/things/${UNDECODABLE}?draft=1`,
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "FastifyError",
             message: `'/things/${UNDECODABLE}?draft=1' is not a valid url component`,
@@ -209,6 +211,7 @@ describe("the framework's refusals on the server createServer builds", () => {
           method: "GET",
           url: "/nowhere/7",
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "RegisteredError",
             message: "No route matches this method and path",
@@ -282,6 +285,7 @@ describe("a failing async route constraint on the server createServer builds", (
           method: "GET",
           url: "/regional",
           ip: CLIENT_IP,
+          ipSource: "peer",
           error: {
             name: "FastifyError",
             message: "Unexpected error from async constraint",
@@ -303,6 +307,7 @@ describe("a failing async route constraint on the server createServer builds", (
           method: "GET",
           url: "/regional",
           ip: CLIENT_IP,
+          ipSource: "peer",
         },
       ],
     ]);
@@ -383,6 +388,7 @@ describe("the framework's refusals of a request's body on the server createServe
             method: request.method,
             url: "/drafts",
             ip: CLIENT_IP,
+            ipSource: "peer",
             error: {
               name: "FastifyError",
               message: fastifyMessage,
