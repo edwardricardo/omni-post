@@ -21,7 +21,9 @@ export default defineConfig({
   optimizeDeps: { include: ["next-intl/routing"] },
   test: {
     name: "stories",
-    setupFiles: ["./.storybook/vitest.setup.ts"],
+    // The console contract every portal's stories run under: a console.error or console.warn
+    // fails the story.
+    setupFiles: ["@packages/vitest-shared/story-console-contract"],
     browser: {
       enabled: true,
       headless: true,

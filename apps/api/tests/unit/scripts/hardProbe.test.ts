@@ -828,7 +828,7 @@ describe("subjectModules", () => {
         "packages/vitest-shared/src/determinism/until.ts",
         "packages/providers/shared/src/test-utils/msw-helpers.ts",
         "apps/api/vitest.coverage-thresholds.ts",
-        "apps/client/.storybook/vitest.setup.ts",
+        "packages/ui/src/storybook/index.tsx",
         "infra/prisma/src/client.ts",
         "apps/api/src/webhooks/webhookManager.ts",
       ])
