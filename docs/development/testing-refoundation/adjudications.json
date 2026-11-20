@@ -20,6 +20,37 @@
       "reviewer": "Maintainer",
       "date": "2026-10-29"
     },
+    "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts": {
+      "verdict": "KEEP",
+      "criteria": [],
+      "blocks": [
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates one administrator with the SUPER_ADMIN role and prints its password once, when the database is empty",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a second run with exit code 1 and leaves the first administrator unchanged",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses and rolls the role write back when an administrator exists under another role and no SUPER_ADMIN row does",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator and refuses the other run as a concurrent one, when two runs start at once on an empty database",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::makes the SUPER_ADMIN role exactly its definition and creates the administrator, when the role holds other fields and permissions",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::activates the SUPER_ADMIN role with its definition's permissions and creates the administrator, when the role was deactivated and no administrator exists",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses with the message of a lasting refusal and creates nothing, when a role of that name holds another id",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator when two runs start at once on a database where the SUPER_ADMIN role exists and no administrator does",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::runs as a process in a pseudo-terminal, shows only the block and ends by itself",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues a different password that replaces the old one, ends every session and leaves one system audit record per run",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when no administrator has the e-mail",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator has signed in",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator is no longer marked to change the password",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator is deactivated",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue as changed since its read and changes nothing more, when the administrator is deactivated between the read and the write",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues exactly once when two re-issues start at once, and the stored hash is the printed password's",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues as a process in a pseudo-terminal, shows only the block and ends by itself",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves no role and no administrator when the audit write of the creation fails inside its transaction",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves the stored hash, the mark and the sessions as they were when the audit write of a re-issue fails inside its transaction",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets exactly one of a re-issue and the administrator's own required change win when both wait on the administrator's row",
+        "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets the required change win and refuses the re-issue as changed since its read, when the required change queues for the administrator's row first"
+      ],
+      "evidence": "Every block asserts the command's observable effects with node:assert/strict: the exit code, standard output and standard error compared whole with the printed block and the use cases' refusals (successBlock, reissuedBlock, REFUSALS), and the database read back through readState (the role and its permissions, the administrators, their sessions, the audit rows), the stored hash verified against the printed password by the Argon2 hasher. The machine reads it as opaque because the runs and the reads go through helpers: runCommand and runWithOwnClient call runFirstAdministratorCommand over the real composition, runWhileHeld and waitUntilBlocked hold a row lock until pg_stat_activity shows both runs blocked, withAuditWritesRefused refuses AuditLog inserts with a trigger, and printedPassword and createWithCommand assert on the way; each case starts from emptyDatabase(), which asserts the migration and empties the database.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-11-20"
+    },
     "apps/api/tests/integration/linkRoutes.live.test.ts": {
       "verdict": "REWRITE",
       "criteria": ["c"],
@@ -41,6 +72,18 @@
       "status": "confirmed",
       "reviewer": "Maintainer",
       "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts": {
+      "verdict": "KEEP",
+      "criteria": [],
+      "blocks": [
+        "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::holds no row but Prisma's own record of the migrations it applied",
+        "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::loses the rotation log's baseline rows and keeps every row recorded after them"
+      ],
+      "evidence": "Both blocks assert with node:assert/strict on a database migrated from empty: the first that the owner channel bypasses row security and that tablesHoldingRows finds a row only in public._prisma_migrations, so a migration that inserts a row turns it red; the second that the baseline-removal migration's statement, run over eleven rotation-log rows, keeps exactly the nine that are not the baseline's. The machine reads it as opaque because the rows are found through the helper tablesHoldingRows and the database through migratedDatabase(), which asserts that the migration exited 0.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-11-20"
     },
     "apps/api/tests/integration/security-endpoints.live.test.ts": {
       "verdict": "REWRITE",
