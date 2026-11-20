@@ -14,7 +14,7 @@
  *   registry is seen; one at 500 or above answers `INTERNAL_ERROR` the same way.
  * @layer infrastructure
  */
-import { STATUS_CODES, type IncomingMessage } from "node:http";
+import { STATUS_CODES, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from "fastify";
 import { AppError, type Problem } from "@shared/types";
@@ -62,8 +62,8 @@ interface FailedRequest {
   /** The client's address and where it comes from, as `resolveClientAddress` derives them. */
   readonly address: ClientAddress;
   /**
-   * The correlation id of the request whose answer the failure's answer waited for, the one just
-   * ahead of it on its connection; absent when its answer waited for none.
+   * The correlation id of the request whose answer the failure's answer waited for last, the one
+   * its own answer follows on the wire; absent when its answer waited for none.
    */
   readonly inFlightCorrelationId?: string;
 }
@@ -89,6 +89,28 @@ const clientAddresses = new WeakMap<FastifyRequest, ClientAddress>();
  */
 export function keepClientAddress(request: FastifyRequest): void {
   clientAddresses.set(request, resolveClientAddress(request));
+}
+
+/**
+ * The responses whose answers have ended: those that emitted `close`, which Node documents as
+ * "Indicates that the response is completed, or its underlying connection was terminated
+ * prematurely (before the response completion)". That event, emitted once, is the one documented
+ * sign that nothing more of an answer is to come. Node documents `writableFinished` ("Is `true` if
+ * all data has been flushed to the underlying system, immediately before the 'finish' event is
+ * emitted") and `writableEnded` ("Is `true` after `response.end()` has been called. This property
+ * does not indicate whether the data has been flushed"), and neither tells an answer destroyed
+ * before it finished, which keeps both false while its `close` is already past; a response's
+ * `destroyed` and `closed` are not part of its documented interface.
+ */
+const endedAnswers = new WeakSet<ServerResponse>();
+
+/**
+ * @description Records when a request's answer ends, its response's `close`, for the answers a
+ *   refusal on its connection waits for.
+ * @param reply - The request's reply, as the request arrives.
+ */
+export function recordAnswerEnd(reply: FastifyReply): void {
+  reply.raw.once("close", () => endedAnswers.add(reply.raw));
 }
 
 /** The request a connection's failure belongs to, while the server is still answering it. */
@@ -187,11 +209,14 @@ function answerFailure(
     ...(bodyStreamError !== undefined && { bodyStreamError }),
   });
   // The key is not pino's `err`, whose serializer would read the projection as an error again.
+  // `requestId` is the id the framework's own lines for the request carry as `reqId`; it is not
+  // `reqId` itself, which a request's logger binds already and would write twice.
   const fields = {
     code: answer.loggedCode,
     wireCode: answer.problem.code,
     status: answer.problem.status,
     source: answer.source,
+    requestId,
     correlationId,
     method,
     url,
@@ -246,10 +271,10 @@ function writeNotTaken(
   refusalCorrelationId: string,
   logger: FastifyBaseLogger
 ): void {
-  const { correlationId, method, url } = read;
+  const { requestId, correlationId, method, url } = read;
   const { ip, source: ipSource } = read.address;
   logger.info(
-    { correlationId, method, url, ip, ipSource, refusalCorrelationId },
+    { requestId, correlationId, method, url, ip, ipSource, refusalCorrelationId },
     NOT_TAKEN_LOG_MESSAGE
   );
 }
@@ -377,30 +402,68 @@ function answerRequestOnSocket(
   answerOnSocket(socket, error, failed, logger);
 }
 
+/** A failure's line naming the request whose answer its own answer waited for, when there is one. */
+function waitedForBy(failed: FailedRequest, waitedFor: RequestInFlight | undefined): FailedRequest {
+  return waitedFor === undefined
+    ? failed
+    : { ...failed, inFlightCorrelationId: correlationIdOf(waitedFor.request) };
+}
+
+/**
+ * Runs an answer once every answer ahead of it on its connection has ended, so it is never written
+ * ahead of the answer of a request that arrived before it. An answer has ended once its response
+ * emitted `close` (`recordAnswerEnd`). The nearest one that has not is waited for; its `close` may
+ * come from a `finish` or from a `destroy()`, and the end of a destroyed answer says nothing of the
+ * answers before it, so once it comes the answers ahead are read again, until none is still to end.
+ * The answer is handed the request it waited for last, whose answer its own follows on the wire, or
+ * none when it waited for none.
+ */
+function whenEarlierAnswersEnd(
+  earlier: readonly RequestInFlight[],
+  answer: (waitedFor: RequestInFlight | undefined) => void,
+  waitedFor?: RequestInFlight
+): void {
+  for (let index = earlier.length - 1; index >= 0; index -= 1) {
+    const entry = earlier[index];
+    if (entry !== undefined && !endedAnswers.has(entry.reply.raw)) {
+      entry.reply.raw.once("close", () => whenEarlierAnswersEnd(earlier, answer, entry));
+      return;
+    }
+  }
+  answer(waitedFor);
+}
+
 /**
  * @description Answers the failure of a connection whose parser failed, where no reply exists, as
  *   Node's documentation of `clientError` asks: on the socket itself, as a whole HTTP response,
- *   only while the socket can still be written, and with the connection closed. With no request
- *   in flight, the answer is stamped with an id generated for it, null for the method and the url,
- *   and the peer's address, the one address the connection has. With a request in flight whose own
- *   message failed, the failure is that request's: it is answered once, under its own correlation
- *   id, method, url and address, and `sendProblem` answers nothing more for it, so its body stream's
- *   failure once the connection closes logs nothing again; the connection is closed, so its route's
- *   answer, if it still comes, reaches no client. On a connection an answer is never written ahead
- *   of the answer of a request that arrived before it: when a request arrived before the failing
- *   one and is still unanswered, the failure's answer waits for that request's answer to end (its
- *   response's `close`), and its line names that request by `inFlightCorrelationId`; responses on a
- *   connection end in the order their requests arrived, so the request just ahead is the last to
- *   end. When the failing request's own answer has already started by the time its failure is
- *   written, no byte is written: the line says the failure came after the answer and the
- *   connection is destroyed at once, as Node's own handler does. A message that follows a complete
- *   request is answered by `sendProblemAfterAnswerInFlight` instead.
+ *   only while the socket can still be written, and with the connection closed. When the failing
+ *   message is a request's own, the failure is that request's: it is answered once, under its own
+ *   correlation id, method, url and address, and `sendProblem` answers nothing more for it, so its
+ *   body stream's failure once the connection closes logs nothing again; the connection is closed,
+ *   so its route's answer, if it still comes, reaches no client. Otherwise the failing message is
+ *   one no request was read from, its own event: an id generated for it, null for the method and the
+ *   url, and the peer's address, taken when the failure arrives, while the connection can still give
+ *   it. Either way the answer is never written ahead of the answer of a request that arrived before
+ *   it: it waits until every earlier answer on the connection has ended (`whenEarlierAnswersEnd`),
+ *   and its line names in `inFlightCorrelationId` the request whose answer it waited for last; with
+ *   none to wait for it is written at once, with no such field. Responses on a reused connection
+ *   are matched to requests by their order alone, as Node's documentation of `http.Agent` says.
+ *   When the failing request's own answer has already started by the time its failure is written,
+ *   no byte is written: the line says the failure came after the answer and the connection is
+ *   destroyed at once, as Node's own handler does. When the connection can no longer be written by
+ *   then (an earlier answer closed it, the client went away, or the server ended its side once the
+ *   client had ended its own, as `createClientErrorHandler` does), nothing is written, the line says
+ *   so, and the connection is closed. While the client stays connected, nothing but the end of the
+ *   earlier answers bounds the wait, and no timer is added: a request in flight whose route never
+ *   answers holds its connection as long whether or not a message follows it, since the server sets
+ *   no handler or idle timeout and Node's request timeout bounds only a message still being
+ *   received.
  * @param socket - The connection whose parser failed.
  * @param error - The failure, a registered error whose cause is the connection's error.
  * @param logger - The logger the failure's one line is written to.
- * @param inFlight - The request whose own message failed, when there is one.
- * @param ahead - The request that arrived just before it and is still unanswered, when there is
- *   one.
+ * @param inFlight - The request whose own message failed, when the failing message is one.
+ * @param earlier - The requests that arrived before the failing message on the connection, in the
+ *   order they arrived.
  * @returns The correlation id the failure is answered under.
  */
 export function sendProblemOnSocket(
@@ -408,97 +471,46 @@ export function sendProblemOnSocket(
   error: unknown,
   logger: FastifyBaseLogger,
   inFlight: RequestInFlight | undefined,
-  ahead: RequestInFlight | undefined
+  earlier: readonly RequestInFlight[]
 ): string {
   if (inFlight === undefined) {
     const failed = connectionOf(socket);
-    answerOnSocket(socket, error, failed, logger);
+    whenEarlierAnswersEnd(earlier, (waitedFor) =>
+      answerOnSocket(socket, error, waitedForBy(failed, waitedFor), logger)
+    );
     return failed.correlationId;
   }
   answeredOnTheirConnection.add(inFlight.request);
-  const failed: FailedRequest = {
-    ...failedRequestOf(inFlight.request),
-    ...(ahead !== undefined && { inFlightCorrelationId: correlationIdOf(ahead.request) }),
-  };
-  const answer = (): void => answerRequestOnSocket(socket, error, failed, logger, inFlight.reply);
-  if (ahead === undefined) answer();
-  else answerAfter(ahead, answer);
+  const failed = failedRequestOf(inFlight.request);
+  whenEarlierAnswersEnd(earlier, (waitedFor) =>
+    answerRequestOnSocket(socket, error, waitedForBy(failed, waitedFor), logger, inFlight.reply)
+  );
   return failed.correlationId;
-}
-
-/**
- * @description Answers the failure of a message that follows a complete request still in flight on
- *   its connection, as its own event: the request in flight is not failed by what follows it, so it
- *   is answered by its route and logs nothing for it, and the failure gets an id generated for it,
- *   null for the method and the url, the peer's address, and on its line the correlation id of the
- *   request in flight. Responses on a reused connection are matched to requests by their order
- *   alone, as Node's documentation of `http.Agent` says, so the failure's answer waits for the
- *   answer in flight to end (its response's `close` event, "the response is completed, or its
- *   underlying connection was terminated prematurely") and is written after its last byte, never
- *   between or over it, then the connection is closed. When the connection can no longer be
- *   written by then (the answer in flight closed it, the client went away, or the server ended its
- *   side once the client had ended its own, as `createClientErrorHandler` does), nothing is
- *   written, the line says so, and the connection is closed. The id and the address are taken when
- *   the failure arrives, while the connection can still give its peer's address. While the client
- *   stays connected, nothing but that answer's end bounds the wait, and no timer is added: a
- *   request in flight whose route never answers holds its connection as long whether or not a
- *   message follows it, since the server sets no handler or idle timeout and Node's request
- *   timeout bounds only a message still being received.
- * @param socket - The connection whose parser failed on the following message.
- * @param error - The failure, a registered error whose cause is the connection's error.
- * @param logger - The logger the failure's one line is written to.
- * @param inFlight - The complete request whose answer is still in flight on the connection, the
- *   latest to arrive, whose answer ends after every earlier one.
- * @returns The correlation id the failure is answered under.
- */
-export function sendProblemAfterAnswerInFlight(
-  socket: Socket,
-  error: unknown,
-  logger: FastifyBaseLogger,
-  inFlight: RequestInFlight
-): string {
-  const failed: FailedRequest = {
-    ...connectionOf(socket),
-    inFlightCorrelationId: correlationIdOf(inFlight.request),
-  };
-  answerAfter(inFlight, () => answerOnSocket(socket, error, failed, logger));
-  return failed.correlationId;
-}
-
-/**
- * Runs an answer once the answer of the request in flight ahead of it ends. Its caller passes only
- * a request whose answer has not ended (`writableFinished` false), so its response's `close` is
- * still to come: after its `finish`, or when its connection ends.
- */
-function answerAfter(ahead: RequestInFlight, answer: () => void): void {
-  ahead.reply.raw.once("close", answer);
 }
 
 /**
  * @description Answers a CONNECT request, which Node hands over with its connection instead of to
  *   the server's handler, through the API's one error body on the socket, then closes the
  *   connection: an id generated for it, the method and the target Node parsed, and the peer's
- *   address. Behind a request still in flight on the connection, the answer waits for that
- *   request's answer to end, as every answer on a connection does, and its line names that request
- *   by `inFlightCorrelationId`.
+ *   address. The answer waits until every earlier answer on the connection has ended, as every
+ *   answer on a connection does, and its line names in `inFlightCorrelationId` the request whose
+ *   answer it waited for last; with none to wait for it is written at once.
  * @param socket - The connection Node handed over with the request.
  * @param request - The CONNECT request.
  * @param error - The failure, a registered error.
  * @param logger - The logger the failure's one line is written to.
- * @param ahead - The request still in flight on the connection, when there is one.
+ * @param earlier - The requests that arrived before it on the connection, in the order they
+ *   arrived.
  */
 export function sendProblemOnTunnelRequest(
   socket: Socket,
   request: IncomingMessage,
   error: unknown,
   logger: FastifyBaseLogger,
-  ahead: RequestInFlight | undefined
+  earlier: readonly RequestInFlight[]
 ): void {
   const read = tunnelRequestOf(socket, request);
-  if (ahead === undefined) {
-    answerOnSocket(socket, error, read, logger);
-    return;
-  }
-  const failed: FailedRequest = { ...read, inFlightCorrelationId: correlationIdOf(ahead.request) };
-  answerAfter(ahead, () => answerOnSocket(socket, error, failed, logger));
+  whenEarlierAnswersEnd(earlier, (waitedFor) =>
+    answerOnSocket(socket, error, waitedForBy(read, waitedFor), logger)
+  );
 }
