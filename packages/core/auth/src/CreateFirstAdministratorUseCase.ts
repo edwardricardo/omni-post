@@ -4,7 +4,8 @@
  *   it writes the administration role it is given, refuses when any administrator already
  *   exists, and otherwise creates one administrator who holds that role, is named after the
  *   e-mail's local part, signs in with a single-use password and must set a new password at
- *   the first sign-in. The single-use password leaves the use case once, in its output.
+ *   the first sign-in, and it writes a system audit record of the creation. The single-use
+ *   password leaves the use case once, in its output.
  * @layer application
  */
 
@@ -14,7 +15,6 @@ import type {
   AdminUserCreateInput,
   AdminUserRepositoryPort,
 } from "@core/domain/repositories/AdminUserRepository.js";
-import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
@@ -25,6 +25,15 @@ import {
 } from "@core/domain/repositories/SystemRoleRepository.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 import type { AdministratorSignInAddressRule, SingleUsePasswordGenerator } from "@ports/core";
+import {
+  asCause,
+  issueSingleUseCredential,
+  recordSystemAction,
+  runInTransaction,
+  type SingleUseCredential,
+  type SingleUsePasswordHasher,
+  type SystemAuditLog,
+} from "./singleUsePassword.js";
 
 const MESSAGES = {
   invalidEmail: "The e-mail is not an address the administrators' sign-in accepts",
@@ -35,15 +44,18 @@ const MESSAGES = {
     "Another run of this command wrote the administration role first: check whether an administrator exists",
   roleNameHeld:
     "A role with the administration role's name exists under another id, so every run of this command is refused until that role is renamed or removed",
-  generateFailed: "Generating the single-use password failed",
-  hashFailed: "Hashing the single-use password failed",
   roleWriteFailed: "Writing the administration role failed",
   existenceReadFailed: "Reading whether an administrator exists failed",
   createFailed: "Creating the administrator failed",
-  stepRaised:
-    "A step inside the transaction failed; the transaction was rolled back and nothing was written",
+  auditFailed: "Writing the audit record of the creation failed",
   transactionFailed:
-    "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again",
+    "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again, and when one exists whose password nobody saw, re-issue its single-use password",
+} as const;
+
+/** The audit record of a creation: what was done and the task that did it. */
+const AUDIT = {
+  action: "FIRST_ADMINISTRATOR_CREATED",
+  task: "create-first-admin",
 } as const;
 
 /** The refusal each collision of the role write is reported with: one entry per collision. */
@@ -77,23 +89,15 @@ export interface CreateFirstAdministratorOutput {
 /** The two operations of the administrators' repository this use case calls. */
 export type FirstAdministratorRepository = Pick<AdminUserRepositoryPort, "existsAny" | "create">;
 
-/** The one operation of the password hasher this use case calls. */
-export type SingleUsePasswordHasher = Pick<PasswordHasher, "hash">;
-
-/** A drawn single-use password and the hash the store keeps of it. */
-interface SingleUseCredential {
-  readonly password: string;
-  readonly passwordHash: string;
-}
-
 /**
  * @class CreateFirstAdministratorUseCase
  * @description Creates the first administrator, once. The role is written before the refusal is
  *   decided, so that a concurrent run waits on the role's row or collides on it; when a run then
  *   refuses, only the rollback of its transaction takes that write back. The Unit of Work is
  *   therefore required: a run outside a transaction would leave the role written behind a
- *   refusal. The use case takes no logger, and the single-use password appears in no error and
- *   no message.
+ *   refusal. The audit record is written in the same transaction, so a creation is never left
+ *   without its record. The use case takes no logger, and the single-use password appears in no
+ *   error and no message.
  */
 export class CreateFirstAdministratorUseCase implements UseCase<
   CreateFirstAdministratorInput,
@@ -107,6 +111,7 @@ export class CreateFirstAdministratorUseCase implements UseCase<
     private readonly passwordGenerator: SingleUsePasswordGenerator,
     private readonly addressRule: AdministratorSignInAddressRule,
     private readonly role: SystemRoleDefinition,
+    private readonly auditLog: SystemAuditLog,
     private readonly unitOfWork: UnitOfWork
   ) {}
 
@@ -115,13 +120,14 @@ export class CreateFirstAdministratorUseCase implements UseCase<
    * @description Normalizes the e-mail and asks the sign-in's address rule about it, draws and
    *   hashes the single-use password outside the transaction (hashing is slow by design, and the
    *   transaction holds only the writes), then in one transaction writes the role, refuses when
-   *   an administrator exists, and creates the administrator with `mustChangePassword` set.
+   *   an administrator exists, creates the administrator with `mustChangePassword` set and writes
+   *   the system audit record of the creation.
    * @param input - The e-mail of the administrator to create
    * @returns The administrator's id, e-mail and name with the single-use password on success;
    *   VALIDATION_FAILED for an address the sign-in's rule refuses or one with no local part;
    *   CONFLICT when an administrator exists or another writer holds the role; INTERNAL_ERROR
-   *   carrying the original error when the generator, the hasher, a repository or the
-   *   transaction fails
+   *   carrying the original error when the generator, the hasher, a repository, the audit log or
+   *   the transaction fails
    */
   async execute(
     input: CreateFirstAdministratorInput
@@ -140,47 +146,16 @@ export class CreateFirstAdministratorUseCase implements UseCase<
     }
     const name = email.slice(0, at);
 
-    const credential = await this.issueCredential();
+    const credential = await issueSingleUseCredential(this.passwordGenerator, this.passwordHasher);
     if (!credential.ok) {
       return credential;
     }
 
-    try {
-      return await this.unitOfWork.executeResultInTransaction(async () => {
-        // A raise inside the work is returned as an `err`, so the transaction rolls back and the
-        // outcome stays known; only what the Unit of Work itself raises reaches the catch below.
-        try {
-          return await this.createWithinTransaction(email, name, credential.value);
-        } catch (error: unknown) {
-          return err(
-            new UseCaseError(MESSAGES.stepRaised, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
-          );
-        }
-      });
-    } catch (error: unknown) {
-      return err(
-        new UseCaseError(MESSAGES.transactionFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
-      );
-    }
-  }
-
-  /** Draws the single-use password and hashes it. */
-  private async issueCredential(): Promise<Result<SingleUseCredential, UseCaseError>> {
-    let password: string;
-    try {
-      password = this.passwordGenerator.generate();
-    } catch (error: unknown) {
-      return err(
-        new UseCaseError(MESSAGES.generateFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
-      );
-    }
-    try {
-      return ok({ password, passwordHash: await this.passwordHasher.hash(password) });
-    } catch (error: unknown) {
-      return err(
-        new UseCaseError(MESSAGES.hashFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
-      );
-    }
+    return runInTransaction(
+      this.unitOfWork,
+      () => this.createWithinTransaction(email, name, credential.value),
+      MESSAGES.transactionFailed
+    );
   }
 
   /**
@@ -227,6 +202,14 @@ export class CreateFirstAdministratorUseCase implements UseCase<
     if (!created.ok) {
       return created;
     }
+    const audited = await recordSystemAction(
+      this.auditLog,
+      { ...AUDIT, administratorId: created.value.id },
+      MESSAGES.auditFailed
+    );
+    if (!audited.ok) {
+      return err(audited.error);
+    }
     return ok({
       id: created.value.id,
       email: created.value.email,
@@ -247,20 +230,4 @@ export class CreateFirstAdministratorUseCase implements UseCase<
       );
     }
   }
-}
-
-/**
- * The cause a use-case error carries must be an `Error`. A raised value that is not one is not
- * kept, since it carries no stack and may hold any data; the `Error` that stands for it names
- * only its type, so the fact that such a value was raised is not lost.
- *
- * @param caught - The value a port raised
- * @returns That value when it is an `Error`, otherwise an `Error` naming its type
- */
-function asCause(caught: unknown): Error {
-  return caught instanceof Error
-    ? caught
-    : new Error(
-        `A value that is not an Error was raised, of type ${caught === null ? "null" : typeof caught}`
-      );
 }

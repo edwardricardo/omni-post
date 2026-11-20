@@ -10,12 +10,12 @@
 import { describe, it, expect } from "vitest";
 import { inspect } from "node:util";
 import { ok, type Result } from "@shared/types";
-import { USE_CASE_ERRORS, type UseCaseError } from "@core/application/UseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
 import type { AdminUserCreateInput } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogCreateInput } from "@core/domain/repositories/AuditLogRepository.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
-import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   SYSTEM_ROLE_COLLISIONS,
   SystemRoleConflictError,
@@ -27,8 +27,14 @@ import type { AdministratorSignInAddressRule, SingleUsePasswordGenerator } from 
 import {
   CreateFirstAdministratorUseCase,
   type FirstAdministratorRepository,
-  type SingleUsePasswordHasher,
 } from "../../src/CreateFirstAdministratorUseCase.js";
+import type { SingleUsePasswordHasher, SystemAuditLog } from "../../src/singleUsePassword.js";
+import {
+  TRANSACTION_JOURNAL,
+  expectFailure,
+  expectSuccess,
+  makeJournalingUnitOfWork,
+} from "./useCaseDoubles.js";
 
 const OPERATOR_EMAIL = "first.admin@example.com";
 const OPERATOR_NAME = "first.admin";
@@ -51,23 +57,22 @@ const MESSAGES = {
   roleWriteFailed: "Writing the administration role failed",
   existenceReadFailed: "Reading whether an administrator exists failed",
   createFailed: "Creating the administrator failed",
+  auditFailed: "Writing the audit record of the creation failed",
   stepRaised:
     "A step inside the transaction failed; the transaction was rolled back and nothing was written",
   transactionFailed:
-    "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again",
+    "The transaction that creates the first administrator failed and its outcome is unknown: the administrator may have been created without its password being shown, so check whether an administrator exists before running the command again, and when one exists whose password nobody saw, re-issue its single-use password",
 } as const;
 
 const JOURNAL = {
   checkAddress: "address.accepts",
   generate: "password.generate",
   hash: "password.hash",
-  open: "transaction.open",
-  commit: "transaction.commit",
-  rollback: "transaction.rollback",
-  commitFailed: "transaction.commitFailed",
+  ...TRANSACTION_JOURNAL,
   saveRole: "role.save",
   existsAny: "administrators.existsAny",
   create: "administrators.create",
+  audit: "audit.create",
 } as const;
 
 /** What the doubles answer; an absent key takes the answer of a database that has no administrator. */
@@ -82,6 +87,8 @@ interface HarnessOptions {
   /** A value `existsAny` raises instead of returning its `Result`. */
   readonly existsAnyRaise?: unknown;
   readonly createFailure?: unknown;
+  /** A value the audit write raises. */
+  readonly auditRaise?: unknown;
   readonly commitFailure?: Error;
 }
 
@@ -94,6 +101,7 @@ interface Harness {
   readonly savedDefinitions: SystemRoleDefinition[];
   readonly createdInputs: AdminUserCreateInput[];
   readonly hashedPlaintexts: string[];
+  readonly auditEntries: AuditLogCreateInput[];
   readonly transactionOutcomes: Array<Result<unknown, unknown>>;
 }
 
@@ -143,46 +151,13 @@ function makeAdminUserDto(overrides: Partial<AdminUserDto> = {}): AdminUserDto {
   };
 }
 
-function makeUnitOfWork(
-  journal: string[],
-  outcomes: Array<Result<unknown, unknown>>,
-  options: HarnessOptions
-): UnitOfWork {
-  return {
-    async executeInTransaction<T>(fn: () => Promise<T>): Promise<T> {
-      journal.push("transaction.executeInTransaction");
-      return fn();
-    },
-    async executeResultInTransaction<T, E>(fn: () => Promise<Result<T, E>>): Promise<Result<T, E>> {
-      journal.push(JOURNAL.open);
-      let outcome: Result<T, E>;
-      try {
-        outcome = await fn();
-      } catch (error: unknown) {
-        journal.push(JOURNAL.rollback);
-        throw error;
-      }
-      outcomes.push(outcome);
-      if (!outcome.ok) {
-        journal.push(JOURNAL.rollback);
-        return outcome;
-      }
-      if (options.commitFailure !== undefined) {
-        journal.push(JOURNAL.commitFailed);
-        throw options.commitFailure;
-      }
-      journal.push(JOURNAL.commit);
-      return outcome;
-    },
-  };
-}
-
 function makeHarness(options: HarnessOptions = {}): Harness {
   const journal: string[] = [];
   const checkedAddresses: string[] = [];
   const savedDefinitions: SystemRoleDefinition[] = [];
   const createdInputs: AdminUserCreateInput[] = [];
   const hashedPlaintexts: string[] = [];
+  const auditEntries: AuditLogCreateInput[] = [];
   const transactionOutcomes: Array<Result<unknown, unknown>> = [];
   const definition = makeRoleDefinition();
 
@@ -243,6 +218,15 @@ function makeHarness(options: HarnessOptions = {}): Harness {
       return options.addressAccepted ?? true;
     },
   };
+  const auditLog: SystemAuditLog = {
+    async create(entry: AuditLogCreateInput) {
+      journal.push(JOURNAL.audit);
+      auditEntries.push(entry);
+      if (options.auditRaise !== undefined) {
+        throw options.auditRaise;
+      }
+    },
+  };
 
   const useCase = new CreateFirstAdministratorUseCase(
     administrators,
@@ -251,7 +235,8 @@ function makeHarness(options: HarnessOptions = {}): Harness {
     passwordGenerator,
     addressRule,
     definition,
-    makeUnitOfWork(journal, transactionOutcomes, options)
+    auditLog,
+    makeJournalingUnitOfWork(journal, transactionOutcomes, options.commitFailure)
   );
   return {
     useCase,
@@ -261,26 +246,9 @@ function makeHarness(options: HarnessOptions = {}): Harness {
     savedDefinitions,
     createdInputs,
     hashedPlaintexts,
+    auditEntries,
     transactionOutcomes,
   };
-}
-
-/** Narrows a failed outcome to its error, failing the case when the outcome succeeded. */
-function expectFailure<T>(result: Result<T, UseCaseError>): UseCaseError {
-  expect(result.ok).toBe(false);
-  if (result.ok) {
-    throw new Error("Expected a failed outcome, got a success");
-  }
-  return result.error;
-}
-
-/** Narrows a successful outcome to its value, failing the case when the outcome failed. */
-function expectSuccess<T>(result: Result<T, UseCaseError>): T {
-  expect(result.ok).toBe(true);
-  if (!result.ok) {
-    throw new Error(`Expected a success, got ${result.error.code}: ${result.error.message}`);
-  }
-  return result.value;
 }
 
 /** The journal of a run before its first write: address checked, password drawn and hashed, transaction opened. */
@@ -311,9 +279,32 @@ describe("CreateFirstAdministratorUseCase", () => {
         JOURNAL.saveRole,
         JOURNAL.existsAny,
         JOURNAL.create,
+        JOURNAL.audit,
         JOURNAL.commit,
       ]);
       expect(harness.transactionOutcomes).toEqual([ok(expectedOutput)]);
+    });
+
+    it("returns success after writing, inside the transaction, one system audit record of the creation that names its task and holds no secret", async () => {
+      const harness = makeHarness();
+
+      const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
+
+      expect(result.ok).toBe(true);
+      expect(harness.auditEntries).toEqual([
+        {
+          action: "FIRST_ADMINISTRATOR_CREATED",
+          actorType: "SYSTEM",
+          resource: "AdminUser",
+          resourceId: CREATED_ADMIN_ID,
+          details: { task: "create-first-admin" },
+          success: true,
+        },
+      ]);
+      const audited = inspect(harness.auditEntries, { depth: null });
+      expect(audited).not.toContain(SINGLE_USE_PASSWORD);
+      expect(audited).not.toContain(PASSWORD_HASH);
+      expect(audited).not.toContain(OPERATOR_EMAIL);
     });
 
     it("returns success after writing the role with exactly the definition it was given", async () => {
@@ -588,9 +579,56 @@ describe("CreateFirstAdministratorUseCase", () => {
         JOURNAL.saveRole,
         JOURNAL.existsAny,
         JOURNAL.create,
+        JOURNAL.audit,
         JOURNAL.commitFailed,
       ]);
     });
+
+    it("returns INTERNAL_ERROR carrying the raised error as the outcome of the transaction's work, after the role and the administrator were written in it, when the audit write fails", async () => {
+      const failure = new Error("audit table unavailable");
+      const harness = makeHarness({ auditRaise: failure });
+
+      const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
+
+      const error = expectFailure(result);
+      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
+      expect(error.message).toBe(MESSAGES.auditFailed);
+      expect(error.cause).toBe(failure);
+      expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
+      expect(harness.journal).toEqual([
+        ...BEFORE_THE_TRANSACTION,
+        JOURNAL.saveRole,
+        JOURNAL.existsAny,
+        JOURNAL.create,
+        JOURNAL.audit,
+        JOURNAL.rollback,
+      ]);
+      expect(inspect(error, { depth: null, showHidden: true })).not.toContain(SINGLE_USE_PASSWORD);
+    });
+
+    it.each([
+      { outcome: "an administrator exists", options: { existsAny: ok(true) } },
+      {
+        outcome: "the role is held by another writer",
+        options: { roleSave: { ok: false, error: makeRoleConflict() } },
+      },
+      {
+        outcome: "creating the administrator fails",
+        options: { createFailure: new Error("down") },
+      },
+      { outcome: "the sign-in's rule refuses the address", options: { addressAccepted: false } },
+    ] satisfies ReadonlyArray<{ outcome: string; options: HarnessOptions }>)(
+      "writes no audit record when $outcome",
+      async ({ options }) => {
+        const harness = makeHarness(options);
+
+        const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
+
+        expect(result.ok).toBe(false);
+        expect(harness.auditEntries).toEqual([]);
+        expect(harness.journal).not.toContain(JOURNAL.audit);
+      }
+    );
 
     it.each([
       {
