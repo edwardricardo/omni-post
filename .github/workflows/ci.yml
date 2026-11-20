@@ -962,10 +962,11 @@ jobs:
     # --wait-seconds bounds seven waits of the command: Postgres, Redis, Prisma's proof of the
     # migrated database, and each of the four applications. A failing stage ends the run, so the
     # worst case is seven waits of 180 s, 21 minutes, plus setup (checkout, Node, pnpm, the
-    # install), the image pulls and the migration, about 5 minutes on a cold runner: 30 minutes
-    # lets a run whose last stage runs out of time print its own failure line and the logs below
-    # instead of being cancelled.
-    timeout-minutes: 30
+    # install), the image pulls and the migration, about 5 minutes on a cold runner. The first
+    # administrator's journey adds at most about 5 minutes: a cold Chromium download and its
+    # system libraries, and the spec's own bound of 180 s. 35 minutes lets a run whose last stage
+    # runs out of time print its own failure line and the logs below instead of being cancelled.
+    timeout-minutes: 35
 
     steps:
       - name: Checkout code
