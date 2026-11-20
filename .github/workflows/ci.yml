@@ -970,10 +970,11 @@ jobs:
     # --wait-seconds bounds seven waits of the command: Postgres, Redis, Prisma's proof of the
     # migrated database, and each of the four applications. A failing stage ends the run, so the
     # worst case is seven waits of 180 s, 21 minutes, plus setup (checkout, Node, pnpm, the
-    # install), the image pulls and the migration, about 5 minutes on a cold runner: 30 minutes
-    # lets a run whose last stage runs out of time print its own failure line and the logs below
-    # instead of being cancelled.
-    timeout-minutes: 30
+    # install), the image pulls and the migration, about 5 minutes on a cold runner. The first
+    # administrator's journey adds at most about 5 minutes: a cold Chromium download and its
+    # system libraries, and the spec's own bound of 180 s. 35 minutes lets a run whose last stage
+    # runs out of time print its own failure line and the logs below instead of being cancelled.
+    timeout-minutes: 35
 
     steps:
       - name: Checkout code
@@ -1038,6 +1039,46 @@ jobs:
             exit 1
           fi
           echo "no table of the application holds a row: $listed tables counted, _prisma_migrations aside"
+
+      - name: Read the Playwright version
+        id: playwright
+        # The browser revision is a property of the driver version, so it keys the cache. This asks
+        # the administration portal's own driver, which the frozen install resolved from
+        # pnpm-lock.yaml, and fails the step if it prints nothing.
+        run: |
+          version=$(pnpm --filter @apps/admin exec playwright --version | awk '{print $2}')
+          # The cache key must be a release version (major.minor.patch); an empty or reshaped
+          # `--version` output, or a pre-release or build suffix, would otherwise poison the key
+          # without failing the step.
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error title=Playwright version::the administration portal's playwright driver reported '$version', not a release version (major.minor.patch)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+          # A version bump restores the previous revision's cache and lets `playwright install`
+          # fetch only the missing browser.
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Chromium and its system libraries
+        # A cache hit skips the browser download; the system libraries are not cached, so
+        # --with-deps installs them on every run.
+        run: pnpm --filter @apps/admin exec playwright install --with-deps chromium
+
+      - name: Run the first administrator's journey in a browser
+        # The spec runs the first-administrator command in a pseudo-terminal, on the database the
+        # start migrated and the step above proved empty; the command reads the generated .env, as
+        # the API does, because the job sets no NODE_ENV. It then signs in at the administration
+        # portal the start left running on port 3100, sets the new password and signs in with it.
+        # It is never retried: the single-use password can be spent once. Nothing of the journey is
+        # uploaded: its output directory is where a failed test's error context is written.
+        run: pnpm --filter @apps/admin run test:first-administrator
 
       - name: Print the logs the start left under .tmp
         # The command writes each application's output to .tmp/<app>.log; only those files are

@@ -39,8 +39,15 @@
       "note": "Integration Tests runs the runner twice: with TIER=pr-integration, its integration files, before it starts the API and the workers, and with TIER=live-integration, its live files, after them. chaos.yml runs it too, on a schedule with TIER=pr-integration, and so does nightly.yml's integration-randomized job, on a schedule with TIER=pr-integration and TEST_ORDER=random, once per matrix entry; neither is a required check."
     },
     "playwright": {
-      "executedBy": [],
-      "note": "No workflow runs playwright test: the Storybook Stories job installs Chromium for vitest browser mode and runs no spec, so both portals' specs reach no required check."
+      "executedBy": [
+        {
+          "workflow": ".github/workflows/ci.yml",
+          "jobId": "platform-start",
+          "entrypoint": "pnpm --filter @apps/admin run test:first-administrator",
+          "packages": ["apps/admin/e2e/first-administrator"]
+        }
+      ],
+      "note": "Platform Start runs the first administrator's journey, the one config under apps/admin/e2e/first-administrator, once it has started the platform on an empty database. No required check runs the two other configs, apps/admin/playwright.config.ts and apps/client/tests/e2e/config/playwright.config.ts: the Storybook Stories job installs Chromium for vitest browser mode and runs no spec."
     },
     "k6": {
       "executedBy": [],
