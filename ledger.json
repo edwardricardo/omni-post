@@ -27,7 +27,7 @@
       "total": 1226
     },
     "blocks": {
-      "total": 15297,
+      "total": 15300,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14986
+        "BEHAVIOURAL": 14989
       }
     },
     "deleted": {
@@ -2563,84 +2563,105 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/admin/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::wraps the story in the light theme's class when the theme global is light",
-          "line": 83,
+          "line": 84,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "101826971a289b896ada2659980cf7fa584d5360c1839b9b1294f57c59ad1551"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::wraps the story in the portal's default theme when the theme global is not a theme",
-          "line": 90,
+          "line": 91,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29a2e7f953f3d2ff8bfafe2f9cd01d9b77c6fd40f7100fa670ce66431083ede9"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider the locale and the catalog whose file name ends in it when the locale is declared",
-          "line": 99,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1850d7cdf29604f4153538bb4db36e1b5f8dd687b67228c03b1f38ea0440b7ae"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider the routing's default locale and its catalog when the locale is not declared",
-          "line": 106,
+          "line": 107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "750099b3007509500e5e766002e35c34167cc2e8e07ab9d9b636db2ab2a8f8b7"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider an empty catalog when the declared locale has none",
-          "line": 113,
+          "line": 114,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc8a6c69c5cbdb8aecebb88cfa1505f955051b35fb81819c02d90b5a45df3a80"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::starts every story in the portal's default theme and the routing's default locale",
-          "line": 121,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3cf169b8a2dec7d1110e378aa9bfc452ce41b01502d3e1da031c2768b44980cd"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::offers every locale of the routing, each named in its own language",
-          "line": 126,
+          "line": 127,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "033d4a850f7622749356e4d26066443dfb99c70a398eeacfc3d834ea73f3d7f3"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::offers exactly the themes the decorator renders in, each with its label and icon",
-          "line": 134,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5407e4c8351770a21c113e85d48052b5fd64d16b6b81792f6c4b61818b9c7bd7"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::returns the colour a token resolves to where the element renders, not the element's own",
-          "line": 158,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f1e9ab5c2b307a40e8d27078b3e6fdb974a3fdd469ce0f1fb87c76d63c1ef3c"
         },
         {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::returns the token's colour when the element is drawn in that same colour",
+          "line": 167,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2b1e7371caa0bc0293ab32a0fd26d98749a46cd4e3e8e212daec5a447118d965"
+        },
+        {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::leaves the element's content as it found it after reading the token",
-          "line": 164,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12af96f749687739be58c64c7d37ee33b71245f726a4ccaf43dda214c547617b"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::throws naming the token when the token is not defined where the element renders",
-          "line": 173,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "81609606ea01bea914c4d1cb958aef3f51b93e4a8f3d79c17f21bd06aa5cdcb1"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::throws naming the token when the token's value is not a colour",
+          "line": 190,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "67c4047d1f8a64d38cf57bc51a5548d532421a5504a9d17176acab1783ea8b9f"
+        },
+        {
+          "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::leaves the element's content as it found it after refusing a token that holds no colour",
+          "line": 198,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b94be82b4e630d6c79d85819597ff39aa13880883a5fa66c7a59902464b67ae8"
         }
       ],
       "verdict": "KEEP",

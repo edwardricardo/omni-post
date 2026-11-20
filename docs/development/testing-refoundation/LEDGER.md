@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1216  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15297 |
+| Blocks                  | 15300 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -385,7 +385,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/admin/tests/unit/setup.ts`                                                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/admin/tests/unit/shared/LoadingSpinner.test.tsx`                                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/shared/SidebarNav.test.tsx`                                                    | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/admin/tests/unit/storybook/createStoryPreview.test.tsx`                                         | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/admin/tests/unit/storybook/createStoryPreview.test.tsx`                                         | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/styles/tailwindSources.test.ts`                                                | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/subscriptions/subscriptionsLocaleFormatting.test.tsx`                          | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/audit.integration.test.ts`                                                            | integration-test | 7      | 0          | ADJUDICATE | machine                     | subject-not-imported |
