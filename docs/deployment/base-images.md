@@ -404,8 +404,10 @@ not ship yet, which it followed by about two days for v26.13.1 (dated
 second, raise the build stage to the release and wait for, or pin, the distroless
 digest that ships it, by items 2 and 3 of §"How to extend" below, the way the
 move of 2026-11-14 did. Its other red cases are the team's to repair: an image
-not checked, whose leg's log says why no version came, and a version the gate
-refuses as not a stable vX.Y.Z, which points at the image's Node base.
+not checked, whose leg's log says why no version came; a version the gate
+refuses as not a stable vX.Y.Z, which points at the image's Node base; and a
+failure of the gate itself, code 4, whose lines carry the error and its trace
+and point at the gate's script.
 
 ---
 

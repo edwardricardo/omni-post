@@ -65,7 +65,7 @@ under `.github/workflows/`.
 | CodeQL                              | `security-testing.yml:77`, CodeQL (typescript, javascript) › Perform CodeQL analysis                                                                                 | PR, main, nightly         | —                                                                            |
 | Dependency advisories               | `ci.yml:687`, Security Audit › Run security audit; `production-ci.yml:38`, Security Audit › Audit dependencies                                                       | PR, main                  | `pnpm audit --audit-level moderate --json`                                   |
 | Container images (Trivy)            | `production-ci.yml:495`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
-| Node runtime in the images          | `production-ci.yml:642`, Node Runtime Advisory › Node runtime advisory, for api, workers, admin and client                                                           | PR, main                  | [Container images](#container-images)                                        |
+| Node runtime in the images          | `production-ci.yml:643`, Node Runtime Advisory › Node runtime advisory, for api, workers, admin and client                                                           | PR, main                  | [Container images](#container-images)                                        |
 | Security headers                    | `ci.yml:174`, Test Suite (shard N) › Run API tests (shard, blob reporter), which collects `tests/unit/securityHeaders.test.ts`; on a running API, the ZAP scan below | PR, main                  | `pnpm --filter @apps/api exec vitest run tests/unit/securityHeaders.test.ts` |
 | SQL injection and XSS               | `ci.yml:560`, Integration Tests › Run integration tests (live tier): the cases of `tests/security.live.test.ts`                                                      | PR, main                  | [The security suites](#the-security-suites)                                  |
 | OWASP ZAP baseline                  | `security-testing.yml:166`, OWASP ZAP DAST › Run OWASP ZAP baseline scan                                                                                             | nightly 03:00 UTC, manual | —                                                                            |
@@ -138,8 +138,10 @@ the job once nodejs.org answers; in the second, raise the build stage to the
 release and wait for, or pin, the distroless digest that ships it, by the
 procedure of [base-images.md](../deployment/base-images.md) (§"How to extend",
 items 2 and 3). Its other red cases are the team's to repair: an image not
-checked, whose leg's log says why no version came, and a version the gate
-refuses as not a stable vX.Y.Z, which points at the image's Node base.
+checked, whose leg's log says why no version came; a version the gate
+refuses as not a stable vX.Y.Z, which points at the image's Node base; and a
+failure of the gate itself, code 4, whose lines carry the error and its trace
+and point at the gate's script.
 
 ```bash
 NODE_VERSION="$(docker run --rm --entrypoint /nodejs/bin/node local/api:scan --version)"

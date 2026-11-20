@@ -29,8 +29,13 @@
  *   attempt, and is not fetched again.
  *
  *   EXIT CODES: 0 a pass; 1 a later security release of the image's line; 2 a usage error; 3 an
- *   index the gate could not read in full. A pass prints to stdout; a verdict, a usage error and an
- *   unread index print to stderr, each line prefixed by the gate's name.
+ *   index the gate could not read in full; 4 the gate itself failed, with the error that escaped it
+ *   and its trace. A pass prints to stdout; a verdict, a usage error, an unread index and a failure
+ *   of the gate print to stderr, each line prefixed by the gate's name. Node exits 1 on an error
+ *   nobody catches, the verdict's code, so the entry point catches what escapes `main` and exits 4.
+ *   Code 1 can still come from a failure before this file's own code runs, which the entry point
+ *   cannot catch: a syntax error, or a Node older than the 18.3.0 below that lacks an import. The
+ *   suite imports this file, so a syntax error fails it first.
  *
  *   FAIL-CLOSED, exit 3, never 0 and never 1: the index unreachable after the attempts; a body that
  *   is not JSON, or JSON that is not an array; an entry whose `version` reads as neither `vX.Y.Z`
@@ -70,9 +75,9 @@
  *   their base does not ship yet; the distroless image followed v26.13.1 by about two days (the
  *   index dates the release 2026-11-10, and the digest the images took for it was uploaded on
  *   2026-11-12: `docs/deployment/base-images.md`, §"Moved to Node 26.13.1 on 2026-11-14"). Its
- *   other red cases are the team's to repair: a version this script refuses, exit 2, and an image
- *   whose leg of `Container Security` reported no version, which never reaches this script and
- *   which the job names as not checked. On the first event, the operator re-runs the job once
+ *   other red cases are the team's to repair: a version this script refuses, exit 2; a failure of
+ *   the script itself, exit 4; and an image whose leg of `Container Security` reported no version,
+ *   which never reaches this script and which the job names as not checked. On the first event, the operator re-runs the job once
  *   nodejs.org answers. On the second, the operator raises the build stage to the release and
  *   waits for, or pins, the distroless digest that ships it, by the procedure of
  *   `docs/deployment/base-images.md` (§"How to extend", items 2 and 3, and the move of 2026-11-14
@@ -109,6 +114,7 @@ const EXIT_CLEAN = 0;
 const EXIT_VERDICT = 1;
 const EXIT_USAGE = 2;
 const EXIT_UNREAD = 3;
+const EXIT_FAILED = 4;
 
 /** A stable release, as `node --version` prints one. */
 const STABLE = /^v(\d+)\.(\d+)\.(\d+)$/;
@@ -372,6 +378,24 @@ export async function main(argv, io = DEFAULT_IO) {
 }
 
 /**
+ * @param {unknown} error What escaped `main` or the writing of its output.
+ * @returns {Outcome} The gate's own failure, with the error's message and, for an `Error`, its
+ *   trace, so a failure of the gate never reads as a verdict, a usage error or an unread index.
+ */
+function failed(error) {
+  const [first, ...rest] = reason(error).split("\n");
+  const trace = error instanceof Error && error.stack !== undefined ? error.stack.split("\n") : [];
+  return {
+    exitCode: EXIT_FAILED,
+    lines: [
+      `the gate itself failed, so nothing was judged: ${String(first)}`,
+      ...rest,
+      ...trace.filter((line) => line.startsWith("    at ")),
+    ],
+  };
+}
+
+/**
  * True only when node was started with this file, so the suite's import runs nothing.
  *
  * @returns {boolean}
@@ -387,8 +411,15 @@ function invokedAsScript() {
 }
 
 if (invokedAsScript()) {
-  const run = await main(process.argv.slice(2));
-  process.stdout.write(run.stdout);
-  process.stderr.write(run.stderr);
-  process.exitCode = run.code;
+  try {
+    const run = await main(process.argv.slice(2));
+    process.stdout.write(run.stdout);
+    process.stderr.write(run.stderr);
+    process.exitCode = run.code;
+  } catch (error) {
+    // Node exits 1 on an error nobody catches, and 1 is the verdict's code.
+    const run = render(failed(error));
+    process.stderr.write(run.stderr);
+    process.exitCode = run.code;
+  }
 }

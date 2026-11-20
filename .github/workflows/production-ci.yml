@@ -613,9 +613,10 @@ jobs:
   # cases are failures the team repairs, each named by its annotation: an image not checked, whose
   # leg's `Node version` step or an earlier step of that leg says why no version came; the gate's
   # code 2, a printed version that is not a stable vX.Y.Z, which points at the image's Node base;
-  # and a code the gate does not define, which points at the gate's own output. None of them
-  # blocks a merge, a scan or a push. Its verdict is the gate's on this run's images alone, so the
-  # first run after the cause is repaired, or after the index answers again, is green.
+  # the gate's code 4, a failure of the gate itself, whose lines carry the error and point at the
+  # gate's script; and a code the gate does not define, which points at the gate's own output.
+  # None of them blocks a merge, a scan or a push. Its verdict is the gate's on this run's images
+  # alone, so the first run after the cause is repaired, or after the index answers again, is green.
   node-runtime-advisory:
     name: Node Runtime Advisory
     runs-on: ubuntu-latest
@@ -669,6 +670,7 @@ jobs:
               1) REASON="code 1, the gate's verdict that a later release of the image's Node line is a security release; its lines above name each one and the floor to raise the Node bases to" ;;
               2) REASON="code 2, a usage error: the version the image printed is not a stable vX.Y.Z the gate can judge" ;;
               3) REASON="code 3, Node's release index could not be read in full, so nothing was judged; re-run this job once nodejs.org answers" ;;
+              4) REASON="code 4, the gate itself failed, so nothing was judged; its lines above carry the error and its trace, and the repair is in the gate's script, not in the image" ;;
               *) REASON="code $CODE, which the gate does not define; its output above is the only account of it" ;;
             esac
             echo "::error title=Node runtime advisory: $SERVICE::$SERVICE runs Node $NODE_VERSION, and the gate failed it with $REASON."

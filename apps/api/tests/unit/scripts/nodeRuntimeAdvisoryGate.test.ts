@@ -3,13 +3,16 @@
  * @description Pins `scripts/testing/node-runtime-advisory-gate.mjs`, the gate the `Node Runtime
  *   Advisory` job runs on the Node version each image prints: it exits 1 when Node's release index
  *   lists a later stable release of the image's major line with `security: true`, 0 when none, 2 on a
- *   usage error and 3, never 0 and never 1, when the index cannot be read in full.
+ *   usage error, 3, never 0 and never 1, when the index cannot be read in full, and 4, never 1, when
+ *   the gate itself fails.
  *
  *   HERMETIC: the rule is pinned through the pure `evaluate` on fixture indexes, and the reading of
  *   the index through `main` with an injected `fetch`, wait and per-attempt timeout, so no case
- *   reaches nodejs.org and none waits on real time. One case runs the script as a process, the
- *   usage error, which reads no index; one reads the four Dockerfiles, so the remedy the verdict
- *   states cannot drift from the stages it names.
+ *   reaches nodejs.org and none waits on real time. Two cases run the script as a process: the
+ *   usage error, which reads no index, and a failure of the gate itself, made by a preload whose
+ *   fetch rejects at once and whose timer throws, so it reaches no network and waits on no time;
+ *   one case reads the four Dockerfiles, so the remedy the verdict states cannot drift from the
+ *   stages it names.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -467,6 +470,29 @@ describe("main: reading the index and the command line", () => {
     expect(result.stderr).toBe(
       `${GATE}: give --version <vX.Y.Z>, the line \`node --version\` prints\n${USAGE}\n`
     );
+  });
+
+  it("exits 4 on stderr, naming the failure and carrying its trace, when the gate itself fails while run as a process", () => {
+    // The preload rejects every fetch and throws from every timer, so the wait between two
+    // attempts fails where the gate handles nothing, while the gate's own code is as shipped.
+    const preload = `data:text/javascript,${encodeURIComponent(
+      'globalThis.fetch = () => Promise.reject(new Error("no network"));' +
+        'globalThis.setTimeout = () => { throw new Error("no timer"); };'
+    )}`;
+
+    const result = spawnSync(
+      process.execPath,
+      ["--import", preload, GATE_SCRIPT, "--version", "v26.12.0"],
+      { cwd: REPO_ROOT, encoding: "utf8" }
+    );
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toBe("");
+    const lines = result.stderr.split("\n");
+    expect(lines[0]).toBe(`${GATE}: the gate itself failed, so nothing was judged: no timer`);
+    expect(lines.slice(1, -1).length).toBeGreaterThan(0);
+    expect(lines.slice(1, -1).every((line) => line.startsWith(`${GATE}:     at `))).toBe(true);
+    expect(lines.at(-1)).toBe("");
   });
 });
 
