@@ -1555,6 +1555,111 @@ describe("a connection whose request cannot be read, on the server createServer 
       ]);
     });
 
+    it("keeps a request's own failure waiting when the answer it waits for is destroyed, until the earlier answer still running ends", async () => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write(
+        "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /stream-then-fail HTTP/1.1\r\nHost: localhost\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+      );
+      await until(() => failingSources.length === 1 && routed.length === 3, {
+        description: "three requests routed",
+      });
+      const failed = once(app.server, "clientError");
+      socket.write("zz\r\n");
+      await failed;
+
+      // The answer the failure waits for is destroyed before it finishes.
+      failingSources[0]?.destroy(new Error("the source failed"));
+      await answerClosed.promise;
+      slowRelease.resolve();
+      await once(socket, "close");
+      await until(async () => (await connectionsOf(app)) === 0, {
+        description: "the server's connection closed",
+      });
+      const raw = Buffer.concat(received).toString("utf8");
+      const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "200",
+        "400",
+      ]);
+      expect([
+        raw.indexOf('{"slow":true}') < raw.indexOf("first chunk"),
+        raw.indexOf("first chunk") < refusal,
+      ]).toEqual([true, true]);
+      expect(JSON.parse(responseOf(raw.slice(refusal)).body)).toEqual({
+        ...problemOf(
+          HTTP_ERRORS.REQUEST_BODY_FRAMING_NOT_PARSABLE,
+          "Request body framing not parsable"
+        ),
+        correlationId: routed[2]?.id,
+      });
+      expect(lines.warn.mock.calls).toEqual([
+        [expect.anything(), STREAM_LINE],
+        [
+          expect.objectContaining({
+            code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+            requestId: routed[2]?.id,
+            correlationId: routed[2]?.id,
+            method: "POST",
+            url: "/echo",
+            inFlightCorrelationId: routed[0]?.id,
+          }),
+          "Request failed",
+        ],
+      ]);
+    });
+
+    it("keeps a CONNECT waiting when the answer it waits for is destroyed, until the earlier answer still running ends", async () => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write(
+        "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /stream-then-fail HTTP/1.1\r\nHost: localhost\r\n\r\n"
+      );
+      await until(() => failingSources.length === 1, { description: "the stream answered" });
+      const tunnel = once(app.server, "connect");
+      socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+      await tunnel;
+
+      // The answer the CONNECT waits for is destroyed before it finishes.
+      failingSources[0]?.destroy(new Error("the source failed"));
+      await answerClosed.promise;
+      slowRelease.resolve();
+      await once(socket, "close");
+      await until(async () => (await connectionsOf(app)) === 0, {
+        description: "the server's connection closed",
+      });
+      const raw = Buffer.concat(received).toString("utf8");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "200",
+        "501",
+      ]);
+      expect([
+        raw.indexOf('{"slow":true}') < raw.indexOf("first chunk"),
+        raw.indexOf("first chunk") < raw.indexOf("HTTP/1.1 501"),
+      ]).toEqual([true, true]);
+      expect(lines.error.mock.calls).toEqual([
+        [
+          expect.objectContaining({
+            code: "CONNECT_NOT_IMPLEMENTED",
+            method: "CONNECT",
+            url: "example.com:443",
+            inFlightCorrelationId: routed[0]?.id,
+          }),
+          "Request failed",
+        ],
+      ]);
+    });
+
     it("answers a request whose body breaks after it once the earlier answer still running ends, under its own id, naming that request", async () => {
       const lines = recordFailureLines(app);
       const socket = connect({ host: HOST, port });
