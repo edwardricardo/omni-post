@@ -37,9 +37,11 @@
  *     call, a member read, a static computed key) outside the registry's directory. The
  *     declaration of a function of that name is not a use.
  *   - `codeLiteral`: a call of the kernel's `err` (imported by name, through a path of the kernel,
- *     or read on a namespace import of it) whose first argument is a string, a template, or a `+`
- *     that holds one; an import or export of `err` under another name; and any other read of it
- *     as a value, an export included, since an alias would call it unseen.
+ *     read on a namespace import of it, or imported relatively by a file of the kernel itself)
+ *     whose first argument holds a string or a template: through a `+`, either branch of a
+ *     conditional, either side of a logical expression and the property values of an object
+ *     literal; an import or export of `err` under another name; and any other read of it as a
+ *     value, an export included, since an alias would call it unseen.
  *   - `replyHelper`: any use of a name of the `replyHelpers` option, called or not (bound,
  *     destructured, passed on, read under a static key), except the declaration of the helper
  *     itself as a function or a method.
@@ -47,8 +49,10 @@
  *     or that reads a member `reply`, when a `status` or `code` call of the chain is given
  *     anything but a numeric literal below 400, or when `send` is given an object literal with a
  *     key `error`, or a key `ok` whose value is the literal `false`; through type wrappers,
- *     optional chains, the chain's other calls and static keys. Not reported in the one file the
- *     `bodyWriter` option names, by its exact path, and only there; every other shape is.
+ *     optional chains, the chain's other calls and static keys. A body literal whose `ok` is the
+ *     literal `true` is a success answer whatever sets its status, and is not reported. Not
+ *     reported in the one file the `bodyWriter` option names, by its exact path, and only there;
+ *     every other shape is.
  *
  *   Paths are read relative to the directory ESLint runs from, the repository root; run from
  *   anywhere else, the registry's own files and the body writer are reported, never the other way
@@ -58,7 +62,8 @@
  *   error classes (the runtime's own, by default); `baseClasses`, the classes that may extend
  *   `Error` (the bases of the registry path, by default); `replyHelpers`, the legacy reply
  *   helpers and the wrappers around them (the six measured on the tree, by default);
- *   `bodyWriter`, one path (none by default, so no file is exempt).
+ *   `bodyWriter`, one path relative to the root, refused when empty, absolute, starting at `./` or
+ *   `../`, or holding a backslash (none by default, so no file is exempt).
  *
  *   Not reported: a call of `of` on a registry table's code, a `throw` of a value, `new` on a
  *   lower-case identifier or on a name that does not end in `Error`, a class that extends
@@ -71,7 +76,15 @@
  *   TypeScript's `import x = N.X`; a result written by hand, `{ ok: false, error: "CODE" }`; a
  *   wrapper of a reply helper under a name the option does not list; and a failure answered by
  *   hand in a shape this reading does not follow: a body in a variable sent with the default
- *   status, a status set apart from its `send`, a reply under another name, the raw response.
+ *   status, a status set apart from its `send`, a reply under another name, the raw response; and
+ *   a value that carries a `statusCode` and is answered at that status by the error handler's
+ *   last step (`Object.assign(new Error(), { statusCode })`, a thrown object literal).
+ *
+ *   Matched by name, and so wider or narrower than the intent: `baseClasses` is a list of names,
+ *   so a feature file may declare a class of one of those names that extends `Error`; a `new`
+ *   inside the `static of` of the class it builds is exempt in any file, not only the registry's
+ *   bases; and a class field, a const arrow, an interface member or an abstract member named like
+ *   a reply helper is reported, where a method or a function declaration of that name is not.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -105,8 +118,9 @@ const TABLE_SUFFIX = "_ERRORS";
 /** The shared kernel's module, the only one a registry table is imported from. */
 const SHARED_KERNEL = "@shared/types";
 
-/** The registry's directory, relative to the directory ESLint runs from. */
-const REGISTRY_DIRECTORY = "packages/shared/src/error-registry/";
+/** The shared kernel's source and the registry's directory, relative to where ESLint runs. */
+const KERNEL_DIRECTORY = "packages/shared/src/";
+const REGISTRY_DIRECTORY = `${KERNEL_DIRECTORY}error-registry/`;
 
 /** The function that builds a registry table, and the kernel's failed `Result`. */
 const DEFINE_ERRORS = "defineErrors";
@@ -392,15 +406,47 @@ function importOf(variable) {
 }
 
 /**
- * @param {unknown} argument The first argument given to `err`.
- * @returns {boolean} Whether it is a code or a message written in place: a string, a template, or
- *   a `+` that holds one.
+ * @typedef {object} ObjectEntry
+ * @property {string | null} key The name of the property's key, when the source fixes it.
+ * @property {AstNode | null} value Its value, read through type wrappers.
+ */
+
+/**
+ * @param {unknown} expression An expression.
+ * @returns {ObjectEntry[] | null} The properties of the object literal it is, spreads left out, or
+ *   null when it is no object literal.
+ */
+function objectEntries(expression) {
+  const node = unwrap(expression);
+  if (node?.type !== "ObjectExpression" || !Array.isArray(node.properties)) return null;
+  return node.properties
+    .filter((property) => isNode(property) && property.type === "Property")
+    .map((property) => ({
+      key: keyName(property.key, property.computed),
+      value: unwrap(property.value),
+    }));
+}
+
+/**
+ * @param {unknown} argument The first argument given to `err`, or a part of it.
+ * @returns {boolean} Whether it holds a code or a message written in place: a string or a
+ *   template, read through a `+`, either branch of a conditional, either side of a logical
+ *   expression, and the property values of an object literal.
  */
 function isWrittenInPlace(argument) {
   const node = unwrap(argument);
   if (node === null) return false;
   if (node.type === "Literal") return typeof node.value === "string";
   if (node.type === "TemplateLiteral") return true;
+  if (node.type === "ConditionalExpression") {
+    return isWrittenInPlace(node.consequent) || isWrittenInPlace(node.alternate);
+  }
+  if (node.type === "LogicalExpression") {
+    return isWrittenInPlace(node.left) || isWrittenInPlace(node.right);
+  }
+  if (node.type === "ObjectExpression") {
+    return (objectEntries(node) ?? []).some((entry) => isWrittenInPlace(entry.value));
+  }
   return (
     node.type === "BinaryExpression" &&
     node.operator === "+" &&
@@ -467,19 +513,30 @@ function isSuccessStatus(status) {
 }
 
 /**
+ * @param {ObjectEntry} entry A property of an object literal.
+ * @param {boolean} literal The literal `ok` must hold.
+ * @returns {boolean} Whether it is the key `ok` with that literal as its value.
+ */
+function isOk(entry, literal) {
+  return entry.key === "ok" && entry.value?.type === "Literal" && entry.value.value === literal;
+}
+
+/**
  * @param {unknown} body The argument of a `send`.
  * @returns {boolean} Whether it is an object literal written as a failure: a key `error`, or a key
  *   `ok` whose value is the literal `false`.
  */
 function isFailureBody(body) {
-  const node = unwrap(body);
-  if (node?.type !== "ObjectExpression" || !Array.isArray(node.properties)) return false;
-  return node.properties.some((property) => {
-    if (!isNode(property) || property.type !== "Property") return false;
-    const key = keyName(property.key, property.computed);
-    const value = unwrap(property.value);
-    return key === "error" || (key === "ok" && value?.type === "Literal" && value.value === false);
-  });
+  return (objectEntries(body) ?? []).some((entry) => entry.key === "error" || isOk(entry, false));
+}
+
+/**
+ * @param {unknown} body The argument of a `send`.
+ * @returns {boolean} Whether it is an object literal written as a success, a key `ok` whose value
+ *   is the literal `true`, which answers no failure whatever sets its status.
+ */
+function isSuccessBody(body) {
+  return (objectEntries(body) ?? []).some((entry) => isOk(entry, true));
 }
 
 /** @type {import("eslint").Rule.RuleModule} */
@@ -494,7 +551,9 @@ const rule = {
           runtimeErrors: { type: "array", items: { type: "string" } },
           baseClasses: { type: "array", items: { type: "string" } },
           replyHelpers: { type: "array", items: { type: "string" } },
-          bodyWriter: { type: "string" },
+          // One path relative to the root, written as the rule compares it: not empty, not
+          // absolute, not starting at `.` or `..`, and with no backslash.
+          bodyWriter: { type: "string", pattern: "^(?!/)(?![A-Za-z]:)(?!\\.\\.?/)[^\\\\]+$" },
         },
         additionalProperties: false,
       },
@@ -567,7 +626,17 @@ const rule = {
     const sourceCode = context.sourceCode;
     const file = path.relative(context.cwd, context.filename).split(path.sep).join("/");
     const inRegistry = file.startsWith(REGISTRY_DIRECTORY);
+    const inKernel = file.startsWith(KERNEL_DIRECTORY);
     const isBodyWriter = options.bodyWriter !== undefined && file === options.bodyWriter;
+
+    /**
+     * @param {string} source A module specifier of this file.
+     * @returns {boolean} Whether it is the shared kernel: by its name, or by a relative path from
+     *   a file of the kernel itself.
+     */
+    function isKernelSource(source) {
+      return isSharedKernel(source) || (inKernel && source.startsWith("."));
+    }
 
     /**
      * Every reference of the file, by the identifier it reads.
@@ -678,7 +747,7 @@ const rule = {
       const name = typeof identifier.name === "string" ? identifier.name : "";
       if (isErrorClass(name)) checkClassUse(identifier, name);
       const binding = importRead(identifier);
-      if (binding === null || !isSharedKernel(binding.source)) return;
+      if (binding === null || !isKernelSource(binding.source)) return;
       if (binding.imported === RESULT_FAILURE) {
         checkFailureUse(identifier);
         return;
@@ -774,7 +843,7 @@ const rule = {
         const callee = unwrap(node.callee);
         if (callee?.type !== "MemberExpression" || propertyName(callee) !== "send") return;
         const chain = readReplyChain(callee.object);
-        if (!chain.isReply) return;
+        if (!chain.isReply || isSuccessBody(node.arguments[0])) return;
         if (
           chain.statuses.some((status) => !isSuccessStatus(status)) ||
           isFailureBody(node.arguments[0])
@@ -798,7 +867,7 @@ const rule = {
         const source = sourceOf(declaration);
         const from = specifierName(specifier.imported);
         const to = specifierName(specifier.local);
-        checkSpecifier(specifier, from, to, source !== null && isSharedKernel(source));
+        checkSpecifier(specifier, from, to, source !== null && isKernelSource(source));
       },
       ExportSpecifier(node) {
         const specifier = asNode(node);
@@ -807,11 +876,12 @@ const rule = {
         const source = sourceOf(declaration);
         const local = asNode(specifier.local);
         const binding = source === null ? importRead(local) : null;
+        // A re-export names its module; an export of a local name reads the import that binds it.
         const fromKernel =
           source !== null
             ? isSharedKernel(source)
             : binding !== null &&
-              isSharedKernel(binding.source) &&
+              isKernelSource(binding.source) &&
               binding.imported === RESULT_FAILURE;
         checkSpecifier(
           specifier,

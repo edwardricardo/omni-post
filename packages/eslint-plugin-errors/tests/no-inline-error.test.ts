@@ -689,6 +689,11 @@ ruleTester.run("no-inline-error: registryDefinition", rule, {
       filename: at(`${REGISTRY}-legacy/tables.ts`),
       errors: [registryDefinition()],
     },
+    {
+      code: 'const LOCAL_ERRORS = defineErrors("local", {});',
+      filename: at("apps/api/src/error-registry/tables.ts"),
+      errors: [registryDefinition()],
+    },
   ],
 });
 
@@ -766,7 +771,9 @@ ruleTester.run("no-inline-error: inlineReply", rule, {
       "reply.status(404);",
       "reply.status(500).sendFile('down.html');",
       "res.status(500).send({ error: message });",
-      "getReply().status(500).send(body);"
+      "getReply().status(500).send(body);",
+      "ctx.reply.code(statusCode).send({ ok: true, data });",
+      "reply.status(status).send({ data, ok: true as const });"
     ),
     {
       code: "reply.code(answer.problem.status).header('content-type', type).send(body);",
@@ -783,9 +790,11 @@ ruleTester.run("no-inline-error: inlineReply", rule, {
         "reply.status(400).send(data);",
         "this.ctx.reply.status(HTTP_STATUS.NOT_FOUND).send(body);",
         "reply.status('200').send(body);",
-        "reply.status().send(body);"
+        "reply.status().send(body);",
+        "reply.code(status).send({ ok: ready, data });",
+        "reply.code(status).send({ ok: 'true', data });"
       ),
-      errors: [1, 2, 3, 4, 5, 6, 7].map((line) => inlineReply(line)),
+      errors: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((line) => inlineReply(line)),
     },
     {
       code: lines(
@@ -823,6 +832,12 @@ ruleTester.run("no-inline-error: inlineReply", rule, {
     },
     {
       code: "reply.status(500).send(body);",
+      filename: at("packages/legacy/apps/api/src/lib/errors/sendProblem.ts"),
+      options: [{ bodyWriter: "apps/api/src/lib/errors/sendProblem.ts" }],
+      errors: [inlineReply()],
+    },
+    {
+      code: "reply.status(500).send(body);",
       filename: at("apps/api/src/lib/errors/sendProblem.ts"),
       errors: [inlineReply()],
     },
@@ -844,8 +859,14 @@ ruleTester.run("no-inline-error: codeLiteral", rule, {
       "err(UseCaseError.of(COMMON_ERRORS.NOT_FOUND));",
       "err(1);",
       "err(code + suffix);",
-      "const result = err(error);"
+      "const result = err(error);",
+      'err(result.error.code === "NOT_FOUND" ? notFound : failure);',
+      "err(reason ?? fallback); err(first || second); err({ code, message, ...rest });"
     ),
+    {
+      code: lines('import { err } from "./types.js";', 'err("ZERO_CHANNELS");'),
+      filename: at("apps/api/src/saga.ts"),
+    },
     'import { err } from "neverthrow"; err("USER_NOT_FOUND"); const fail = err;',
     'err("USER_NOT_FOUND");',
     lines(IMPORT_ERR, 'function fail(err) { return err("USER_NOT_FOUND"); }'),
@@ -863,6 +884,28 @@ ruleTester.run("no-inline-error: codeLiteral", rule, {
         'err("USER_NOT_FOUND" as const);'
       ),
       errors: [2, 3, 4, 5, 6, 7, 8].map((line) => codeLiteral(IN_PLACE, line)),
+    },
+    {
+      code: lines(
+        IMPORT_ERR,
+        'err(result.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");',
+        'err(tokenLive ? error : "INVALID_TOKEN");',
+        'err(response.error?.message ?? "Image generation failed");',
+        'err(reason || "Unknown failure");',
+        'err({ code: "NOT_FOUND", message: "Account not found" });',
+        "err({ details: { reason: `missing ${field}` } });"
+      ),
+      errors: [2, 3, 4, 5, 6, 7].map((line) => codeLiteral(IN_PLACE, line)),
+    },
+    {
+      code: lines('import { err } from "./types.js";', 'err("ZERO_CHANNELS");'),
+      filename: at("packages/shared/src/saga.ts"),
+      errors: [codeLiteral(IN_PLACE, 2)],
+    },
+    {
+      code: lines('import { err as fail } from "../types.js";'),
+      filename: at(`${REGISTRY}/registered-error.ts`),
+      errors: [codeLiteral(RENAMED)],
     },
     {
       code: lines('import { err } from "@shared/types/types.js";', 'err("USER_NOT_FOUND");'),
@@ -924,6 +967,19 @@ describe("the errors plugin", () => {
     expect(() =>
       linter.verify("const value = 1;", configWith({ bodyWriter: ["a.ts", "b.ts"] }), "feature.ts")
     ).toThrow(/should be string/);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["absolute", "/srv/apps/api/src/lib/errors/sendProblem.ts"],
+    ["absolute with a drive", "C:/apps/api/src/lib/errors/sendProblem.ts"],
+    ["starting with ./", "./apps/api/src/lib/errors/sendProblem.ts"],
+    ["starting with ../", "../apps/api/src/lib/errors/sendProblem.ts"],
+    ["holding a backslash", "apps\\api\\src\\lib\\errors\\sendProblem.ts"],
+  ])("refuses a body writer path that is %s", (_form, bodyWriter) => {
+    expect(() =>
+      linter.verify("const value = 1;", configWith({ bodyWriter }), "feature.ts")
+    ).toThrow(/should match pattern/);
   });
 
   it("refuses an option the rule does not declare", () => {
