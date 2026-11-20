@@ -194,10 +194,17 @@ battery_steps() {
   # string that parses as ICU, and every locale carries the default locale's keys and argument names.
   step static i18n pnpm check:i18n
   # Fitness #57: the error registry is whole and the list of existing error sites only shrinks.
-  # The sites gate compares with the base the floors step reads, FITNESS_BASE_REF or origin/main;
-  # CI compares the merge of the pull request with its base instead, so a base ahead of the
-  # branch's merge base reads the main branch's later changes as the branch's.
-  step static errors env FITNESS_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:errors
+  # The sites gate compares HEAD with a base: FITNESS_BASE_REF when it is set, else the merge base
+  # of HEAD and origin/main, the local counterpart of CI, which compares the merge of the pull
+  # request with its base. The tip of origin/main would not do: on a branch that lags it, the gate
+  # would read the main branch's later rows as deleted and its later falls as rises. When git finds
+  # no merge base (no origin/main, unrelated histories, a history too shallow to hold it), the step
+  # hands the gate origin/main itself, never an empty base: a name that does not resolve fails the
+  # gate closed with exit 3, and one that resolves is compared as its tip. A change that appears
+  # only once the main branch is merged, its later changes meeting this branch's, is seen by CI,
+  # and here only once the branch takes the main branch.
+  errors_base() { git merge-base HEAD origin/main 2>/dev/null || echo origin/main; }
+  step static errors env FITNESS_BASE_REF="${FITNESS_BASE_REF:-$(errors_base)}" pnpm check:errors
   # The architecture gate of audit.yml: dependency-cruiser's layer rules and its
   # `no-circular` cycle check over one resolved import graph. Its `warn`-severity
   # rules print `warn` lines, which this battery reads as RED.
