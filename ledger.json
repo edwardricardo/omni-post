@@ -4545,42 +4545,42 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses a wrong current password with 401 and changes nothing",
-          "line": 255,
+          "line": 256,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d66c6e26425e77df9f934df665acf3912fef2f25e4b38b6ecec3e59ee8afff65"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::replaces the single-use password with the new one, clears the mark, leaves lastLoginAt null and opens no session",
-          "line": 266,
+          "line": 267,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da142894c2eeeaf158f8bf72792fcbf49719c6af235018126f2ad85271a536f5"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses a second change as not required, with the new password as the current one, and changes nothing",
-          "line": 287,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "262eeb77619e5daadb0727f79214d1d12b9f841faacfc0a9b3e42cf5e603272c"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::stores exactly one of two new passwords and refuses the other as a concurrent modification, when two changes run at once",
-          "line": 307,
+          "line": 308,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0219b11475ebb4a30eea44873a1476c25366f09671d0a62ea8343e5d2156160"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses the single-use password at both sign-ins with 403 and no cookie, recording only the refusal, opening no session and leaving the row as it was",
-          "line": 371,
+          "line": 372,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8355a77b23f05ea1c13fa66dda26c2e8d5698f1d13ca233252d0adc3e1d52de"
         },
         {
           "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::signs in at both sign-ins with the new password once it is changed, opening a session at each and setting lastLoginAt, and refuses the single-use one",
-          "line": 430,
+          "line": 431,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "898a02713fa91d1f3477979f160ef486e28a41431abb843a2bef4ffde3762bb4"
@@ -38377,7 +38377,7 @@
           "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "93b48d3f502afc6c6f58088fb4655eb07ee8b257f53da84d86a30a63f5cd1035"
+          "bodyHash": "bbbb9297d14077e27e1614fe5098ede01e41bcfbfe5ee5d9e180160832964e8c"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, loading nothing, when standard output's isTTY is $isTTY",

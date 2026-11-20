@@ -111,8 +111,8 @@ Where it runs:
 Exit codes:
   0  The administrator was created, or its single-use password was re-issued.
   1  Refused (an administrator exists, or the administration role is held; with --reissue, no
-     administrator has the e-mail, it has signed in, it is not marked, or it is deactivated) or
-     failed.
+     administrator has the e-mail, it has signed in, it is not marked, it is deactivated, or it
+     changed between the read and the write) or failed.
   2  The arguments are wrong, the sign-in refuses the e-mail, or standard output is not a terminal.
 `;
 

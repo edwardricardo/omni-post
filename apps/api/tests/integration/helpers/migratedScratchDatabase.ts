@@ -142,7 +142,9 @@ export interface MigratedScratchDatabase {
    * Removes every row of every table of the database but Prisma's record of the migrations it
    * applied, and starts again the sequences those tables' columns own. No migration inserts a
    * row of the application, so the database then holds what the migration left, whatever a case
-   * wrote before. It runs on a connection of this database only.
+   * wrote before. It runs on a connection of this database only. The statement takes an exclusive
+   * lock on every table, so a transaction that a failed case left open makes the next emptying
+   * wait for it.
    */
   empty(): Promise<void>;
   /** Drops the database, closing its open connections, and disconnects both clients. */

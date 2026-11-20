@@ -4,10 +4,10 @@
  *              administrator, `POST /admin/auth/login` and `POST /auth/login`, against a database
  *              of its own, migrated from empty. Each case empties that database back to the state
  *              the migration left and creates the first administrator through the composition the
- *              operator command uses, so the administrator holds a single-use password and must change it. The
- *              routes run over the real `AdminAuthService` and `AuthService` on a client of that
- *              database, without Redis; the brute-force port allows every attempt and records
- *              nothing, since the subject is the stored rows. Both sign-ins refuse the
+ *              operator command uses, so the administrator holds a single-use password and must
+ *              change it. The routes run over the real `AdminAuthService` and `AuthService` on a
+ *              client of that database, without Redis; the brute-force port allows every attempt
+ *              and records nothing, since the subject is the stored rows. Both sign-ins refuse the
  *              single-use password with one audit row of the refusal, no session and no
  *              `lastLoginAt`; once the password is changed, the administrator signs in with the
  *              new one at both, and the old one is refused.
@@ -146,10 +146,11 @@ describe("The required password change on a migrated database", { concurrency: 1
    * own, and creates the first administrator as the command does.
    */
   async function firstAdministrator(): Promise<FirstAdministrator> {
-    const client = migrated();
     assert.ok(database, "the scratch database was created");
+    database.assertMigrated();
+    assert.ok(scratch, "a client of the scratch database was built");
     await database.empty();
-    const created = await composeCreateFirstAdministrator(client).execute({ email: ADMIN_EMAIL });
+    const created = await composeCreateFirstAdministrator(scratch).execute({ email: ADMIN_EMAIL });
     assert.ok(created.ok, "the first administrator was created");
     return { id: created.value.id, email: created.value.email, password: created.value.password };
   }
