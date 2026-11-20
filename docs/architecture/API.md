@@ -926,7 +926,7 @@ The API registers no WebSocket route. Real-time delivery uses Server-Sent Events
 - A handler built on `BaseRouteHandler` validates the body, the path parameters and the query string with Zod schemas, and answers 400 when they fail (`apps/api/src/lib/route-handler/BaseRouteHandler.ts`)
 - Database access goes through Prisma
 - The server template engine's `sanitize` method runs DOMPurify over HTML content (`apps/api/src/lib/templates/ServerTemplateEngine.ts:190`)
-- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, required password change, refresh, password-reset and password-validation paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:519-521`)
+- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, required password change, refresh, password-reset and password-validation paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:514-516`)
 
 ### Security Headers
 
