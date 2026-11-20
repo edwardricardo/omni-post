@@ -14,6 +14,17 @@ import type { ErrorResponse } from "../types";
 export const PROXY_BASE = "/api/backend";
 
 /**
+ * The `ApiError` a failed response's body stands for: a problem body gives its code and its
+ * `detail`; a legacy route's body gives its `message`, else its `error`, with its code and details.
+ */
+function apiErrorOf(status: number, body: ErrorResponse): ApiError {
+  if ("detail" in body) {
+    return new ApiError(status, body.code, body.detail);
+  }
+  return new ApiError(status, body.code ?? null, body.message || body.error, body.details);
+}
+
+/**
  * @function request
  * @description Performs a JSON HTTP request through the Next.js proxy and
  *              returns the typed response. Throws `ApiError` when the response
@@ -46,12 +57,7 @@ export async function request<T>(
       message: `HTTP ${response.status}: ${response.statusText}`,
     }));
 
-    throw new ApiError(
-      response.status,
-      errorData.code ?? null,
-      errorData.message || errorData.error,
-      errorData.details
-    );
+    throw apiErrorOf(response.status, errorData);
   }
 
   return response.json();
@@ -86,12 +92,7 @@ export async function uploadRequest<T>(
       message: `HTTP ${response.status}: ${response.statusText}`,
     }));
 
-    throw new ApiError(
-      response.status,
-      errorData.code ?? null,
-      errorData.message || errorData.error,
-      errorData.details
-    );
+    throw apiErrorOf(response.status, errorData);
   }
 
   return response.json();

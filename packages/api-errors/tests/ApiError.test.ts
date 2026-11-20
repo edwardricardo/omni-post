@@ -94,6 +94,67 @@ describe("ApiError.fromResponse", () => {
   });
 });
 
+describe("ApiError.fromResponse given the API's problem body", () => {
+  const makeProblem = (overrides: Record<string, unknown>) => ({
+    type: "https://omnipost.app/problems/CONFLICT",
+    title: "Conflict",
+    status: 409,
+    detail: "The request conflicts with the current state of the resource",
+    code: "CONFLICT",
+    correlationId: "corr-001",
+    timestamp: "2026-11-20T00:00:00.000Z",
+    ...overrides,
+  });
+
+  it("returns the code and the detail of a problem for a 4xx that is neither 401 nor 403", () => {
+    const error = ApiError.fromResponse(409, JSON.stringify(makeProblem({})));
+    expect(error.status).toBe(409);
+    expect(error.code).toBe("CONFLICT");
+    expect(error.message).toBe("The request conflicts with the current state of the resource");
+    expect(error.details).toBeUndefined();
+  });
+
+  it("returns the curated validation text for VALIDATION_FAILED", () => {
+    const problem = makeProblem({
+      type: "https://omnipost.app/problems/VALIDATION_FAILED",
+      title: "Validation failed",
+      status: 400,
+      detail: "The request is not valid",
+      code: "VALIDATION_FAILED",
+      issues: [
+        { part: "body", pointer: "/email", code: "invalid_format", detail: "Invalid email" },
+      ],
+    });
+    const error = ApiError.fromResponse(400, JSON.stringify(problem));
+    expect(error.code).toBe("VALIDATION_FAILED");
+    expect(error.message).toBe("The request contains invalid data.");
+  });
+
+  it("returns the status text, never the detail, for a 403 problem", () => {
+    const problem = makeProblem({
+      title: "Forbidden",
+      status: 403,
+      detail: "The caller is not allowed to do this",
+      code: "FORBIDDEN",
+    });
+    const error = ApiError.fromResponse(403, JSON.stringify(problem));
+    expect(error.code).toBe("FORBIDDEN");
+    expect(error.message).toBe("You don't have permission to perform this action.");
+  });
+
+  it("returns the generic server text, never the detail, for a 5xx problem", () => {
+    const problem = makeProblem({
+      title: "Internal error",
+      status: 500,
+      detail: "The server could not complete the request",
+      code: "INTERNAL_ERROR",
+    });
+    const error = ApiError.fromResponse(500, JSON.stringify(problem));
+    expect(error.code).toBe("INTERNAL_ERROR");
+    expect(error.message).toBe("An unexpected error occurred. Please try again.");
+  });
+});
+
 describe("parseApiError", () => {
   it("returns ApiError instances unchanged", () => {
     const error = new ApiError(403, "PERMISSION_DENIED", "no");

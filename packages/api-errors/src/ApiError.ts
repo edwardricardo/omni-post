@@ -14,6 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   TOKEN_EXPIRED: "Your session has expired. Please log in again.",
   NOT_FOUND: "The requested resource was not found.",
   VALIDATION_ERROR: "The request contains invalid data.",
+  VALIDATION_FAILED: "The request contains invalid data.",
   RATE_LIMITED: "Too many requests. Please wait a moment.",
   ACCOUNT_SUSPENDED: "This account has been suspended.",
 };
@@ -72,7 +73,12 @@ export class ApiError extends Error {
    * @method fromResponse
    * @description Build an `ApiError` from an HTTP response status + raw body
    *   text. Parses JSON body to extract error code, server message, and any
-   *   structured `details` payload.
+   *   structured `details` payload. The server message of the API's problem
+   *   body is its `detail`, read after the members of a legacy route's body.
+   * @param status - The HTTP status of the response.
+   * @param body - The raw text of the response body.
+   * @returns The `ApiError` whose message is the curated text for the code or
+   *   the status, or a safe server message for a 4xx other than 401 and 403.
    */
   static fromResponse(status: number, body: string): ApiError {
     let code: string | null = null;
@@ -85,9 +91,10 @@ export class ApiError extends Error {
         message?: string;
         code?: string;
         details?: unknown;
+        detail?: string;
       };
       code = json?.error?.code ?? json?.code ?? null;
-      serverMessage = json?.error?.message ?? json?.message ?? null;
+      serverMessage = json?.error?.message ?? json?.message ?? json?.detail ?? null;
       details = json?.error?.details ?? json?.details;
     } catch {
       // body was not JSON — fall through with defaults.
@@ -140,6 +147,8 @@ function resolveMessage(status: number, code: string | null, serverMessage: stri
  *   - Plain `Error` with a short, JSON-free message (kept verbatim)
  *   - Bare `string` values (treated like a serialised body)
  *   Anything else collapses to a generic `DEFAULT_ERROR`.
+ * @param err - The thrown value.
+ * @returns The `ApiError` the value stands for.
  */
 export function parseApiError(err: unknown): ApiError {
   if (err instanceof ApiError) {
@@ -191,6 +200,8 @@ export function parseApiError(err: unknown): ApiError {
  * @method getErrorMessage
  * @description Shortcut for extracting a user-facing error message from any
  *   thrown value. Equivalent to `parseApiError(err).message`.
+ * @param err - The thrown value.
+ * @returns The user-facing message.
  */
 export function getErrorMessage(err: unknown): string {
   return parseApiError(err).message;
@@ -199,6 +210,8 @@ export function getErrorMessage(err: unknown): string {
 /**
  * @method isPermissionDenied
  * @description Returns `true` when the parsed error represents a 403 response.
+ * @param err - The thrown value.
+ * @returns Whether the value stands for a 403 response.
  */
 export function isPermissionDenied(err: unknown): boolean {
   return parseApiError(err).isPermissionDenied;
@@ -207,6 +220,8 @@ export function isPermissionDenied(err: unknown): boolean {
 /**
  * @method isNotFoundError
  * @description Returns `true` when the parsed error represents a 404 response.
+ * @param err - The thrown value.
+ * @returns Whether the value stands for a 404 response.
  */
 export function isNotFoundError(err: unknown): boolean {
   return parseApiError(err).isNotFound;
