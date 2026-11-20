@@ -265,6 +265,13 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+        with:
+          # Every merge requires this job, so a Docker Hub rate limit or outage must not fail it:
+          # BuildKit asks Google's pull-through cache of Docker Hub for the base images before
+          # Docker Hub itself (the mirror of Docker's own BuildKit configuration guide).
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
 
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
