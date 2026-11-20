@@ -374,6 +374,13 @@
       "subject": "customer-user",
       "note": "Tenant user who performed the audited action."
     },
+    "AuditLog.details": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "admin-user",
+      "note": "Free JSON. Rows written by `apps/api/src/auth/authServiceCore.ts` hold an administrator's e-mail, or one a sign-in typed; other writers are not inventoried.",
+      "manual": true
+    },
     "AuditLog.ipAddress": {
       "status": "personal",
       "category": "technical",

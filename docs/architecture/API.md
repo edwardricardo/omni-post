@@ -164,7 +164,7 @@ Content-Type: application/json
 }
 ```
 
-An account that has MFA enabled and sent no `mfaToken` gets `{ "ok": true, "data": { "mfaRequired": true, "userId": "uuid", "message": "MFA token required to complete login" } }` and no cookie. Refusals: 400 for an invalid body, 401 for a wrong e-mail, password or MFA token, 403 when the account is inactive.
+An account that has MFA enabled and sent no `mfaToken` gets `{ "ok": true, "data": { "mfaRequired": true, "userId": "uuid", "message": "MFA token required to complete login" } }` and no cookie. Refusals: 400 for an invalid body, 401 for a wrong e-mail, password or MFA token, 403 when the account is inactive, and 403 with `{ "ok": false, "error": "Password change required" }` when the account's password is marked to be changed (`mustChangePassword`): every check, the MFA token included, has passed, no session is opened and no cookie is set, and the password is changed through [`POST /admin/auth/password/change-required`](#change-a-password-that-must-be-changed) (`apps/api/src/auth/authServiceCore.ts`, `apps/api/src/auth/authRoutes.ts`).
 
 #### Token Refresh
 
@@ -556,6 +556,70 @@ Returns the project's 50 most recent publish logs, newest first, as `{ "ok": tru
 
 ## Admin API Endpoints
 
+### Administrator Authentication
+
+The two routes below are the ones a first administrator meets; the other routes under `/admin/auth/` are not listed on this page yet. Both answer in the `BaseRouteHandler` shape, with the refusal's code as `error`, and share one request limit per client address: 15 requests a minute, answered with 429, `{ "ok": false, "error": { "code": "RATE_LIMIT_EXCEEDED", "message": "<text>" } }` and `Retry-After` (`apps/api/src/admin/auth/adminAuthRoutes.ts`, `rateLimit` in `adminAuthMiddleware.ts`).
+
+#### Admin Login
+
+```http
+POST /admin/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "<password>"
+}
+```
+
+`mfaToken` (6 digits), `rememberMe`, `deviceId` (64 hex characters) and `deviceName` are optional (`loginSchema`, `apps/api/src/admin/auth/adminAuthSchemas.ts`). An administrator with MFA enabled who sent no `mfaToken` gets 200 with `{ "ok": true, "data": { "requiresMfa": true } }`.
+
+Refusals: 400 `Validation failed` for an invalid body, 401 `INVALID_CREDENTIALS` or `MFA_INVALID`, 403 `ACCOUNT_LOCKED` or `ACCOUNT_INACTIVE`, and 403 `PASSWORD_CHANGE_REQUIRED` when the administrator's password is marked to be changed (`mustChangePassword`), as a first administrator's single-use password is. That refusal comes once every check, the second factor included, has passed: no session or token is issued, `lastLoginAt` is not written, and one `AuditLog` row, `LOGIN_FAILED` with the error `PASSWORD_CHANGE_REQUIRED`, records it (`AdminAuthService.login`). The password is then changed through the route below. Any other code answers 500.
+
+```json
+{ "ok": false, "error": "PASSWORD_CHANGE_REQUIRED" }
+```
+
+#### Change a Password That Must Be Changed
+
+```http
+POST /admin/auth/password/change-required
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "currentPassword": "<current-password>",
+  "newPassword": "<new-password>"
+}
+```
+
+No session is needed, and the route is exempt from the CSRF check. `mfaToken` (6 digits) is required when the administrator has MFA enabled. `newPassword` is at most 128 characters (`requiredPasswordChangeSchema`, `apps/api/src/admin/auth/adminAuthSchemas.ts`).
+
+The route runs the sign-in's checks on the e-mail, the current password and the MFA token, requires the mark, and replaces the password and clears the mark in one guarded write (`AdminAuthService.changeRequiredPassword`, `PasswordService.replaceRequiredPassword`). It opens no session, ends every session of the administrator and writes one `AuditLog` row, `PASSWORD_CHANGED`; the administrator then signs in with `POST /admin/auth/login`.
+
+**Response**: 200.
+
+```json
+{ "ok": true, "data": { "message": "Password changed. Sign in with the new password." } }
+```
+
+| Status | `error`                        | When                                                                                                                                                                       |
+| ------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `Validation failed`            | The body is invalid; `details.issues` lists each field as `{ path, message }`                                                                                              |
+| 400    | `PASSWORD_TOO_WEAK`            | The new password has fewer than 12 characters, or lacks a lowercase letter, an uppercase letter, a number or another character (`validatePasswordStrength`); checked first |
+| 400    | `PASSWORD_REUSED`              | The new password is the current one or one of the last 5                                                                                                                   |
+| 401    | `INVALID_CREDENTIALS`          | The e-mail or the current password is wrong                                                                                                                                |
+| 401    | `MFA_REQUIRED`                 | The administrator has MFA enabled and no `mfaToken` was sent                                                                                                               |
+| 401    | `MFA_INVALID`                  | The `mfaToken` is wrong                                                                                                                                                    |
+| 403    | `ACCOUNT_LOCKED`               | The brute-force gate locked the account, or its `lockedUntil` is in the future                                                                                             |
+| 403    | `ACCOUNT_INACTIVE`             | The account is inactive                                                                                                                                                    |
+| 403    | `IP_NOT_ALLOWED`               | The IP allowlist of the security settings is on and the caller's address is not in it: the sign-in is exempt from it, this route is not                                    |
+| 409    | `PASSWORD_CHANGE_NOT_REQUIRED` | The credentials are right and the password is not marked to be changed                                                                                                     |
+| 409    | `CONCURRENT_MODIFICATION`      | The administrator changed between the read and the write; nothing was written                                                                                              |
+| 429    | `RATE_LIMIT_EXCEEDED`          | The brute-force gate refuses the attempt for a reason other than a locked account, besides the request limit above                                                         |
+
+Any other code answers 500. `IP_NOT_ALLOWED` comes from the allowlist's hook, before the route, in the body `{ "ok": false, "error": { "code": "IP_NOT_ALLOWED", "message": "Access denied: IP not in allowlist" } }` (`apps/api/src/security/ipAllowlistMiddleware.ts`); why the sign-in and the reset paths are exempt and this one is not is the plan item `ADMIN-AUTH-ROUTES-EXEMPT-FROM-THE-IP-ALLOWLIST-WITHOUT-A-REASON`.
+
 ### Dashboard Statistics
 
 ```http
@@ -862,7 +926,7 @@ The API registers no WebSocket route. Real-time delivery uses Server-Sent Events
 - A handler built on `BaseRouteHandler` validates the body, the path parameters and the query string with Zod schemas, and answers 400 when they fail (`apps/api/src/lib/route-handler/BaseRouteHandler.ts`)
 - Database access goes through Prisma
 - The server template engine's `sanitize` method runs DOMPurify over HTML content (`apps/api/src/lib/templates/ServerTemplateEngine.ts:190`)
-- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, refresh and password-reset paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:540-542`)
+- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, required password change, refresh, password-reset and password-validation paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:540-542`)
 
 ### Security Headers
 
