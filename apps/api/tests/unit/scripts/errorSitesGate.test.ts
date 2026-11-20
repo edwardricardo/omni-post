@@ -1,0 +1,1682 @@
+/**
+ * @file errorSitesGate.test.ts
+ * @description Pins `scripts/testing/error-sites-gate.mjs`, the half of `pnpm check:errors` that
+ *   holds what ESLint's suppressions of the `errors/` rules do not: S1 (every path of the baseline
+ *   is tracked), S2 (and in its rule's scope), S3 (the history exists exactly while the baseline
+ *   holds an entry, every row is a birth or a row of fixed and moved sites, and its sum equals the
+ *   baseline per context), S4 (ESLint reaches every file of the scope with the rule at error, the
+ *   held options and the plugin's own object, the plugin's package loads only its own `src`, and
+ *   the list obeys its four rules), S5 (no directive turns an `errors/` rule off, nothing lets an
+ *   unused entry pass, and the root `lint` script still reaches the whole tree), the birth written
+ *   by `--record`, and every fail-closed path to exit 3, which wins over 1. Every case builds its
+ *   own git repository in a scratch directory and passes its own `resolveRule`, so the suite needs
+ *   no ESLint installation; one case runs the real wiring on this repository.
+ * @layer infrastructure
+ */
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { findMonorepoRoot } from "@packages/vitest-shared";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+type Outcome = { exitCode: number; stdout: string[]; stderr: string[] };
+type RuleState = { severity: number; options: unknown[] };
+type Resolution = {
+  ignored: boolean;
+  rules: Record<string, RuleState>;
+  pluginIsPackage: boolean;
+};
+type ResolveRule = (file: string) => Promise<Resolution>;
+type GitResult = { status: number; stdout: string; stderr: string };
+type Git = (args: readonly string[]) => GitResult;
+interface Exclusion {
+  readonly glob: string;
+  readonly kind: string;
+  readonly reason: string;
+}
+type Exclusions = Readonly<Record<string, readonly Exclusion[]>>;
+type Options = Readonly<Record<string, readonly unknown[]>>;
+interface GateInput {
+  root: string;
+  git: Git;
+  resolveRule: ResolveRule;
+  exclusions?: Exclusions;
+  options?: Options;
+  base?: string;
+}
+interface Move {
+  readonly from: string;
+  readonly to: string;
+  readonly count: number;
+}
+interface RecordInput {
+  root: string;
+  git: Git;
+  date: string;
+  slug: string;
+  exclusions?: Exclusions;
+  base?: string;
+  moves?: readonly Move[];
+}
+interface Row {
+  version: 1;
+  born?: { rule: string; contexts: Record<string, number> };
+  fixed?: Record<string, number>;
+  moved?: Move[];
+}
+interface History {
+  exists: boolean;
+  rows: { file: string; row: Row; text: string }[];
+  problems: string[];
+}
+/** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
+type GateModule = {
+  BASELINE: string;
+  HISTORY: string;
+  LINT_SCRIPT: string;
+  contextOf: (file: string) => string;
+  createGit: (root: string) => Git;
+  createEslintResolver: (input: {
+    root: string;
+    namespace: string;
+    packageName: string;
+  }) => Promise<ResolveRule>;
+  runGate: (input: GateInput) => Promise<Outcome>;
+  recordRow: (input: RecordInput) => Outcome;
+  readHistory: (root: string) => History;
+  stateOf: (rows: readonly { row: Row }[]) => Map<string, number>;
+};
+
+const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
+const GATE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/error-sites-gate.mjs");
+const {
+  BASELINE,
+  HISTORY,
+  LINT_SCRIPT,
+  contextOf,
+  createGit,
+  createEslintResolver,
+  runGate,
+  recordRow,
+  readHistory,
+  stateOf,
+} = (await import(GATE_SCRIPT)) as GateModule;
+
+const RULE = "errors/no-inline-error";
+const OPTIONS: Options = { [RULE]: [{ bodyWriter: "apps/api/src/lib/errors/sendProblem.ts" }] };
+const LIST: readonly Exclusion[] = [
+  { glob: "**/*.test.{ts,tsx,mts,cts}", kind: "test-suffix", reason: "Test files by suffix" },
+  { glob: "**/*.d.{ts,mts,cts}", kind: "declaration", reason: "No executable code" },
+  { glob: "apps/*/tests/**", kind: "outside-src", reason: "Test code beside a source tree" },
+  { glob: "scripts/**", kind: "whole-root", reason: "Tooling" },
+  { glob: "packages/eslint-plugin-errors/**", kind: "whole-root", reason: "Tooling" },
+];
+const EXCLUSIONS: Exclusions = { [RULE]: LIST };
+const PREFIX = "error-sites-gate: ";
+const ROW = `${"scripts/testing/error-sites-history"}/2026-11-20-birth.json`;
+
+const BIRTH = { version: 1, born: { rule: RULE, contexts: { "api/admin": 3, "core/auth": 2 } } };
+const SUPPRESSIONS = {
+  "apps/api/src/admin/a.ts": { [RULE]: { count: 3 }, "no-console": { count: 1 } },
+  "packages/core/auth/src/x.ts": { [RULE]: { count: 2 } },
+  "apps/api/tests/unit/t.test.ts": { "testing/no-empty-test": { count: 1 } },
+};
+
+let root = "";
+
+const write = (file: string, content: string): void => {
+  const full = path.join(root, file);
+  mkdirSync(path.dirname(full), { recursive: true });
+  writeFileSync(full, content);
+};
+const writeJson = (file: string, value: unknown): void =>
+  write(file, `${JSON.stringify(value, null, 2)}\n`);
+const remove = (file: string): void => rmSync(path.join(root, file), { recursive: true });
+
+const gitEnvironment = (): NodeJS.ProcessEnv => ({
+  ...process.env,
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_NOSYSTEM: "1",
+});
+const gitIn = (...args: string[]): string =>
+  execFileSync("git", args, { cwd: root, env: gitEnvironment(), encoding: "utf8" });
+
+/** A tree that passes: one rule born with five sites in two contexts, every rule of the list met. */
+const plantClean = (): void => {
+  write("package.json", `${JSON.stringify({ scripts: { lint: LINT_SCRIPT } }, null, 2)}\n`);
+  write("apps/api/src/admin/a.ts", "export const a = 1;\n");
+  write("apps/api/src/admin/b.ts", "// eslint-disable-next-line no-console -- a reason\n");
+  write("apps/api/src/index.ts", "/* eslint-disable @typescript-eslint/no-explicit-any */\n");
+  write("packages/core/auth/src/x.ts", "export const x = 1;\n");
+  write("apps/api/src/admin/a.test.ts", "/* eslint-disable */\n");
+  write("apps/api/src/types/f.d.ts", "export {};\n");
+  write("apps/api/tests/unit/t.test.ts", "// eslint-disable-next-line errors/no-inline-error\n");
+  write("scripts/tool.mjs", "export {};\n");
+  writeJson("packages/eslint-plugin-errors/package.json", {
+    name: "@packages/eslint-plugin-errors",
+    type: "module",
+    exports: { ".": "./src/index.js" },
+  });
+  write(
+    "packages/eslint-plugin-errors/src/index.js",
+    [
+      "// @ts-check",
+      '/** @typedef {import("eslint").ESLint.Plugin} Plugin */',
+      'import rule from "./rules/no-inline-error.js";',
+      'export { rule } from "./rules/no-inline-error.js";',
+      'export default { rules: { "no-inline-error": rule } };',
+      "",
+    ].join("\n")
+  );
+  write(
+    "packages/eslint-plugin-errors/src/rules/no-inline-error.js",
+    '/** @type {import("eslint").Rule.RuleModule} */\nexport default { create: () => ({}) };\n'
+  );
+  writeJson(BASELINE, SUPPRESSIONS);
+  writeJson(ROW, BIRTH);
+};
+
+const RESOLVED: Resolution = {
+  ignored: false,
+  rules: { [RULE]: { severity: 2, options: [...(OPTIONS[RULE] ?? [])] } },
+  pluginIsPackage: true,
+};
+
+/** A resolver that answers the clean state for every path but those given. */
+const resolverOf =
+  (overrides: Readonly<Record<string, Resolution>> = {}, asked: string[] = []): ResolveRule =>
+  (file) => {
+    asked.push(file);
+    return Promise.resolve(overrides[file] ?? RESOLVED);
+  };
+
+const scan = (input: Partial<GateInput> = {}): Promise<Outcome> => {
+  gitIn("add", "--all");
+  return runGate({
+    root,
+    git: createGit(root),
+    resolveRule: resolverOf(),
+    exclusions: EXCLUSIONS,
+    options: OPTIONS,
+    ...input,
+  });
+};
+
+const record = (input: Partial<RecordInput> = {}): Outcome =>
+  recordRow({
+    root,
+    git: createGit(root),
+    date: "2026-11-21",
+    slug: "birth",
+    exclusions: EXCLUSIONS,
+    ...input,
+  });
+
+const importRefused = (specifier: string): string =>
+  `imports "${specifier}", which is neither a relative path inside packages/eslint-plugin-errors/src nor a built-in the scope allows (node:path)`;
+
+const PASS_STDOUT = [
+  `${PREFIX}PASS`,
+  `${PREFIX}5 sites in 2 contexts`,
+  `${PREFIX}base: none (S6 to S10 skipped)`,
+];
+
+beforeEach(() => {
+  root = mkdtempSync(path.join(tmpdir(), "error-sites-gate-test-"));
+  gitIn("init", "--quiet");
+});
+
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
+
+describe("a clean tree", () => {
+  it("passes, with the total, the contexts and the base it read, asking ESLint only about the scope", async () => {
+    plantClean();
+    const asked: string[] = [];
+
+    const outcome = await scan({ resolveRule: resolverOf({}, asked) });
+
+    expect(outcome).toEqual({ exitCode: 0, stdout: PASS_STDOUT, stderr: [] });
+    expect(asked.sort()).toEqual([
+      "apps/api/src/admin/a.ts",
+      "apps/api/src/admin/b.ts",
+      "apps/api/src/index.ts",
+      "packages/core/auth/src/x.ts",
+    ]);
+  });
+
+  it("asserts nothing of an excluded file, even one ESLint ignores", async () => {
+    plantClean();
+    const ignored: Resolution = { ignored: true, rules: {}, pluginIsPackage: false };
+
+    const outcome = await scan({
+      resolveRule: resolverOf({
+        "apps/api/src/admin/a.test.ts": ignored,
+        "scripts/tool.mjs": ignored,
+      }),
+    });
+
+    expect(outcome.exitCode).toBe(0);
+  });
+});
+
+describe("S1 and S2: the paths of the baseline", () => {
+  it("S1 refuses an entry whose file git does not track", async () => {
+    plantClean();
+    remove("apps/api/src/admin/a.ts");
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}apps/api/src/admin/a.ts: ${BASELINE} counts 3 ${RULE} sites in it, and git tracks no such file: run "pnpm exec eslint . --prune-suppressions"`
+    );
+  });
+
+  it("S2 refuses an entry whose file its rule's list excludes, naming the entry", async () => {
+    plantClean();
+    writeJson(BASELINE, {
+      ...SUPPRESSIONS,
+      "apps/api/tests/unit/t.test.ts": { [RULE]: { count: 1 } },
+    });
+    writeJson(ROW, {
+      version: 1,
+      born: { rule: RULE, contexts: { "api/admin": 3, "core/auth": 2, api: 1 } },
+    });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}apps/api/tests/unit/t.test.ts: ${BASELINE} counts 1 ${RULE} site in it, and the rule's scope excludes it ("**/*.test.{ts,tsx,mts,cts}", test-suffix)`,
+    ]);
+  });
+
+  it("S2 refuses an entry of a file with no TypeScript extension, and one of a rule the gate holds no scope for", async () => {
+    plantClean();
+    write("apps/api/src/legacy.js", "export {};\n");
+    writeJson(BASELINE, {
+      ...SUPPRESSIONS,
+      "apps/api/src/legacy.js": { [RULE]: { count: 1 } },
+      "apps/api/src/admin/b.ts": { "errors/other-rule": { count: 1 } },
+    });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}apps/api/src/legacy.js: ${BASELINE} counts 1 ${RULE} site in it, and it has none of the scope's extensions (.ts, .tsx, .mts, .cts)`
+    );
+    expect(outcome.stderr).toContain(
+      `${PREFIX}apps/api/src/admin/b.ts: ${BASELINE} counts 1 errors/other-rule site in it, a rule the gate holds no scope for`
+    );
+  });
+});
+
+describe("S3: the history", () => {
+  it("refuses a baseline with errors/ entries and no history, naming the command that records the birth", async () => {
+    plantClean();
+    remove("scripts/testing/error-sites-history");
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}: ${BASELINE} holds 2 errors/ entries and there is no history: record the birth with "node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug>"`
+    );
+  });
+
+  it("refuses a history with no errors/ entry left in the baseline", async () => {
+    plantClean();
+    writeJson(BASELINE, {
+      "apps/api/tests/unit/t.test.ts": { "testing/no-empty-test": { count: 1 } },
+    });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${HISTORY}: the history exists and ${BASELINE} holds no errors/ entry: delete the history in this change`,
+    ]);
+  });
+
+  it("passes with no history and no errors/ entry, which is the end of the sweep", async () => {
+    plantClean();
+    remove("scripts/testing/error-sites-history");
+    writeJson(BASELINE, {
+      "apps/api/tests/unit/t.test.ts": { "testing/no-empty-test": { count: 1 } },
+    });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.stdout[1]).toBe(`${PREFIX}0 sites in 0 contexts`);
+  });
+
+  it("sums births, fixed sites and moves in any order, each move taking its count from the context of its source", async () => {
+    plantClean();
+    writeJson(ROW, {
+      version: 1,
+      born: { rule: RULE, contexts: { "api/admin": 6, "core/auth": 2 } },
+    });
+    writeJson("scripts/testing/error-sites-history/2026-11-22-admin.json", {
+      version: 1,
+      fixed: { "api/admin": 2 },
+    });
+    writeJson("scripts/testing/error-sites-history/2026-11-21-split.json", {
+      version: 1,
+      moved: [{ from: "apps/api/src/admin/b.ts", to: "apps/api/src/index.ts", count: 1 }],
+    });
+    writeJson(BASELINE, { ...SUPPRESSIONS, "apps/api/src/index.ts": { [RULE]: { count: 1 } } });
+
+    const outcome = await scan();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.stdout[1]).toBe(`${PREFIX}6 sites in 3 contexts`);
+  });
+
+  it("refuses a context whose history yields another count than the baseline, with both counts", async () => {
+    plantClean();
+    writeJson(ROW, {
+      version: 1,
+      born: { rule: RULE, contexts: { "api/admin": 4, "core/auth": 2 } },
+    });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}api/admin: the history yields 4 sites and ${BASELINE} 3`,
+    ]);
+  });
+
+  it("refuses the birth of a rule the gate holds no scope for, and a rule born twice", async () => {
+    plantClean();
+    writeJson("scripts/testing/error-sites-history/2026-11-21-other.json", {
+      version: 1,
+      born: { rule: "errors/other-rule", contexts: { workers: 1 } },
+    });
+    writeJson("scripts/testing/error-sites-history/2026-11-21-again.json", BIRTH);
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-other.json: bears the birth of errors/other-rule, a rule the gate holds no scope for`
+    );
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-again.json: bears the birth of ${RULE}, which ${HISTORY}/2026-11-20-birth.json bears too`
+    );
+  });
+
+  it("refuses a rule whose entries no row bears the birth of", async () => {
+    plantClean();
+    writeJson(ROW, { version: 1, fixed: { "api/admin": 1 } });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${RULE}: ${BASELINE} holds its entries and no row of the history bears its birth`
+    );
+  });
+
+  it.each([
+    ["a version other than 1", { version: 2, fixed: { workers: 1 } }],
+    ["a birth and a fix in one row", { version: 1, born: BIRTH.born, fixed: { workers: 1 } }],
+    ["a row with neither form", { version: 1 }],
+    ["a count that is no positive integer", { version: 1, fixed: { workers: 0 } }],
+    ["an empty list of moves", { version: 1, moved: [] }],
+    ["a move onto its own source", { version: 1, moved: [{ from: "a.ts", to: "a.ts", count: 1 }] }],
+    ["a birth with no context", { version: 1, born: { rule: RULE, contexts: {} } }],
+  ])("fails closed on a row with %s", async (_label, row) => {
+    plantClean();
+    writeJson("scripts/testing/error-sites-history/2026-11-21-bad.json", row);
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(3);
+    expect(outcome.stderr[0]).toMatch(
+      new RegExp(`^${PREFIX}${HISTORY}/2026-11-21-bad\\.json: is not a row of the history: `)
+    );
+  });
+
+  it("fails closed on a row that is not JSON, and on a file of the history with no row's name", async () => {
+    plantClean();
+    write("scripts/testing/error-sites-history/2026-11-21-bad.json", "{ not json\n");
+    write("scripts/testing/error-sites-history/notes.md", "a stray file\n");
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(3);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/notes.md: is not named <YYYY-MM-DD>-<slug>.json, so it is no row of the history`
+    );
+    expect(
+      outcome.stderr.some((line) =>
+        line.startsWith(`${PREFIX}${HISTORY}/2026-11-21-bad.json: is not JSON`)
+      )
+    ).toBe(true);
+  });
+});
+
+describe("S4: ESLint reaches the scope", () => {
+  it.each<[string, Resolution, string]>([
+    ["ignored", { ignored: true, rules: {}, pluginIsPackage: false }, "ESLint ignores it"],
+    ["missing", { ignored: false, rules: {}, pluginIsPackage: true }, "the rule is not on"],
+    [
+      "at warn",
+      {
+        ignored: false,
+        rules: { [RULE]: { severity: 1, options: [...(OPTIONS[RULE] ?? [])] } },
+        pluginIsPackage: true,
+      },
+      "the rule is at warn, not error",
+    ],
+    [
+      "with other options",
+      {
+        ignored: false,
+        rules: { [RULE]: { severity: 2, options: [{ bodyWriter: "a.ts" }] } },
+        pluginIsPackage: true,
+      },
+      'the rule\'s options are [{"bodyWriter":"a.ts"}], not the held [{"bodyWriter":"apps/api/src/lib/errors/sendProblem.ts"}]',
+    ],
+    [
+      "from a copy of the plugin",
+      { ignored: false, rules: RESOLVED.rules, pluginIsPackage: false },
+      "the errors plugin ESLint resolves is not the object @packages/eslint-plugin-errors exports",
+    ],
+  ])("refuses a file of the scope with the rule %s", async (_label, resolution, problem) => {
+    plantClean();
+
+    const outcome = await scan({
+      resolveRule: resolverOf({ "apps/api/src/admin/b.ts": resolution }),
+    });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([`${PREFIX}apps/api/src/admin/b.ts: ${RULE}: ${problem}`]);
+  });
+
+  it("names at most twenty files per problem, then counts the rest", async () => {
+    plantClean();
+    for (let index = 0; index < 23; index += 1)
+      write(`apps/api/src/many/f${String(index).padStart(2, "0")}.ts`, "");
+    const ignored: Resolution = { ignored: true, rules: {}, pluginIsPackage: false };
+    const overrides = Object.fromEntries(
+      Array.from({ length: 23 }, (_, index) => [
+        `apps/api/src/many/f${String(index).padStart(2, "0")}.ts`,
+        ignored,
+      ])
+    );
+
+    const outcome = await scan({ resolveRule: resolverOf(overrides) });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toHaveLength(21);
+    expect(outcome.stderr[0]).toBe(`${PREFIX}apps/api/src/many/f00.ts: ${RULE}: ESLint ignores it`);
+    expect(outcome.stderr[20]).toBe(
+      `${PREFIX}${RULE}: ESLint ignores it in 3 more files of the scope`
+    );
+  });
+
+  it("fails closed when ESLint's configuration cannot be resolved, and exit 3 wins over 1 with both printed", async () => {
+    plantClean();
+    remove("apps/api/src/admin/a.ts");
+
+    const outcome = await scan({
+      resolveRule: () => Promise.reject(new Error("eslint.config.ts did not load")),
+    });
+
+    expect(outcome.exitCode).toBe(3);
+    expect(outcome.stderr[0]).toBe(
+      `${PREFIX}ESLint's configuration could not be resolved for apps/api/src/admin/b.ts: eslint.config.ts did not load`
+    );
+    expect(outcome.stderr.some((line) => line.includes("git tracks no such file"))).toBe(true);
+  });
+
+  it("refuses an entry that matches no tracked file, so the list names only what exists", async () => {
+    plantClean();
+    const list = [
+      ...LIST,
+      { glob: "performance/**", kind: "whole-root", reason: "Measurement code" },
+    ];
+
+    const outcome = await scan({ exclusions: { [RULE]: list } });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${RULE}: the exclusion "performance/**" (whole-root) matches no tracked file: remove it`,
+    ]);
+  });
+
+  it("refuses an outside-src entry that matches a file under a src directory, and keeps that file in scope", async () => {
+    plantClean();
+    const list = [...LIST, { glob: "apps/api/**", kind: "outside-src", reason: "Too wide" }];
+    const asked: string[] = [];
+
+    const outcome = await scan({
+      exclusions: { [RULE]: list },
+      resolveRule: resolverOf({}, asked),
+    });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${RULE}: the exclusion "apps/api/**" is of kind outside-src and matches apps/api/src/admin/a.test.ts, a file under a src directory: only a test suffix, a declaration or a whole root may exclude one`,
+    ]);
+    expect(asked).toContain("apps/api/src/admin/a.ts");
+  });
+
+  it("refuses an entry whose files do not carry what its kind claims, and a whole root that is no root", async () => {
+    plantClean();
+    const list = [
+      ...LIST,
+      { glob: "apps/api/src/index.ts", kind: "test-suffix", reason: "Mislabelled" },
+      { glob: "apps/api/src/index.ts", kind: "declaration", reason: "Mislabelled" },
+      { glob: "**/types/**", kind: "whole-root", reason: "No root" },
+      { glob: "apps/api/src/admin/b.ts", kind: "generated", reason: "No such kind" },
+    ];
+
+    const outcome = await scan({ exclusions: { [RULE]: list } });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${RULE}: the exclusion "apps/api/src/index.ts" is of kind test-suffix and matches apps/api/src/index.ts, which carries no test suffix`,
+      `${PREFIX}${RULE}: the exclusion "apps/api/src/index.ts" is of kind declaration and matches apps/api/src/index.ts, which is no declaration file`,
+      `${PREFIX}${RULE}: the exclusion "**/types/**" is of kind whole-root and is not a root followed by "/**"`,
+      `${PREFIX}${RULE}: the exclusion "apps/api/src/admin/b.ts" has the kind "generated", which is none of test-suffix, declaration, outside-src, whole-root`,
+    ]);
+  });
+
+  it("refuses a JavaScript file under a src directory outside the excluded roots", async () => {
+    plantClean();
+    write("packages/core/auth/src/hidden.mjs", "export {};\n");
+    write("packages/eslint-plugin-errors/src/rules/extra.js", "export {};\n");
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}packages/core/auth/src/hidden.mjs: a JavaScript file under a src directory, which the rule does not read: write it in TypeScript, or exclude its whole root`,
+    ]);
+  });
+
+  it("refuses a plugin package whose exports leave its src", async () => {
+    plantClean();
+    writeJson("packages/eslint-plugin-errors/package.json", {
+      name: "@packages/eslint-plugin-errors",
+      exports: { ".": "./lib/index.js" },
+    });
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}packages/eslint-plugin-errors/package.json: its "exports" is {".":"./lib/index.js"}, not {".":"./src/index.js"}`,
+    ]);
+  });
+
+  it("refuses an import of the plugin's src that is a package, leaves src, or is no literal; a type in a comment is no import", async () => {
+    plantClean();
+    write(
+      "packages/eslint-plugin-errors/src/rules/no-inline-error.js",
+      [
+        '/** @type {import("eslint").Rule.RuleModule} */',
+        'import ts from "typescript";',
+        'import { copy } from "../../../../scripts/weak-rule.js";',
+        "const name = './x.js';",
+        "const later = () => import(name);",
+        'const loaded = require("./helpers.js");',
+        "export default { create: () => ({ ts, copy, later, loaded }) };",
+        "",
+      ].join("\n")
+    );
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}packages/eslint-plugin-errors/src/rules/no-inline-error.js:2: ${importRefused("typescript")}`,
+      `${PREFIX}packages/eslint-plugin-errors/src/rules/no-inline-error.js:3: ${importRefused("../../../../scripts/weak-rule.js")}`,
+      `${PREFIX}packages/eslint-plugin-errors/src/rules/no-inline-error.js:5: imports a module whose specifier is no string literal, so where it leads cannot be read`,
+    ]);
+  });
+
+  it("lets the plugin's src import node:path, the one built-in the scope allows, and no other", async () => {
+    plantClean();
+    write(
+      "packages/eslint-plugin-errors/src/rules/no-inline-error.js",
+      [
+        'import path from "node:path";',
+        'import { createRequire } from "node:module";',
+        'import plain from "path";',
+        'const vm = require("node:vm");',
+        'import { readFileSync } from "node:fs";',
+        "export default { create: () => ({ path, createRequire, plain, vm, readFileSync }) };",
+        "",
+      ].join("\n")
+    );
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual(
+      [
+        ["2", "node:module"],
+        ["3", "path"],
+        ["4", "node:vm"],
+        ["5", "node:fs"],
+      ].map(
+        ([line, specifier]) =>
+          `${PREFIX}packages/eslint-plugin-errors/src/rules/no-inline-error.js:${line}: ${importRefused(specifier ?? "")}`
+      )
+    );
+  });
+
+  it("fails closed when the plugin's manifest cannot be read", async () => {
+    plantClean();
+    remove("packages/eslint-plugin-errors/package.json");
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(3);
+    expect(outcome.stderr[0]).toMatch(
+      new RegExp(
+        `^${PREFIX}packages/eslint-plugin-errors/package\\.json could not be read, so the plugin's entry point was not checked: `
+      )
+    );
+  });
+});
+
+describe("S5: nothing turns the rule off", () => {
+  it.each([
+    [
+      "names the rule",
+      "// eslint-disable-next-line errors/no-inline-error -- reason\n",
+      "names errors/no-inline-error",
+    ],
+    [
+      "names it among others",
+      "/* eslint-disable no-console, errors/no-inline-error */\n",
+      "names errors/no-inline-error",
+    ],
+    ["names no rule, as a block", "const a = 1; /* eslint-disable */\n", "names no rule"],
+    ["names no rule, on its line", "f(); // eslint-disable-line\n", "names no rule"],
+    ["names no rule, across lines", "/*\n  eslint-disable\n*/\n", "names no rule"],
+  ])("refuses a directive in a file of the scope that %s", async (_label, text, what) => {
+    plantClean();
+    write("apps/api/src/admin/a.ts", `export const a = 1;\n${text}`);
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}apps/api/src/admin/a.ts:2: an eslint-disable directive that ${what}: no directive turns an errors/ rule off in a file of its scope`,
+    ]);
+  });
+
+  it.each(["packages/core/auth/package.json", ".husky/pre-commit", ".github/workflows/ci.yml"])(
+    "refuses pass-on-unpruned-suppressions in %s",
+    async (file) => {
+      plantClean();
+      write(file, "first line\neslint . --pass-on-unpruned-suppressions\n");
+
+      const outcome = await scan();
+
+      expect(outcome.exitCode).toBe(1);
+      expect(outcome.stderr).toEqual([
+        `${PREFIX}${file}:2: holds "pass-on-unpruned-suppressions", which lets an unused entry of ${BASELINE} pass`,
+      ]);
+    }
+  );
+
+  it("refuses a root lint script other than the one the gate holds", async () => {
+    plantClean();
+    write(
+      "package.json",
+      `${JSON.stringify({ scripts: { lint: "eslint apps --max-warnings 0" } }, null, 2)}\n`
+    );
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}package.json: its "lint" script is "eslint apps --max-warnings 0", not "${LINT_SCRIPT}": the lint run must reach the whole tree`,
+    ]);
+  });
+
+  it("holds the root lint script as the repository writes it", () => {
+    const manifest = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(LINT_SCRIPT).toBe(manifest.scripts["lint"]);
+  });
+});
+
+describe("fail-closed inputs", () => {
+  it("fails closed when git cannot list the tree, and when it lists no file", async () => {
+    plantClean();
+    const broken: Git = () => ({ status: 128, stdout: "", stderr: "fatal: not a git repository" });
+
+    const failing = await runGate({
+      root,
+      git: broken,
+      resolveRule: resolverOf(),
+      exclusions: EXCLUSIONS,
+      options: OPTIONS,
+    });
+    const empty = await runGate({
+      root,
+      git: () => ({ status: 0, stdout: "", stderr: "" }),
+      resolveRule: resolverOf(),
+      exclusions: EXCLUSIONS,
+      options: OPTIONS,
+    });
+
+    expect(failing.exitCode).toBe(3);
+    expect(failing.stderr).toEqual([`${PREFIX}git ls-files failed: fatal: not a git repository`]);
+    expect(empty.exitCode).toBe(3);
+    expect(empty.stderr).toEqual([
+      `${PREFIX}git tracks no file: a scan that read nothing is not clean`,
+    ]);
+  });
+
+  it.each([
+    ["is not JSON", "{ broken\n", /is not JSON/],
+    [
+      "counts with a string",
+      JSON.stringify({ "a.ts": { [RULE]: { count: "3" } } }),
+      /"a\.ts" > "errors\/no-inline-error" is not \{ "count": <positive integer> \}/,
+    ],
+    ["is an array", "[]", /is not an object of paths/],
+  ])("fails closed when %s", async (_label, text, message) => {
+    plantClean();
+    write(BASELINE, text);
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(3);
+    expect(outcome.stderr[0]).toMatch(message);
+  });
+
+  it("reads a missing suppressions file as no entry, as ESLint does", async () => {
+    plantClean();
+    remove(BASELINE);
+    remove("scripts/testing/error-sites-history");
+
+    const outcome = await scan();
+
+    expect(outcome.exitCode).toBe(0);
+  });
+
+  it("fails closed on a base that cannot be resolved, and names a base it resolved", async () => {
+    plantClean();
+    gitIn("add", "--all");
+    gitIn(
+      "-c",
+      "user.email=gate@example.test",
+      "-c",
+      "user.name=Gate",
+      "commit",
+      "--quiet",
+      "-m",
+      "base"
+    );
+
+    const missing = await scan({ base: "no-such-ref" });
+    const found = await scan({ base: "HEAD" });
+
+    expect(missing.exitCode).toBe(3);
+    expect(missing.stderr[0]).toMatch(
+      new RegExp(`^${PREFIX}the base "no-such-ref" could not be resolved`)
+    );
+    expect(found.exitCode).toBe(0);
+    expect(found.stdout[2]).toBe(`${PREFIX}base: HEAD`);
+  });
+});
+
+const SECOND = "errors/second-rule";
+const commit = (message: string): void => {
+  gitIn("add", "--all");
+  gitIn(
+    "-c",
+    "user.email=gate@example.test",
+    "-c",
+    "user.name=Gate",
+    "commit",
+    "--quiet",
+    "--allow-empty",
+    "-m",
+    message
+  );
+};
+/** Commits the clean tree, and whatever was planted beside it, as the base, tagged `base`. */
+const commitBase = (): void => {
+  commit("base");
+  gitIn("tag", "base");
+};
+/** Commits the head and runs the gate against the base. */
+const againstBase = (input: Partial<GateInput> = {}): Promise<Outcome> => {
+  commit("head");
+  return scan({ base: "base", ...input });
+};
+const touch = (file: string): void =>
+  write(file, `${readFileSync(path.join(root, file), "utf8")}export const changed = true;\n`);
+const move = (from: string, to: string): void => {
+  write(to, readFileSync(path.join(root, from), "utf8"));
+  remove(from);
+};
+/** The clean baseline with the given counts set; a count of 0 removes the rule's entry. */
+const setCounts = (counts: Readonly<Record<string, Readonly<Record<string, number>>>>): void => {
+  const next: Record<string, Record<string, { count: number }>> = JSON.parse(
+    JSON.stringify(SUPPRESSIONS)
+  ) as Record<string, Record<string, { count: number }>>;
+  for (const [file, rules] of Object.entries(counts)) {
+    const merged = { ...(next[file] ?? {}) };
+    for (const [rule, count] of Object.entries(rules)) merged[rule] = { count };
+    next[file] = Object.fromEntries(Object.entries(merged).filter(([, entry]) => entry.count > 0));
+  }
+  writeJson(
+    BASELINE,
+    Object.fromEntries(Object.entries(next).filter(([, rules]) => Object.keys(rules).length > 0))
+  );
+};
+const addRow = (name: string, value: unknown): void => writeJson(`${HISTORY}/${name}`, value);
+const A = "apps/api/src/admin/a.ts";
+const B = "apps/api/src/admin/b.ts";
+const X = "packages/core/auth/src/x.ts";
+const riseLine = (file: string, head: number, base: number): string =>
+  `${PREFIX}${file}: ${RULE} counts ${String(head)} ${head === 1 ? "site" : "sites"}, and the base counts ${String(base)}: a count never rises against the base; ` +
+  `fix the sites the change added and run "pnpm exec eslint . --prune-suppressions", or record their move from another file of its context with --moved <from>:${file}:<count>`;
+const MISSING_ROW = `${PREFIX}${HISTORY}: the counts differ from the base and the head adds no row: record it with "node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug> --base base"`;
+const TWO_RULES: Exclusions = { [RULE]: LIST, [SECOND]: LIST };
+const TWO_OPTIONS: Options = { [RULE]: OPTIONS[RULE] ?? [], [SECOND]: [] };
+const bothRules: ResolveRule = () =>
+  Promise.resolve({
+    ignored: false,
+    rules: { ...RESOLVED.rules, [SECOND]: { severity: 2, options: [] } },
+    pluginIsPackage: true,
+  });
+
+describe("S6a to S10: against a base", () => {
+  it("passes a head whose counts equal the base's, and names the base", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+
+    const outcome = await againstBase();
+
+    expect(outcome).toEqual({
+      exitCode: 0,
+      stdout: [`${PREFIX}PASS`, `${PREFIX}5 sites in 2 contexts`, `${PREFIX}base: base`],
+      stderr: [],
+    });
+  });
+
+  it("S6 refuses a count that rises against the base and an entry the base does not hold, with both counts and the command that lowers them", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(B);
+    setCounts({ [A]: { [RULE]: 4 }, [B]: { [RULE]: 1 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(riseLine(A, 4, 3));
+    expect(outcome.stderr).toContain(riseLine(B, 1, 0));
+    expect(outcome.stderr).toContain(MISSING_ROW);
+  });
+
+  it("S6 lets a rule be born against the base, by its own row", async () => {
+    plantClean();
+    commitBase();
+    setCounts({ [B]: { [SECOND]: 1 } });
+    addRow("2026-11-21-second.json", {
+      version: 1,
+      born: { rule: SECOND, contexts: { "api/admin": 1 } },
+    });
+
+    const outcome = await againstBase({
+      exclusions: TWO_RULES,
+      options: TWO_OPTIONS,
+      resolveRule: bothRules,
+    });
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+  });
+
+  it("S6 lets a count rise by exactly what a recorded move between two files of one context brings in", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(B);
+    setCounts({ [A]: { [RULE]: 1 }, [B]: { [RULE]: 2 } });
+    addRow("2026-11-21-split.json", { version: 1, moved: [{ from: A, to: B, count: 2 }] });
+
+    const outcome = await againstBase();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+  });
+
+  it("S7 refuses a count that falls while git reports no change of its file, and passes once the file changed", async () => {
+    plantClean();
+    commitBase();
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const unchanged = await againstBase();
+    touch(A);
+    const changed = await againstBase();
+
+    expect(unchanged).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${A}: ${RULE} fell from 3 to 2 against the base, and git reports no change of its content: a count falls only when its file changes`,
+      ],
+    });
+    expect(changed.exitCode).toBe(0);
+  });
+
+  it("S7 takes a deletion as the reason a count fell", async () => {
+    plantClean();
+    commitBase();
+    remove(X);
+    setCounts({ [X]: { [RULE]: 0 } });
+    addRow("2026-11-21-auth.json", { version: 1, fixed: { "core/auth": 2 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.stderr).toEqual([]);
+  });
+
+  it("S8 and S7 refuse a file renamed into an excluded path with its content unchanged", async () => {
+    plantClean();
+    commitBase();
+    move(A, "apps/api/tests/unit/a.ts");
+    setCounts({ [A]: { [RULE]: 0 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${A}: renamed to apps/api/tests/unit/a.ts, which the scope of ${RULE} excludes ("apps/*/tests/**", outside-src), while the base counts 3 sites in it`
+    );
+    expect(outcome.stderr).toContain(
+      `${PREFIX}apps/api/tests/unit/a.ts: ${RULE} fell from 3 to 0 against the base, and git reports ${A} renamed to it with its content unchanged: a count falls only when its file changes`
+    );
+  });
+
+  it("S6a carries a count with its file: a rename inside one context needs no row", async () => {
+    plantClean();
+    commitBase();
+    move(A, "apps/api/src/admin/c.ts");
+    setCounts({ [A]: { [RULE]: 0 }, "apps/api/src/admin/c.ts": { [RULE]: 3 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.stderr).toEqual([]);
+  });
+
+  it("S10 asks a rename across two contexts for its one move, and passes with it", async () => {
+    plantClean();
+    commitBase();
+    move(A, "apps/api/src/billing/a.ts");
+    setCounts({ [A]: { [RULE]: 0 }, "apps/api/src/billing/a.ts": { [RULE]: 3 } });
+
+    const missing = await againstBase();
+    addRow("2026-11-21-billing.json", {
+      version: 1,
+      moved: [{ from: A, to: "apps/api/src/billing/a.ts", count: 3 }],
+    });
+    const recorded = await againstBase();
+
+    expect(missing.stderr).toContain(MISSING_ROW);
+    expect(recorded.stderr).toEqual([]);
+  });
+
+  it("S9 refuses a change of the rule beside a change of a count, and passes a change of the rule alone", async () => {
+    plantClean();
+    commitBase();
+    write(
+      "packages/eslint-plugin-errors/src/rules/no-inline-error.js",
+      "export default { create: () => ({}) };\n"
+    );
+
+    const alone = await againstBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+    const beside = await againstBase();
+
+    expect(alone.exitCode).toBe(0);
+    expect(beside).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${A}: ${RULE} counts 2 against the base's 3, in a change that also changes packages/eslint-plugin-errors/src/rules/no-inline-error.js: a change of the rule and a change of a count never share a change`,
+      ],
+    });
+  });
+
+  it("S9 reads a change of the scope module or of the gate as a change of the rule", async () => {
+    plantClean();
+    write("scripts/testing/lib/error-scope.mjs", "export {};\n");
+    commitBase();
+    write("scripts/testing/lib/error-scope.mjs", "export const widened = true;\n");
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${A}: ${RULE} counts 2 against the base's 3, in a change that also changes scripts/testing/lib/error-scope.mjs: a change of the rule and a change of a count never share a change`,
+    ]);
+  });
+
+  it("S10 refuses an edited row of the base, even one whose sum is unchanged, and a deleted one", async () => {
+    plantClean();
+    commitBase();
+    write(ROW, `${JSON.stringify(BIRTH)}\n`);
+
+    const edited = await againstBase();
+    remove(ROW);
+    addRow("2026-11-21-again.json", BIRTH);
+    const deleted = await againstBase();
+
+    expect(edited).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${ROW}: a row of the base's history, edited on the head: a row is never rewritten`,
+      ],
+    });
+    expect(deleted.stderr).toContain(
+      `${PREFIX}${ROW}: a row of the base's history, deleted on the head: a row is never deleted`
+    );
+  });
+
+  it("S10 refuses a row that claims more than fell", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 2 } });
+
+    const outcome = await againstBase();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-admin.json: its "fixed" is {"api/admin":2}, and the difference with the base yields {"api/admin":1}`
+    );
+  });
+
+  it("S10 refuses two rows in one change, and a row while no count differs", async () => {
+    plantClean();
+    commitBase();
+    addRow("2026-11-21-idle.json", { version: 1, fixed: { "api/admin": 1 } });
+    const idle = await againstBase();
+    remove(`${HISTORY}/2026-11-21-idle.json`);
+    touch(A);
+    setCounts({ [A]: { [RULE]: 1 } });
+    addRow("2026-11-21-one.json", { version: 1, fixed: { "api/admin": 1 } });
+    addRow("2026-11-21-two.json", { version: 1, fixed: { "api/admin": 1 } });
+    const two = await againstBase();
+
+    expect(idle.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-idle.json: a row the head adds while no count differs from the base: delete it`
+    );
+    expect(two.stderr).toContain(
+      `${PREFIX}${HISTORY}: the head adds 2 rows against the base (${HISTORY}/2026-11-21-one.json, ${HISTORY}/2026-11-21-two.json): a change adds one`
+    );
+  });
+
+  it("S10 refuses a birth that shares its change with a fix", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 }, [B]: { [SECOND]: 1 } });
+    addRow("2026-11-21-second.json", {
+      version: 1,
+      born: { rule: SECOND, contexts: { "api/admin": 1 } },
+    });
+
+    const outcome = await againstBase({
+      exclusions: TWO_RULES,
+      options: TWO_OPTIONS,
+      resolveRule: bothRules,
+    });
+
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-second.json: ${SECOND} is born against the base beside other changes of counts: a rule is born by its own change`
+    );
+  });
+
+  it("S10 refuses a move between two files of two contexts: only a rename crosses contexts", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(X);
+    setCounts({ [A]: { [RULE]: 1 }, [X]: { [RULE]: 4 } });
+    addRow("2026-11-21-cross.json", { version: 1, moved: [{ from: A, to: X, count: 2 }] });
+
+    const outcome = await againstBase();
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${HISTORY}/2026-11-21-cross.json: the move of 2 sites from ${A} to ${X} crosses two contexts (api/admin, core/auth): only a rename git reports moves sites across contexts`,
+      ],
+    });
+  });
+
+  it("S10 refuses moves of renamed files whose counts are not each file's, even when their sum is", async () => {
+    plantClean();
+    setCounts({ [B]: { [RULE]: 1 } });
+    writeJson(ROW, {
+      version: 1,
+      born: { rule: RULE, contexts: { "api/admin": 4, "core/auth": 2 } },
+    });
+    commitBase();
+    move(A, "apps/api/src/billing/a.ts");
+    move(B, "apps/api/src/billing/b.ts");
+    setCounts({
+      [A]: { [RULE]: 0 },
+      "apps/api/src/billing/a.ts": { [RULE]: 3 },
+      "apps/api/src/billing/b.ts": { [RULE]: 1 },
+    });
+    addRow("2026-11-21-billing.json", {
+      version: 1,
+      moved: [
+        { from: A, to: "apps/api/src/billing/a.ts", count: 1 },
+        { from: B, to: "apps/api/src/billing/b.ts", count: 3 },
+      ],
+    });
+
+    const outcome = await againstBase();
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${HISTORY}/2026-11-21-billing.json: its moves of renamed files are ` +
+          `[{"from":"${A}","to":"apps/api/src/billing/a.ts","count":1},{"from":"${B}","to":"apps/api/src/billing/b.ts","count":3}], ` +
+          `and the renames across contexts git reports yield ` +
+          `[{"from":"${A}","to":"apps/api/src/billing/a.ts","count":3},{"from":"${B}","to":"apps/api/src/billing/b.ts","count":1}]`,
+      ],
+    });
+  });
+
+  it("S10 refuses a move out of a file that fell by less, into a file that rose by less", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(B);
+    setCounts({ [A]: { [RULE]: 2 }, [B]: { [RULE]: 1 } });
+    addRow("2026-11-21-split.json", { version: 1, moved: [{ from: A, to: B, count: 2 }] });
+
+    const outcome = await againstBase();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-split.json: 2 sites move out of ${A}, whose count fell by 1 against the base`
+    );
+    expect(outcome.stderr).toContain(
+      `${PREFIX}${HISTORY}/2026-11-21-split.json: 2 sites move into ${B}, whose count rose by 1 against the base`
+    );
+  });
+
+  it("S8 refuses a portal that drops errorCodes from a catalog it held them in on the base", async () => {
+    plantClean();
+    write("apps/admin/i18n/routing.ts", 'export const routing = { defaultLocale: "en" };\n');
+    writeJson("apps/admin/messages/en.json", {
+      errorCodes: { NOT_FOUND: "Not found" },
+      title: "Admin",
+    });
+    commitBase();
+    writeJson("apps/admin/messages/en.json", { title: "Admin" });
+
+    const outcome = await againstBase();
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}apps/admin/messages/en.json: holds no "errorCodes" while the portal's catalogs hold it on the base: a portal never leaves the registry's check by removing its namespace`,
+      ],
+    });
+  });
+
+  it("fails closed on a row of the base that is not the format, and on a base baseline that is not JSON", async () => {
+    plantClean();
+    addRow("2026-11-21-bad.json", { version: 2 });
+    commitBase();
+    remove(`${HISTORY}/2026-11-21-bad.json`);
+    const badRow = await againstBase();
+
+    gitIn("tag", "-d", "base");
+    write(BASELINE, "{ broken\n");
+    commitBase();
+    writeJson(BASELINE, SUPPRESSIONS);
+    const badBaseline = await againstBase();
+
+    expect(badRow.exitCode).toBe(3);
+    expect(badRow.stderr[0]).toBe(
+      `${PREFIX}base:${HISTORY}/2026-11-21-bad.json: is not a row of the history: "version" is not 1`
+    );
+    expect(badBaseline.exitCode).toBe(3);
+    expect(badBaseline.stderr[0]).toMatch(new RegExp(`^${PREFIX}base:${BASELINE} is not JSON: `));
+  });
+});
+
+describe("--record against a base", () => {
+  it("writes the fixed sites the difference yields, and the gate then passes", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 1 } });
+    commit("head");
+
+    const outcome = record({ base: "base", slug: "admin" });
+
+    expect(outcome).toEqual({
+      exitCode: 0,
+      stdout: [
+        `${PREFIX}recorded ${HISTORY}/2026-11-21-admin.json: 2 sites fixed in 1 context, 0 moves`,
+      ],
+      stderr: [],
+    });
+    expect(readFileSync(path.join(root, HISTORY, "2026-11-21-admin.json"), "utf8")).toBe(
+      `${JSON.stringify({ version: 1, fixed: { "api/admin": 2 } }, null, 2)}\n`
+    );
+    expect((await againstBase()).stderr).toEqual([]);
+  });
+
+  it("writes the move of a file renamed across two contexts, read from git", async () => {
+    plantClean();
+    commitBase();
+    move(A, "apps/api/src/billing/a.ts");
+    setCounts({ [A]: { [RULE]: 0 }, "apps/api/src/billing/a.ts": { [RULE]: 3 } });
+    commit("head");
+
+    const outcome = record({ base: "base", slug: "billing" });
+
+    expect(outcome.exitCode).toBe(0);
+    expect(
+      JSON.parse(readFileSync(path.join(root, HISTORY, "2026-11-21-billing.json"), "utf8"))
+    ).toEqual({
+      version: 1,
+      moved: [{ from: A, to: "apps/api/src/billing/a.ts", count: 3 }],
+    });
+    expect((await againstBase()).stderr).toEqual([]);
+  });
+
+  it("writes a stated move between two files of one context, and fixed as what fell beyond it", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(B);
+    setCounts({ [A]: { [RULE]: 0 }, [B]: { [RULE]: 2 } });
+    commit("head");
+
+    const outcome = record({ base: "base", slug: "split", moves: [{ from: A, to: B, count: 2 }] });
+
+    expect(outcome.exitCode).toBe(0);
+    expect(
+      JSON.parse(readFileSync(path.join(root, HISTORY, "2026-11-21-split.json"), "utf8"))
+    ).toEqual({
+      version: 1,
+      fixed: { "api/admin": 1 },
+      moved: [{ from: A, to: B, count: 2 }],
+    });
+    expect((await againstBase()).stderr).toEqual([]);
+  });
+
+  it("refuses when nothing differs from the base, and when the head already adds a row", () => {
+    plantClean();
+    commitBase();
+    commit("head");
+    const nothing = record({ base: "base" });
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+    commit("head");
+    const already = record({ base: "base", slug: "again" });
+
+    expect(nothing).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [`${PREFIX}nothing differs from the base base, so there is no row to record`],
+    });
+    expect(already.stderr).toEqual([
+      `${PREFIX}the head already adds ${HISTORY}/2026-11-21-admin.json against the base: a change adds one row, so delete it and record again`,
+    ]);
+  });
+
+  it("refuses a rise no stated move explains, a move across two contexts, and a move given for a renamed file", () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(X);
+    move(B, "apps/api/src/admin/c.ts");
+    setCounts({ [A]: { [RULE]: 1 }, [X]: { [RULE]: 4 } });
+    commit("head");
+
+    const rise = record({ base: "base" });
+    const crossing = record({ base: "base", moves: [{ from: A, to: X, count: 2 }] });
+    const renamed = record({
+      base: "base",
+      moves: [{ from: B, to: "apps/api/src/admin/c.ts", count: 1 }],
+    });
+
+    expect(rise.exitCode).toBe(1);
+    expect(rise.stderr).toEqual([riseLine(X, 4, 2)]);
+    expect(crossing.stderr).toEqual([
+      `${PREFIX}the move of 2 sites from ${A} to ${X} crosses two contexts (api/admin, core/auth): only a rename git reports moves sites across contexts`,
+    ]);
+    expect(renamed.stderr).toEqual([
+      `${PREFIX}${B} is renamed to apps/api/src/admin/c.ts: the move of a renamed file is read from git, so it is not given`,
+    ]);
+    expect(existsSync(path.join(root, HISTORY, "2026-11-21-birth.json"))).toBe(false);
+  });
+
+  it("reads --moved from the command line, and refuses one that is not <from>:<to>:<count>", () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    touch(B);
+    setCounts({ [A]: { [RULE]: 1 }, [B]: { [RULE]: 2 } });
+    commit("head");
+    const command = (args: readonly string[]) =>
+      spawnSync(
+        process.execPath,
+        [
+          GATE_SCRIPT,
+          "--record",
+          "--date",
+          "2026-11-21",
+          "--slug",
+          "split",
+          "--root",
+          root,
+          ...args,
+        ],
+        {
+          cwd: root,
+          encoding: "utf8",
+          env: { ...gitEnvironment(), FITNESS_BASE_REF: "" },
+        }
+      );
+
+    const malformed = [
+      ["--moved", `${A}:${B}`],
+      ["--moved", `${A}:${A}:1`],
+      ["--moved", `${A}:${B}:0`],
+    ].map((args) => command(args).status);
+    const written = command(["--base", "base", "--moved", `${A}:${B}:2`]);
+
+    expect(malformed).toEqual([2, 2, 2]);
+    expect(written.status).toBe(0);
+    expect(written.stdout).toBe(
+      `${PREFIX}recorded ${HISTORY}/2026-11-21-split.json: 0 sites fixed in 0 contexts, 1 move\n`
+    );
+  });
+});
+
+describe("the history's reader", () => {
+  it("reads every row and sums them, the one reader of the format the reference page shares", () => {
+    plantClean();
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+    addRow("2026-11-22-move.json", {
+      version: 1,
+      moved: [{ from: A, to: "apps/api/src/billing/a.ts", count: 2 }],
+    });
+
+    const history = readHistory(root);
+
+    expect(history.exists).toBe(true);
+    expect(history.problems).toEqual([]);
+    expect(history.rows.map((entry) => entry.file)).toEqual([
+      ROW,
+      `${HISTORY}/2026-11-21-admin.json`,
+      `${HISTORY}/2026-11-22-move.json`,
+    ]);
+    expect(stateOf(history.rows)).toEqual(
+      new Map([
+        ["api/admin", 0],
+        ["core/auth", 2],
+        ["api/billing", 2],
+      ])
+    );
+  });
+
+  it("names every entry that is no row, so its caller fails closed, and reads no directory as no history", () => {
+    plantClean();
+    addRow("2026-11-21-bad.json", { version: 1, fixed: {} });
+
+    const broken = readHistory(root);
+    remove(HISTORY);
+    const absent = readHistory(root);
+
+    expect(broken.problems).toEqual([
+      `${HISTORY}/2026-11-21-bad.json: is not a row of the history: "fixed" is not an object of at least one context`,
+    ]);
+    expect(absent).toEqual({ exists: false, rows: [], problems: [] });
+  });
+});
+
+describe("contextOf", () => {
+  it.each([
+    ["packages/core/auth/src/x.ts", "core/auth"],
+    ["apps/api/src/admin/auth/a.ts", "api/admin"],
+    ["apps/api/src/index.ts", "api/src"],
+    ["apps/api/scripts/dump.ts", "api"],
+    ["apps/workers/src/jobs/a.ts", "workers"],
+    ["packages/providers/x/src/a.ts", "providers/x"],
+    ["packages/adapters/db-prisma/src/a.ts", "adapters/db-prisma"],
+    ["packages/monitoring/circuit-breaker/src/a.ts", "monitoring/circuit-breaker"],
+    ["packages/observability/logger/src/a.ts", "observability/logger"],
+    ["packages/shared/src/a.ts", "packages/shared"],
+    ["packages/core/vitest.config.ts", "packages/core"],
+    ["infra/prisma/src/a.ts", "infra/prisma"],
+    ["apps/admin/lib/a.ts", "admin"],
+    ["apps/client/lib/a.ts", "client"],
+    ["apps/cli/src/a.ts", "cli"],
+    ["tools/a.ts", "tools"],
+    ["vitest.workspace.ts", "(root)"],
+  ])("puts %s in %s", (file, context) => {
+    expect(contextOf(file)).toBe(context);
+  });
+});
+
+describe("--record", () => {
+  it("writes the birth the baseline yields, as prettier writes it, and the gate then passes", async () => {
+    plantClean();
+    remove("scripts/testing/error-sites-history");
+
+    const outcome = record();
+
+    expect(outcome).toEqual({
+      exitCode: 0,
+      stdout: [
+        `${PREFIX}recorded ${HISTORY}/2026-11-21-birth.json: the birth of ${RULE}, 5 sites in 2 contexts`,
+      ],
+      stderr: [],
+    });
+    expect(readFileSync(path.join(root, HISTORY, "2026-11-21-birth.json"), "utf8")).toBe(
+      `${JSON.stringify(BIRTH, null, 2)}\n`
+    );
+    expect((await scan()).exitCode).toBe(0);
+  });
+
+  it("refuses when nothing differs, and never rewrites a row", () => {
+    plantClean();
+
+    const nothing = record();
+    remove(ROW);
+    writeJson(`${HISTORY}/2026-11-21-birth.json`, { version: 1, fixed: { workers: 1 } });
+    const taken = record();
+
+    expect(nothing).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        `${PREFIX}nothing differs: the history yields what ${BASELINE} holds, so there is no row to record`,
+      ],
+    });
+    expect(taken.exitCode).toBe(1);
+    expect(taken.stderr).toEqual([
+      `${PREFIX}${HISTORY}/2026-11-21-birth.json already exists: a row is never rewritten, so choose another slug`,
+    ]);
+  });
+
+  it("refuses a birth when the rule is born and its counts fell", () => {
+    plantClean();
+    writeJson(BASELINE, {
+      ...SUPPRESSIONS,
+      "packages/core/auth/src/x.ts": { [RULE]: { count: 1 } },
+    });
+
+    const outcome = record();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}the history and ${BASELINE} differ (core/auth) and no rule awaits its birth, so the row is no birth: it is written against a base`,
+    ]);
+  });
+
+  it("writes the birth of the one rule that awaits it, beside a rule already born", () => {
+    plantClean();
+    writeJson(BASELINE, {
+      ...SUPPRESSIONS,
+      "apps/api/src/admin/b.ts": { "errors/second-rule": { count: 1 } },
+    });
+
+    const outcome = record({
+      exclusions: { [RULE]: LIST, "errors/second-rule": LIST, "errors/third-rule": LIST },
+    });
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.stdout).toEqual([
+      `${PREFIX}recorded ${HISTORY}/2026-11-21-birth.json: the birth of errors/second-rule, 1 site in 1 context`,
+    ]);
+  });
+
+  it("refuses when two rules await their birth, since a row bears one", () => {
+    plantClean();
+    remove(ROW);
+    writeJson(BASELINE, {
+      ...SUPPRESSIONS,
+      "apps/api/src/admin/b.ts": { "errors/third-rule": { count: 1 } },
+    });
+
+    const outcome = record({ exclusions: { [RULE]: LIST, "errors/third-rule": LIST } });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${RULE} and errors/third-rule each await their birth: a row bears one birth, so each rule is born by its own change`,
+    ]);
+  });
+
+  it("refuses the birth of a rule the gate holds no scope for", () => {
+    plantClean();
+    remove("scripts/testing/error-sites-history");
+    writeJson(BASELINE, { "apps/api/src/admin/a.ts": { "errors/other-rule": { count: 1 } } });
+
+    const outcome = record();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `${PREFIX}${BASELINE} counts sites of errors/other-rule, a rule the gate holds no scope for, so its birth cannot be recorded`,
+    ]);
+    expect(existsSync(path.join(root, HISTORY))).toBe(false);
+  });
+});
+
+describe("the command", () => {
+  const run = (args: readonly string[], environment: NodeJS.ProcessEnv = {}) =>
+    spawnSync(process.execPath, [GATE_SCRIPT, ...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...gitEnvironment(), FITNESS_BASE_REF: "", ...environment },
+    });
+
+  it.each([
+    ["an unknown argument", ["--frobnicate"]],
+    ["a date without --record", ["--date", "2026-11-21"]],
+    ["--record without a slug", ["--record", "--date", "2026-11-21"]],
+    ["a date that is no calendar date", ["--record", "--date", "2026-02-30", "--slug", "birth"]],
+    ["a slug outside its pattern", ["--record", "--date", "2026-11-21", "--slug", "Birth_1"]],
+    ["--root twice", ["--root", "a", "--root", "b"]],
+  ])("exits 2 on %s", (_label, args) => {
+    const result = run(args);
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toMatch(/^usage: node scripts\/testing\/error-sites-gate\.mjs/);
+  });
+
+  it("records a birth from the command line, and reads FITNESS_BASE_REF when --base is absent", () => {
+    plantClean();
+    remove("scripts/testing/error-sites-history");
+    gitIn("add", "--all");
+
+    const unresolved = run(
+      ["--record", "--date", "2026-11-21", "--slug", "birth", "--root", root],
+      {
+        FITNESS_BASE_REF: "no-such-ref",
+      }
+    );
+    const written = run(["--record", "--date", "2026-11-21", "--slug", "birth", "--root", root]);
+
+    expect(unresolved.status).toBe(3);
+    expect(unresolved.stderr).toMatch(/the base "no-such-ref" could not be resolved/);
+    expect(written.status).toBe(0);
+    expect(written.stdout).toBe(
+      `${PREFIX}recorded ${HISTORY}/2026-11-21-birth.json: the birth of ${RULE}, 5 sites in 2 contexts\n`
+    );
+  });
+});
+
+describe("the ESLint wiring, on this repository", () => {
+  it("reads a rule's severity and options, the plugin's identity, and an ignored path", async () => {
+    const resolve = await createEslintResolver({
+      root: REPO_ROOT,
+      namespace: "testing",
+      packageName: "@packages/eslint-plugin-testing",
+    });
+
+    const testFile = await resolve("apps/api/tests/unit/scripts/errorSitesGate.test.ts");
+    const sourceFile = await resolve("apps/api/src/index.ts");
+    const ignored = await resolve("apps/api/dist/index.ts");
+
+    expect(testFile.ignored).toBe(false);
+    expect(testFile.pluginIsPackage).toBe(true);
+    expect(testFile.rules["testing/no-empty-test"]).toEqual({ severity: 2, options: [] });
+    expect(sourceFile.ignored).toBe(false);
+    expect(sourceFile.rules["testing/no-empty-test"]).toBeUndefined();
+    expect(ignored).toEqual({ ignored: true, rules: {}, pluginIsPackage: false });
+
+    const vitest = await createEslintResolver({
+      root: REPO_ROOT,
+      namespace: "vitest",
+      packageName: "@vitest/eslint-plugin",
+    });
+    const withOptions = await vitest("apps/api/tests/unit/scripts/errorSitesGate.test.ts");
+    expect(withOptions.rules["vitest/expect-expect"]?.severity).toBe(2);
+    expect(withOptions.rules["vitest/expect-expect"]?.options).toEqual([
+      {
+        assertFunctionNames: ["expect", "expect*", "assert", "assert.*", "expectTypeOf"],
+        additionalTestBlockFunctions: [],
+      },
+    ]);
+  }, 60_000);
+});
