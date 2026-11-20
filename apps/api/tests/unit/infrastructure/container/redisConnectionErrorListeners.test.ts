@@ -1,7 +1,8 @@
 /**
  * @file redisConnectionErrorListeners.test.ts
  * @description Pins that every Redis connection and BullMQ queue the composition root builds
- *   logs its errors through the throttled listener: the ten connections of `setupServices`, the
+ *   logs its errors through the throttled listener: the eleven connections of `setupServices`
+ *   (the queue registry's included), the
  *   connection and queue of `setupBillingUseCases` and the three role connections of
  *   `registerRedisConnections`. Each factory is run against a container double with Redis, its
  *   subscriber duplicate and BullMQ's Queue stubbed, so no socket opens. The same error is handed
@@ -50,6 +51,19 @@ vi.mock("../../../../src/lib/redis.js", async (importOriginal) => {
     ...actual,
     createRedisConnection: vi.fn(makeConnection),
     duplicateForSubscriber: vi.fn(makeConnection),
+  };
+});
+
+// The queue registry builds its connection with ioredis' `Redis` directly.
+vi.mock("ioredis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ioredis")>();
+  return {
+    ...actual,
+    Redis: vi.fn(function MockRedis() {
+      const connection = { on: vi.fn(), quit: vi.fn() };
+      connections.push(connection);
+      return connection;
+    }),
   };
 });
 
@@ -146,6 +160,7 @@ describe("Redis connection error listeners of the composition root", () => {
     [TOKENS.AnalyticsStreamBroadcaster, "redis:analytics-stream-broadcaster"],
     [TOKENS.BruteForceProtectionPort, "redis:brute-force-protection"],
     [TOKENS.MfaChallengeStore, "redis:mfa-challenge-store"],
+    [TOKENS.QueuePortRegistry, "redis:queue-registry"],
   ])("logs one line for two errors of a setupServices connection (%s)", (token, name) => {
     const { container, factories } = makeContainer();
     setupServices(container);

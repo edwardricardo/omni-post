@@ -666,6 +666,9 @@ export function setupServices(
         commandTimeout: 5_000,
         connectTimeout: 5_000,
       });
+      // Each queue built on it also logs the connection's errors, throttled, under its own
+      // name; this listener is the one line that names the connection and reports it ready.
+      logConnectionErrors(connection, redisLogger, "redis:queue-registry");
       const defaultJobOptionsByQueue = {
         [QUEUE_NAMES.PUBLISH]: {
           attempts: 3,

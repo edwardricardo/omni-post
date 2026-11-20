@@ -12,6 +12,8 @@ import { EventEmitter } from "node:events";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   CONNECTION_ERROR_LOG_WINDOW_MS,
+  MAX_NESTED_DEPTH,
+  MAX_NESTED_ERRORS,
   MAX_TRACKED_ERROR_IDENTITIES,
   createThrottledErrorListener,
   createThrottledWorkerErrorListener,
@@ -175,7 +177,7 @@ describe("createThrottledErrorListener", () => {
     expect(sink.error).toHaveBeenCalledTimes(MAX_TRACKED_ERROR_IDENTITIES + 1);
   });
 
-  it("reports the count the overflow bucket held back once its window has passed", () => {
+  it("reports in the recovery line the count the overflow window held back", () => {
     const sink = makeSink();
     const listener = createThrottledErrorListener(sink, CONNECTION);
     for (let index = 0; index < MAX_TRACKED_ERROR_IDENTITIES + 3; index += 1) {
@@ -183,12 +185,28 @@ describe("createThrottledErrorListener", () => {
     }
 
     vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
-    listener(new Error("one more distinct"));
+    listener.flush();
 
-    expect(suppressedCounts(sink).at(-1)).toBe(2);
+    expect(sink.info.mock.calls).toEqual([
+      [{ connection: CONNECTION, suppressed: 2 }, "Connection ready again"],
+    ]);
   });
 
-  it("flush writes one recovery line with the count held back, and the next error is written at once", () => {
+  it("drops an identity whose window has expired, so the bound counts only live windows", () => {
+    const sink = makeSink();
+    const listener = createThrottledErrorListener(sink, CONNECTION);
+
+    for (let round = 0; round < 3; round += 1) {
+      for (let index = 0; index < MAX_TRACKED_ERROR_IDENTITIES; index += 1) {
+        listener(new Error(`job ${round}-${index} lost its lock`));
+      }
+      vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
+    }
+
+    expect(sink.error).toHaveBeenCalledTimes(3 * MAX_TRACKED_ERROR_IDENTITIES);
+  });
+
+  it("flush reports the count held back and keeps the window, so the same error inside it stays held", () => {
     const sink = makeSink();
     const listener = createThrottledErrorListener(sink, CONNECTION);
 
@@ -196,11 +214,34 @@ describe("createThrottledErrorListener", () => {
     listener(new Error("same"));
     listener.flush();
     listener(new Error("same"));
+    vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
+    listener(new Error("same"));
 
     expect(sink.info.mock.calls).toEqual([
       [{ connection: CONNECTION, suppressed: 1 }, "Connection ready again"],
     ]);
-    expect(suppressedCounts(sink)).toEqual([0, 0]);
+    expect(suppressedCounts(sink)).toEqual([0, 1]);
+  });
+
+  it("a connection that flaps N times inside one window writes one error line and one recovery line", () => {
+    const sink = makeSink();
+    const listener = createThrottledErrorListener(sink, CONNECTION);
+    const cycles = 10;
+
+    for (let cycle = 0; cycle < cycles; cycle += 1) {
+      listener(new Error("connect ECONNREFUSED 127.0.0.1:6379"));
+      listener.flush();
+      vi.advanceTimersByTime(1_000);
+    }
+    const linesInsideTheWindow = sink.error.mock.calls.length + sink.info.mock.calls.length;
+    vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
+    listener.flush();
+
+    expect(linesInsideTheWindow).toBe(2);
+    expect(sink.info.mock.calls.map(([context]) => context)).toEqual([
+      { connection: CONNECTION, suppressed: 0 },
+      { connection: CONNECTION, suppressed: cycles - 1 },
+    ]);
   });
 
   it("flush writes nothing when no error came since the last flush", () => {
@@ -213,6 +254,108 @@ describe("createThrottledErrorListener", () => {
     listener.flush();
 
     expect(sink.info).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the error a line describes", () => {
+  /** A socket error as Node raises it when a connection is refused. */
+  function refused(address: string): Error {
+    return Object.assign(new Error(`connect ECONNREFUSED ${address}:6379`), {
+      code: "ECONNREFUSED",
+      errno: -111,
+      syscall: "connect",
+      address,
+      port: 6379,
+    });
+  }
+
+  /** The `err` of the first line written. */
+  function firstErr(sink: ReturnType<typeof makeSink>): Record<string, unknown> {
+    const [context] = sink.error.mock.calls[0] ?? [];
+    return (context as { err: Record<string, unknown> }).err;
+  }
+
+  it("keeps the socket diagnostics: errno, syscall, address and port", () => {
+    const sink = makeSink();
+    const error = refused("127.0.0.1");
+
+    createThrottledErrorListener(sink, CONNECTION)(error);
+
+    expect(firstErr(sink)).toEqual({
+      type: "Error",
+      message: error.message,
+      code: "ECONNREFUSED",
+      errno: -111,
+      syscall: "connect",
+      address: "127.0.0.1",
+      port: 6379,
+      stack: error.stack,
+    });
+  });
+
+  it("copies no field outside the allow-list", () => {
+    const sink = makeSink();
+    const error = Object.assign(new Error("boom"), { internalNote: SECRET_MARKER });
+
+    createThrottledErrorListener(sink, CONNECTION)(error);
+
+    expect(JSON.stringify(sink.error.mock.calls)).not.toContain(SECRET_MARKER);
+  });
+
+  it("describes each nested error of an AggregateError the same way", () => {
+    const sink = makeSink();
+    const error = new AggregateError([refused("::1"), refused("127.0.0.1")], "");
+
+    createThrottledErrorListener(sink, CONNECTION)(error);
+
+    expect(
+      (firstErr(sink).nestedErrors as Array<Record<string, unknown>>).map(
+        ({ address, port, syscall }) => ({ address, port, syscall })
+      )
+    ).toEqual([
+      { address: "::1", port: 6379, syscall: "connect" },
+      { address: "127.0.0.1", port: 6379, syscall: "connect" },
+    ]);
+  });
+
+  it("never writes a nested error's command arguments", () => {
+    const sink = makeSink();
+
+    createThrottledErrorListener(sink, CONNECTION)(new AggregateError([authFailure()], "failed"));
+
+    expect(JSON.stringify(sink.error.mock.calls)).not.toContain(SECRET_MARKER);
+    expect((firstErr(sink).nestedErrors as Array<{ command: unknown }>)[0]?.command).toBe("auth");
+  });
+
+  it(`describes at most ${MAX_NESTED_ERRORS} nested errors per level and counts the rest`, () => {
+    const sink = makeSink();
+    const nested = Array.from({ length: MAX_NESTED_ERRORS + 2 }, (_, index) =>
+      refused(`10.0.0.${index}`)
+    );
+
+    createThrottledErrorListener(sink, CONNECTION)(new AggregateError(nested, ""));
+
+    const err = firstErr(sink);
+    expect([(err.nestedErrors as unknown[]).length, err.nestedErrorsOmitted]).toEqual([
+      MAX_NESTED_ERRORS,
+      2,
+    ]);
+  });
+
+  it(`describes nested errors down to ${MAX_NESTED_DEPTH} levels and counts what lies deeper`, () => {
+    const sink = makeSink();
+    const deepest = new AggregateError([refused("10.0.0.9")], "level 2");
+    const error = new AggregateError([new AggregateError([deepest], "level 1")], "level 0");
+
+    createThrottledErrorListener(sink, CONNECTION)(error);
+
+    const level1 = (firstErr(sink).nestedErrors as Array<Record<string, unknown>>)[0];
+    const level2 = (level1?.nestedErrors as Array<Record<string, unknown>> | undefined)?.[0];
+    expect([level2?.message, level2?.nestedErrors, level2?.nestedErrorsOmitted]).toEqual([
+      "level 2",
+      undefined,
+      1,
+    ]);
   });
 });
 

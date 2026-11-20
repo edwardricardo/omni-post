@@ -173,6 +173,17 @@ describe("createLogger redaction", () => {
     ]);
   });
 
+  it("masks the command arguments three levels down: a deeper error, an array of errors, an AggregateError", () => {
+    const { log, lines } = captureFromFactory("redaction-command-args-deep");
+
+    log.error({ job: { attempt: { err: redisAuthFailure() } } }, "error two levels down");
+    log.error({ job: { errors: [redisAuthFailure()] } }, "array of errors one level down");
+    log.error({ err: new AggregateError([redisAuthFailure()], "failed") }, "aggregate error");
+
+    expect(lines()).toHaveLength(3);
+    expect(JSON.stringify(lines())).not.toContain(COMMAND_ARG_MARKER);
+  });
+
   it("writes no command argument when the throttled listener logs an error", () => {
     const { log, lines } = captureFromFactory("redaction-throttled-listener");
 

@@ -10,21 +10,32 @@
  *              then at most one line per window for that identity, carrying the count it held
  *              back. The window is measured on a monotonic clock and restarts at each written
  *              line. A different error is never counted behind the first: each identity has its
- *              own window, up to `MAX_TRACKED_ERROR_IDENTITIES`; past that bound every further
- *              identity shares one window, so a stream of distinct errors still writes a bounded
- *              number of lines.
+ *              own window, up to `MAX_TRACKED_ERROR_IDENTITIES` live windows at a time; past that
+ *              bound every further identity shares one window. A window that has expired is
+ *              dropped, its held-back count kept for the next recovery line, so the bound limits
+ *              what is tracked at one time and not over the life of the process.
  *
- *              A line carries the error's type, message, code, stack and the NAME of the command
- *              it failed on, never the error object: ioredis attaches `command.args` to the error
- *              it emits, and on an AUTH failure those arguments hold the password.
+ *              The recovery line `flush` writes is throttled too: at most one per window, and it
+ *              never restarts an error's window. A connection that flaps writes, per window, one
+ *              line per distinct error and one recovery line, however many times it drops.
+ *
+ *              A line describes an error by an allow-list of fields, never by the error object:
+ *              ioredis attaches `command.args` to the error it emits, and on an AUTH failure those
+ *              arguments hold the password. Only the command's NAME is kept.
  * @layer infrastructure
  */
 
 /** The shortest time between two lines a listener writes for one error identity. */
 export const CONNECTION_ERROR_LOG_WINDOW_MS = 60_000;
 
-/** The number of error identities one listener throttles apart; further ones share a window. */
+/** The number of live error identities one listener throttles apart; further ones share a window. */
 export const MAX_TRACKED_ERROR_IDENTITIES = 16;
+
+/** The number of an AggregateError's nested errors a line describes per level. */
+export const MAX_NESTED_ERRORS = 4;
+
+/** The number of levels of nested errors a line describes below the logged error. */
+export const MAX_NESTED_DEPTH = 2;
 
 /** The two methods a listener writes through; a Pino logger satisfies it. */
 export interface ErrorLogSink {
@@ -37,8 +48,9 @@ export interface ThrottledErrorListener {
   (error: unknown): void;
   /**
    * Writes one line saying the source is ready again, with the count held back since the
-   * last line, and forgets every window, so the first error of the next outage is written at
-   * once. It writes nothing when no error came since the last flush.
+   * last recovery line, unless such a line was written less than a window ago; it writes
+   * nothing when no error came since the last recovery line. It never restarts an error's
+   * window: the same error inside the window of its last line is still held back.
    */
   flush(): void;
 }
@@ -72,23 +84,53 @@ const WORKER_KIND: ListenerKind = {
   readyMessage: "Worker ready again",
 };
 
-/** The fields of an error a line may carry: never the error itself, never a command's arguments. */
-function describeError(error: unknown): Record<string, unknown> {
+/** The diagnostic fields a line copies from an error, when each is a string or a number. */
+const DIAGNOSTIC_FIELDS = ["code", "errno", "syscall", "address", "port", "hostname"] as const;
+
+/** The key of the window every identity past the bound shares; no error name holds a NUL. */
+const OVERFLOW = "\u0000overflow";
+
+/**
+ * The fields of an error a line may carry: its type, message, the allow-listed diagnostics,
+ * the NAME of the command it failed on, its stack, and an AggregateError's nested errors
+ * described the same way to `MAX_NESTED_ERRORS` per level and `MAX_NESTED_DEPTH` levels.
+ * Never the error object, never a field outside the list, never a command's arguments.
+ */
+function describeError(error: unknown, depth = 0): Record<string, unknown> {
   if (!(error instanceof Error)) {
     return { type: typeof error };
   }
-  const code: unknown = Reflect.get(error, "code");
+  // A null prototype keeps pino's error serializer from replacing `type` with "Object".
+  const description = Object.assign(Object.create(null) as Record<string, unknown>, {
+    type: error.name,
+    message: error.message,
+  });
+  for (const field of DIAGNOSTIC_FIELDS) {
+    const value: unknown = Reflect.get(error, field);
+    if (typeof value === "string" || typeof value === "number") {
+      description[field] = value;
+    }
+  }
   const command: unknown = Reflect.get(error, "command");
   const commandName: unknown =
     typeof command === "object" && command !== null ? Reflect.get(command, "name") : undefined;
-  // A null prototype keeps pino's error serializer from replacing `type` with "Object".
-  return Object.assign(Object.create(null) as Record<string, unknown>, {
-    type: error.name,
-    message: error.message,
-    ...((typeof code === "string" || typeof code === "number") && { code }),
-    ...(typeof commandName === "string" && { command: commandName }),
-    ...(error.stack !== undefined && { stack: error.stack }),
-  });
+  if (typeof commandName === "string") {
+    description.command = commandName;
+  }
+  if (error.stack !== undefined) {
+    description.stack = error.stack;
+  }
+  const nested: unknown = Reflect.get(error, "errors");
+  if (Array.isArray(nested) && nested.length > 0) {
+    const described = depth < MAX_NESTED_DEPTH ? nested.slice(0, MAX_NESTED_ERRORS) : [];
+    if (described.length > 0) {
+      description.nestedErrors = described.map((item: unknown) => describeError(item, depth + 1));
+    }
+    if (nested.length > described.length) {
+      description.nestedErrorsOmitted = nested.length - described.length;
+    }
+  }
+  return description;
 }
 
 function identityOf(error: unknown): string {
@@ -101,16 +143,29 @@ function createListener(
   kind: ListenerKind
 ): ThrottledErrorListener {
   const windows = new Map<string, Window>();
-  let overflow: Window | undefined;
-  let erredSinceFlush = false;
+  let heldBackFromExpired = 0;
+  let lastRecoveryAt: number | undefined;
+  let erredSinceRecovery = false;
+
+  /** Drops every expired window but `kept`, keeping its held-back count for the recovery line. */
+  const dropExpired = (now: number, kept?: string): void => {
+    for (const [key, window] of windows) {
+      if (key !== kept && now - window.lastWrittenAt >= CONNECTION_ERROR_LOG_WINDOW_MS) {
+        heldBackFromExpired += window.suppressed;
+        windows.delete(key);
+      }
+    }
+  };
 
   const listener = (error: unknown): void => {
-    erredSinceFlush = true;
+    erredSinceRecovery = true;
     const now = performance.now();
     const identity = identityOf(error);
-    const tracked = windows.get(identity);
-    const tracksIdentity = tracked !== undefined || windows.size < MAX_TRACKED_ERROR_IDENTITIES;
-    const window = tracksIdentity ? tracked : overflow;
+    const ownWindow = windows.has(identity);
+    dropExpired(now, ownWindow ? identity : undefined);
+    const tracked = windows.size - (windows.has(OVERFLOW) ? 1 : 0);
+    const key = ownWindow || tracked < MAX_TRACKED_ERROR_IDENTITIES ? identity : OVERFLOW;
+    const window = windows.get(key);
     if (window !== undefined && now - window.lastWrittenAt < CONNECTION_ERROR_LOG_WINDOW_MS) {
       window.suppressed += 1;
       return;
@@ -119,26 +174,27 @@ function createListener(
       { err: describeError(error), [kind.field]: name, suppressed: window?.suppressed ?? 0 },
       kind.errorMessage
     );
-    const written: Window = { lastWrittenAt: now, suppressed: 0 };
-    if (tracksIdentity) {
-      windows.set(identity, written);
-    } else {
-      overflow = written;
-    }
+    windows.set(key, { lastWrittenAt: now, suppressed: 0 });
   };
 
   const flush = (): void => {
-    if (!erredSinceFlush) {
+    const now = performance.now();
+    if (
+      !erredSinceRecovery ||
+      (lastRecoveryAt !== undefined && now - lastRecoveryAt < CONNECTION_ERROR_LOG_WINDOW_MS)
+    ) {
       return;
     }
-    let suppressed = overflow?.suppressed ?? 0;
+    dropExpired(now);
+    let suppressed = heldBackFromExpired;
     for (const window of windows.values()) {
       suppressed += window.suppressed;
+      window.suppressed = 0;
     }
     logger.info({ [kind.field]: name, suppressed }, kind.readyMessage);
-    windows.clear();
-    overflow = undefined;
-    erredSinceFlush = false;
+    heldBackFromExpired = 0;
+    lastRecoveryAt = now;
+    erredSinceRecovery = false;
   };
 
   return Object.assign(listener, { flush });
@@ -184,7 +240,9 @@ export function createThrottledWorkerErrorListener(
 
 /**
  * @description Logs a connection's errors through a throttled listener and reports, on its
- *              `ready` event, that it recovered and how many errors were held back.
+ *              `ready` event, that it recovered and how many errors were held back. The
+ *              recovery line is written at most once per window, so a connection that flaps
+ *              cannot defeat the throttle.
  * @param connection - The connection; an ioredis client emits both events.
  * @param logger - Logger the listener writes through.
  * @param name - Name of the connection, a role and never an address.

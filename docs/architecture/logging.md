@@ -53,14 +53,22 @@ const baseOptions: LoggerOptions = {
 };
 ```
 
-The list itself, with the threat each added entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …), the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`) and the arguments of a Redis command an error carries (`*.command.args`, `*.*.command.args`).
+The list itself, with the threat each added entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …), the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`) and the arguments of a Redis command an error carries (`*.command.args`, `*.*.command.args`, `*.*.*.command.args`).
 
-That last pair closes a leak that needs no developer mistake. ioredis attaches the failed command to the error it emits, `command: { name, args }`, and on an AUTH failure `args` is the password. Pino's error serializer copies every enumerable property of an error, so `logger.error({ err })` wrote the password once per reconnection attempt. Two layers hold it now:
+Those last three close a leak that needs no developer mistake. ioredis attaches the failed command to the error it emits, `command: { name, args }`, and on an AUTH failure `args` is the password. Pino's error serializer copies every enumerable property of an error, so `logger.error({ err })` wrote the password once per reconnection attempt. Two layers hold it now:
 
-- The list masks `command.args` one and two levels down: an error logged under `err` or `error` (the keys the repository uses), or one level below them.
-- The connection-error listener (`createThrottledErrorListener` in `@observability/logger`) never hands the logger the error object. It writes the error's type, message, code and stack, and the command's name, but never its arguments.
+- The list masks `command.args` up to three levels down. That covers an error logged under `err` or `error` (the keys the repository uses), an error one or two levels below them, an array of errors one level down (`{ job: { errors: [err] } }`), and the nested errors of an `AggregateError` logged as the raw object, which the serializer writes under `err.aggregateErrors[i]`.
+- The connection-error listener (`createThrottledErrorListener` in `@observability/logger`) never hands the logger the error object. It writes an allow-list: the error's type and message, the diagnostics `code`, `errno`, `syscall`, `address`, `port` and `hostname`, the command's name, the stack, and an `AggregateError`'s nested errors described the same way (at most 4 per level, 2 levels down, the rest counted). It never writes a command's arguments, so it does not depend on the list.
 
 Both layers are pinned by cases that write through the real factories: `packages/observability/logger/tests/redaction.test.ts` and `apps/api/tests/unit/lib/loggerCommandArgsRedaction.test.ts`.
+
+**What the list does not cover.** No production code logs an error in these shapes today; a change that starts to must describe the error instead of logging the object:
+
+- An error four or more levels down, such as `{ a: { b: { c: { err } } } }`, or an array of errors two levels down, `{ a: { b: { errors: [err] } } }`.
+- An `AggregateError` nested in another one, which the serializer writes five levels down.
+- An error passed as a `%o` or `%j` argument of the message. It is formatted into the message string, where no path applies.
+
+Each further wildcard level makes pino walk every key of that level on every line written, so the list stops at three.
 
 If a developer creates a side `pino()` instance without these paths, **the redaction is silently bypassed**. There's no compile-time check or runtime warning. Logs get aggregated, the secret is in plain text, and the threat-model assumes secrets never reach disk — but they did. That class of bug is exactly OWASP A09:2025 (Security Logging and Alerting Failures).
 
