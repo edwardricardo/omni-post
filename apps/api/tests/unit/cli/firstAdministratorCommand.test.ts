@@ -243,7 +243,7 @@ describe("runFirstAdministratorCommand", () => {
           "Usage: create-first-admin --email <address> [--reissue]",
           "Creates the first administrator of a database that has none",
           "is marked to change that password (mustChangePassword): sign in with\nit and change it at once.",
-          "It runs once: once an administrator exists, every later run is refused.",
+          "Without --reissue it creates an administrator once: once an administrator exists, every\nlater run without --reissue is refused.",
           "With --reissue it prints a new single-use password for the administrator with that e-mail",
           "has never signed in and is still marked to change the password",
           "--email <address>  The e-mail of the administrator to create, or whose single-use password\n                     to re-issue.",
@@ -255,6 +255,7 @@ describe("runFirstAdministratorCommand", () => {
         ]) {
           expect(help).toContain(line);
         }
+        expect(help).not.toContain("It runs once");
         expect(load).not.toHaveBeenCalled();
       }
     );
@@ -508,6 +509,23 @@ describe("runFirstAdministratorCommand", () => {
       });
       expectNothingSecret(run.stderr);
       expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns 1 and reports NOT_FOUND from the creation as a failure with its causes, not as a refusal", async () => {
+      const failure = new UseCaseError(
+        "Reading the administration role failed",
+        USE_CASE_ERRORS.NOT_FOUND,
+        makeLeakyStoreFailure()
+      );
+      const { load } = makeCommand(async () => err(failure));
+
+      const run = await runInTerminal(["--email", OPERATOR_EMAIL], load);
+
+      expect(run).toEqual({
+        code: 1,
+        stdout: "",
+        stderr: "Failed: Reading the administration role failed\nCause: Error, code P2010\n",
+      });
     });
 
     it("writes a cause's class without its code when the code is not an upper-case identifier", async () => {

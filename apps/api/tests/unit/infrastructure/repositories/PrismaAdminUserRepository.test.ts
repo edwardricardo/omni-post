@@ -383,6 +383,7 @@ describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
   const REPLACEMENT = {
     id: "u-1",
     currentPasswordHash: "argon2-hash-as-read",
+    currentPasswordResetToken: "reset-token-hash-as-read",
     passwordHash: "argon2-hash-of-the-new-password",
   } as const;
   let clients: ReturnType<typeof makeTransactionalClients>;
@@ -399,7 +400,7 @@ describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
     vi.useRealTimers();
   });
 
-  it("returns true after one update guarded by the id, the hash as read, the mark and no sign-in date, writing only the hash and the change date", async () => {
+  it("returns true after one update guarded by the id, the hash and the reset token as read, the mark and no sign-in date, writing the hash and the change date and clearing the pending reset", async () => {
     clients.base.adminUser.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await repo.replaceSingleUsePassword(REPLACEMENT);
@@ -411,15 +412,32 @@ describe("PrismaAdminUserRepository replaceSingleUsePassword", () => {
         where: {
           id: "u-1",
           passwordHash: "argon2-hash-as-read",
+          passwordResetToken: "reset-token-hash-as-read",
           mustChangePassword: true,
           lastLoginAt: null,
         },
         data: {
           passwordHash: "argon2-hash-of-the-new-password",
           passwordChangedAt: CHANGED_AT,
+          passwordResetToken: null,
+          passwordResetExpires: null,
         },
       },
     ]);
+  });
+
+  it("guards on an empty reset token when none was read", async () => {
+    clients.base.adminUser.updateMany.mockResolvedValue({ count: 1 });
+
+    await repo.replaceSingleUsePassword({ ...REPLACEMENT, currentPasswordResetToken: null });
+
+    expect(clients.base.adminUser.updateMany.mock.calls[0]?.[0]?.where).toStrictEqual({
+      id: "u-1",
+      passwordHash: "argon2-hash-as-read",
+      passwordResetToken: null,
+      mustChangePassword: true,
+      lastLoginAt: null,
+    });
   });
 
   it("returns false when the guard matches no row", async () => {

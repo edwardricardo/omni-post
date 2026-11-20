@@ -202,6 +202,7 @@ describe("The first-administrator command on a migrated database", { concurrency
     );
     assert.ok(scratch, `a client of ${database} was built`);
     await scratch.auditLog.deleteMany({});
+    await scratch.adminSession.deleteMany({});
     await scratch.adminUser.deleteMany({});
     await scratch.role.deleteMany({});
     return scratch;
@@ -341,9 +342,10 @@ describe("The first-administrator command on a migrated database", { concurrency
   }
 
   /**
-   * Starts `runs` at once while a third connection holds what they need: `hold` takes it inside a
-   * transaction, which waits until as many backends as there are runs are blocked on it and then
-   * commits or, when `release` is `rollback`, rolls back.
+   * Starts `runs` one after another while a third connection holds what they need, each once the
+   * runs before it are blocked on that connection, so they queue for it in the order given:
+   * `hold` takes it inside a transaction, which waits until every run is blocked and then commits
+   * or, when `release` is `rollback`, rolls back.
    */
   async function runWhileHeld<T>(
     client: PrismaClient,
@@ -356,12 +358,16 @@ describe("The first-administrator command on a migrated database", { concurrency
     const holding = new Promise<void>((resolve) => {
       held = resolve;
     });
+    let queued!: () => void;
+    const allQueued = new Promise<void>((resolve) => {
+      queued = resolve;
+    });
     const holder = client
       .$transaction(
         async (tx) => {
           await hold(tx);
           held();
-          await waitUntilBlocked(runs.length);
+          await allQueued;
           if (release === "rollback") throw rollback;
         },
         { timeout: 60_000 }
@@ -373,28 +379,67 @@ describe("The first-administrator command on a migrated database", { concurrency
         }
       );
     await Promise.race([holding, holder]);
-    const [outcomes] = await Promise.all([Promise.all(runs.map((run) => run())), holder]);
+    const started: Array<Promise<T>> = [];
+    try {
+      for (const run of runs) {
+        started.push(run());
+        await waitUntilBlocked(started.length);
+      }
+    } catch (error: unknown) {
+      queued();
+      await Promise.allSettled([...started, holder]);
+      throw error;
+    }
+    queued();
+    const [outcomes] = await Promise.all([Promise.all(started), holder]);
     return outcomes;
   }
 
   /**
    * Runs `work` while every insert into `AuditLog` of the test's database is refused by a
-   * trigger, so the real audit adapter raises inside the real transaction; the trigger is
-   * dropped afterwards whatever `work` does.
+   * trigger, so the real audit adapter raises inside the real transaction. Whatever step fails,
+   * it then removes what it created, the trigger before its function; an error of `work` is
+   * never replaced by an error of that clean-up, and when both fail both are raised together.
    */
   async function withAuditWritesRefused<T>(client: PrismaClient, work: () => Promise<T>) {
-    await client.$executeRawUnsafe(
-      `CREATE FUNCTION refuse_audit_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit writes are refused'; END $$`
-    );
-    await client.$executeRawUnsafe(
-      `CREATE TRIGGER refuse_audit_write BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION refuse_audit_write()`
-    );
+    const removals: string[] = [];
+    let outcome:
+      { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: unknown };
     try {
-      return await work();
-    } finally {
-      await client.$executeRawUnsafe(`DROP TRIGGER IF EXISTS refuse_audit_write ON "AuditLog"`);
-      await client.$executeRawUnsafe(`DROP FUNCTION IF EXISTS refuse_audit_write()`);
+      await client.$executeRawUnsafe(
+        `CREATE FUNCTION refuse_audit_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit writes are refused'; END $$`
+      );
+      removals.unshift(`DROP FUNCTION IF EXISTS refuse_audit_write()`);
+      await client.$executeRawUnsafe(
+        `CREATE TRIGGER refuse_audit_write BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION refuse_audit_write()`
+      );
+      removals.unshift(`DROP TRIGGER IF EXISTS refuse_audit_write ON "AuditLog"`);
+      outcome = { ok: true, value: await work() };
+    } catch (error: unknown) {
+      outcome = { ok: false, error };
     }
+    const cleanUpErrors: unknown[] = [];
+    for (const removal of removals) {
+      try {
+        await client.$executeRawUnsafe(removal);
+      } catch (error: unknown) {
+        cleanUpErrors.push(error);
+      }
+    }
+    if (!outcome.ok) {
+      if (cleanUpErrors.length === 0) throw outcome.error;
+      throw new AggregateError(
+        [outcome.error, ...cleanUpErrors],
+        "the work failed, and removing the trigger that refuses audit writes failed too"
+      );
+    }
+    if (cleanUpErrors.length > 0) {
+      throw new AggregateError(
+        cleanUpErrors,
+        "removing the trigger that refuses audit writes failed"
+      );
+    }
+    return outcome.value;
   }
 
   before(async () => {
@@ -694,6 +739,14 @@ describe("The first-administrator command on a migrated database", { concurrency
       const created = await createWithCommand(client, email);
       await openSession(client, created.administrator.id);
       await openSession(client, created.administrator.id);
+      // A reset link requested before the re-issue must not set the password after it.
+      await client.adminUser.update({
+        where: { id: created.administrator.id },
+        data: {
+          passwordResetToken: "fixture-hash-of-a-pending-reset-token",
+          passwordResetExpires: new Date(Date.now() + 3_600_000),
+        },
+      });
 
       const run = await runCommand(client, email, REISSUE);
 
@@ -713,6 +766,8 @@ describe("The first-administrator command on a migrated database", { concurrency
           lastLoginAt: administrator.lastLoginAt,
           passwordHistory: administrator.passwordHistory,
           passwordHashAlgo: administrator.passwordHashAlgo,
+          passwordResetToken: administrator.passwordResetToken,
+          passwordResetExpires: administrator.passwordResetExpires,
           passwordChangedAtMoved:
             administrator.passwordChangedAt > created.administrator.passwordChangedAt,
         },
@@ -721,6 +776,8 @@ describe("The first-administrator command on a migrated database", { concurrency
           lastLoginAt: null,
           passwordHistory: [],
           passwordHashAlgo: "argon2id",
+          passwordResetToken: null,
+          passwordResetExpires: null,
           passwordChangedAtMoved: true,
         }
       );
@@ -1030,6 +1087,52 @@ describe("The first-administrator command on a migrated database", { concurrency
         assert.equal(await hasher.verify(administrator.passwordHash, requiredChange), true);
         assert.equal(administrator.mustChangePassword, false);
       }
+    }
+  );
+
+  it(
+    "lets the required change win and refuses the re-issue as changed since its read, when the required change queues for the administrator's row first",
+    TIMING,
+    async () => {
+      const client = await emptyDatabase();
+      const email = "first.admin@example.com";
+      const created = await createWithCommand(client, email);
+      const requiredChange = "fixture-Required-Change-7m3P";
+
+      // The required change waits on the held row first; the re-issue reads the row as it was,
+      // then waits behind it, and finds the hash and the mark it read gone once the change commits.
+      const [change, reissue] = await runWhileHeld(
+        client,
+        (tx) =>
+          tx.$executeRaw`SELECT id FROM "AdminUser" WHERE id = ${created.administrator.id} FOR UPDATE`,
+        "commit",
+        [
+          async () => {
+            const other = createTestPrismaClient(scratchUrl);
+            try {
+              const result = await new PasswordService(other).replaceRequiredPassword(
+                created.administrator,
+                requiredChange
+              );
+              return { won: result.ok, refusal: result.ok ? "" : result.error, stdout: "" };
+            } finally {
+              await other.$disconnect();
+            }
+          },
+          async () => {
+            const run = await runWithOwnClient(email, REISSUE);
+            return { won: run.code === 0, refusal: run.stderr, stdout: run.stdout };
+          },
+        ]
+      );
+
+      assert.deepEqual(change, { won: true, refusal: "", stdout: "" });
+      assert.deepEqual(reissue, { won: false, refusal: REFUSALS.changedSinceRead, stdout: "" });
+      const [administrator] = (await readState(client)).administrators;
+      assert.ok(administrator);
+      assert.equal(await hasher.verify(administrator.passwordHash, requiredChange), true);
+      assert.equal(await hasher.verify(administrator.passwordHash, created.password), false);
+      assert.equal(administrator.mustChangePassword, false);
     }
   );
 });

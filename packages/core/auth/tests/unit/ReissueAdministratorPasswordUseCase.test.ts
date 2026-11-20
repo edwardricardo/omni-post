@@ -35,6 +35,7 @@ const ADMIN_ID = "admin-uuid-001";
 const CURRENT_HASH = "$argon2id$v=19$m=65536,t=3,p=4$Y3VycmVudA$Y3VycmVudC1oYXNo";
 const NEW_PASSWORD = "fixture-reissued-password-4d1e";
 const NEW_HASH = "$argon2id$v=19$m=65536,t=3,p=4$cmVpc3N1ZWQ$cmVpc3N1ZWQtaGFzaA";
+const PENDING_RESET_TOKEN = "fixture-hash-of-a-pending-reset-token";
 const FIXED_DATE = new Date("2024-01-01T00:00:00Z");
 
 const MESSAGES = {
@@ -51,8 +52,6 @@ const MESSAGES = {
     "The administrator changed between the read and the write (another re-issue, a password change or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
   revokeFailed: "Ending the administrator's sessions failed",
   auditFailed: "Writing the audit record of the re-issue failed",
-  stepRaised:
-    "A step inside the transaction failed; the transaction was rolled back and nothing was written",
   transactionFailed:
     "The transaction that re-issues the single-use password failed and its outcome is unknown: the password may have been replaced without the new one being shown, so run the re-issue again",
 } as const;
@@ -95,8 +94,8 @@ function makeAdministrator(
     createdAt: FIXED_DATE,
     updatedAt: FIXED_DATE,
     passwordHash: CURRENT_HASH,
-    passwordResetToken: null,
-    passwordResetExpires: null,
+    passwordResetToken: PENDING_RESET_TOKEN,
+    passwordResetExpires: new Date("2024-01-01T01:00:00Z"),
     mfaSecret: null,
     passwordHistory: [],
     mfaBackupCodes: [],
@@ -248,6 +247,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
         {
           id: ADMIN_ID,
           currentPasswordHash: CURRENT_HASH,
+          currentPasswordResetToken: PENDING_RESET_TOKEN,
           passwordHash: NEW_HASH,
         },
       ]);
@@ -431,7 +431,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       {
         step: "the guarded write raises",
         options: { replaceRaise: new Error("driver crashed") },
-        message: MESSAGES.stepRaised,
+        message: MESSAGES.replaceFailed,
         afterOpen: [JOURNAL.replace],
       },
       {
@@ -479,7 +479,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.message).toBe(MESSAGES.stepRaised);
+      expect(error.message).toBe(MESSAGES.replaceFailed);
       expect(error.originalError?.message).toBe(
         "A value that is not an Error was raised, of type string"
       );

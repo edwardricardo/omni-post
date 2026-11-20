@@ -292,12 +292,15 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   /**
    * @method replaceSingleUsePassword
    * @description Replaces the single-use password of an administrator who has never signed in
-   *   and must still change it, on the Unit of Work's client. The predicate names the id, the
-   *   hash as read, the mark and the empty sign-in date, so the database decides whether the row
-   *   is still the one that was read: under Read Committed a concurrent committed writer makes
-   *   the update re-check these columns, and the loser matches no row. The mark, the sign-in
-   *   date, the password history and the hash's algorithm are not written.
-   * @param replacement - The administrator, the hash as read and the new hash
+   *   and must still change it, on the Unit of Work's client, and clears a pending password
+   *   reset as the reset's confirmation does, so a link issued before no longer sets the
+   *   password. The predicate names the id, the hash and the reset token as read, the mark and
+   *   the empty sign-in date, so the database decides whether the row is still the one that was
+   *   read: under Read Committed a concurrent committed writer makes the update re-check these
+   *   columns, and the loser matches no row. The mark, the sign-in date, the password history
+   *   and the hash's algorithm are not written.
+   * @param replacement - The administrator, the hash and the reset token as read, and the new
+   *   hash
    * @returns Ok(true) when one row was written, Ok(false) when none matched, or
    *   Err(RepositoryFailureError) whose cause is what the client raised
    */
@@ -309,12 +312,15 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
         where: {
           id: replacement.id,
           passwordHash: replacement.currentPasswordHash,
+          passwordResetToken: replacement.currentPasswordResetToken,
           mustChangePassword: true,
           lastLoginAt: null,
         },
         data: {
           passwordHash: replacement.passwordHash,
           passwordChangedAt: new Date(),
+          passwordResetToken: null,
+          passwordResetExpires: null,
         },
       });
       return ok(count === 1);

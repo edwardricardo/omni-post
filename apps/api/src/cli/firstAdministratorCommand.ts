@@ -77,7 +77,8 @@ prints the single-use password the administrator signs in with. The administrato
 the e-mail's local part and is marked to change that password (mustChangePassword): sign in with
 it and change it at once.
 
-It runs once: once an administrator exists, every later run is refused.
+Without --reissue it creates an administrator once: once an administrator exists, every
+later run without --reissue is refused.
 
 With --reissue it prints a new single-use password for the administrator with that e-mail
 instead, for when the first administrator's password was never seen: only for an administrator
@@ -244,12 +245,24 @@ function reissuedBlock(reissued: ReissueAdministratorPasswordOutput): string {
 }
 
 /**
+ * The use-case error codes each mode reports as a refusal: the creation refuses only on a
+ * conflict, and the re-issue also when no administrator has the e-mail. Any other code but a
+ * validation failure is reported as a failure, with its causes.
+ */
+const REFUSAL_CODES: Readonly<Record<"create" | "reissue", ReadonlySet<string>>> = {
+  create: new Set([USE_CASE_ERRORS.CONFLICT]),
+  reissue: new Set([USE_CASE_ERRORS.CONFLICT, USE_CASE_ERRORS.NOT_FOUND]),
+};
+
+/**
  * Writes the outcome of a use case and returns its exit code: the block on standard output on
- * success, otherwise the message on standard error.
+ * success, otherwise the message on standard error, as a refusal when its code is one of the
+ * mode's refusal codes.
  */
 function report<T>(
   outcome: Result<T, UseCaseError>,
   block: (value: T) => string,
+  refusalCodes: ReadonlySet<string>,
   streams: CommandStreams
 ): number {
   if (outcome.ok) {
@@ -257,7 +270,7 @@ function report<T>(
     return EXIT.OK;
   }
   const { error } = outcome;
-  if (error.code === USE_CASE_ERRORS.CONFLICT || error.code === USE_CASE_ERRORS.NOT_FOUND) {
+  if (refusalCodes.has(error.code)) {
     streams.stderr.write(`Refused: ${error.message}\n`);
     return EXIT.REFUSED_OR_FAILED;
   }
@@ -316,11 +329,13 @@ export async function runFirstAdministratorCommand(
         ? report(
             await command.reissueAdministratorPassword.execute({ email: parsed.email }),
             reissuedBlock,
+            REFUSAL_CODES.reissue,
             streams
           )
         : report(
             await command.createFirstAdministrator.execute({ email: parsed.email }),
             createdBlock,
+            REFUSAL_CODES.create,
             streams
           );
   } catch (error: unknown) {

@@ -3,8 +3,8 @@
  * @description Issues a new single-use password to an administrator whose single-use password
  *   nobody saw: one that exists, has never signed in and must still change the password. Every
  *   other administrator is refused and nothing is written. In one transaction the new hash
- *   replaces the one that was read, every session of the administrator ends, and a system audit
- *   record of the re-issue is written. The mark to change the password, the sign-in date and the
+ *   replaces the one that was read and a pending password reset is cleared, every session of the
+ *   administrator ends, and a system audit record of the re-issue is written. The mark to change the password, the sign-in date and the
  *   password history are left as they are, so the new password must be changed at the first
  *   sign-in as the old one had to be. The single-use password leaves the use case once, in its
  *   output.
@@ -172,11 +172,17 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     administrator: AdminUserCredentialsDto,
     credential: SingleUseCredential
   ): Promise<Result<ReissueAdministratorPasswordOutput, UseCaseError>> {
-    const replaced = await this.administrators.replaceSingleUsePassword({
-      id: administrator.id,
-      currentPasswordHash: administrator.passwordHash,
-      passwordHash: credential.passwordHash,
-    });
+    let replaced: Result<boolean, Error>;
+    try {
+      replaced = await this.administrators.replaceSingleUsePassword({
+        id: administrator.id,
+        currentPasswordHash: administrator.passwordHash,
+        currentPasswordResetToken: administrator.passwordResetToken,
+        passwordHash: credential.passwordHash,
+      });
+    } catch (error: unknown) {
+      replaced = err(asCause(error));
+    }
     if (!replaced.ok) {
       return err(
         new UseCaseError(MESSAGES.replaceFailed, USE_CASE_ERRORS.INTERNAL_ERROR, replaced.error)

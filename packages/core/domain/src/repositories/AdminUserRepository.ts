@@ -46,14 +46,16 @@ export interface AdminUserUpdate {
 }
 
 /**
- * A new single-use password for an administrator, and the hash the caller read: the write lands
- * only while the row still holds that hash.
+ * A new single-use password for an administrator, and the hash and the reset token the caller
+ * read: the write lands only while the row still holds both.
  */
 export interface SingleUsePasswordReplacement {
   /** The administrator whose single-use password is replaced. */
   readonly id: string;
   /** The password hash as the caller read it. */
   readonly currentPasswordHash: string;
+  /** The pending password reset's token as the caller read it, `null` when none was pending. */
+  readonly currentPasswordResetToken: string | null;
   /** The hash of the new single-use password. */
   readonly passwordHash: string;
 }
@@ -173,15 +175,18 @@ export interface AdminUserRepositoryPort {
   /**
    * Replace the single-use password of an administrator who has never signed
    * in and must still change the password: the hash and the date the password
-   * changed are written only where the row still has the given id and the hash
-   * as read, `mustChangePassword` true and no sign-in date. The mark, the
-   * sign-in date and the password history are left as they are. The hash's
-   * algorithm is left as it is too, because the hasher's port does not report
-   * its algorithm and an eligible row was hashed by the same hasher. Inside an
+   * changed are written, and a pending password reset is cleared so a link
+   * issued before cannot set the password afterwards, only where the row still
+   * has the given id, the hash and the reset token as read,
+   * `mustChangePassword` true and no sign-in date. The mark, the sign-in date
+   * and the password history are left as they are. The hash's algorithm is
+   * left as it is too, because the hasher's port does not report its
+   * algorithm and an eligible row was hashed by the same hasher. Inside an
    * open Unit of Work it writes through that transaction, and an error
    * returned there means the store may have aborted it.
    *
-   * @param replacement - The administrator, the hash as read and the new hash
+   * @param replacement - The administrator, the hash and the reset token as
+   *                      read, and the new hash
    * @returns Ok(true) when one row matched and was written, Ok(false) when the
    *          row no longer holds what was read and nothing was written,
    *          Err(RepositoryFailureError) carrying what the store raised
