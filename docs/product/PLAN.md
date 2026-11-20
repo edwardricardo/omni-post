@@ -40,7 +40,12 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
   Owner confirmed (which attached items enter, which wait); and `closed` when its proof of done passes on `main`.
   The pull request that closes a slice updates, in the same change, the feature's row (`State`, and `Closed by`
   with its own number), the `Today` line of the feature's record and each attached item it resolved, marked
-  `Closed by #<n>`. The merge commit and the date are read from the pull request.
+  `Closed by #<n>`, or, when a decision and no pull request resolves it,
+  `Closed by decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`. The merge commit and the
+  date are read from the pull request.
+- A closed feature holds no open item: every item of its record is closed in one of those two forms, and fitness #56
+  (`pnpm check:plan-closure`, [ADR-0046](../technical/ADR-0046-feature-closes-with-no-open-item.md)) fails
+  while one is not. A feature with an open item stays `in progress`.
 - An old item is attached to its feature first; its viability is decided when the feature opens.
 - A finding a task makes outside its scope is attached in the same pull request, with a descriptive upper-case id,
   `path:line` evidence and the task that found it: to its feature, to [cross-cutting](plan/cross-cutting.md) when it
@@ -53,7 +58,7 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
 
 | #    | Feature                                                                           | Today                                      | Old rows attached | State       | Closed by |
 | ---- | --------------------------------------------------------------------------------- | ------------------------------------------ | ----------------- | ----------- | --------- |
-| F-01 | The platform starts from an empty database                                        | WORKS                                      | 20                | closed      | #916      |
+| F-01 | The platform starts from an empty database                                        | WORKS                                      | 20                | in progress | —         |
 | F-02 | The first administrator comes to exist                                            | WORKS                                      | 1                 | in progress | —         |
 | F-03 | An administrator signs in, stays signed in and signs out                          | WORKS from page to data                    | 15                | open        | —         |
 | F-04 | An administrator recovers a password                                              | PARTIAL                                    | 5                 | open        | —         |
