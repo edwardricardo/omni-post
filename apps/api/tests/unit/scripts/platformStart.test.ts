@@ -14,7 +14,8 @@
  *   two services are sockets this suite opens, so no container starts here: the run against real
  *   containers is the sequence's own proof. The API is a small Node script that the pnpm stand-in
  *   runs in its place, and the case says whether it answers 200, answers 503, never answers or
- *   exits; the workers are another, which answers 200 on `/health/ready` alone, and each portal a
+ *   exits, and what its detailed report says; the workers are another, which answers 200 on
+ *   `/health/ready` and its detailed report on `/health/detailed` alone, and each portal a
  *   third, made from one script for both (`portalDouble`), which takes its port from the
  *   checkout's `apps/admin/package.json` or `apps/client/package.json`, as `next dev -p` does, and
  *   forwards `/api/backend/health` to `API_URL`. Every API, workers and portal stand-in a case
@@ -322,7 +323,51 @@ const ADMIN_PARENT = parentFor("ADMIN");
 const CLIENT_PARENT = parentFor("CLIENT");
 
 /**
- * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers every request with 200, `503`
+ * A detailed report as the API and the workers build it (`/health/detailed`,
+ * `apps/api/src/health/healthRoutes.ts` and `apps/workers/src/health/healthRequestHandler.ts`): its
+ * status and each dependency with its name and its status, beside the free text the run must never
+ * print, a message and details that name where the dependency is, with a password, and an alert
+ * that does too.
+ */
+function healthReport(status: string, dependencies: Record<string, string>): string {
+  return JSON.stringify({
+    ok: true,
+    status,
+    score: 0.75,
+    dependencies: Object.entries(dependencies).map(([name, of]) => ({
+      name,
+      type: "database",
+      status: of,
+      latency: 1500,
+      message: `${name} at postgresql://omnipost:hunter2@db.internal:5432/omnipost is ${of}`,
+      critical: true,
+      details: { error: "connect ETIMEDOUT db.internal:5432" },
+    })),
+    alerts: [{ level: "warning", message: "redis://:hunter2@cache.internal:6379 is slow" }],
+  });
+}
+
+/**
+ * The branch of the API's or the workers' stand-in that answers `/health/detailed` in mode `ok`,
+ * as a case wants it (`FAKE_API_REPORT*` for the API, `FAKE_WORKERS_REPORT*` for the workers): the
+ * text of `FAKE_<APP>_REPORT`, a healthy report when unset, with the status of
+ * `FAKE_<APP>_REPORT_STATUS`, 200 when unset; `FAKE_<APP>_REPORT=silent` takes the request and never
+ * answers it.
+ */
+function reportReply(app: "API" | "WORKERS"): string {
+  const healthy = healthReport("healthy", { database: "healthy", redis: "healthy" });
+  return `if (mode === "ok" && request.url === "/health/detailed") {
+    const report = process.env.FAKE_${app}_REPORT ?? ${JSON.stringify(healthy)};
+    if (report === "silent") return;
+    response.statusCode = Number(process.env.FAKE_${app}_REPORT_STATUS ?? 200);
+    response.end(report);
+    return;
+  }`;
+}
+
+/**
+ * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers `/health/detailed` with its
+ * report (`reportReply`) and every other request with 200, `503`
  * with 503, `silent` takes the connection and never answers, `stubborn` answers 503 and ignores
  * SIGTERM, writing a line to its log each time it receives one, and `exit` ends at once with a line
  * on stderr. Like the real API, it takes `PORT` from its environment or else from the checkout's
@@ -343,6 +388,7 @@ if (mode === "exit" || port !== Number(process.env.FAKE_API_PORT)) {
 }
 const server = createServer((request, response) => {
   if (mode === "silent") return;
+  ${reportReply("API")}
   response.statusCode = mode === "503" || mode === "stubborn" ? 503 : 200;
   response.end("{}");
 });
@@ -362,8 +408,9 @@ process.on("SIGTERM", () => {
 
 /**
  * The workers as a case wants them, chosen by `FAKE_WORKERS_MODE`: `ok` answers 200 on
- * `/health/ready` and 404 on every other path, so a run that asked them anything else would wait
- * in vain; `503` answers `/health/ready` with 503, and `silent` takes the connection and never
+ * `/health/ready`, their report on `/health/detailed` (`reportReply`) and 404 on every other path,
+ * so a run that waited on anything else would wait in vain; `503` answers `/health/ready` with
+ * 503, and `silent` takes the connection and never
  * answers. Like the real workers, they load the checkout's environment file themselves, `.env.test`
  * when `NODE_ENV` is `test` and `.env` otherwise (a variable the process holds wins), and take
  * `METRICS_PORT` from it, an empty value read as absent, else 3300. They bind only the port the
@@ -381,6 +428,7 @@ if (port !== Number(process.env.FAKE_WORKERS_PORT)) {
 }
 const server = createServer((request, response) => {
   if (mode === "silent") return;
+  ${reportReply("WORKERS")}
   response.statusCode = request.url !== "/health/ready" ? 404 : mode === "503" ? 503 : 200;
   response.end("{}");
 });
@@ -4173,4 +4221,238 @@ describe("the services step of the full start", () => {
       ],
     });
   });
+});
+
+describe("a degraded answer, named by the run", () => {
+  /**
+   * What a run prints after the migration and before the administration portal's stage, one entry
+   * per line: the API's two lines and the workers' two lines by their names (`API answers`, `API
+   * stop`, `workers answer`, `workers stop`), and every other line word for word, so a line the
+   * run adds shows in its place among them.
+   */
+  function appStages(stdout: string): string[] {
+    const lines = stdout.split("\n");
+    const from = lines.indexOf("platform-start: the database is migrated") + 1;
+    const to = lines.findIndex((line) =>
+      line.startsWith("platform-start: the administration portal answers ")
+    );
+    const names: Array<[RegExp, string]> = [
+      [/^platform-start: the API answers \/health with 200 on /, "API answers"],
+      [/^platform-start: stop it with .* which runs the API /, "API stop"],
+      [/^platform-start: the workers answer \/health\/ready with 200 on /, "workers answer"],
+      [/^platform-start: stop them with .* which runs the workers /, "workers stop"],
+    ];
+    return lines
+      .slice(from, to)
+      .map((line) => names.find(([pattern]) => pattern.test(line))?.[1] ?? line);
+  }
+
+  it("adds no line when both detailed reports say healthy", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: ["API answers", "API stop", "workers answer", "workers stop"],
+    });
+  });
+
+  it("names the API when its report says degraded, with each dependency not healthy and its status, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("degraded", {
+          database: "degraded",
+          redis: "healthy",
+          storage: "unhealthy",
+          queue: "healthy",
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API answers degraded: database degraded, storage unhealthy",
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("names the workers when their report says degraded, after their own stage, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_WORKERS_REPORT: healthReport("degraded", {
+          database: "healthy",
+          redis: "degraded",
+          "consumer:publish": "healthy",
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "workers answer",
+        "workers stop",
+        "platform-start: the workers answer degraded: redis degraded",
+      ],
+    });
+  });
+
+  it("names each app whose report says degraded, each after its own stage", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("degraded", { database: "degraded", cache: "degraded" }),
+        FAKE_WORKERS_REPORT: healthReport("degraded", { database: "unhealthy", redis: "healthy" }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API answers degraded: database degraded, cache degraded",
+        "workers answer",
+        "workers stop",
+        "platform-start: the workers answer degraded: database unhealthy",
+      ],
+    });
+  });
+
+  /** The line a run prints for an app whose detailed report it could not read, and why. */
+  const unread = (app: "API" | "workers", why: string) =>
+    `platform-start: the detailed report of the ${app} (/health/detailed) could not be read (${why}): whether the ${app} answer${app === "API" ? "s" : ""} degraded is not known`;
+
+  /** Why a report that answered 200 could not be read. */
+  const NOT_A_REPORT = "it answered 200 with a body that is not a health report";
+
+  it("says a report could not be read when it answers another status than 200, or a body that is not JSON, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("unhealthy", { database: "unhealthy" }),
+        FAKE_API_REPORT_STATUS: "503",
+        FAKE_WORKERS_REPORT: "not json",
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", "it answered 503"),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+    });
+  });
+
+  it("says a report could not be read when it answers 200 with a status the apps answer 503 with, or with no list of dependencies", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("unhealthy", { database: "unhealthy" }),
+        FAKE_WORKERS_REPORT: JSON.stringify({ status: "degraded", dependencies: { redis: "x" } }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+    });
+  });
+
+  it("prints nothing of a report whose dependency has a status that is not one of the three, or no name: it could not be read", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("degraded", {
+          database: "down at postgresql://omnipost:hunter2@db.internal:5432/omnipost",
+        }),
+        FAKE_WORKERS_REPORT: JSON.stringify({
+          status: "degraded",
+          dependencies: [{ status: "degraded" }],
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+    });
+  });
+
+  it(
+    "says a report could not be read when nothing answers it in time, goes on, and still exits 0",
+    { timeout: 30_000 },
+    async () => {
+      const staged = await stage();
+
+      const result = await start(
+        ["--root", staged.root],
+        asked(staged, { FAKE_API_REPORT: "silent" })
+      );
+
+      expect({
+        code: result.code,
+        stderr: result.stderr,
+        stages: appStages(result.stdout),
+      }).toEqual({
+        code: 0,
+        stderr: "",
+        stages: [
+          "API answers",
+          "API stop",
+          unread("API", "nothing answered it"),
+          "workers answer",
+          "workers stop",
+        ],
+      });
+    }
+  );
 });

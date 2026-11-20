@@ -90,6 +90,15 @@
  *   they receive the API's environment without `NODE_ENV`, so they read the `.env` the run
  *   generated and checked and nothing else. The API still receives it.
  *
+ *   DEGRADED. A degraded app answers 200, so its stage passes and the exit code does not change.
+ *   Once the API answers, and again once the workers do, the run asks that app once for its
+ *   detailed report (`/health/detailed`), for up to 10 s. When the report says `degraded`, one
+ *   line names the app and each dependency the report gives as not healthy, with its status, and
+ *   nothing else of the report. When the report cannot be read (another status than 200, no
+ *   answer, a body that is not such a report), one line says so and why: a healthy report adds no
+ *   line, so silence would read as one. Either line follows the app's stop line, on stdout, where
+ *   every line of a run that goes on is written; stderr holds only the causes of a failure.
+ *
  *   ADMINISTRATION PORTAL. Once the workers answer, `pnpm --filter @apps/admin dev` starts the
  *   administration portal from source, detached, in the same stage again. Its port is the one its
  *   package fixes on that script (`next dev -p 3100` in `apps/admin/package.json`, read from the
@@ -214,6 +223,8 @@ import { connect } from "node:net";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+// The one rule both apps answer their reports by, 200 for a usable status; Node strips its types.
+import { isUsable } from "../../packages/monitoring/health-checks/src/usable.ts";
 import {
   DEFAULT_POSTGRES_HOST_PORT,
   DEFAULT_REDIS_HOST_PORT,
@@ -275,6 +286,11 @@ They receive the API's environment without NODE_ENV, so that they read the check
 line of their own: each stop line ends one app's session, so stopping the API leaves the workers
 running. A run whose start of the workers fails ends their session alone; the API stays up.
 
+Once the API answers, and again once the workers do, the run asks that app once for
+/health/detailed. A report that says degraded adds a line naming the app and each dependency
+that is not healthy, with its status; a report that cannot be read adds a line that says so.
+Neither changes the exit code.
+
 The administration portal is started next, once the workers answer, the same way, with
 \`pnpm --filter @apps/admin dev\`, and left running, on the port its dev script fixes in
 apps/admin/package.json (next dev -p 3100). It must answer /api/health with 200, then /en/login
@@ -316,6 +332,29 @@ const COMPOSE = ["compose", "-f", "docker-compose.yml", "--env-file", ENVIRONMEN
 
 /** How long one attempt waits for a peer that says nothing; a loopback round trip takes far less. */
 const PROBE_TIMEOUT_MS = 2000;
+
+/**
+ * Where the API and the workers answer their detailed report: every dependency they check, each
+ * with its status (`apps/api/src/health/healthRoutes.ts`,
+ * `apps/workers/src/health/healthRequestHandler.ts`).
+ */
+const REPORT = "/health/detailed";
+
+/**
+ * How long the read of a detailed report may wait for an answer. The report runs every check of
+ * the app at once and answers when the last one ends, and each is cut at 5 s
+ * (`HEALTH_CHECK_TIMEOUT_MS` and `checkAll` in `packages/monitoring/health-checks/src/index.ts`),
+ * so an app with a slow dependency answers within about 5 s; twice that leaves room for a host
+ * under the load of the start itself.
+ */
+const REPORT_TIMEOUT_MS = 10_000;
+
+/**
+ * The statuses a report gives a dependency (`HealthStatus` in
+ * `packages/monitoring/health-checks/src/types.ts`). The line prints only these words, so a value
+ * outside them, which could be any text, makes the body not a report.
+ */
+const DEPENDENCY_STATUSES = new Set(["healthy", "degraded", "unhealthy"]);
 
 /** The pause between two attempts: short beside the default wait, long beside one Compose call. */
 const POLL_INTERVAL_MS = 500;
@@ -1117,6 +1156,32 @@ function accepts(port) {
 }
 
 /**
+ * @function ask
+ * @description Asks a loopback port for a path, once, and hands the response to `answer`, which
+ *   settles what the request comes to. A refused or reset connection, and a peer that says nothing
+ *   for `ms`, come to `null`.
+ * @template T
+ * @param {number} port - The port.
+ * @param {string} asked - The path asked for.
+ * @param {number} ms - How long the peer may say nothing.
+ * @param {(response: import("node:http").IncomingMessage, settle: (value: T | null) => void) => void} answer
+ *   - What to make of the response.
+ * @returns {Promise<T | null>} What `answer` settled, or `null` when nothing answered.
+ */
+function ask(port, asked, ms, answer) {
+  return new Promise((resolve) => {
+    const request = get({ host: LOOPBACK, port, path: asked, timeout: ms }, (response) =>
+      answer(response, resolve)
+    );
+    request.once("timeout", () => {
+      request.destroy();
+      resolve(null);
+    });
+    request.once("error", () => resolve(null));
+  });
+}
+
+/**
  * @function statusOf
  * @description What a path answers on a loopback port: the probe of an app (`App.probe`, `/health`
  *   for the API) or one of its pages. A redirect is not followed: it is its own status.
@@ -1126,20 +1191,115 @@ function accepts(port) {
  * @returns {Promise<number | null>} The status, or `null` on a refused connection or a silent peer.
  */
 function statusOf(port, asked, msLeft) {
-  return new Promise((resolve) => {
-    const request = get(
-      { host: LOOPBACK, port, path: asked, timeout: Math.min(PROBE_TIMEOUT_MS, msLeft) },
-      (response) => {
-        response.resume();
-        resolve(response.statusCode ?? null);
-      }
-    );
-    request.once("timeout", () => {
-      request.destroy();
-      resolve(null);
-    });
-    request.once("error", () => resolve(null));
+  return ask(port, asked, Math.min(PROBE_TIMEOUT_MS, msLeft), (response, settle) => {
+    response.resume();
+    settle(response.statusCode ?? null);
   });
+}
+
+/**
+ * @function reportOf
+ * @description What an app answers on its detailed report (`REPORT`), read whole.
+ * @param {number} port - The app's port.
+ * @returns {Promise<{ status: number, body: string } | null>} The status and the body, or `null`
+ *   when nothing answered within `REPORT_TIMEOUT_MS` or the connection failed before the body
+ *   ended.
+ */
+function reportOf(port) {
+  return ask(port, REPORT, REPORT_TIMEOUT_MS, (response, settle) => {
+    /** @type {Buffer[]} */
+    const chunks = [];
+    response.on("data", (chunk) => chunks.push(chunk));
+    response.once("end", () =>
+      settle({
+        // Every response a client receives carries its status.
+        status: /** @type {number} */ (response.statusCode),
+        body: Buffer.concat(chunks).toString("utf8"),
+      })
+    );
+    response.once("error", () => settle(null));
+  });
+}
+
+/**
+ * @function fieldsOf
+ * @description The fields of a value parsed from JSON: its own when it is an object, and none
+ *   otherwise, so that every field read from anything else is `undefined` and fails its check.
+ * @param {unknown} value - The value.
+ * @returns {Record<string, unknown>} Its fields.
+ */
+function fieldsOf(value) {
+  return typeof value === "object" && value !== null
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
+}
+
+/**
+ * @function readReport
+ * @description A detailed report's body, read as far as the line needs: its status, and each
+ *   dependency it gives as not healthy, as its name and its status, in the report's order. Nothing
+ *   else of the report is kept: its messages and details can name a host or carry an error's text.
+ * @param {string} body - The body the report answered 200 with.
+ * @returns {{ status: string, notHealthy: string[] } | null} What it says, or `null` for a body that
+ *   is not such a report: not JSON, a status the apps do not answer 200 with (`isUsable`), no list
+ *   of dependencies, or a dependency without a name or whose status is not one of the three.
+ */
+function readReport(body) {
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const { status, dependencies } = fieldsOf(parsed);
+  // `typeof` first: `isUsable` and the set take a string, and a value of another type passes neither.
+  if (typeof status !== "string" || !isUsable(status) || !Array.isArray(dependencies)) return null;
+  /** @type {string[]} */
+  const notHealthy = [];
+  for (const entry of dependencies) {
+    const { name, status: of } = fieldsOf(entry);
+    if (typeof name !== "string" || typeof of !== "string" || !DEPENDENCY_STATUSES.has(of)) {
+      return null;
+    }
+    if (of !== "healthy") notHealthy.push(`${name} ${of}`);
+  }
+  return { status, notHealthy };
+}
+
+/**
+ * @function reportDegraded
+ * @description Once an app answers, asks it once for its detailed report and says what the answer
+ *   it was waited on for does not: `/health` names no dependency, and the workers' `/health/ready`
+ *   never says degraded. When the report says `degraded`, one line names the app and each
+ *   dependency the report gives as not healthy, with its status. When the report cannot be read,
+ *   one line says so and why, since a healthy report adds no line and silence would read as one.
+ *   Neither line fails the run: a degraded app is usable.
+ * @param {App} app - The API or the workers, by its descriptor: its name, its words and its port.
+ * @returns {Promise<void>}
+ */
+async function reportDegraded(app) {
+  const { name } = app;
+  const { s } = app.words;
+  const unread = (/** @type {string} */ why) =>
+    process.stdout.write(
+      `${NAME}: the detailed report of the ${name} (${REPORT}) could not be read (${why}): ` +
+        `whether the ${name} answer${s} degraded is not known\n`
+    );
+  const answer = await reportOf(app.port);
+  if (answer === null || answer.status !== 200) {
+    unread(lastAnswer(answer === null ? null : answer.status));
+    return;
+  }
+  const report = readReport(answer.body);
+  if (report === null) {
+    unread("it answered 200 with a body that is not a health report");
+    return;
+  }
+  if (report.status === "degraded") {
+    process.stdout.write(
+      `${NAME}: the ${name} answer${s} degraded: ${report.notHealthy.join(", ")}\n`
+    );
+  }
 }
 
 /**
@@ -1814,8 +1974,13 @@ async function main(argv) {
       false
     );
     migrateDatabase(options.root, file, answered, options.waitSeconds);
-    await startApp(options.root, { ...API, port: api }, options.waitSeconds);
-    await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);
+    for (const app of [
+      { ...API, port: api },
+      { ...WORKERS, port: workers },
+    ]) {
+      await startApp(options.root, app, options.waitSeconds);
+      await reportDegraded(app);
+    }
     // Each portal forwards /api/backend/* to API_URL (its proxy and its server actions read that
     // key), so it is pointed at the API this run started, unless the calling shell names another,
     // which wins as a shell's PORT does for the API. An empty one is unset: a portal's schema reads
