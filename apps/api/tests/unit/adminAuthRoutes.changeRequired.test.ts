@@ -69,9 +69,14 @@ const limiterStub = {
   ),
 };
 
-/** The routes over the stubs, registered under `prefix` when one is given. */
+/**
+ * The routes over the stubs, registered under `prefix` when one is given, on an app with the Zod
+ * compilers `createApp()` sets.
+ */
 function buildApp(options: { prefix?: string } = {}) {
   const app = Fastify({ logger: false });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
   const container = new Container();
   container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
   container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);

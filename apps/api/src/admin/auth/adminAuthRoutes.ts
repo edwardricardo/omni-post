@@ -6,7 +6,6 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
-import { validatorCompiler } from "fastify-type-provider-zod";
 import { ZodError } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
@@ -655,11 +654,6 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   const credSvc = container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService);
   const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
   const handler = new AdminAuthRouteHandler(adminAuthSvc, credSvc, emailPort);
-
-  // The Zod compiler `createApp()` sets, set again on this plugin's own context, so a declared Zod
-  // schema validates the same on every instance the plugin is registered on, an instance built
-  // without that compiler included.
-  fastify.setValidatorCompiler(validatorCompiler);
 
   // ==========================================================================
   // Public Endpoints (No Authentication Required)

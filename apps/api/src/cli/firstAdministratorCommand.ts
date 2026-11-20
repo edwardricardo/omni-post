@@ -24,6 +24,7 @@ import type {
   ReissueAdministratorPasswordInput,
   ReissueAdministratorPasswordOutput,
 } from "@core/auth";
+import { DEFAULT_LOCKOUT_DURATION_MINUTES } from "../infrastructure/adapters/bruteForceDefaults.js";
 
 /** A stream the command writes text to. */
 interface CommandOutput {
@@ -233,13 +234,12 @@ function createdBlock(created: CreateFirstAdministratorOutput): string {
 
 /**
  * What a re-issue does not change: a lock that failed sign-ins set on the address. The command
- * opens no Redis connection, so it neither reads nor clears that lock. The minutes are the
- * lockout the brute-force adapter applies as the API composes it (`RedisBruteForceAdapter`'s
- * default configuration); that module is not imported here because it loads the logger and the
- * audit service, and the command loads nothing before its arguments and its terminal are right.
+ * opens no Redis connection, so it neither reads nor clears that lock. The minutes are the default
+ * the brute-force adapter applies as the API composes it, read from the module both share, which
+ * imports nothing: the adapter's own module loads the logger and the API's environment, and the
+ * command loads nothing before its arguments and its terminal are right.
  */
-const LOCK_LINE =
-  "If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within 30 minutes.";
+const LOCK_LINE = `If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within ${String(DEFAULT_LOCKOUT_DURATION_MINUTES)} minutes.`;
 
 /** The block written when the password is re-issued; the password appears in it once. */
 function reissuedBlock(reissued: ReissueAdministratorPasswordOutput): string {

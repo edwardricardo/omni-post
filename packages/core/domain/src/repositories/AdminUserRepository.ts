@@ -24,7 +24,7 @@ export interface AdminUserCreateInput {
    * password sign-ins refuse to open a session until it is changed. That refusal is the only
    * check of the mark, so code that sets the mark on an administrator who already exists ends
    * that administrator's sessions in the same write: nothing else refuses a session opened
-   * before the mark.
+   * before the mark. Marking one who exists is an update: `AdminUserUpdate` states the rule there.
    */
   mustChangePassword?: boolean;
 }
@@ -33,6 +33,10 @@ export interface AdminUserCreateInput {
  * Partial update payload for an admin user.
  * Nullable fields (`mfaSecret`, `passwordResetToken`, `passwordResetExpires`)
  * accept `null` to clear the stored value; omit a key to leave it unchanged.
+ *
+ * It carries no `mustChangePassword`. Code that adds it, or that otherwise sets the mark on an
+ * administrator who exists, ends that administrator's sessions in the same write: the sign-in's
+ * refusal is the only check of the mark, so nothing else refuses a session opened before it.
  */
 export interface AdminUserUpdate {
   name?: string;

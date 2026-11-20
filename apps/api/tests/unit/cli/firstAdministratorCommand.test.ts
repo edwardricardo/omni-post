@@ -18,12 +18,11 @@ import type {
   CreateFirstAdministratorOutput,
   ReissueAdministratorPasswordOutput,
 } from "@core/auth";
-import type { Redis } from "ioredis";
 import {
   runFirstAdministratorCommand,
   type FirstAdministratorCommand,
 } from "../../../src/cli/firstAdministratorCommand.js";
-import { RedisBruteForceAdapter } from "../../../src/infrastructure/adapters/RedisBruteForceAdapter.js";
+import { DEFAULT_LOCKOUT_DURATION_MINUTES } from "../../../src/infrastructure/adapters/bruteForceDefaults.js";
 
 /** The address as the operator types it, and the form the use case stores and returns. */
 const OPERATOR_EMAIL = "  First.Admin@Example.COM ";
@@ -87,8 +86,7 @@ function makeReissued(): ReissueAdministratorPasswordOutput {
 }
 
 /** The last line of a re-issue's block: what a lock set by failed sign-ins means for it. */
-const LOCK_LINE =
-  "If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within 30 minutes.";
+const LOCK_LINE = `If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within ${String(DEFAULT_LOCKOUT_DURATION_MINUTES)} minutes.`;
 
 /** The block the command writes when it re-issues the password, line by line. */
 function reissuedBlock(password: string): string {
@@ -104,44 +102,6 @@ function reissuedBlock(password: string): string {
     LOCK_LINE,
     "",
   ].join("\n");
-}
-
-/**
- * The minutes a lock set by failed sign-ins lasts, as the brute-force adapter applies it when it
- * is built the way the API's composition root builds it, with no configuration of its own: read
- * from the time-to-live it writes on the lock.
- */
-async function lockoutMinutesAsComposed(): Promise<number> {
-  const lockTtls: number[] = [];
-  const transaction = {
-    zadd: () => transaction,
-    expire: () => transaction,
-    exec: async () => [],
-  };
-  const redis = {
-    multi: () => transaction,
-    incr: async () => 1,
-    expire: async () => 1,
-    // The account's failure window already holds more failures than any threshold, and the
-    // address's none, so this one failed attempt sets the account's lock and nothing else.
-    zcount: async (key: string) => (key.includes("bf:email:") ? Number.MAX_SAFE_INTEGER : 0),
-    setex: async (key: string, ttlSeconds: number) => {
-      if (key.includes("bf:lockout:")) lockTtls.push(ttlSeconds);
-      return "OK";
-    },
-  };
-  const adapter = new RedisBruteForceAdapter(
-    redis as unknown as Redis,
-    { log: async () => undefined } as never,
-    { metrics: { securityThreats: { inc: () => undefined } } } as never
-  );
-  await adapter.recordFailedAttempt({
-    identifier: STORED_EMAIL,
-    ip: "203.0.113.42",
-    userAgent: "fixture-agent/1.0",
-  });
-  expect(lockTtls).toHaveLength(1);
-  return (lockTtls[0] ?? 0) / 60;
 }
 
 /** A stream double that records what is written to it. */
@@ -367,13 +327,13 @@ describe("runFirstAdministratorCommand", () => {
       expect(close).toHaveBeenCalledTimes(1);
     });
 
-    it("states in the re-issue's lock line the minutes a lock set by failed sign-ins lasts, as the API composes the brute-force adapter", async () => {
+    it("states in the re-issue's lock line the minutes of the brute-force protection's default lock", async () => {
       const { load } = makeReissueCommand(async () => ok(makeReissued()));
 
       const run = await runInTerminal(["--reissue", "--email", OPERATOR_EMAIL], load);
 
       const stated = /ends by itself within (\d+) minutes\.$/m.exec(run.stdout)?.[1];
-      expect(Number(stated)).toBe(await lockoutMinutesAsComposed());
+      expect(Number(stated)).toBe(DEFAULT_LOCKOUT_DURATION_MINUTES);
     });
 
     it("re-issues when --reissue follows the e-mail", async () => {
