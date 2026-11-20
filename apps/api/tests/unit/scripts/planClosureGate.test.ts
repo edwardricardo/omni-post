@@ -3,9 +3,10 @@
  * @description Pins `scripts/testing/plan-closure-gate.mjs`, fitness #56, the gate behind
  *   `pnpm check:plan-closure`: a feature whose state in the chain table of `docs/product/PLAN.md`
  *   is `closed` holds no open item under its record, an item being an entry of the record's
- *   attached list or of a findings list, and a closed item being one marked `Closed by #<n>` or
- *   `Closed by decision of the <role> on <date>: <the decision>`, the date a calendar date no later
- *   than the day the check runs and the decision holding a letter. Every case writes its own small
+ *   attached list or of a findings list, and a closed item being one whose text starts with
+ *   `Closed by #<n>` or `Closed by decision of the <role> on <date>: <the decision>`, the date a
+ *   calendar date no later than the day the check runs and the decision holding a word of three
+ *   letters or more. Every case writes its own small
  *   plan tree (the plan, the chain and the areas) in a scratch directory, so the suite measures the
  *   rule and never this repository's plan, and it can prove each red path while the live plan is in
  *   any state. Every fail-closed path the gate's header names is pinned to exit 3 with its message,
@@ -13,7 +14,9 @@
  *   so a scan that read nothing never renders as a plan with every item closed. The record's shape
  *   is pinned too: a nested entry, and a line shaped like an item that no item list reads (at the
  *   top level, after a line that ended its list, inside a note, on a label's line), fail closed,
- *   and a fenced block is read neither as the chain table nor as an item.
+ *   while the continuation of an entry and the contents of a code span are left alone; a fenced
+ *   block is read neither as the chain table nor as an item, and a fence nothing closes fails
+ *   closed, in the record that opens it or in its file.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -38,8 +41,8 @@ const { PLAN, RECORDS, runGate } = (await import(GATE_SCRIPT)) as GateModule;
 const CHAIN = "docs/product/plan/chain.md";
 const AREAS = "docs/product/plan/areas.md";
 const GRAMMAR_HINT =
-  'close it with "Closed by #<n>." or "Closed by decision of the <Product Owner|Maintainer> on ' +
-  '<YYYY-MM-DD>: <the decision>.", or set the feature back to "in progress"';
+  'start its text with "Closed by #<n>" or "Closed by decision of the <Product Owner|Maintainer> ' +
+  'on <YYYY-MM-DD>: <the decision>", or set the feature back to "in progress"';
 
 interface Row {
   readonly id: string;
@@ -261,7 +264,11 @@ describe("a closed feature", () => {
       [
         {
           id: "F-01",
-          attached: [closedByDecision("K8S-1"), closedByDecision("IMAGE-1", "Maintainer")],
+          attached: [
+            closedByDecision("K8S-1"),
+            closedByDecision("IMAGE-1", "Maintainer"),
+            "**SEED-1**: Closed by decision of the Maintainer on 2026-11-20: Not now.",
+          ],
           findings: [closedByPullRequest("DB-UP", 916)],
         },
       ]
@@ -272,7 +279,7 @@ describe("a closed feature", () => {
     expect(outcome.stderr).toEqual([]);
     expect(outcome.exitCode).toBe(0);
     expect(outcome.stdout).toEqual([
-      "plan-closure-gate: 1 feature in the chain table, 1 closed; 3 items under the records of the closed features, every one closed",
+      "plan-closure-gate: 1 feature in the chain table, 1 closed; 4 items under the records of the closed features, every one closed",
     ]);
   });
 
@@ -298,6 +305,10 @@ describe("a closed feature", () => {
     [
       "a word in its decision",
       "**K8S-1**: Closed by decision of the Product Owner on 2026-11-20: .",
+    ],
+    [
+      "a word of three letters in its decision",
+      "**K8S-1**: Closed by decision of the Product Owner on 2026-11-20: a.",
     ],
     [
       "a date that has come",
@@ -513,6 +524,16 @@ describe("the shape of a closed feature's record", () => {
       ["- **Wrong as read:**", "  - **B**: The endpoint answers 404.", "- **Attached (0):**"],
       8,
     ],
+    [
+      "beside a code span, outside it",
+      ["- **Attached (0):**", "- **B**: The page answers `404` to every request."],
+      8,
+    ],
+    [
+      "indented four spaces under a label that opens no item list",
+      ["- **Who:** the operator.", "    **B**: The endpoint answers 404.", "- **Attached (0):**"],
+      8,
+    ],
   ])("exits 3 on a line shaped like an item %s", (_where, body, line) => {
     plantBody(body);
 
@@ -520,6 +541,35 @@ describe("the shape of a closed feature's record", () => {
       exitCode: 3,
       stderr: [unlisted(line, body[line - 7] ?? "")],
     });
+  });
+
+  it.each([
+    [
+      "the continuation of an entry that names another item in bold",
+      [
+        "- **Attached (1):**",
+        "  - **DEF-1**: Closed by #916. The start read the same file as",
+        "    **DEF-2**: the generated environment file.",
+      ],
+    ],
+    [
+      "a code span that quotes the grammar",
+      [
+        "- **Today:** an item reads `  - **<id>**: <text>` and closes with `Closed by #<n>`.",
+        "- **Attached (1):**",
+        "  - **DEF-1**: Closed by #916. Fixed.",
+      ],
+    ],
+  ])("leaves alone %s", (_what, body) => {
+    plantBody(body);
+
+    const outcome = scan();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.stdout).toEqual([
+      "plan-closure-gate: 1 feature in the chain table, 1 closed; 1 item under the records of the closed features, every one closed",
+    ]);
   });
 });
 
@@ -574,6 +624,37 @@ describe("fenced code blocks", () => {
     expect(outcome.stdout).toEqual([
       "plan-closure-gate: 1 feature in the chain table, 1 closed; 1 item under the records of the closed features, every one closed",
     ]);
+  });
+
+  it("exits 3 on a fence a closed feature's record opens and nothing closes", () => {
+    plantBody([
+      "- **Attached (0):**",
+      "- **Findings since the feature opened:**",
+      "```text",
+      "  - **B**: The endpoint answers 404.",
+    ]);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: the record of F-01 (${CHAIN}:5) opens a fenced code block at line 9 that is still open at the record's end, so no line after it is read; close the block`,
+      ],
+    });
+  });
+
+  it("exits 3 on a fence still open at the end of a file, outside every closed record", () => {
+    plant(
+      [{ id: "F-01", state: "closed" }],
+      [{ id: "F-01", attached: [closedByPullRequest("DEF-1")] }]
+    );
+    write(AREAS, `${AREAS_TEXT}\`\`\`markdown\n- **DEF-10**: An open row of an area.\n`);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${AREAS}:6 opens a fenced code block that is still open at the end of the file, so no line after it is read as a heading, a table or an item; close the block`,
+      ],
+    });
   });
 
   it("never reads a fenced heading as the opening of a record", () => {

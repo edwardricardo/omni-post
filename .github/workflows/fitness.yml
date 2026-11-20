@@ -1679,7 +1679,7 @@ jobs:
           # records under docs/product/plan/ only, so it runs here, in the job that installs nothing.
           set -euo pipefail
           if ! node scripts/testing/plan-closure-gate.mjs; then
-            echo "::error title=Fitness #56 violation::A feature the chain table of docs/product/PLAN.md marks closed holds an open item under its record, or the gate could not read the plan or a record as its rule needs. The plan-closure-gate lines above name each feature and each item: close the item with \"Closed by #<n>.\" or \"Closed by decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>.\", or set the feature back to \"in progress\"."
+            echo "::error title=Fitness #56 violation::A feature the chain table of docs/product/PLAN.md marks closed holds an open item under its record, or the gate could not read the plan or a record as its rule needs. The plan-closure-gate lines above name each feature and each item: start the item's text with \"Closed by #<n>\" or \"Closed by decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>\", or set the feature back to \"in progress\"."
             exit 1
           fi
 

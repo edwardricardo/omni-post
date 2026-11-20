@@ -2225,11 +2225,12 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # bold, starts with `Findings`: each entry is a line indented two spaces, `  - **<id>**: <text>`
 # with an optional `(<reference>)` after the id, and a line indented four spaces or more that opens
 # no list continues the entry above it; a `  - Note: <text>` entry is not an item, and every other
-# list of the record is prose. An item is closed when its text starts with one of two forms:
-# `Closed by #<n>`, the number from 1 with no leading zero and ending its word, or `Closed by
-# decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`, the date a calendar
-# date no later than the day the check runs (UTC) and the decision holding at least one letter.
-# Every other item is open.
+# list of the record is prose. An item is closed when its text starts with one of two forms, each
+# with no punctuation of its own, the rest of the item's text following it: `Closed by #<n>`, the
+# number from 1 with no leading zero and ending its word, or `Closed by decision of the
+# <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`, the date a calendar date no later
+# than the day the check runs (UTC) and the decision holding at least one word of three letters or
+# more. Every other item is open. Only the chain table holds a state.
 # WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing: the gate reads
 # three Markdown files and imports nothing beyond Node's own modules, which is why it keeps its own
 # entry-point check rather than importing lib/record-helpers.mjs, a module that imports prettier.
@@ -2247,18 +2248,30 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # list, or whose `<n>` is not the number of items read under it; an entry of an item list that is
 # neither an item nor a note, a mis-indented entry included; a nested list entry under an entry of
 # an item list, whether it holds an item or prose, because an item written there could not be told
-# from prose; and any line of the record shaped like an item (a bold text that ends with neither a
-# colon nor a space, then `: `, anywhere on the line) that no item list reads as an entry: an item
-# at the record's top level, after a line that ended its list, under a label whose colon is outside
-# the bold, in a prose list, inside a note or on a label's line. A usage error, anything but no
-# argument or `--root <dir>`, exits 2.
+# from prose; any line of the record shaped like an item (a bold text that ends with neither a
+# colon nor a space, then `: `, anywhere on the line outside an inline code span) that an item list
+# reads neither as an entry nor as an entry's continuation: an item at the record's top level, after
+# a line that ended its list, under a label whose colon is outside the bold, in a prose list, inside
+# a note or on a label's line; and a fenced code block still open at the end of its file, named in
+# the record of the closed feature that opens it, else in its file, because every line after it
+# would read as code. A usage error, anything but no argument or `--root <dir>`, exits 2.
 # RESIDUAL LIMITS, stated rather than implied: (1) it reads the plan by its line shapes, not with a
 # Markdown parser; (2) it proves the form of a marker, never that pull request #<n> resolved the
 # item or that the decision was taken; (3) an item attached to a closed feature from outside its
 # record, such as a cross-cutting row that names the feature or a list placed after a heading that
 # ends the record, is not read; (4) a record's prose lists (`Wrong as read`, `To build`) hold no
 # item, so a defect they describe in prose is not judged; (5) the table's `Closed by` column is not
-# compared with the items.
+# compared with the items; (6) the areas outside the chain have no state: the header of their
+# table in docs/product/PLAN.md (line 86 at commit 6bc6482b) is
+# `| Area | Features | End to end today | Old rows attached | Refoundation units |`, with no
+# `State` column, and a feature of an area carries a `Today` verdict, not a state (the
+# `| Feature | Who | Today | Depends on |` tables of docs/product/plan/areas.md), so an area's open
+# rows are never judged; a feature of an area is judged once it joins the chain table; (7) an
+# item-shaped text written as the continuation of an entry is that entry's text, not an item; (8)
+# the one false positive left: a line of a closed feature's record, outside a code span and not the
+# continuation of an entry of an item list, that writes a bold text followed by `: ` (`the role
+# **SUPER_ADMIN**: every permission`) is refused as an unread item; it is reworded, or its bold
+# text put in a code span.
 # RETIRES WHEN: the plan leaves the tree under the Plan closure rule of CLAUDE.md, or a recorded
 # decision of the Product Owner lets a feature close with an open item.
 node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:

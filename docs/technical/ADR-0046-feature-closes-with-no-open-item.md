@@ -31,19 +31,25 @@
 
 1. **A feature closes only when no item under its record is open.** An item is an entry of the
    record's `Attached (<n>)` list or of a list whose label starts with `Findings`. Each item is
-   resolved in code and marked `Closed by #<n>`, the pull request that resolved it, or closed by a
-   recorded decision and marked `Closed by decision of the <role> on <YYYY-MM-DD>: <the decision>`,
-   where the role is `Product Owner` or `Maintainer`, the date is a calendar date no later than the
-   day the check runs, and the decision holds at least one word. Examples: `Closed by #916.`;
-   `Closed by decision of the Product Owner on 2026-11-20: it waits for the move to production.`
+   resolved in code, its text starting with `Closed by #<n>`, the pull request that resolved it, or
+   closed by a recorded decision, its text starting with
+   `Closed by decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`, where
+   the date is a calendar date no later than the day the check runs and the decision holds at
+   least one word of three letters or more. Neither form has punctuation of its own: the rest of
+   the item's text follows it. Two items' texts, for example:
+   - `Closed by #916. Each portal's predev builds …`
+   - `Closed by decision of the Product Owner on 2026-11-20: it waits for the move to production.`
 2. **A gate holds it.** Fitness #56, `scripts/testing/plan-closure-gate.mjs`
    (`pnpm check:plan-closure`), reads the chain table of the plan and refuses a `closed` feature
    whose record holds an open item, naming the feature and each item. It fails closed, with its own
    message and exit 3, when the plan or a record file cannot be read, when the chain table cannot
    be read, when a closed feature's record is not found or is found twice, and when a record's
-   items cannot be read: an entry that is neither an item nor a note, a nested list entry, and any
-   line of the record shaped like an item that no item list reads, wherever it is written. Fenced
-   code blocks are never read. It runs in the `fitness` job of the fitness workflow, a required
+   items cannot be read: an entry that is neither an item nor a note, a nested list entry, any line
+   of the record shaped like an item that no item list reads, wherever it is written, and a fenced
+   code block nothing closes. Fenced code blocks are never read. Only the chain table holds a
+   state: the table of the areas outside the chain has no `State` column (`docs/product/PLAN.md`,
+   line 86 at commit `6bc6482b`), so an area's open rows are not judged until a feature of the
+   area joins the chain table. It runs in the `fitness` job of the fitness workflow, a required
    check of the `main` ruleset (`.github/rulesets/main.json`), and as the static battery step
    `plan-closure`. Its block in [FITNESS_FUNCTIONS.md](../development/FITNESS_FUNCTIONS.md), under
    `# 56.`, gives its scope and its residual limits.
@@ -100,7 +106,10 @@
   copy of the plan at commit `72718bb2`: F-05's `Attached (10)` list held no entry, its rows written
   under the next label, and the gate read 177 open items.
 - A record holds no nested list and no item outside its item lists: such a line fails closed while
-  its feature is closed.
+  its feature is closed. One false positive is left: a line of a closed record, outside a code
+  span and not an entry's continuation, that writes a bold text followed by `: ` is refused until
+  it is reworded.
+- The areas outside the chain are not judged: they have no state the gate could read (decision 2).
 - The battery runs one more static step.
 
 ## Legal impact
@@ -124,6 +133,8 @@ check is added, changed or retired; the gate reads files of the repository only`
 - The Product Owner decides that a feature may close with an open item.
 - A record gains an item list whose label is neither `Attached (<n>)` nor `Findings …`: the gate,
   its block and this record change together.
+- The table of the areas outside the chain gains a `State` column: the gate judges it the same
+  way, and its block and this record change with it.
 
 ## Risks and Mitigations
 

@@ -11,12 +11,14 @@ Part of [the plan](../PLAN.md). Every status comes from reading the code at `mai
 - "Governed by" lists the accepted decision records under `docs/technical/`. A feature cites them and never
   reopens them.
 - "Proof base" lists the testing refoundation units the proof needs.
-- "Attached" lists the open rows of the old Master Plan that belong to the feature, condensed to what is wrong,
-  where, and what done means. Each one's viability is decided when the feature opens.
+- "Attached" lists the rows of the old Master Plan that belong to the feature, and each "Findings" list the
+  findings attached to it since; each item is condensed to what is wrong, where, and what done means, and stays
+  in its list once closed. An old row's viability is decided when the feature opens.
 - The items of a record are the entries of its `Attached (<n>)` list and of every list whose bold label starts with
   `Findings`, each one `  - **<id>**: <text>`. The count in `Attached (<n>)` equals the items under it. An item is
   closed when its text starts with `Closed by #<n>` or with
-  `Closed by decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`; every other item is open.
+  `Closed by decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`; neither form has
+  punctuation of its own, and the rest of the item's text follows it. Every other item is open.
   A feature whose `State` is `closed` in [the chain table](../PLAN.md) holds no open item, and fitness #56
   (`pnpm check:plan-closure`) fails otherwise.
 - Status words: WORKS, PARTIAL, MISSING.
