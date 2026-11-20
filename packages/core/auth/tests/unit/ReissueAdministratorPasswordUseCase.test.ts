@@ -44,12 +44,14 @@ const MESSAGES = {
     "This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued",
   notMarked:
     "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
+  deactivated:
+    "This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued",
   readFailed: "Reading the administrator failed",
   generateFailed: "Generating the single-use password failed",
   hashFailed: "Hashing the single-use password failed",
   replaceFailed: "Replacing the single-use password failed",
   changedSinceRead:
-    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now",
+    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now",
   revokeFailed: "Ending the administrator's sessions failed",
   auditFailed: "Writing the audit record of the re-issue failed",
   transactionFailed:
@@ -104,6 +106,12 @@ function makeAdministrator(
   };
 }
 
+/** One call of the session repository's revocation: whose sessions, and the reason stored. */
+interface RevokeCall {
+  readonly userId: string;
+  readonly reason: string;
+}
+
 /** What the doubles answer; an absent key takes the answer of an eligible administrator. */
 interface HarnessOptions {
   /** The stored administrator; `null` when no administrator has the e-mail. */
@@ -128,7 +136,7 @@ interface Harness {
   readonly lookedUp: string[];
   readonly hashedPlaintexts: string[];
   readonly replacements: SingleUsePasswordReplacement[];
-  readonly revokedFor: string[];
+  readonly revokedFor: RevokeCall[];
   readonly auditEntries: AuditLogCreateInput[];
   readonly transactionOutcomes: Array<Result<unknown, unknown>>;
   /** The stored row as the guarded write left it; `null` when no administrator is stored. */
@@ -140,7 +148,7 @@ function makeHarness(options: HarnessOptions = {}): Harness {
   const lookedUp: string[] = [];
   const hashedPlaintexts: string[] = [];
   const replacements: SingleUsePasswordReplacement[] = [];
-  const revokedFor: string[] = [];
+  const revokedFor: RevokeCall[] = [];
   const auditEntries: AuditLogCreateInput[] = [];
   const transactionOutcomes: Array<Result<unknown, unknown>> = [];
   const stored = options.administrator === undefined ? makeAdministrator() : options.administrator;
@@ -171,7 +179,8 @@ function makeHarness(options: HarnessOptions = {}): Harness {
         row.passwordHash !== replacement.currentPasswordHash ||
         row.passwordResetToken !== replacement.currentPasswordResetToken ||
         !row.mustChangePassword ||
-        row.lastLoginAt !== null
+        row.lastLoginAt !== null ||
+        !row.isActive
       ) {
         return ok(false);
       }
@@ -185,9 +194,9 @@ function makeHarness(options: HarnessOptions = {}): Harness {
     },
   };
   const sessions: ReissueSessionRepository = {
-    async revokeAllForUser(userId: string) {
+    async revokeAllForUser(userId: string, reason: string) {
       journal.push(JOURNAL.revoke);
-      revokedFor.push(userId);
+      revokedFor.push({ userId, reason });
       if (options.revokeRaise !== undefined) {
         throw options.revokeRaise;
       }
@@ -278,7 +287,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
           passwordHash: NEW_HASH,
         },
       ]);
-      expect(harness.revokedFor).toEqual([ADMIN_ID]);
+      expect(harness.revokedFor).toEqual([{ userId: ADMIN_ID, reason: "PASSWORD_REISSUED" }]);
       expect(harness.auditEntries).toEqual([
         {
           action: "ADMINISTRATOR_PASSWORD_REISSUED",
@@ -332,6 +341,12 @@ describe("ReissueAdministratorPasswordUseCase", () => {
         code: USE_CASE_ERRORS.CONFLICT,
         message: MESSAGES.notMarked,
       },
+      {
+        reason: "the administrator is deactivated",
+        administrator: makeAdministrator({ isActive: false }),
+        code: USE_CASE_ERRORS.CONFLICT,
+        message: MESSAGES.deactivated,
+      },
     ])(
       "refuses with its own message, drawing no password and writing nothing, when $reason",
       async ({ administrator, code, message }) => {
@@ -359,6 +374,17 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       const result = await harness.useCase.execute({ email: STORED_EMAIL });
 
       expect(expectFailure(result).message).toBe(MESSAGES.hasSignedIn);
+      expect(harness.journal).toEqual([JOURNAL.read]);
+    });
+
+    it("refuses as unmarked, not as deactivated, when the administrator is deactivated and no longer marked, since reactivating it would not make it eligible", async () => {
+      const harness = makeHarness({
+        administrator: makeAdministrator({ isActive: false, mustChangePassword: false }),
+      });
+
+      const result = await harness.useCase.execute({ email: STORED_EMAIL });
+
+      expect(expectFailure(result).message).toBe(MESSAGES.notMarked);
       expect(harness.journal).toEqual([JOURNAL.read]);
     });
   });
@@ -400,6 +426,24 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       expect(harness.storedRow()).toEqual(
         makeAdministrator({ passwordResetToken: resetRequestedSince })
       );
+      expect(harness.journal).toEqual([
+        ...BEFORE_THE_TRANSACTION,
+        JOURNAL.replace,
+        JOURNAL.rollback,
+      ]);
+      expect(harness.revokedFor).toEqual([]);
+      expect(harness.auditEntries).toEqual([]);
+    });
+
+    it("returns CONFLICT, leaving the stored hash as it is, ending no session and writing no audit record, when the administrator was deactivated between the read and the write", async () => {
+      const harness = makeHarness({ changedBeforeWrite: { isActive: false } });
+
+      const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
+
+      const error = expectFailure(result);
+      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
+      expect(error.message).toBe(MESSAGES.changedSinceRead);
+      expect(harness.storedRow()).toEqual(makeAdministrator({ isActive: false }));
       expect(harness.journal).toEqual([
         ...BEFORE_THE_TRANSACTION,
         JOURNAL.replace,

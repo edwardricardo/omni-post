@@ -19,7 +19,13 @@ export interface AdminUserCreateInput {
   name: string;
   roleId: string;
   emailVerified?: boolean;
-  /** When true, the administrator must set a new password before doing anything else. */
+  /**
+   * When true, the administrator must set a new password before doing anything else: both
+   * password sign-ins refuse to open a session until it is changed. That refusal is the only
+   * check of the mark, so code that sets the mark on an administrator who already exists ends
+   * that administrator's sessions in the same write: nothing else refuses a session opened
+   * before the mark.
+   */
   mustChangePassword?: boolean;
 }
 
@@ -47,7 +53,8 @@ export interface AdminUserUpdate {
 
 /**
  * A new single-use password for an administrator, and the hash and the reset token the caller
- * read: the write lands only while the row still holds both.
+ * read: the write lands only while the row still holds both and the administrator is still
+ * eligible (marked, never signed in, active).
  */
 export interface SingleUsePasswordReplacement {
   /** The administrator whose single-use password is replaced. */
@@ -173,12 +180,14 @@ export interface AdminUserRepositoryPort {
   update(id: string, data: AdminUserUpdate): Promise<AdminUserDto>;
 
   /**
-   * Replace the single-use password of an administrator who has never signed
-   * in and must still change the password: the hash and the date the password
-   * changed are written, and a pending password reset is cleared so a link
-   * issued before cannot set the password afterwards, only where the row still
-   * has the given id, the hash and the reset token as read,
-   * `mustChangePassword` true and no sign-in date. The mark, the sign-in date
+   * Replace the single-use password of an active administrator who has never
+   * signed in and must still change the password: the hash and the date the
+   * password changed are written, and a pending password reset is cleared so a
+   * link issued before cannot set the password afterwards, only where the row
+   * still has the given id, the hash and the reset token as read,
+   * `mustChangePassword` true, no sign-in date and `isActive` true, so a
+   * deactivation committed after the read makes the write match no row. The
+   * mark, the sign-in date
    * and the password history are left as they are. The hash's algorithm is
    * left as it is too, because the hasher's port does not report its
    * algorithm and an eligible row was hashed by the same hasher. Inside an

@@ -18,10 +18,12 @@ import type {
   CreateFirstAdministratorOutput,
   ReissueAdministratorPasswordOutput,
 } from "@core/auth";
+import type { Redis } from "ioredis";
 import {
   runFirstAdministratorCommand,
   type FirstAdministratorCommand,
 } from "../../../src/cli/firstAdministratorCommand.js";
+import { RedisBruteForceAdapter } from "../../../src/infrastructure/adapters/RedisBruteForceAdapter.js";
 
 /** The address as the operator types it, and the form the use case stores and returns. */
 const OPERATOR_EMAIL = "  First.Admin@Example.COM ";
@@ -84,6 +86,10 @@ function makeReissued(): ReissueAdministratorPasswordOutput {
   return { id: "admin-uuid-001", email: STORED_EMAIL, password: makeSingleUsePassword() };
 }
 
+/** The last line of a re-issue's block: what a lock set by failed sign-ins means for it. */
+const LOCK_LINE =
+  "If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within 30 minutes.";
+
 /** The block the command writes when it re-issues the password, line by line. */
 function reissuedBlock(password: string): string {
   return [
@@ -95,8 +101,47 @@ function reissuedBlock(password: string): string {
     "The password is shown this once and is stored nowhere: only its hash is kept.",
     "The previous single-use password no longer works, and every session of this administrator was ended.",
     "Sign in with it now and change it at once.",
+    LOCK_LINE,
     "",
   ].join("\n");
+}
+
+/**
+ * The minutes a lock set by failed sign-ins lasts, as the brute-force adapter applies it when it
+ * is built the way the API's composition root builds it, with no configuration of its own: read
+ * from the time-to-live it writes on the lock.
+ */
+async function lockoutMinutesAsComposed(): Promise<number> {
+  const lockTtls: number[] = [];
+  const transaction = {
+    zadd: () => transaction,
+    expire: () => transaction,
+    exec: async () => [],
+  };
+  const redis = {
+    multi: () => transaction,
+    incr: async () => 1,
+    expire: async () => 1,
+    // The account's failure window already holds more failures than any threshold, and the
+    // address's none, so this one failed attempt sets the account's lock and nothing else.
+    zcount: async (key: string) => (key.includes("bf:email:") ? Number.MAX_SAFE_INTEGER : 0),
+    setex: async (key: string, ttlSeconds: number) => {
+      if (key.includes("bf:lockout:")) lockTtls.push(ttlSeconds);
+      return "OK";
+    },
+  };
+  const adapter = new RedisBruteForceAdapter(
+    redis as unknown as Redis,
+    { log: async () => undefined } as never,
+    { metrics: { securityThreats: { inc: () => undefined } } } as never
+  );
+  await adapter.recordFailedAttempt({
+    identifier: STORED_EMAIL,
+    ip: "203.0.113.42",
+    userAgent: "fixture-agent/1.0",
+  });
+  expect(lockTtls).toHaveLength(1);
+  return (lockTtls[0] ?? 0) / 60;
 }
 
 /** A stream double that records what is written to it. */
@@ -245,12 +290,13 @@ describe("runFirstAdministratorCommand", () => {
           "is marked to change that password (mustChangePassword): sign in with\nit and change it at once.",
           "Without --reissue it creates an administrator once: once an administrator exists, every\nlater run without --reissue is refused.",
           "With --reissue it prints a new single-use password for the administrator with that e-mail",
-          "has never signed in and is still marked to change the password",
+          "only for an active\nadministrator who has never signed in and is still marked to change the password.",
+          "Any\nother administrator is refused and nothing is changed; a deactivated one must be reactivated\nfirst.",
           "--email <address>  The e-mail of the administrator to create, or whose single-use password\n                     to re-issue.",
           "--reissue          Re-issues the single-use password instead of creating an administrator.",
           "Its standard output must be an interactive terminal",
           "0  The administrator was created, or its single-use password was re-issued.",
-          "1  Refused (an administrator exists, or the administration role is held; with --reissue, no\n     administrator has the e-mail, it has signed in, or it is not marked) or failed.",
+          "1  Refused (an administrator exists, or the administration role is held; with --reissue, no\n     administrator has the e-mail, it has signed in, it is not marked, or it is deactivated) or\n     failed.",
           "2  The arguments are wrong, the sign-in refuses the e-mail, or standard output is not a terminal.",
         ]) {
           expect(help).toContain(line);
@@ -321,6 +367,15 @@ describe("runFirstAdministratorCommand", () => {
       expect(close).toHaveBeenCalledTimes(1);
     });
 
+    it("states in the re-issue's lock line the minutes a lock set by failed sign-ins lasts, as the API composes the brute-force adapter", async () => {
+      const { load } = makeReissueCommand(async () => ok(makeReissued()));
+
+      const run = await runInTerminal(["--reissue", "--email", OPERATOR_EMAIL], load);
+
+      const stated = /ends by itself within (\d+) minutes\.$/m.exec(run.stdout)?.[1];
+      expect(Number(stated)).toBe(await lockoutMinutesAsComposed());
+    });
+
     it("re-issues when --reissue follows the e-mail", async () => {
       const { load, create, execute } = makeReissueCommand(async () => ok(makeReissued()));
 
@@ -354,6 +409,11 @@ describe("runFirstAdministratorCommand", () => {
         code: USE_CASE_ERRORS.CONFLICT,
         message:
           "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
+      },
+      {
+        code: USE_CASE_ERRORS.CONFLICT,
+        message:
+          "This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued",
       },
     ])(
       "returns 1 and writes only the use case's message on standard error when the re-issue is refused with $code: $message",

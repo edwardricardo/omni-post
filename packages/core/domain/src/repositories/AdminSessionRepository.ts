@@ -84,12 +84,15 @@ export interface AdminSessionRepository {
   findByUserId(userId: string, options?: AdminSessionFindOptions): Promise<AdminSessionDto[]>;
 
   /**
-   * Revoke every active session belonging to a user.
+   * Revoke every active session belonging to a user, recording why on each.
    *
    * @param userId - Owning AdminUser id
+   * @param reason - Why the sessions end, stored as each session's `revokeReason`: the
+   *                 operation's name in upper snake case, as the other revocations store
+   *                 theirs (`PASSWORD_CHANGED`, `PASSWORD_RESET`)
    * @returns Count of sessions revoked
    */
-  revokeAllForUser(userId: string): Promise<number>;
+  revokeAllForUser(userId: string, reason: string): Promise<number>;
 
   /**
    * Permanently delete every session belonging to a user.

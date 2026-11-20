@@ -3,8 +3,8 @@
  * @description Contract tests for the admin-session port. Exercises an in-memory
  *              reference implementation against the semantics every adapter must
  *              honour: create, refresh-token rotation, per-user listing
- *              (newest-first, active-only filter, limit), bulk revoke, and bulk
- *              delete.
+ *              (newest-first, active-only filter, limit), bulk revoke with its
+ *              stored reason, and bulk delete.
  * @layer infrastructure
  */
 import { describe, it, beforeEach } from "vitest";
@@ -60,12 +60,13 @@ class InMemoryAdminSessionRepository implements AdminSessionRepository {
     return rows;
   }
 
-  async revokeAllForUser(userId: string): Promise<number> {
+  async revokeAllForUser(userId: string, reason: string): Promise<number> {
     let count = 0;
     for (const row of this.rows) {
       if (row.userId === userId && row.isActive) {
         row.isActive = false;
         row.revokedAt = new Date();
+        row.revokeReason = reason;
         count += 1;
       }
     }
@@ -125,19 +126,23 @@ describe("AdminSessionRepository contract", () => {
     const s1 = await repo.create(input());
     await repo.create(input());
     await repo.updateRefreshTokenHash(s1.id, "x");
-    await repo.revokeAllForUser("u-1");
+    await repo.revokeAllForUser("u-1", "PASSWORD_REISSUED");
     await repo.create(input({ refreshTokenHash: "active-again" }));
     const active = await repo.findByUserId("u-1", { activeOnly: true, limit: 1 });
     assert.strictEqual(active.length, 1);
     assert.strictEqual(active[0]?.isActive, true);
   });
 
-  it("revokeAllForUser deactivates active sessions and returns the count", async () => {
+  it("revokeAllForUser deactivates active sessions, stores the reason on each, and returns the count", async () => {
     await repo.create(input());
     await repo.create(input());
-    const count = await repo.revokeAllForUser("u-1");
+    const count = await repo.revokeAllForUser("u-1", "PASSWORD_REISSUED");
     assert.strictEqual(count, 2);
     assert.strictEqual((await repo.findByUserId("u-1", { activeOnly: true })).length, 0);
+    assert.deepStrictEqual(
+      (await repo.findByUserId("u-1")).map((row) => row.revokeReason),
+      ["PASSWORD_REISSUED", "PASSWORD_REISSUED"]
+    );
   });
 
   it("deleteAllForUser removes the rows and returns the count", async () => {

@@ -62,7 +62,9 @@ export class AdminUserAdminService {
   /**
    * @method create
    * @description Create an admin user, generating a random temporary password
-   *   when none is supplied. The role name is resolved to its ID.
+   *   when none is supplied. The role name is resolved to its ID. The user is
+   *   marked to change the password either way, since another administrator
+   *   chose or saw it, so the sign-in refuses it until it is changed.
    * @param input - email, name, role, optional password
    * @returns Ok({ user, temporaryPassword }) or Err("EMAIL_EXISTS")
    */
@@ -84,6 +86,7 @@ export class AdminUserAdminService {
       name: input.name,
       roleId,
       passwordHash,
+      mustChangePassword: true,
     });
     return ok({ user, temporaryPassword });
   }

@@ -60,7 +60,15 @@ export class AccountLifecycleService extends AuditableService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Create a new admin account
+   * @method createAccount
+   * @description Creates an administrator with the given password, under the role the request
+   *   names (`ADMIN` when it names none), and records the creation. The administrator is marked
+   *   to change that password, since its creator chose it, so the sign-in refuses it until the
+   *   administrator sets one of its own.
+   * @param data - The e-mail, password, name and role of the new account
+   * @param createdByUserId - The administrator who creates it, when known
+   * @returns The new account's profile; `EMAIL_EXISTS` when the address is taken,
+   *   `VALIDATION_ERROR` for a password shorter than 8 characters, `DATABASE_ERROR` otherwise
    */
   async createAccount(
     data: CreateAccountRequest,
@@ -109,6 +117,7 @@ export class AccountLifecycleService extends AuditableService {
             name: data.name,
             roleId: roleRecord ? roleRecord.id : "role-admin",
             emailVerified: true,
+            mustChangePassword: true,
           });
         }
       );
@@ -142,7 +151,11 @@ export class AccountLifecycleService extends AuditableService {
   }
 
   /**
-   * Get account by ID
+   * @method getAccount
+   * @description Reads an account's profile with its latest active session.
+   * @param accountId - The administrator to read
+   * @returns The profile; `NOT_FOUND` when no administrator has the id, `DATABASE_ERROR` when a
+   *   read fails
    */
   async getAccount(
     accountId: string
@@ -172,7 +185,14 @@ export class AccountLifecycleService extends AuditableService {
   }
 
   /**
-   * Update account details
+   * @method updateAccount
+   * @description Changes an account's name, role, active flag or e-mail verification and records
+   *   each change.
+   * @param accountId - The administrator to change
+   * @param data - The fields to change; at least one is required
+   * @param updatedByUserId - The administrator who changes it, when known
+   * @returns The updated profile; `NOT_FOUND` when no administrator has the id,
+   *   `DATABASE_ERROR` when no field is given or a write fails
    */
   async updateAccount(
     accountId: string,
@@ -272,7 +292,15 @@ export class AccountLifecycleService extends AuditableService {
   }
 
   /**
-   * Suspend/deactivate account
+   * @method suspendAccount
+   * @description Deactivates an account and ends its active sessions with the reason
+   *   `ACCOUNT_SUSPENDED`, in one transaction when a Unit of Work is given, and records a
+   *   compliance event.
+   * @param accountId - The administrator to suspend
+   * @param reason - Why it is suspended, recorded in the compliance event
+   * @param suspendedByUserId - The administrator who suspends it, when known
+   * @returns `ok` once suspended; `NOT_FOUND` when no administrator has the id,
+   *   `ALREADY_SUSPENDED` when it is inactive, `DATABASE_ERROR` otherwise
    */
   async suspendAccount(
     accountId: string,
@@ -311,7 +339,7 @@ export class AccountLifecycleService extends AuditableService {
         async () => {
           const work = async (): Promise<void> => {
             await this.userRepo.update(accountId, { isActive: false });
-            await this.sessionRepo.revokeAllForUser(accountId);
+            await this.sessionRepo.revokeAllForUser(accountId, "ACCOUNT_SUSPENDED");
           };
           if (this.unitOfWork) {
             await this.unitOfWork.executeInTransaction(work);
@@ -343,7 +371,12 @@ export class AccountLifecycleService extends AuditableService {
   }
 
   /**
-   * Reactivate suspended account
+   * @method reactivateAccount
+   * @description Activates a deactivated account again and records it.
+   * @param accountId - The administrator to reactivate
+   * @param reactivatedByUserId - The administrator who reactivates it, when known
+   * @returns `ok` once active; `NOT_FOUND` when no administrator has the id, `ALREADY_ACTIVE`
+   *   when it is active, `DATABASE_ERROR` otherwise
    */
   async reactivateAccount(
     accountId: string,
@@ -406,7 +439,14 @@ export class AccountLifecycleService extends AuditableService {
   }
 
   /**
-   * Delete account (permanent)
+   * @method deleteAccount
+   * @description Deletes an account permanently with its sessions, keeping its audit records
+   *   without the reference to it, in one transaction when a Unit of Work is given, and records a
+   *   compliance event.
+   * @param accountId - The administrator to delete
+   * @param deletedByUserId - The administrator who deletes it, when known
+   * @returns `ok` once deleted; `CANNOT_DELETE_SELF` when both ids are the same, `NOT_FOUND` when
+   *   no administrator has the id, `DATABASE_ERROR` otherwise
    */
   async deleteAccount(
     accountId: string,
@@ -482,7 +522,14 @@ export class AccountLifecycleService extends AuditableService {
   // Delegated query operations (thin wrappers to preserve the existing API)
   // ---------------------------------------------------------------------------
 
-  /** @see AccountLifecycleQueryService.listAccounts */
+  /**
+   * @method listAccounts
+   * @description Lists accounts a page at a time; see `AccountLifecycleQueryService.listAccounts`.
+   * @param filters - The filters of the listing
+   * @param page - The page to return
+   * @param limit - The accounts per page
+   * @returns What `AccountLifecycleQueryService.listAccounts` returns
+   */
   listAccounts(
     filters: AccountFilters,
     page: number,
@@ -491,7 +538,11 @@ export class AccountLifecycleService extends AuditableService {
     return this.queryService.listAccounts(filters, page, limit);
   }
 
-  /** @see AccountLifecycleQueryService.getAccountStats */
+  /**
+   * @method getAccountStats
+   * @description Counts the accounts; see `AccountLifecycleQueryService.getAccountStats`.
+   * @returns What `AccountLifecycleQueryService.getAccountStats` returns
+   */
   getAccountStats(): ReturnType<AccountLifecycleQueryService["getAccountStats"]> {
     return this.queryService.getAccountStats();
   }
@@ -500,7 +551,14 @@ export class AccountLifecycleService extends AuditableService {
   // Delegated session/password operations (thin wrappers to preserve API)
   // ---------------------------------------------------------------------------
 
-  /** @see AccountSessionService.resetPassword */
+  /**
+   * @method resetPassword
+   * @description Sets a new password on an account; see `AccountSessionService.resetPassword`.
+   * @param accountId - The administrator whose password is reset
+   * @param data - The new password, and whether its holder must change it
+   * @param resetByUserId - The administrator who resets it, when known
+   * @returns What `AccountSessionService.resetPassword` returns
+   */
   resetPassword(
     accountId: string,
     data: ResetPasswordRequest,
@@ -509,12 +567,24 @@ export class AccountLifecycleService extends AuditableService {
     return this.sessionService.resetPassword(accountId, data, resetByUserId);
   }
 
-  /** @see AccountSessionService.getAccountSessions */
+  /**
+   * @method getAccountSessions
+   * @description Lists an account's sessions; see `AccountSessionService.getAccountSessions`.
+   * @param accountId - The administrator whose sessions are listed
+   * @returns What `AccountSessionService.getAccountSessions` returns
+   */
   getAccountSessions(accountId: string): ReturnType<AccountSessionService["getAccountSessions"]> {
     return this.sessionService.getAccountSessions(accountId);
   }
 
-  /** @see AccountSessionService.revokeAllSessions */
+  /**
+   * @method revokeAllSessions
+   * @description Ends every active session of an account; see
+   *   `AccountSessionService.revokeAllSessions`.
+   * @param accountId - The administrator whose sessions end
+   * @param revokedByUserId - The administrator who ends them, when known
+   * @returns What `AccountSessionService.revokeAllSessions` returns
+   */
   revokeAllSessions(
     accountId: string,
     revokedByUserId?: string
