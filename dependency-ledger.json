@@ -318,6 +318,9 @@
       "sites": {
         "runtime-import": {
           "production": ["apps/api/src/security/securityHeaders.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/security/noCorsHeaders.test.ts"]
         }
       }
     },

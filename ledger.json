@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1235,
+      "total": 1236,
       "byShape": {
-        "test": 992,
+        "test": 993,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1067,
+        "KEEP": 1068,
         "ADJUDICATE": 95,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1225,
+      "machine": 1226,
       "confirmed": 10,
-      "total": 1235
+      "total": 1236
     },
     "blocks": {
-      "total": 15406,
+      "total": 15409,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15095
+        "BEHAVIOURAL": 15098
       }
     },
     "deleted": {
@@ -83719,6 +83719,44 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9402fd90640d3bca577822525181a22d60bd290dfc3b4978e99afad7b28f0916"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/security/noCorsHeaders.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::names no CORS response header and loads no CORS plugin in any source file of the API",
+          "line": 73,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4bfdc7f1887ed88596bd94438d97a68b53a1e1060d172aeb128f8ebb36f6d264"
+        },
+        {
+          "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::declares no CORS plugin among the API's dependencies",
+          "line": 86,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fac8c484b3624d64ba1051320f823fc2d0ef7862742146ea7b04ce7a4a1fdbfd"
+        },
+        {
+          "id": "apps/api/tests/unit/security/noCorsHeaders.test.ts::finds a header in a string, a key or a template and a plugin by name or path, never in a comment",
+          "line": 102,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ca8ffba4af21478ef5640040d144e1f7ddcc817ea12f175212e93d003b09d4cc"
         }
       ],
       "verdict": "KEEP",

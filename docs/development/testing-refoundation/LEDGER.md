@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1235  |
+| Files                   | 1236  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1067  |
+| KEEP                    | 1068  |
 | ADJUDICATE              | 95    |
 | unmeasured              | 0     |
-| Machine rows            | 1225  |
+| Machine rows            | 1226  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15406 |
+| Blocks                  | 15409 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1009,6 +1009,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/nameDigest.test.ts`                                                     | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestCanonicalize.test.ts`                                         | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestUnicodeTable.test.ts`                                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/noCorsHeaders.test.ts`                                                  | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.parity.test.ts`                                         | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.test.ts`                                                | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/sanitizerOutputs.test.ts`                                               | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
