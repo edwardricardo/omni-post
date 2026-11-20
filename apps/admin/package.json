@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage",
-    "typecheck": "tsc --noEmit"
+    "test:stories": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --disable-warning=DEP0205\" vitest run --config vitest.stories.config.ts",
+    "typecheck": "tsc --noEmit",
+    "storybook": "storybook dev -p 6007"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "1.5.0",
@@ -41,6 +43,9 @@
     "@packages/vitest-shared": "workspace:*",
     "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
+    "@storybook/addon-a11y": "catalog:",
+    "@storybook/addon-vitest": "catalog:",
+    "@storybook/nextjs-vite": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",
@@ -50,8 +55,12 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "@vitest/browser": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "jsdom": "catalog:",
+    "playwright": "catalog:",
+    "storybook": "catalog:",
     "tailwindcss": "catalog:",
     "tw-animate-css": "catalog:",
     "typescript": "catalog:",

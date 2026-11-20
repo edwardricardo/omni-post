@@ -103,8 +103,9 @@ const TEST_INFRASTRUCTURE = Object.freeze([
   "packages/providers/shared/src/test-utils/**",
   // The coverage floors apps/api's vitest configuration reads.
   "apps/api/vitest.coverage-thresholds.ts",
-  // The setup file the client's story tests run with.
-  "apps/client/.storybook/vitest.setup.ts",
+  // The preview every story test of the two portals runs with; their console contract is in
+  // packages/vitest-shared, named above.
+  "packages/ui/src/storybook/**",
 ]);
 
 /** The file the rendered record is committed as, whose Prettier configuration it is rendered under. */

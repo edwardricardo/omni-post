@@ -76,11 +76,12 @@
     {
       "kind": "date",
       "id": "storybook-11-dep0205",
-      "title": "Storybook 11 stable? Move the family and drop --disable-warning=DEP0205 from apps/client test:stories (ADR-0038)",
+      "title": "Storybook 11 stable? Move the family and drop --disable-warning=DEP0205 from the test:stories of apps/client and apps/admin (ADR-0038)",
       "due": "2026-11-24",
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Consequences (the story run's DEP0205) and Revisit if: read npm for a stable storybook 11.x (`pnpm view storybook dist-tags`); if published and mature, move the Storybook family to it, remove the flag, and measure the story run free of DEP0205 without it; if not, move `due` to the next Tuesday window",
         "apps/client/package.json, script test:stories",
+        "apps/admin/package.json, script test:stories: the same flag since 2026-11-20, when the admin Storybook was re-created on the client's runner; it moves with the client's",
         "Read 2026-10-21, a day after the 2026-10-20 due date (reminder #665): npm dist-tags at 18:31Z are latest 10.6.3 and next 11.0.0-alpha.7, so no stable 11.x is published; the family moved to 10.6.3 the same day, and its `storybook build` still prints `[DEP0205] DeprecationWarning: module.register() is deprecated`, so the flag stays; `due` moved from 2026-10-20 to 2026-10-27, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-21 against the moved date would be 6 days early and the check refuses more than 2",
         "Read 2026-10-27, the due date (reminder #745): npm dist-tags at 00:55Z are latest 10.6.4 (2026-10-26T10:38Z) and next 11.0.0-alpha.8 (2026-10-23T09:07Z), and the nine 11.x versions published are all alphas, so no stable 11.x is published; 10.6.4's one change (#36790) skips the TypeScript loader hook registration under Jest, the tree still runs 10.6.3, and apps/client test:stories still passes --disable-warning=DEP0205, so the flag stays; `due` moved from 2026-10-27 to 2026-11-03, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-27 against the moved date would be 7 days early and the check refuses more than 2",
         "Read 2026-11-05, two days after the 2026-11-03 due date (reminder #819): npm dist-tags at 19:20Z are latest 10.6.6 (2026-11-05T16:19Z) and next 11.0.0-beta.0, so no stable 11.x is published and the flag stays; `due` moved from 2026-11-03 to 2026-11-10, the next Tuesday window.",
