@@ -73918,35 +73918,35 @@
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::kills the runner's whole process group when it times out, its workers included",
-          "line": 2234,
+          "line": 2236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "18973f1eceba33b584f180d52272802aa0fd09da8b0af04cd94fe62549e5037a"
+          "bodyHash": "da88f9d2613d4735e6d83c16a66dda45a5a5cf60e3c01ec8acc34c55c12deb06"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::kills a worker its runner leaves behind when the runner ends on its own",
-          "line": 2250,
+          "line": 2252,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ca31661161fb26aa40f9148c50a5c2d9793813699579b1d37eea40fe06875367"
+          "bodyHash": "6c8d3cf26616159790140a54423e2be773e513e7d2231163792e0c7361d16dc9"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::names a command that cannot start",
-          "line": 2266,
+          "line": 2268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "536f35e31239860830bfc31a828e6237a63a34dab06c407cddc3392c9416c0e6"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::%s kills the runner's process group, restores and removes the worktree whatever a second signal does, and exits %i",
-          "line": 2304,
+          "line": 2305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "9d4ed496c7df3046a6f4adb47c0bc86437914780f4dde95629bf1674c6e9f5db"
+          "bodyHash": "7796f589edcce1f7b97b71bcdfdec3fd37d0e9f0febc312a3b1c7854f51e3a04"
         },
         {
           "id": "apps/api/tests/unit/scripts/hardProbe.test.ts::writes no probes.json, and leaves an earlier one as it was, when a signal arrives after the last probe",
-          "line": 2385,
+          "line": 2386,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "285cd90eae8001106e3bd4dc6630918ba0289eab90f9a286c4cbb5b08357421b"

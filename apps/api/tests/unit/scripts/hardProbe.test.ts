@@ -2206,6 +2206,9 @@ describe("pendingTempPath", () => {
   );
 });
 
+/** Whether a process still runs: absent, a zombie or dead in `/proc` is not running. */
+const running = (pid: number): boolean => !hasProcessEnded(pid);
+
 /** A node process that starts a worker of its own, prints the worker's pid, then ends or waits. */
 const parentOfWorker = (then: "ends" | "waits"): string[] => [
   "-e",
@@ -2219,8 +2222,7 @@ describe("runTool", () => {
   let workers: number[] = [];
 
   afterEach(() => {
-    for (const pid of workers.filter((worker) => !hasProcessEnded(worker)))
-      process.kill(pid, "SIGKILL");
+    for (const pid of workers.filter(running)) process.kill(pid, "SIGKILL");
     workers = [];
   });
 
@@ -2240,7 +2242,7 @@ describe("runTool", () => {
 
       expect(ran).toMatchObject({ status: null, timedOut: true, spawnError: null });
       expect(Number.isInteger(worker) && worker > 0).toBe(true);
-      await until(() => hasProcessEnded(worker), {
+      await until(() => !running(worker), {
         description: `worker ${worker} to end with its timed-out runner`,
         timeoutMs: 5_000,
       });
@@ -2256,7 +2258,7 @@ describe("runTool", () => {
 
       expect(ran).toMatchObject({ status: 0, timedOut: false, spawnError: null, stderr: "" });
       expect(Number.isInteger(worker) && worker > 0).toBe(true);
-      await until(() => hasProcessEnded(worker), {
+      await until(() => !running(worker), {
         description: `worker ${worker} to end with its runner`,
         timeoutMs: 5_000,
       });
@@ -2296,8 +2298,7 @@ describe("a signal", () => {
   let leftovers: number[] = [];
 
   afterEach(() => {
-    for (const pid of leftovers.filter((leftover) => !hasProcessEnded(leftover)))
-      process.kill(pid, "SIGKILL");
+    for (const pid of leftovers.filter(running)) process.kill(pid, "SIGKILL");
     leftovers = [];
   });
 
@@ -2362,7 +2363,7 @@ describe("a signal", () => {
       leftovers.push(runner);
 
       process.kill(toolPid, signal);
-      await until(() => hasProcessEnded(runner), {
+      await until(() => !running(runner), {
         description: `runner ${runner} to end with its process group`,
         timeoutMs: 10_000,
       });
