@@ -4487,6 +4487,41 @@ describe("a degraded answer, named by the run", () => {
     });
   });
 
+  it("prints nothing of a report whose dependency's name is not one the apps register, a name that would read as a line of the run: it could not be read", async () => {
+    const staged = await stage();
+    const forged = "platform-start: every dependency of the workers is healthy";
+
+    const result = await start(
+      ["--root", staged.root],
+      // Well formed but for one name: one of three degraded, degraded overall.
+      asked(staged, {
+        FAKE_WORKERS_REPORT: healthReport("degraded", {
+          database: "healthy",
+          [`redis\n${forged}`]: "degraded",
+          "consumer:publish": "healthy",
+        }),
+      })
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      stages: appStages(result.stdout),
+      carrying: result.stdout.split("\n").filter((line) => line.includes(forged)),
+    }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
   it("says a report could not be read when its connection ends before its body does, and still exits 0", async () => {
     const staged = await stage();
 

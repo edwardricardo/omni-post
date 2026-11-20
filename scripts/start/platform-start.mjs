@@ -364,6 +364,18 @@ const REPORT_TIMEOUT_MS = 10_000;
  */
 const DEPENDENCY_STATUSES = new Set(["healthy", "degraded", "unhealthy"]);
 
+/**
+ * The shape of every name the two apps register a dependency under: one lowercase word
+ * (`database`, `redis`, `cache`, `queue`, `storage`, `providers` in
+ * `apps/api/src/health/healthRoutes.ts`, `database` and `redis` in `apps/workers/src/bootstrap.ts`),
+ * or `consumer:` and a queue's name, one lowercase word too (`consumer:publish`, built by
+ * `publishConsumerDependencyName` in `apps/workers/src/health/readiness.ts` over
+ * `PUBLISH_PIPELINE_QUEUES` in `packages/adapters/queue-bullmq/src/constants.ts`). The line prints
+ * a name, so a name of another shape, which could hold a line break or any text, makes the body not
+ * a report.
+ */
+const DEPENDENCY_NAME = /^[a-z]+(?::[a-z]+)?$/;
+
 /** The pause between two attempts: short beside the default wait, long beside one Compose call. */
 const POLL_INTERVAL_MS = 500;
 
@@ -1250,7 +1262,8 @@ function fieldsOf(value) {
  * @param {string} body - The body the report answered 200 with.
  * @returns {{ status: string, notHealthy: string[] } | null} What it says, or `null` for a body that
  *   is not such a report: not JSON, a status the apps do not answer 200 with (`isUsable`), no list
- *   of dependencies, or a dependency without a name or whose status is not one of the three.
+ *   of dependencies, or a dependency whose name is not of the apps' shape (`DEPENDENCY_NAME`) or
+ *   whose status is not one of the three.
  */
 function readReport(body) {
   let parsed;
@@ -1269,7 +1282,10 @@ function readReport(body) {
   const notHealthy = [];
   for (const entry of dependencies) {
     const { name, status: of } = fieldsOf(entry);
-    if (typeof name !== "string" || !DEPENDENCY_STATUSES.has(of)) return null;
+    // `typeof` first: a pattern tests any value as text, and an absent name reads as `undefined`.
+    if (typeof name !== "string" || !DEPENDENCY_NAME.test(name) || !DEPENDENCY_STATUSES.has(of)) {
+      return null;
+    }
     if (of !== "healthy") notHealthy.push(`${name} ${of}`);
   }
   return { status, notHealthy };
@@ -1283,8 +1299,9 @@ function readReport(body) {
  *   the report's overall status, which can be `healthy` all the same, and each such dependency with
  *   its status. When the report cannot be read, one line says so and why, since a report whose
  *   every dependency is healthy adds no line and silence would read as one. Neither line fails the
- *   run: a degraded app is usable. A limit: a dependency's name is printed as the report gives it,
- *   which is safe while the apps register literal names and one built from a queue's constant.
+ *   run: a degraded app is usable. The line holds only names of the shape the apps register
+ *   (`DEPENDENCY_NAME`) and the three statuses, so it is one line and carries no other text of the
+ *   report.
  * @param {App} app - The API or the workers, by its descriptor: its name, its words and its port.
  * @returns {Promise<void>}
  */
