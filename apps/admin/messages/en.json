@@ -1114,12 +1114,12 @@
     "mfaCodeLabel": "Authentication code",
     "policyTitle": "The new password must:",
     "policy": {
-      "length": "be 12 to 128 characters long",
+      "length": "be {minLength} to {maxLength} characters long",
       "lowercase": "contain at least one lowercase letter",
       "uppercase": "contain at least one uppercase letter",
       "number": "contain at least one number",
       "special": "contain at least one character that is neither a letter nor a number",
-      "reuse": "differ from the current password and from the last five passwords of the account"
+      "reuse": "differ from the current password and from the last {reusedPasswords} passwords of the account"
     },
     "submit": "Change password",
     "submitting": "Changing password...",
@@ -1127,8 +1127,8 @@
     "invalidField": {
       "email": "Enter a valid e-mail address.",
       "currentPassword": "Enter the current password.",
-      "newPassword": "Enter a new password of at most 128 characters.",
-      "mfaToken": "The authentication code is six digits."
+      "newPassword": "Enter a new password of at most {maxLength} characters.",
+      "mfaToken": "The authentication code is {mfaCodeLength} digits."
     },
     "passwordChanged": "The password was changed. Sign in with the new password."
   },
@@ -1142,7 +1142,7 @@
     "passwordChangeNotRequired": "This account does not need a password change. Sign in with its password.",
     "concurrentModification": "The account changed while the password was being saved. Try again.",
     "passwordTooWeak": "The new password does not meet the requirements listed under it.",
-    "passwordReused": "The new password cannot be the current password or one of the last five. Choose another one.",
+    "passwordReused": "The new password cannot be the current password or one of the last {reusedPasswords}. Choose another one.",
     "rateLimitExceeded": "Too many attempts. Wait a moment and try again.",
     "ipNotAllowed": "Access from this network address is not allowed.",
     "validationFailed": "Some fields are not valid.",

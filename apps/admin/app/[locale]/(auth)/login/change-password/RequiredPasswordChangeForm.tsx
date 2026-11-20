@@ -3,8 +3,9 @@
  * @description The form of the page where an administrator who must change the password sets a
  *   new one before signing in. It asks for the e-mail, the current password, the new password and
  *   its confirmation, and for the second factor's code once the API asks for it. The confirmation
- *   is compared here and never sent; every other rule is the API's, whose error codes are shown as
- *   translated messages.
+ *   is compared here, for a message without a round trip, and again by the action, which never
+ *   sends it; every other rule is the API's, whose numbers the policy states and whose error codes
+ *   are shown as translated messages.
  * @component RequiredPasswordChangeForm
  * @layer infrastructure
  */
@@ -15,6 +16,7 @@ import { useTranslations, type Messages } from "next-intl";
 
 import { changeRequiredPasswordAction } from "@/app/actions/auth";
 import { AUTH_INPUT_CLASS, AUTH_SUBMIT_CLASS } from "@/components/auth/authFormClasses";
+import { ADMIN_PASSWORD_POLICY } from "@/lib/auth/passwordPolicy";
 import {
   ADMIN_AUTH_ERROR,
   adminAuthErrorMessageKey,
@@ -33,15 +35,20 @@ const VALIDATED_FIELDS: readonly (keyof CatalogSection["invalidField"])[] = [
   "mfaToken",
 ];
 
-/** The rules of the API's password policy, each stated under `policy`, in the order shown. */
-const POLICY_RULES: readonly (keyof CatalogSection["policy"])[] = [
-  "length",
-  "lowercase",
-  "uppercase",
-  "number",
-  "special",
-  "reuse",
-];
+type PolicyRule = keyof CatalogSection["policy"];
+
+/**
+ * The rules of the API's password policy, each stated under `policy`, in the order shown. They are
+ * keyed by rule, so a rule of the catalog left out of this list fails the typecheck.
+ */
+const POLICY_RULES = Object.values({
+  length: "length",
+  lowercase: "lowercase",
+  uppercase: "uppercase",
+  number: "number",
+  special: "special",
+  reuse: "reuse",
+} as const satisfies { [Rule in PolicyRule]: Rule });
 
 const POLICY_ID = "required-password-change-policy";
 
@@ -51,8 +58,9 @@ function errorIdOf(field: string): string {
 }
 
 /**
- * Stops a submission whose new password differs from its confirmation, and sends any other
- * without the confirmation. The code field stays once the form has asked for it.
+ * Stops a submission whose new password differs from its confirmation, with its message and no
+ * round trip, and sends any other to the action, which compares them again and never posts the
+ * confirmation. The code field stays once the form has asked for it.
  */
 async function submitUnlessMismatched(
   previous: RequiredPasswordChangeState | null,
@@ -64,8 +72,14 @@ async function submitUnlessMismatched(
       ...(previous?.requiresMfa === true && { requiresMfa: true }),
     };
   }
-  formData.delete("confirmPassword");
   return changeRequiredPasswordAction(previous, formData);
+}
+
+/** Whether an answer asks for the second factor's code: the first time, or after a wrong one. */
+function asksForCode(state: RequiredPasswordChangeState | null): boolean {
+  return (
+    state?.error === ADMIN_AUTH_ERROR.MFA_REQUIRED || state?.error === ADMIN_AUTH_ERROR.MFA_INVALID
+  );
 }
 
 /**
@@ -93,12 +107,15 @@ export function RequiredPasswordChangeForm() {
     });
   };
 
-  const requiresMfa = state?.requiresMfa === true;
+  // Each answer is a new state, so an answer that still asks for the code (a wrong one) gives the
+  // focus back to its field, not only the answer that first shows it.
   useEffect(() => {
-    if (requiresMfa) {
+    if (asksForCode(state)) {
       codeField.current?.focus();
     }
-  }, [requiresMfa]);
+  }, [state]);
+
+  const requiresMfa = state?.requiresMfa === true;
 
   const invalidFields = state?.invalidFields ?? [];
   const invalid = (field: string) => (invalidFields.includes(field) ? true : undefined);
@@ -114,13 +131,13 @@ export function RequiredPasswordChangeForm() {
       {state?.error !== undefined && (
         <div className="rounded-md bg-[var(--error-subtle)] p-4" role="alert">
           <p className="text-sm text-[var(--error)]">
-            {tErrors(adminAuthErrorMessageKey(state.error))}
+            {tErrors(adminAuthErrorMessageKey(state.error), ADMIN_PASSWORD_POLICY)}
           </p>
           {invalidFields.length > 0 && (
             <ul className="mt-2 list-disc pl-5 text-sm text-[var(--error)]">
               {VALIDATED_FIELDS.filter((field) => invalidFields.includes(field)).map((field) => (
                 <li key={field} id={errorIdOf(field)}>
-                  {t(`invalidField.${field}`)}
+                  {t(`invalidField.${field}`, ADMIN_PASSWORD_POLICY)}
                 </li>
               ))}
             </ul>
@@ -178,7 +195,7 @@ export function RequiredPasswordChangeForm() {
           <p>{t("policyTitle")}</p>
           <ul className="mt-1 list-disc pl-5">
             {POLICY_RULES.map((rule) => (
-              <li key={rule}>{t(`policy.${rule}`)}</li>
+              <li key={rule}>{t(`policy.${rule}`, ADMIN_PASSWORD_POLICY)}</li>
             ))}
           </ul>
         </div>

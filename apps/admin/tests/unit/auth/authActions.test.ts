@@ -4,7 +4,8 @@
  *   change, through the real backend client with `fetch` as the stand-in API. The sign-in sends an
  *   administrator who must change the password to the change page of the active locale with
  *   nothing in the URL and no session, and still signs in and reports errors as before. The change
- *   sends the form's e-mail, current password, new password and second-factor code, never the
+ *   refuses a new password that differs from its confirmation without posting anything; otherwise
+ *   it sends the form's e-mail, current password, new password and second-factor code, never the
  *   confirmation, redirects to the sign-in with the changed flag, and otherwise returns the API's
  *   code, the fields a validation failure names, and whether the form asks for the code. Next's
  *   redirect, the locale, the inbound headers and the session cookies are stand-ins.
@@ -14,6 +15,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { changeRequiredPasswordAction, loginAction } from "@/app/actions/auth";
+import { ADMIN_AUTH_ERROR } from "@/lib/auth/types";
+
+import {
+  ADMIN_EMAIL,
+  ADMIN_TOKENS,
+  ADMIN_USER,
+  answerWith,
+  jsonAnswer,
+  sentBody,
+} from "./apiStandIns";
 
 const navigation = vi.hoisted(() => ({ redirects: [] as string[] }));
 const session = vi.hoisted(() => ({ setAuthTokens: vi.fn() }));
@@ -39,36 +50,9 @@ vi.mock("@/lib/auth/sessionCookie", () => ({
   clearAuthCookies: vi.fn(),
 }));
 
-const EMAIL = "first.admin@omnipost.test";
-const USER = { id: "admin-1", email: EMAIL, name: "first.admin", role: "SUPER_ADMIN" };
-const TOKENS = {
-  accessToken: "access",
-  refreshToken: "refresh",
-  expiresIn: 900,
-  csrfToken: "csrf",
-};
-
-/** A JSON answer with the given status. */
-function jsonAnswer(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-/** Replaces `fetch` with one that answers `response` and records its calls. */
-function answerWith(response: Response) {
-  const fetchStub = vi.fn(async () => response);
-  vi.stubGlobal("fetch", fetchStub);
-  return fetchStub;
-}
-
-/** The JSON body of the one call `fetchStub` received. */
-function sentBody(fetchStub: ReturnType<typeof answerWith>): unknown {
-  expect(fetchStub).toHaveBeenCalledTimes(1);
-  const [, init] = fetchStub.mock.calls[0] as unknown as [string, RequestInit];
-  return JSON.parse(String(init.body));
-}
+const EMAIL = ADMIN_EMAIL;
+const USER = ADMIN_USER;
+const TOKENS = ADMIN_TOKENS;
 
 /** A form's data holding the given fields. */
 function formOf(fields: Record<string, string>): FormData {
@@ -218,6 +202,44 @@ describe("changeRequiredPasswordAction", () => {
 
     const state = await changeRequiredPasswordAction(null, formOf(CHANGE_FORM));
 
-    expect(state).toEqual({ error: "Validation failed", invalidFields: ["email", "newPassword"] });
+    expect(state).toEqual({
+      error: ADMIN_AUTH_ERROR.VALIDATION_FAILED,
+      invalidFields: ["email", "newPassword"],
+    });
+  });
+
+  it("refuses a new password that differs from its confirmation, and posts nothing", async () => {
+    const fetchStub = answerWith(jsonAnswer(200, { ok: true, data: { message: "changed" } }));
+
+    const state = await changeRequiredPasswordAction(
+      null,
+      formOf({ ...CHANGE_FORM, confirmPassword: "N3w-Passphrase!y" })
+    );
+
+    expect(state).toEqual({ error: ADMIN_AUTH_ERROR.PASSWORD_MISMATCH });
+    expect(fetchStub).not.toHaveBeenCalled();
+    expect(navigation.redirects).toEqual([]);
+  });
+
+  it("refuses a form without the confirmation, and posts nothing", async () => {
+    const fetchStub = answerWith(jsonAnswer(200, { ok: true, data: { message: "changed" } }));
+    const { confirmPassword: _confirmPassword, ...withoutConfirmation } = CHANGE_FORM;
+
+    const state = await changeRequiredPasswordAction(null, formOf(withoutConfirmation));
+
+    expect(state).toEqual({ error: ADMIN_AUTH_ERROR.PASSWORD_MISMATCH });
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  it("keeps asking for the code when the confirmation it refuses came with one", async () => {
+    const fetchStub = answerWith(jsonAnswer(200, { ok: true, data: { message: "changed" } }));
+
+    const state = await changeRequiredPasswordAction(
+      null,
+      formOf({ ...CHANGE_FORM, confirmPassword: "N3w-Passphrase!y", mfaToken: "123456" })
+    );
+
+    expect(state).toEqual({ error: ADMIN_AUTH_ERROR.PASSWORD_MISMATCH, requiresMfa: true });
+    expect(fetchStub).not.toHaveBeenCalled();
   });
 });

@@ -124,18 +124,23 @@ function issuesOf(details: unknown): ApiValidationIssue[] | undefined {
 
 /**
  * Reads an error answer: its code in text, whether `error` is the code itself or an object
- * carrying one, and a validation failure's issues. An envelope that names no code, or no
- * envelope at all, reads as the portal's `UNKNOWN_ERROR`.
+ * carrying one, and a validation failure's issues. A validation failure is known by the issues
+ * its `details` carries, whatever sentence the API words it with, and reads as the portal's
+ * `VALIDATION_FAILED`. An envelope that names no code, or no envelope at all, reads as the
+ * portal's `UNKNOWN_ERROR`.
  */
 function readApiError(envelope: ApiResponse<unknown> | undefined): ApiErrorReading {
   const error = envelope?.error;
+  const details = envelope?.details;
   let code: string = ADMIN_AUTH_ERROR.UNKNOWN_ERROR;
-  if (typeof error === "string" && error.length > 0) {
+  if (isRecord(details) && Array.isArray(details.issues)) {
+    code = ADMIN_AUTH_ERROR.VALIDATION_FAILED;
+  } else if (typeof error === "string" && error.length > 0) {
     code = error;
   } else if (isRecord(error) && typeof error.code === "string" && error.code.length > 0) {
     code = error.code;
   }
-  const issues = issuesOf(envelope?.details);
+  const issues = issuesOf(details);
   return { code, ...(issues !== undefined && { issues }) };
 }
 

@@ -3,9 +3,10 @@
  * @description Pins how the portal's backend client reads the API's answers to the sign-in and to
  *   the required password change: what it sends, with the caller's address relayed, and the result
  *   it hands back for every answer the API gives. An error comes back as a code in text whether the
- *   API sent it as a string or as an object with a code; a validation failure keeps its issues; a
- *   body that is not JSON and a request that never reached the API come back as the portal's own
- *   code. `fetch` and the inbound request headers are stand-ins.
+ *   API sent it as a string or as an object with a code; a validation failure is read by its
+ *   issues, not by its sentence, and keeps them; a body that is not JSON and a request that never
+ *   reached the API come back as the portal's own code. `fetch` and the inbound request headers
+ *   are stand-ins.
  * @layer infrastructure
  * @vitest-environment node
  */
@@ -14,6 +15,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticateAdmin, changeRequiredPassword } from "@/lib/auth/backend-client";
 import { ADMIN_AUTH_ERROR } from "@/lib/auth/types";
 
+import {
+  ADMIN_EMAIL,
+  ADMIN_TOKENS,
+  ADMIN_USER,
+  answerWith,
+  jsonAnswer,
+  onlyCall,
+} from "./apiStandIns";
+
 const CLIENT_CHAIN = "203.0.113.7, 10.0.0.1";
 
 vi.mock("next/headers", () => ({
@@ -21,46 +31,14 @@ vi.mock("next/headers", () => ({
 }));
 
 const CHANGE_INPUT = {
-  email: "first.admin@omnipost.test",
+  email: ADMIN_EMAIL,
   currentPassword: "single-use-secret",
   newPassword: "N3w-Passphrase!x",
   mfaToken: "123456",
 };
 
-const USER = {
-  id: "admin-1",
-  email: "first.admin@omnipost.test",
-  name: "first.admin",
-  role: "SUPER_ADMIN",
-};
-const TOKENS = {
-  accessToken: "access",
-  refreshToken: "refresh",
-  expiresIn: 900,
-  csrfToken: "csrf",
-};
-
-/** A JSON answer with the given status. */
-function jsonAnswer(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-/** Replaces `fetch` with one that answers `response` and records its calls. */
-function answerWith(response: Response | (() => Promise<Response>)) {
-  const fetchStub = vi.fn(async () => (typeof response === "function" ? response() : response));
-  vi.stubGlobal("fetch", fetchStub);
-  return fetchStub;
-}
-
-/** The URL and the request options of the one call `fetchStub` received. */
-function onlyCall(fetchStub: ReturnType<typeof answerWith>): { url: URL; init: RequestInit } {
-  expect(fetchStub).toHaveBeenCalledTimes(1);
-  const [url, init] = fetchStub.mock.calls[0] as unknown as [string, RequestInit];
-  return { url: new URL(url), init };
-}
+const USER = ADMIN_USER;
+const TOKENS = ADMIN_TOKENS;
 
 beforeEach(() => {
   vi.unstubAllGlobals();
@@ -101,6 +79,20 @@ describe("authenticateAdmin", () => {
     const result = await authenticateAdmin({ email: USER.email, password: "secret" });
 
     expect(result).toEqual({ status: "error", error: ADMIN_AUTH_ERROR.UNKNOWN_ERROR });
+  });
+
+  it("answers a validation failure with the portal's code, whatever sentence the API words it with", async () => {
+    answerWith(
+      jsonAnswer(400, {
+        ok: false,
+        error: "The request is not valid",
+        details: { issues: [{ path: "email", message: "Invalid email format" }] },
+      })
+    );
+
+    const result = await authenticateAdmin({ email: "not-an-address", password: "secret" });
+
+    expect(result).toEqual({ status: "error", error: ADMIN_AUTH_ERROR.VALIDATION_FAILED });
   });
 
   it("still answers wrong credentials with the API's code", async () => {
@@ -267,6 +259,24 @@ describe("changeRequiredPassword", () => {
         { path: "email", message: "Invalid email format" },
         { path: "newPassword", message: "Password must not exceed 128 characters" },
       ],
+    });
+  });
+
+  it("reads a validation failure by its issues, whatever sentence the API words it with", async () => {
+    answerWith(
+      jsonAnswer(400, {
+        ok: false,
+        error: "The request is not valid",
+        details: { issues: [{ path: "mfaToken", message: "MFA token must be exactly 6 digits" }] },
+      })
+    );
+
+    const result = await changeRequiredPassword(CHANGE_INPUT);
+
+    expect(result).toEqual({
+      status: "error",
+      error: ADMIN_AUTH_ERROR.VALIDATION_FAILED,
+      issues: [{ path: "mfaToken", message: "MFA token must be exactly 6 digits" }],
     });
   });
 

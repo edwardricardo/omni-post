@@ -17,7 +17,7 @@ import { renderToString } from "react-dom/server";
 
 import enMessages from "@/messages/en.json";
 import { LoginForm } from "@/components/auth/login-form";
-import type { AdminAuthState } from "@/lib/auth/types";
+import { ADMIN_AUTH_ERROR, type AdminAuthState } from "@/lib/auth/types";
 
 const action = vi.hoisted(() => ({
   loginAction:
@@ -56,7 +56,7 @@ describe("LoginForm", () => {
     ["MFA_INVALID", ERRORS.mfaInvalid],
     ["RATE_LIMIT_EXCEEDED", ERRORS.rateLimitExceeded],
     ["IP_NOT_ALLOWED", ERRORS.ipNotAllowed],
-    ["Validation failed", ERRORS.validationFailed],
+    [ADMIN_AUTH_ERROR.VALIDATION_FAILED, ERRORS.validationFailed],
     ["INTERNAL_ERROR", ERRORS.internalError],
     ["UNKNOWN_ERROR", ERRORS.unknown],
   ])("shows the translated message for %s, never the code", async (code, message) => {

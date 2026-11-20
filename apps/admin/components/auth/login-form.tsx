@@ -10,6 +10,7 @@
 import { useState, useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { loginAction } from "@/app/actions/auth";
+import { ADMIN_PASSWORD_POLICY } from "@/lib/auth/passwordPolicy";
 import { adminAuthErrorMessageKey, type AdminAuthState } from "@/lib/auth/types";
 import { AUTH_INPUT_CLASS, AUTH_SUBMIT_CLASS } from "./authFormClasses";
 
@@ -56,7 +57,7 @@ export function LoginForm() {
             data-testid="login-error"
           >
             <div className="text-sm text-[var(--error)]">
-              {tErrors(adminAuthErrorMessageKey(state.error))}
+              {tErrors(adminAuthErrorMessageKey(state.error), ADMIN_PASSWORD_POLICY)}
             </div>
           </div>
         )}

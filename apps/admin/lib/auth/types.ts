@@ -65,10 +65,11 @@ export type AuthenticateAdminResult =
 
 /**
  * The error codes of the administrators' sign-in and required password change, as the API
- * answers them, and the portal's own two: `UNKNOWN_ERROR` for an answer that names no code it
- * can read (a body that is not JSON, an envelope without a code, a request that never reached
- * the API) and `PASSWORD_MISMATCH` for a new password whose confirmation differs. The API's
- * validation failure carries a sentence where the other answers carry a code.
+ * answers them, and the portal's own three: `VALIDATION_FAILED` for the API's validation failure,
+ * read from the issues its envelope carries, since the API words it with a sentence rather than a
+ * code; `UNKNOWN_ERROR` for an answer that names no code it can read (a body that is not JSON, an
+ * envelope without a code, a request that never reached the API); and `PASSWORD_MISMATCH` for a
+ * new password whose confirmation differs.
  */
 export const ADMIN_AUTH_ERROR = {
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
@@ -84,7 +85,7 @@ export const ADMIN_AUTH_ERROR = {
   RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
   IP_NOT_ALLOWED: "IP_NOT_ALLOWED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
-  VALIDATION_FAILED: "Validation failed",
+  VALIDATION_FAILED: "VALIDATION_FAILED",
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   PASSWORD_MISMATCH: "PASSWORD_MISMATCH",
 } as const;

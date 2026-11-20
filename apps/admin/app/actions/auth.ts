@@ -130,28 +130,39 @@ function textField(formData: FormData, name: string): string {
 /**
  * Server Action for the password change an administrator must make before signing in.
  *
- * Signature is compatible with React 19 `useActionState`. It sends the form's e-mail, current
- * password, new password and second-factor code to the API, which runs the sign-in's checks and
- * opens no session; the confirmation of the new password is compared by the form and never sent.
- * The second factor's field is asked for once the API answers `MFA_REQUIRED`, and stays once the
- * form holds it.
+ * Signature is compatible with React 19 `useActionState`. It refuses a new password that differs
+ * from its confirmation, or a form without one, before anything is sent; the form compares them
+ * too, for a message without a round trip. Otherwise it sends the form's e-mail, current password,
+ * new password and second-factor code to the API, which runs the sign-in's checks and opens no
+ * session; the confirmation is never sent. The second factor's field is asked for once the API
+ * answers `MFA_REQUIRED`, and stays once the form holds it.
  *
  * @description Changes a password that must be changed, then sends the administrator to the
  *   sign-in of the active locale with the changed flag, where the new password signs in.
  * @param _prevState - The previous state, unused: the form's fields say what to send
- * @param formData - The form's e-mail, current password, new password and, once asked, the code
- * @returns The API's error code, the fields a validation failure names, and whether the form asks
- *   for the second factor's code; a change redirects instead of returning
+ * @param formData - The form's e-mail, current password, new password, its confirmation and,
+ *   once asked, the code
+ * @returns `PASSWORD_MISMATCH` for a confirmation that differs; otherwise the API's error code,
+ *   the fields a validation failure names, and whether the form asks for the second factor's
+ *   code; a change redirects instead of returning
  */
 export async function changeRequiredPasswordAction(
   _prevState: RequiredPasswordChangeState | null,
   formData: FormData
 ): Promise<RequiredPasswordChangeState> {
+  const newPassword = textField(formData, "newPassword");
+  if (newPassword !== textField(formData, "confirmPassword")) {
+    return {
+      error: ADMIN_AUTH_ERROR.PASSWORD_MISMATCH,
+      ...(formData.has("mfaToken") && { requiresMfa: true }),
+    };
+  }
+
   const mfaToken = textField(formData, "mfaToken");
   const result = await changeRequiredPassword({
     email: textField(formData, "email"),
     currentPassword: textField(formData, "currentPassword"),
-    newPassword: textField(formData, "newPassword"),
+    newPassword,
     ...(mfaToken !== "" && { mfaToken }),
   });
 

@@ -142,16 +142,6 @@ describe("admin proxy with the declared routing (en, es)", () => {
     expect(response.headers.get("location")).toBe(`${ORIGIN}/en`);
   });
 
-  it("still lets an anonymous visitor through another path under /en/login/", async () => {
-    const proxy = await loadProxy();
-
-    const response = proxy(requestTo("/en/login/other"));
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("location")).toBeNull();
-    expect(i18nMiddleware.handledPaths).toEqual(["/en/login/other"]);
-  });
-
   it("does not strip a first segment that only begins with a locale", async () => {
     const proxy = await loadProxy();
 

@@ -1114,12 +1114,12 @@
     "mfaCodeLabel": "Código de autenticación",
     "policyTitle": "La contraseña nueva debe:",
     "policy": {
-      "length": "tener entre 12 y 128 caracteres",
+      "length": "tener entre {minLength} y {maxLength} caracteres",
       "lowercase": "contener al menos una letra minúscula",
       "uppercase": "contener al menos una letra mayúscula",
       "number": "contener al menos un número",
       "special": "contener al menos un carácter que no sea una letra ni un número",
-      "reuse": "ser distinta de la contraseña actual y de las cinco últimas contraseñas de la cuenta"
+      "reuse": "ser distinta de la contraseña actual y de las {reusedPasswords} últimas contraseñas de la cuenta"
     },
     "submit": "Cambiar contraseña",
     "submitting": "Cambiando contraseña...",
@@ -1127,8 +1127,8 @@
     "invalidField": {
       "email": "Ingrese una dirección de correo electrónico válida.",
       "currentPassword": "Ingrese la contraseña actual.",
-      "newPassword": "Ingrese una contraseña nueva de 128 caracteres como máximo.",
-      "mfaToken": "El código de autenticación tiene seis dígitos."
+      "newPassword": "Ingrese una contraseña nueva de {maxLength} caracteres como máximo.",
+      "mfaToken": "El código de autenticación tiene {mfaCodeLength} dígitos."
     },
     "passwordChanged": "La contraseña se cambió. Inicie sesión con la contraseña nueva."
   },
@@ -1142,7 +1142,7 @@
     "passwordChangeNotRequired": "Esta cuenta no necesita cambiar la contraseña. Inicie sesión con su contraseña.",
     "concurrentModification": "La cuenta cambió mientras se guardaba la contraseña. Inténtelo de nuevo.",
     "passwordTooWeak": "La contraseña nueva no cumple los requisitos indicados debajo de ella.",
-    "passwordReused": "La contraseña nueva no puede ser la actual ni una de las cinco últimas. Elija otra.",
+    "passwordReused": "La contraseña nueva no puede ser la actual ni una de las {reusedPasswords} últimas. Elija otra.",
     "rateLimitExceeded": "Demasiados intentos. Espere un momento e inténtelo de nuevo.",
     "ipNotAllowed": "No se permite el acceso desde esta dirección de red.",
     "validationFailed": "Algunos campos no son válidos.",
