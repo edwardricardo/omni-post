@@ -90,17 +90,19 @@ jobs:
       #
       # The restore-keys differ on main on purpose. ci.yml drops the prefix
       # there so that a CI run on main replays nothing built for an earlier
-      # commit. The probe consumes no entry: it replays one only to compare it
-      # with a cold build, and an earlier commit's entry is one CI still
-      # consumes, because a pull request run with no entry of its own may
-      # restore one created on its base branch or on the default branch, and
-      # on the default branch the prefix returns the newest entry created
-      # under the same pnpm-lock.yaml + turbo.json. So the probe keeps
-      # the prefix on every ref, main included: when the exact entry for the
-      # commit checked out is missing (its Build Check is still running, was
-      # cancelled or failed), the probe checks the entry a pull request would
-      # replay instead of failing for nothing but the moment the schedule
-      # fired.
+      # commit. The probe keeps the prefix on every ref, main included, for
+      # three reasons:
+      # 1. The probe feeds no build. It replays an entry only to compare it
+      #    with a cold build, and it saves nothing.
+      # 2. Pull request runs still replay earlier entries of main. A pull
+      #    request run with no entry of its own may restore one created on its
+      #    base branch or on the default branch, and on the default branch the
+      #    prefix returns the newest entry created under the same
+      #    pnpm-lock.yaml + turbo.json.
+      # 3. So when the exact entry for the commit checked out is missing (its
+      #    Build Check is still running, was cancelled or failed), the probe
+      #    checks that newest entry, the one a pull request would replay,
+      #    instead of failing for nothing but the moment the schedule fired.
       #
       # The bare `${{ runner.os }}-turbo-` catch-all prefix is deliberately
       # absent, mirroring ci.yml: it matched caches produced under other

@@ -65,7 +65,10 @@ jobs:
           #   prefix on main on purpose (its coupling note says why); changing
           #   either here without changing it there leaves the probe observing
           #   a cache CI no longer uses.
-          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
+          # - One definition: the condition is written once, here, behind the
+          #   YAML anchor `turbo-restore-keys`. The other two turbo cache steps
+          #   of this file take it by alias, so the three cannot drift apart.
+          restore-keys: &turbo-restore-keys ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Check formatting
         run: pnpm format:check
@@ -646,7 +649,7 @@ jobs:
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
+          restore-keys: *turbo-restore-keys
 
       - name: Build all packages
         # Turbo 2.9.16 has no --fail-on-warning flag, so a task that declares
@@ -851,7 +854,7 @@ jobs:
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
+          restore-keys: *turbo-restore-keys
 
       - name: Setup test environment
         # Some package suites (e.g. fallback-strategies) self-skip without env
