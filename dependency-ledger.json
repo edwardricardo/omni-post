@@ -8,8 +8,8 @@
     "types": 9,
     "aboveFloor": 49,
     "underFloor": 111,
-    "atZero": 14,
-    "underFloorWithSites": 97,
+    "atZero": 13,
+    "underFloorWithSites": 98,
     "kept": 105,
     "remove": 6,
     "pending": 1
@@ -410,11 +410,11 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "config": ["scripts/testing/i18n-lint.mjs"]
+          "config": ["scripts/testing/error-registry-gate.mjs", "scripts/testing/i18n-lint.mjs"]
         }
       }
     },
@@ -2047,6 +2047,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -2400,6 +2405,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -2530,6 +2540,9 @@
       "sites": {
         "runtime-import": {
           "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/scripts/errorSitesGate.test.ts"]
         }
       }
     },
@@ -2844,6 +2857,11 @@
         },
         {
           "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-errors/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
         },
@@ -3298,9 +3316,13 @@
       ],
       "bins": ["jiti"],
       "verdict": "under-floor",
-      "real": 0,
+      "real": 1,
       "decision": "kept",
-      "sites": {}
+      "sites": {
+        "runtime-import": {
+          "config": ["scripts/testing/error-registry-gate.mjs"]
+        }
+      }
     },
     {
       "name": "jscpd",
@@ -4768,6 +4790,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -5345,6 +5372,11 @@
         },
         {
           "manifest": "packages/core/webhooks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-errors/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
         },
