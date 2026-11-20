@@ -14,7 +14,10 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
+import {
+  ADMIN_SESSION_REVOKE_REASONS,
+  type AdminSessionRepository,
+} from "@core/domain/repositories/AdminSessionRepository.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AdminUserCredentialsDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -53,9 +56,6 @@ const AUDIT = {
   action: "ADMINISTRATOR_PASSWORD_REISSUED",
   task: "create-first-admin --reissue",
 } as const;
-
-/** Why the re-issue ends the administrator's sessions, as each ended session records it. */
-const SESSIONS_REVOKED_BECAUSE = "PASSWORD_REISSUED";
 
 /** The e-mail of the administrator whose single-use password is re-issued. */
 export interface ReissueAdministratorPasswordInput {
@@ -208,7 +208,10 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     // A session can exist while the sign-in date is still empty, and it must not outlive the
     // password it was opened with.
     try {
-      await this.sessions.revokeAllForUser(administrator.id, SESSIONS_REVOKED_BECAUSE);
+      await this.sessions.revokeAllForUser(
+        administrator.id,
+        ADMIN_SESSION_REVOKE_REASONS.PASSWORD_REISSUED
+      );
     } catch (error: unknown) {
       return err(
         new UseCaseError(MESSAGES.revokeFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))

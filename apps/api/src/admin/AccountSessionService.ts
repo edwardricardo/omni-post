@@ -15,9 +15,10 @@ import { AuditableService, auditActor } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
-import type {
-  AdminSessionRepository,
-  AdminSessionDto,
+import {
+  ADMIN_SESSION_REVOKE_REASONS,
+  type AdminSessionRepository,
+  type AdminSessionDto,
 } from "@core/domain/repositories/AdminSessionRepository.js";
 import type { ResetPasswordRequest } from "./accountLifecycleTypes.js";
 
@@ -179,7 +180,10 @@ export class AccountSessionService extends AuditableService {
           severity: "HIGH",
         },
         async () => {
-          return this.sessionRepo.revokeAllForUser(accountId, "ADMIN_REVOKED");
+          return this.sessionRepo.revokeAllForUser(
+            accountId,
+            ADMIN_SESSION_REVOKE_REASONS.ADMIN_REVOKED
+          );
         }
       );
 

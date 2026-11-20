@@ -24,9 +24,10 @@ import type {
   AdminUserRepositoryPort,
   AdminUserUpdate,
 } from "@core/domain/repositories/AdminUserRepository.js";
-import type {
-  AdminSessionRepository,
-  AdminSessionDto,
+import {
+  ADMIN_SESSION_REVOKE_REASONS,
+  type AdminSessionRepository,
+  type AdminSessionDto,
 } from "@core/domain/repositories/AdminSessionRepository.js";
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
@@ -339,7 +340,10 @@ export class AccountLifecycleService extends AuditableService {
         async () => {
           const work = async (): Promise<void> => {
             await this.userRepo.update(accountId, { isActive: false });
-            await this.sessionRepo.revokeAllForUser(accountId, "ACCOUNT_SUSPENDED");
+            await this.sessionRepo.revokeAllForUser(
+              accountId,
+              ADMIN_SESSION_REVOKE_REASONS.ACCOUNT_SUSPENDED
+            );
           };
           if (this.unitOfWork) {
             await this.unitOfWork.executeInTransaction(work);

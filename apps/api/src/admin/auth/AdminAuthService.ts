@@ -16,6 +16,7 @@ import {
   type CheckLoginAttemptInput,
 } from "@ports/core";
 import { deriveActorType } from "@core/domain/repositories/AuditLogRepository.js";
+import { ADMIN_SESSION_REVOKE_REASONS } from "@core/domain/repositories/AdminSessionRepository.js";
 import type {
   AdminUserProfile,
   LoginRequest,
@@ -429,7 +430,7 @@ export class AdminAuthService {
         data: {
           isActive: false,
           revokedAt: new Date(),
-          revokeReason: "USER_LOGOUT",
+          revokeReason: ADMIN_SESSION_REVOKE_REASONS.USER_LOGOUT,
         },
       });
     } else if (sessionId) {
@@ -439,7 +440,7 @@ export class AdminAuthService {
         data: {
           isActive: false,
           revokedAt: new Date(),
-          revokeReason: "USER_LOGOUT",
+          revokeReason: ADMIN_SESSION_REVOKE_REASONS.USER_LOGOUT,
         },
       });
     }

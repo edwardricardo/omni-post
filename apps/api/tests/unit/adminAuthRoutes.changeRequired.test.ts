@@ -246,6 +246,17 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(changeCall).toEqual(signInCall);
   });
 
+  it("spends the sign-in's rate-limit bucket on a body the schema refuses, before the handler answers it", async () => {
+    const res = await post({ ...VALID_BODY, email: "not-an-address" });
+
+    expect(res.statusCode).toBe(400);
+    expect(limiterStub.tryConsume).toHaveBeenCalledTimes(1);
+    expect(limiterStub.tryConsume).toHaveBeenCalledWith(
+      "admin:127.0.0.1:/admin/auth/login",
+      expect.anything()
+    );
+  });
+
   it("answers 429 and does not run the service when the rate limit refuses", async () => {
     limiterAllows = false;
 

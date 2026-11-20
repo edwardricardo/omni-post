@@ -14,6 +14,7 @@ import type {
   AdminSessionDto,
   AdminSessionCreateInput,
   AdminSessionFindOptions,
+  AdminSessionRevokeReason,
 } from "@core/domain/repositories/AdminSessionRepository.js";
 
 class InMemoryAdminSessionRepository implements AdminSessionRepository {
@@ -60,7 +61,7 @@ class InMemoryAdminSessionRepository implements AdminSessionRepository {
     return rows;
   }
 
-  async revokeAllForUser(userId: string, reason: string): Promise<number> {
+  async revokeAllForUser(userId: string, reason: AdminSessionRevokeReason): Promise<number> {
     let count = 0;
     for (const row of this.rows) {
       if (row.userId === userId && row.isActive) {

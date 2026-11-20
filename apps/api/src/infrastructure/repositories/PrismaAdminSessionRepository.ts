@@ -14,6 +14,7 @@ import type {
   AdminSessionDto,
   AdminSessionCreateInput,
   AdminSessionFindOptions,
+  AdminSessionRevokeReason,
 } from "@core/domain/repositories/AdminSessionRepository.js";
 
 /**
@@ -98,10 +99,11 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
    * @description Revoke every active session belonging to a user, storing the reason in the
    *   `revokeReason` column the other revocations write theirs to.
    * @param userId - Owning AdminUser id
-   * @param reason - Why the sessions end, stored on each as its `revokeReason`
+   * @param reason - Why the sessions end, one reason of `ADMIN_SESSION_REVOKE_REASONS`, stored on
+   *   each as its `revokeReason`
    * @returns Count of sessions revoked
    */
-  async revokeAllForUser(userId: string, reason: string): Promise<number> {
+  async revokeAllForUser(userId: string, reason: AdminSessionRevokeReason): Promise<number> {
     const result = await this.getClient().adminSession.updateMany({
       where: { userId, isActive: true },
       data: { isActive: false, revokedAt: new Date(), revokeReason: reason },

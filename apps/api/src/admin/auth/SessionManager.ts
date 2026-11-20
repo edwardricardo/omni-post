@@ -20,6 +20,7 @@ import type {
 import { adminAuthConfig } from "./adminAuthConfig.js";
 import { TokenService } from "./TokenService.js";
 import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
+import { ADMIN_SESSION_REVOKE_REASONS } from "@core/domain/repositories/AdminSessionRepository.js";
 
 export class SessionManager {
   private tokenService: TokenService;
@@ -32,7 +33,15 @@ export class SessionManager {
   }
 
   /**
-   * Create new admin session with device fingerprinting
+   * @method createSession
+   * @description Creates an admin session with the device's fingerprint, valid for 30 days when
+   *   remembered and 7 otherwise, and issues its tokens: the refresh token, whose hash the row
+   *   stores, an access token that lasts the configured session timeout, and the CSRF token.
+   * @param userId - The administrator the session belongs to
+   * @param device - The device's address, agent, id, and its name and location when known
+   * @param rememberMe - Whether the session lasts 30 days instead of 7
+   * @param getUserProfile - Reads the administrator's profile for the access token
+   * @returns The session's id and its tokens; it throws when the profile cannot be read
    */
   async createSession(
     userId: string,
@@ -108,7 +117,10 @@ export class SessionManager {
   }
 
   /**
-   * Cleanup inactive or expired sessions
+   * @method cleanupExpiredSessions
+   * @description Ends the administrator's active sessions that expired or stayed inactive past
+   *   the configured timeout, with the reason `SESSION_EXPIRED`.
+   * @param userId - The administrator whose sessions are cleaned up
    */
   async cleanupExpiredSessions(userId: string): Promise<void> {
     await this.prisma.adminSession.updateMany({
@@ -129,13 +141,17 @@ export class SessionManager {
       data: {
         isActive: false,
         revokedAt: new Date(),
-        revokeReason: "SESSION_EXPIRED",
+        revokeReason: ADMIN_SESSION_REVOKE_REASONS.SESSION_EXPIRED,
       },
     });
   }
 
   /**
-   * Enforce max concurrent sessions
+   * @method enforceMaxSessions
+   * @description Ends the administrator's least recently used active sessions, with the reason
+   *   `MAX_SESSIONS_EXCEEDED`, so that a new one fits within `maxSessions`.
+   * @param userId - The administrator whose sessions are counted
+   * @param maxSessions - How many active sessions the administrator may hold
    */
   async enforceMaxSessions(userId: string, maxSessions: number): Promise<void> {
     const activeSessions = await this.prisma.adminSession.findMany({
@@ -157,14 +173,17 @@ export class SessionManager {
         data: {
           isActive: false,
           revokedAt: new Date(),
-          revokeReason: "MAX_SESSIONS_EXCEEDED",
+          revokeReason: ADMIN_SESSION_REVOKE_REASONS.MAX_SESSIONS_EXCEEDED,
         },
       });
     }
   }
 
   /**
-   * List active sessions for a user
+   * @method listSessions
+   * @description Lists the administrator's active, unexpired sessions, most recently used first.
+   * @param userId - The administrator whose sessions are listed
+   * @returns The sessions, none marked as the current one: the caller marks it
    */
   async listSessions(userId: string): Promise<Result<SessionInfo[], AuthErrorCode>> {
     const sessions = await this.prisma.adminSession.findMany({
@@ -204,7 +223,15 @@ export class SessionManager {
   }
 
   /**
-   * Revoke a specific session
+   * @method revokeSession
+   * @description Ends one session of the administrator, storing the reason given, or
+   *   `USER_REVOKED` when none is, and records the revocation.
+   * @param userId - The administrator the session must belong to
+   * @param sessionId - The session to end
+   * @param reason - The reason the caller gives, stored as given
+   * @param onSecurityEvent - Receives the security event of the revocation
+   * @returns `ok(true)` once the session is ended; `INVALID_REQUEST` when the administrator holds
+   *   no session with that id
    */
   async revokeSession(
     userId: string,
@@ -236,7 +263,7 @@ export class SessionManager {
       data: {
         isActive: false,
         revokedAt: new Date(),
-        revokeReason: reason || "USER_REVOKED",
+        revokeReason: reason || ADMIN_SESSION_REVOKE_REASONS.USER_REVOKED,
       },
     });
 

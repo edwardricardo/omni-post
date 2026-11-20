@@ -12,6 +12,7 @@ import { inspect } from "node:util";
 import { err, ok, type Result } from "@shared/types";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
+import type { AdminSessionRevokeReason } from "@core/domain/repositories/AdminSessionRepository.js";
 import type { SingleUsePasswordReplacement } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogCreateInput } from "@core/domain/repositories/AuditLogRepository.js";
 import type { AdminUserCredentialsDto } from "@core/domain/repositories/ReadModelDtos.js";
@@ -109,7 +110,7 @@ function makeAdministrator(
 /** One call of the session repository's revocation: whose sessions, and the reason stored. */
 interface RevokeCall {
   readonly userId: string;
-  readonly reason: string;
+  readonly reason: AdminSessionRevokeReason;
 }
 
 /** What the doubles answer; an absent key takes the answer of an eligible administrator. */
@@ -194,7 +195,7 @@ function makeHarness(options: HarnessOptions = {}): Harness {
     },
   };
   const sessions: ReissueSessionRepository = {
-    async revokeAllForUser(userId: string, reason: string) {
+    async revokeAllForUser(userId: string, reason: AdminSessionRevokeReason) {
       journal.push(JOURNAL.revoke);
       revokedFor.push({ userId, reason });
       if (options.revokeRaise !== undefined) {
