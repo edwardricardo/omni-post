@@ -128,6 +128,17 @@ export interface ChangePasswordRequest {
 }
 
 /**
+ * Required password change: an administrator without a session replaces a password that must
+ * be changed, presenting the credentials the sign-in checks.
+ */
+export interface RequiredPasswordChangeRequest {
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+  mfaToken?: string; // TOTP code if MFA is enabled
+}
+
+/**
  * Reset password request (forgot password flow)
  */
 export interface ResetPasswordRequest {
@@ -423,6 +434,8 @@ export type AuthErrorCode =
   | "USER_NOT_FOUND"
   | "INVALID_REQUEST"
   | "INTERNAL_ERROR"
+  // The credentials verified, but the administrator's password is not marked to be changed.
+  | "PASSWORD_CHANGE_NOT_REQUIRED"
   // A concurrent password write moved the row between a flow's read and its
   // claim; the credential presented is still live, so the caller should retry.
   | "CONCURRENT_MODIFICATION";

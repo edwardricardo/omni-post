@@ -92,6 +92,24 @@ describe("csrfMiddleware", () => {
     expect(reply.status).not.toHaveBeenCalled();
   });
 
+  it("skips the required password change, which carries no CSRF token since its caller holds no session", async () => {
+    const prisma = makeMockPrisma();
+    const hook = createCsrfMiddleware(prisma);
+    const reply = makeMockReply();
+
+    await hook(
+      makeMockRequest({
+        url: "/admin/auth/password/change-required",
+        method: "POST",
+        headers: {},
+      }),
+      reply
+    );
+
+    expect(reply.status).not.toHaveBeenCalled();
+    expect(prisma.adminSession.findFirst).not.toHaveBeenCalled();
+  });
+
   it("skips exempt routes (refresh)", async () => {
     const prisma = makeMockPrisma();
     const hook = createCsrfMiddleware(prisma);

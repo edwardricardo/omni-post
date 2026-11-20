@@ -104,6 +104,22 @@ export const changePasswordSchema = z.object({
 });
 
 /**
+ * Required password change schema: the sign-in's e-mail and second-factor code, the current
+ * password and the new one. The new password's policy is applied by the service, so its refusal
+ * carries the service's code rather than a validation failure. Its length is bounded here, as in
+ * the other schemas that take a new password, because the service's policy states no maximum.
+ */
+export const requiredPasswordChangeSchema = z.object({
+  email: loginSchema.shape.email,
+  currentPassword: z.string().min(1, { message: "Current password is required" }),
+  newPassword: z
+    .string()
+    .min(1, { message: "New password is required" })
+    .max(128, { message: "Password must not exceed 128 characters" }),
+  mfaToken: loginSchema.shape.mfaToken,
+});
+
+/**
  * Reset password request schema (forgot password)
  */
 export const resetPasswordRequestSchema = z.object({
@@ -170,8 +186,12 @@ export const revokeSessionSchema = z.object({
 // ============================================================================
 
 /**
- * Custom password strength validator
- * Returns detailed feedback on password strength
+ * @description Scores a password against the administrators' password policy: at least 12
+ *   characters with lower case, upper case, digits and special characters, a score from length
+ *   and variety, lowered by common patterns.
+ * @param password - The password to score
+ * @returns Whether the policy accepts it (no errors and a strength above WEAK), its strength,
+ *   the errors and the suggestions
  */
 export function validatePasswordStrength(password: string): {
   valid: boolean;

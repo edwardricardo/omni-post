@@ -150,6 +150,53 @@ describe("ipAllowlistMiddleware", () => {
       expect(reply.status).not.toHaveBeenCalled();
     });
 
+    it("refuses the required password change from an address outside an enabled allowlist", async () => {
+      const prisma = makeMockPrisma({ ipAllowlistEnabled: true, ipAllowlist: ["10.0.0.1"] });
+      const hook = createIpAllowlistMiddleware(prisma);
+      const reply = makeMockReply();
+
+      await hook(
+        makeMockRequest({
+          url: "/admin/auth/password/change-required",
+          method: "POST",
+          ip: "192.168.1.1",
+        }),
+        reply
+      );
+
+      expect(reply.status).toHaveBeenCalledWith(403);
+      expect(reply.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: false,
+          error: expect.objectContaining({ code: "IP_NOT_ALLOWED" }),
+        })
+      );
+    });
+
+    it.each([
+      ["disabled", { ipAllowlistEnabled: false, ipAllowlist: ["10.0.0.1"] }],
+      ["empty", { ipAllowlistEnabled: true, ipAllowlist: [] }],
+    ])(
+      "lets the required password change through when the allowlist is %s",
+      async (_state, settings) => {
+        const prisma = makeMockPrisma(settings);
+        const hook = createIpAllowlistMiddleware(prisma);
+        const reply = makeMockReply();
+
+        await hook(
+          makeMockRequest({
+            url: "/admin/auth/password/change-required",
+            method: "POST",
+            ip: "192.168.1.1",
+          }),
+          reply
+        );
+
+        expect(reply.status).not.toHaveBeenCalled();
+        expect(prisma.securitySettings.findFirst).toHaveBeenCalledTimes(1);
+      }
+    );
+
     it("skips non-admin routes", async () => {
       const prisma = makeMockPrisma({ ipAllowlistEnabled: true, ipAllowlist: ["10.0.0.1"] });
       const hook = createIpAllowlistMiddleware(prisma);

@@ -44,15 +44,13 @@ function extractBearerToken(request: FastifyRequest): string | null {
 }
 
 /**
- * Require admin authentication (JWT access token)
- *
- * Validates JWT access token and attaches auth context to request.
- * Returns 401 if token is missing, invalid, or expired.
- *
- * Usage:
- * ```typescript
- * fastify.addHook('onRequest', requireAdminAuth);
- * ```
+ * @description Requires an administrator's access token: it validates the bearer token and
+ *   attaches the auth context to the request. A missing, invalid or expired token is answered
+ *   401.
+ * @param request - The incoming request, whose `Authorization` header carries the bearer token
+ * @param reply - The reply, used to answer 401 when the token is refused
+ * @example
+ * fastify.addHook("onRequest", requireAdminAuth);
  */
 export async function requireAdminAuth(
   request: FastifyRequest,
@@ -109,6 +107,7 @@ export async function requireAdminAuth(
       INVALID_REQUEST: "Invalid request",
       INTERNAL_ERROR: "Internal error",
       CONCURRENT_MODIFICATION: "Concurrent modification, retry the request",
+      PASSWORD_CHANGE_NOT_REQUIRED: "Password change not required",
     };
 
     const errorCode = result.error as AuthErrorCode;
@@ -218,14 +217,16 @@ export const requireAdmin = requireRole(["SUPER_ADMIN", "ADMIN"]);
  *              limiter outage.
  * @param maxRequests - Maximum requests allowed inside the window.
  * @param windowMs - Window size in milliseconds.
+ * @param bucket - The route pattern whose bucket the route spends, so routes that name one
+ *   pattern share one allowance per address; when absent, the bucket is the route's own pattern.
  * @returns Fastify handler middleware.
  */
-export function rateLimit(maxRequests: number, windowMs: number) {
+export function rateLimit(maxRequests: number, windowMs: number, bucket?: string) {
   return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const limiter = request.server.container?.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
     if (!limiter) return;
 
-    const key = `admin:${resolveClientIp(request)}:${request.routeOptions.url}`;
+    const key = `admin:${resolveClientIp(request)}:${bucket ?? request.routeOptions.url}`;
     let decision;
     try {
       decision = await limiter.tryConsume(key, {

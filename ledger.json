@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1219,
+      "total": 1225,
       "byShape": {
-        "test": 980,
-        "integration-test": 88,
+        "test": 984,
+        "integration-test": 89,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
         "runner": 0,
-        "helper": 119,
+        "helper": 120,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1054,
-        "ADJUDICATE": 92,
+        "KEEP": 1059,
+        "ADJUDICATE": 93,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1209,
+      "machine": 1215,
       "confirmed": 10,
-      "total": 1219
+      "total": 1225
     },
     "blocks": {
-      "total": 15225,
+      "total": 15286,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14914
+        "BEHAVIOURAL": 14975
       }
     },
     "deleted": {
@@ -3869,6 +3869,51 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses a wrong current password with 401 and changes nothing",
+          "line": 177,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d66c6e26425e77df9f934df665acf3912fef2f25e4b38b6ecec3e59ee8afff65"
+        },
+        {
+          "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::replaces the single-use password with the new one, clears the mark, leaves lastLoginAt null and opens no session",
+          "line": 188,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "da142894c2eeeaf158f8bf72792fcbf49719c6af235018126f2ad85271a536f5"
+        },
+        {
+          "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::refuses a second change as not required, with the new password as the current one, and changes nothing",
+          "line": 209,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "262eeb77619e5daadb0727f79214d1d12b9f841faacfc0a9b3e42cf5e603272c"
+        },
+        {
+          "id": "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts::stores exactly one of two new passwords and refuses the other as a concurrent modification, when two changes run at once",
+          "line": 229,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a0219b11475ebb4a30eea44873a1476c25366f09671d0a62ea8343e5d2156160"
+        }
+      ],
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/integration/aiLocalizedRoutes.live.test.ts",
       "shape": "live-test",
       "framework": "node",
@@ -5545,6 +5590,22 @@
       "importers": 2
     },
     {
+      "path": "apps/api/tests/integration/helpers/migratedScratchDatabase.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 1
+    },
+    {
       "path": "apps/api/tests/integration/helpers/postTrioFixtures.ts",
       "shape": "helper",
       "framework": null,
@@ -5622,7 +5683,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 84
+      "importers": 86
     },
     {
       "path": "apps/api/tests/integration/inboxRoutes.live.test.ts",
@@ -17769,6 +17830,275 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 36,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns ACCOUNT_LOCKED without a lookup when the brute-force gate reports an account lockout",
+          "line": 259,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "37c2afc715ae4590fd985785d2b8524e8c3c1ea112861dcba0c458cc00371741"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns RATE_LIMIT_EXCEEDED without a lookup when the gate refuses for another reason",
+          "line": 280,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "581515fc8c70f3ba74dfb3840e3d2c2bdaf8fe3aae75e0569ce43600e104ef70"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::waits the delay the gate asks for before the lookup",
+          "line": 292,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5eb9a2778e256887e9b25553fa1cb6ac40b94b5c3c2148956583abe37716745a"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns INVALID_CREDENTIALS and records USER_NOT_FOUND for an unknown e-mail",
+          "line": 310,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d70effb344f44b87bad0ce22463225cef74b968a77831d19722fb22a05334c7c"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::finds the administrator by the normalized e-mail, so a typed variant reaches the password check",
+          "line": 328,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d220e413cdfb45a533734521116fc838a44894692dd7f21cc666ff91b42a28aa"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns ACCOUNT_LOCKED for a manual lock and records no failed attempt",
+          "line": 339,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "71000b5fc251eedef3bb4059c4d25b67345a9efbb5d59e7966cdc5e4ad09012f"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns ACCOUNT_INACTIVE and records ACCOUNT_INACTIVE for a deactivated administrator",
+          "line": 352,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7e5fa0b4e9b59353c4b846bba310aa7f796b7909f2413859e04c39acbaffd9e3"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns INVALID_CREDENTIALS, records INVALID_PASSWORD and writes no security event for a wrong password",
+          "line": 364,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a70a2de067485a0939d81a446ce7b1e983b2c7d2b3c70e3d4c282f530a635336"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns MFA_REQUIRED without verifying a code or recording a failure when the second factor is missing",
+          "line": 379,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3a857914aa5559dcc1cd3038e7139d0c945cb2c17446a9c5029728f786f36516"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns MFA_INVALID and records MFA_INVALID when the second factor's code is refused",
+          "line": 389,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "37cd3ec9a8259dbda2e2d4b8036f324310f973235ccf0f5e5f1566bff0f06479"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::opens one session, writes lastLoginAt and clears the counters with the checked attempt once every check passes",
+          "line": 411,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2c529f36464e9ffd7dd534ed52762b36b441a218f1e39feeb523fea33c09ee2e"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::replaces the password and clears the mark in one guarded write, revokes every session and opens none",
+          "line": 509,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "776ca4744dcc5b58ec72d0fff4458692ecb50149f0dafbe0ca81494f8c6c795a"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::records the change as a successful PASSWORD_CHANGED event and clears the counters with the checked attempt",
+          "line": 555,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ef15167d02872bbe3f7264dbaeef2ed5afa53fff646926daf3700dcef84372c6"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses an administrator whose password is not marked for a change, recording no failed attempt",
+          "line": 594,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f0f060bd054604734ddc10c0e5998a3e94cc087bb176e9bf37d9704478353eed"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a wrong current password with INVALID_CREDENTIALS, recording the failed attempt and no security event",
+          "line": 611,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c87827d58ce2fb4c0753d2412dc1ed873bd732dcd127b35c2c43f15930db41e3"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses an unknown e-mail with INVALID_CREDENTIALS, records USER_NOT_FOUND and names no administrator in an event",
+          "line": 628,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d74ff52ff589b960d90b447719575f6e4fe990efe57b937213ecb8bb6f3e19f0"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a deactivated administrator with ACCOUNT_INACTIVE and writes nothing",
+          "line": 647,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "66e4307d2bfaae650d54af2506c76cdec769c5ba641904f8e5d42eab52ece078"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a manually locked administrator with ACCOUNT_LOCKED and writes nothing",
+          "line": 663,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fa59a11df4cb8f008d351a66696fcd4b4e4820b9ac271cf8acb2f5d55012c1cb"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses before any lookup when the brute-force gate locks the account",
+          "line": 676,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9b25f076ec3aace423c85db6dae1564be28fb2944e3105a7f740604ec9d4f8dd"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::asks for the second factor when the administrator has one and no code was given",
+          "line": 699,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ab4973bf322e334154acf83aee33733499dac17887781d34d361db7f9fd4d36e"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a second-factor code the service refuses, with MFA_INVALID and its failure recorded",
+          "line": 712,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4e0dfb14e97569abe50cb4a7114d19ec7b5d66d9179a169dde63606180c5674f"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::replaces the password when the second factor's code verifies",
+          "line": 728,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d10ea1b2fe9365e8c718ea2c18962529b8c9aa0d5425226d97b57c245a7112f5"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a new password the policy refuses with PASSWORD_TOO_WEAK and writes nothing",
+          "line": 744,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "48aba4a1cccb09eabeeffd923e32bf831dc6d6fca084109788f2f4209113e31d"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses the current password as the new one with PASSWORD_REUSED and writes nothing",
+          "line": 757,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "37836949e7f9229e49238b9ab343b5a9ed52dbbe08480b3cb758a81fde05d0d9"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a recent password with PASSWORD_REUSED and writes nothing",
+          "line": 771,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ad73e984bdbc2260954538f5dfc6ea8a31e5f8b2d00040fcc5948eb8a1e985b6"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::accepts a password older than the reuse window, the window the authenticated change applies",
+          "line": 783,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e138ae568660720c05d38f757d74924cd69ed484522699ec553f1bd6ce8f5eb7"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns CONCURRENT_MODIFICATION and writes nothing when the mark was cleared after the read",
+          "line": 800,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ef1e70027631660c325e1e51f0de47ae208f1451c59f6032aedda4d7ef3d69c"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns CONCURRENT_MODIFICATION and keeps the other writer's hash when the hash moved after the read",
+          "line": 818,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d1aea68a58ad6e9d3f1b4d43cea5a3a3195ba7dd00602c84a0f6139062aa5439"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns CONCURRENT_MODIFICATION and writes nothing when the history moved after the read",
+          "line": 834,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5e16c43fa5afbfc5b924dfbdbc8d386c5e2d35607e307b13b00d2e01b660c01b"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns CONCURRENT_MODIFICATION and writes nothing when the second factor was enabled after the read",
+          "line": 851,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e407c3e514c104af9ed923828f228e27a0fbb03f5bce80eac81416ca8b631693"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::returns CONCURRENT_MODIFICATION and writes nothing when the administrator was deactivated after the read",
+          "line": 869,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ac4a21e9288e06c93f227845960e7614c9d7a99bee8df1faac474de60a883ce1"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::answers ACCOUNT_LOCKED, not ACCOUNT_INACTIVE, for a locked and deactivated administrator, recording no failed attempt",
+          "line": 892,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1004fac7dbebf9569133bf6ee3ec1d73b103515d6d84c189583292a06db84878"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::answers ACCOUNT_INACTIVE for a deactivated administrator before the password is verified",
+          "line": 904,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "319de378b280af7ed9d5f20dee1fffd0db8fb97ed7d3c3321448488ee70a10d5"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::verifies the password before it asks for a missing second factor",
+          "line": 915,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "14a963bf7607563fcf79fbec6448c2edf0a60de3d45b8e3015693c3966fd5d14"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::refuses a new password the policy refuses without verifying the second factor, so its code is not spent",
+          "line": 926,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bac8c29ca12d640b4d99d135dbbd93e79f874ed484d58afe90ec7fa21727fddf"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/adminAuthService.requiredPasswordChange.test.ts::answers PASSWORD_TOO_WEAK for a weak new password with a wrong current password, before any lookup or recorded attempt",
+          "line": 937,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3bee161396c2a4a55a0dc16c4b497878662c8cd00872ed4eb7c74fb9dd78af9a"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/admin/adminAuthService.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -17957,6 +18287,76 @@
       "subject": {
         "stem": "apiKeyAdminRoutes",
         "module": "apps/api/src/admin/apiKeyAdminRoutes.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 7,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::stores the new hash, appends the replaced one to the history, clears the mark and revokes every session",
+          "line": 104,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c39f10bc87954471dee545e6ac1fa55f078c19a8adcc6a5076f4a27bfc0a2bdf"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::keeps the history to the reuse window when it appends",
+          "line": 128,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "82d24f1bba1c8f94946c9054c3c370455924d01fa998a16b96cc91330e508aca"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::refuses a wrong current password with INVALID_CREDENTIALS and a failed PASSWORD_CHANGED event",
+          "line": 145,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d277555b2dba500ad3201c1ed2a8481eac3ee2856bee82f4dbcd95d48bf85e40"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::refuses a password the policy refuses with PASSWORD_TOO_WEAK and writes nothing",
+          "line": 167,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fef49ad3476d4a2aaabc286c3a83ca6b65243fd3643a933363dc034f705c3fb3"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::refuses a recent password with PASSWORD_REUSED and writes nothing",
+          "line": 182,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "08e23454872c14b42688a49e80c4497591bce7ea73ffe5903c3875933e09884c"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::accepts a password older than the reuse window",
+          "line": 196,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "48978047b3a878eb1ebe9bb471a0f01340f1c244ccf46fa528131e93e85a91ec"
+        },
+        {
+          "id": "apps/api/tests/unit/admin/auth/PasswordService.changePassword.test.ts::checks reuse against the history only, so the current password is not in its window",
+          "line": 211,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e3b4158c0930a403d487547effcf627b315a40e604d5b95ddcfbf2f3b3d28cc9"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "PasswordService",
+        "module": "apps/api/src/admin/auth/PasswordService.ts",
         "imported": true
       },
       "duplicate": null,
@@ -18405,6 +18805,125 @@
       "subject": {
         "stem": "webhookAdminRoutes",
         "module": "apps/api/src/admin/webhookAdminRoutes.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/adminAuthMiddleware.rateLimit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/adminAuthMiddleware.rateLimit.test.ts::keys the bucket by the address and the route's own pattern when no bucket is named",
+          "line": 57,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "89e9c6521f5f898afdd18bc68e0da22919b602626ba24c4fbc81cc38fc75a2a5"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthMiddleware.rateLimit.test.ts::keys the bucket by the address and the named pattern when a bucket is named",
+          "line": 67,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3a66d9c6808d7a20fde33d58e520145dfaec154e894bb6cae7b03e2d070a9c5a"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "adminAuthMiddleware",
+        "module": "apps/api/src/admin/auth/adminAuthMiddleware.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 9,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 200 with a message, without a session, and hands the service the normalized e-mail and both passwords",
+          "line": 112,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5bb36d7bad0f72a2fb44a96e69db34b74062afae25a119a5a755a4904383ee87"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::hands the service the second factor's code when one is given",
+          "line": 128,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0666fe4abb9dfaf104a9e39b447218639936457b5e3a642d031b05f345d2d170"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::refuses %s with 400 before the service runs",
+          "line": 142,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0139eb278afdadbd759d4468a2fbcdf114b213b85a8f1f0cde93eff81f89d2ef"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::hands the service a new password of 128 characters, the longest the schema takes",
+          "line": 169,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c8e0e3dc3276378ad7953791c45c070f482adfd5a18f113dcad5df50ef20870c"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with %i and the code",
+          "line": 181,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c91c8520fc26c53db9278f86fd15b6d173da88c126a00962dc80e5d5f88e469f"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers %s with the status the sign-in gives it",
+          "line": 203,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a9f466ae4f8c6b72182a23fbf2aab0a45d4fbbbf33c7dda9e6354472ee42603e"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::spends the sign-in's rate-limit bucket, with the sign-in's allowance",
+          "line": 220,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8ae939a95f0f81c20e339b6f3765756aaa7a6e7317915e676928ae0918ca0d89"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::answers 429 and does not run the service when the rate limit refuses",
+          "line": 236,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7af988b068924c5cd0e0a1b7d1c8a624a569822272b19c87509d2787550106b1"
+        },
+        {
+          "id": "apps/api/tests/unit/adminAuthRoutes.changeRequired.test.ts::writes neither password into a response or a logged object",
+          "line": 245,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e44a01e482f47801ddf026b96c7d6eb05794d6215382f1435c65860dec564d79"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "adminAuthRoutes",
+        "module": "apps/api/src/admin/auth/adminAuthRoutes.ts",
         "imported": true
       },
       "duplicate": null,
@@ -49525,7 +50044,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 1
+      "importers": 3
     },
     {
       "path": "apps/api/tests/unit/helpers/statefulCustomerUserPrismaFake.ts",
@@ -79607,7 +80126,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 11,
       "blocks": [
         {
           "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::skips GET requests",
@@ -79645,36 +80164,43 @@
           "bodyHash": "c53c5d68669b4cbaca0e6542e898925bc118c37fd17fdfbf005a3d0db24e6423"
         },
         {
-          "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::skips exempt routes (refresh)",
+          "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::skips the required password change, which carries no CSRF token since its caller holds no session",
           "line": 95,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2570f95b0fa6b05e06179a44d342601226007987c2a2ea523354800f77f5cc13"
+        },
+        {
+          "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::skips exempt routes (refresh)",
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "993468498c05c27a257c3ba4a2565541b056644c42f2048fabcae3bac0ca681e"
         },
         {
           "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::returns 403 when X-CSRF-Token header missing on POST",
-          "line": 105,
+          "line": 123,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d82a1e40d2143b6746954891d880b22d4948941aa8f7ec045879e1e53b1ebf3"
         },
         {
           "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::returns 403 when CSRF token does not match session",
-          "line": 121,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4046758bec148486ec9d6800f74d06be8a78737491ce2529458a32bad3c0f4e"
         },
         {
           "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::allows request when CSRF token matches session",
-          "line": 143,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1affcb202ca5acd04f5d104fa020bc5d886ceb15a980c7f202a184697620846"
         },
         {
           "id": "apps/api/tests/unit/security/csrfMiddleware.test.ts::skips validation when no auth context (auth middleware handles it)",
-          "line": 159,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a55685b340619b4fbc8c8df11aa40d57ecf82642cfcd2ac7d5a7196cc1c2ed84"
@@ -81731,7 +82257,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::allows all requests when ipAllowlistEnabled=false",
@@ -81790,29 +82316,43 @@
           "bodyHash": "4f03f14106b3822a7493ae1d4c829c6bda48f0a04835bb46fb730b38cf3684c0"
         },
         {
-          "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::skips non-admin routes",
+          "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::refuses the required password change from an address outside an enabled allowlist",
           "line": 153,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e416cb0502ee17e1f9297e3d166b1b6449a2a48bea29f4d3da7f4dbb691e1bac"
+        },
+        {
+          "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::lets the required password change through when the allowlist is %s",
+          "line": 176,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0629ba5b824fed958e361544f4e3b991baf725efab683f136297ed630b066531"
+        },
+        {
+          "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::skips non-admin routes",
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "080c2c5ef4c022c7ea71dbb43565f46eb8b1ca8f689e0f7c020363d08eccf48c"
         },
         {
           "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::reads from DB only once within cache TTL",
-          "line": 165,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dbb7b54839075d345d5d5f9d10b792c6bf9e5681f301d0a400e1d8b3cce25373"
         },
         {
           "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::denies a spoofed allowlisted IP placed in X-Forwarded-For",
-          "line": 179,
+          "line": 226,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd1640cc470d0e1c8490bbea006035385fd6159690d6979efbcf57a17a045245"
         },
         {
           "id": "apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts::allows when the socket peer is allowlisted regardless of X-Forwarded-For",
-          "line": 201,
+          "line": 248,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6b851b8dc990b1b9098b16e2818fc9cca01db6fd14869bc1472a51881951f93"

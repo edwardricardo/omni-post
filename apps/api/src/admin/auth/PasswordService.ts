@@ -6,7 +6,7 @@
  */
 
 import crypto from "crypto";
-import type { PrismaClient } from "@infra/prisma";
+import type { AdminUser, PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adminAuthTypes.js";
 import { validatePasswordStrength } from "./adminAuthSchemas.js";
@@ -19,11 +19,24 @@ import {
   needsRehash,
 } from "../../auth/passwordHashing.js";
 
+/** The stored hashes a new password must not match: the most recent ones the policy keeps. */
+function reuseWindow(history: readonly string[]): string[] {
+  return history.slice(-adminAuthConfig.passwordPolicy.preventPasswordReuse);
+}
+
+/** The history a change writes: the replaced hash appended, kept to the reuse window. */
+function historyAfterChange(history: readonly string[], replacedHash: string): string[] {
+  return reuseWindow([...history, replacedHash]);
+}
+
 export class PasswordService {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Hash password using the canonical Argon2id parameters.
+   * @method hashPassword
+   * @description Hashes a password with the canonical Argon2id parameters.
+   * @param password - The password to hash
+   * @returns The hash and the name of its algorithm
    */
   async hashPassword(password: string): Promise<{ hash: string; algorithm: "argon2id" }> {
     const hash = await argonHashPassword(password);
@@ -31,9 +44,14 @@ export class PasswordService {
   }
 
   /**
-   * Verify password against an argon2id hash. `needsMigration` is true when
-   * the stored hash uses parameters weaker than the current canon, so callers
-   * can transparently re-hash on the next successful login.
+   * @method verifyPassword
+   * @description Verifies a password against an Argon2id hash. `needsMigration` is true when
+   *   the stored hash uses parameters weaker than the current canon, so callers can re-hash it
+   *   on the next successful sign-in.
+   * @param password - The password presented
+   * @param storedHash - The stored hash; a malformed one verifies nothing
+   * @param _algorithm - The stored algorithm's name, unused: the hash carries its own
+   * @returns Whether the password verifies, and whether the hash should be re-hashed
    */
   async verifyPassword(
     password: string,
@@ -46,14 +64,27 @@ export class PasswordService {
   }
 
   /**
-   * Validate password strength
+   * @method validatePassword
+   * @description Scores a password against the administrators' password policy.
+   * @param password - The password to score
+   * @returns Whether the policy accepts it, its strength, and the errors and suggestions
    */
   validatePassword(password: string): PasswordValidation {
     return validatePasswordStrength(password);
   }
 
   /**
-   * Change password for authenticated user
+   * @method changePassword
+   * @description Changes the password of a signed-in administrator who presents the current one:
+   *   checks the new one against the policy and the recent passwords, writes it with the
+   *   replaced hash appended to the history, clears the mark of a required change, records the
+   *   change and revokes every session of the administrator.
+   * @param userId - The signed-in administrator
+   * @param currentPassword - The password the administrator signed in with
+   * @param newPassword - The replacement
+   * @param onSecurityEvent - Audit sink for the change and for a refused current password
+   * @returns `ok(true)` once changed; otherwise `USER_NOT_FOUND`, `INVALID_CREDENTIALS`,
+   *   `PASSWORD_TOO_WEAK` or `PASSWORD_REUSED`
    */
   async changePassword(
     userId: string,
@@ -102,15 +133,9 @@ export class PasswordService {
       return err("PASSWORD_TOO_WEAK");
     }
 
-    // Check password reuse
-    const passwordReusePrevented = adminAuthConfig.passwordPolicy.preventPasswordReuse;
-    const recentPasswords = user.passwordHistory.slice(-passwordReusePrevented);
-
-    for (const oldHash of recentPasswords) {
-      const { valid: isReused } = await this.verifyPassword(newPassword, oldHash);
-      if (isReused) {
-        return err("PASSWORD_REUSED");
-      }
+    const reuseCheck = await this.refuseReused(newPassword, reuseWindow(user.passwordHistory));
+    if (!reuseCheck.ok) {
+      return reuseCheck;
     }
 
     // Hash new password
@@ -120,9 +145,7 @@ export class PasswordService {
     // Read-modify-write, unguarded: two concurrent changes on one admin can each
     // append to the history they read and the loser's entry is lost. Deliberately
     // out of scope for the reset claim — owned by SMELL-114.
-    const updatedHistory = [...user.passwordHistory, user.passwordHash].slice(
-      -passwordReusePrevented
-    );
+    const updatedHistory = historyAfterChange(user.passwordHistory, user.passwordHash);
 
     // Update user record
     await this.prisma.adminUser.update({
@@ -145,6 +168,92 @@ export class PasswordService {
     });
 
     // Revoke all other sessions for security
+    await this.revokeSessionsAfterChange(userId);
+
+    return ok(true);
+  }
+
+  /**
+   * @method replaceRequiredPassword
+   * @description Replaces the password of an administrator whose password must be changed, in
+   *   one write guarded by the row as the sign-in's checks read it: its id, the hash the current
+   *   password verified against, the history, the mark, the active flag and the second-factor
+   *   flag. The write stores the new hash, its algorithm, the history with the replaced hash
+   *   appended and the change date, and clears the mark; a row any other writer moved since the
+   *   read, including an administrator deactivated or whose second factor was enabled or
+   *   disabled since, matches nothing and nothing is written. Once the write
+   *   lands, every session of the administrator is revoked. No session is opened. The caller
+   *   checks the new password against the policy before the sign-in's checks.
+   * @param admin - The administrator as the sign-in's checks read it
+   * @param newPassword - The replacement, which the policy has accepted
+   * @returns `ok` once the row is written; `PASSWORD_REUSED` for the current password or a
+   *   recent one, and `CONCURRENT_MODIFICATION` when the row moved since it was read, each with
+   *   nothing written
+   */
+  async replaceRequiredPassword(
+    admin: Pick<AdminUser, "id" | "passwordHash" | "passwordHistory" | "mfaEnabled">,
+    newPassword: string
+  ): Promise<Result<void, AuthErrorCode>> {
+    // The current password is a single-use secret, so it must not become the lasting one.
+    const reuseCheck = await this.refuseReused(newPassword, [
+      ...reuseWindow(admin.passwordHistory),
+      admin.passwordHash,
+    ]);
+    if (!reuseCheck.ok) {
+      return reuseCheck;
+    }
+
+    const { hash, algorithm } = await this.hashPassword(newPassword);
+
+    // The predicate names every value the data derives from, the mark it clears, the active flag
+    // the checks accepted and the second-factor flag as they read it (whether a second factor was
+    // owed), so the database decides whether the row is still the one the checks read: under Read
+    // Committed a concurrent committed writer makes the update re-check exactly these columns,
+    // and the loser matches zero rows.
+    const { count } = await this.prisma.adminUser.updateMany({
+      where: {
+        id: admin.id,
+        mustChangePassword: true,
+        isActive: true,
+        mfaEnabled: admin.mfaEnabled,
+        passwordHash: admin.passwordHash,
+        passwordHistory: { equals: admin.passwordHistory },
+      },
+      data: {
+        passwordHash: hash,
+        passwordHashAlgo: algorithm,
+        passwordHistory: historyAfterChange(admin.passwordHistory, admin.passwordHash),
+        passwordChangedAt: new Date(),
+        mustChangePassword: false,
+      },
+    });
+
+    if (count === 0) {
+      return err("CONCURRENT_MODIFICATION");
+    }
+
+    await this.revokeSessionsAfterChange(admin.id);
+
+    return ok(undefined);
+  }
+
+  /** The reuse rule a new password must pass: no hash of `refusedHashes` may verify against it. */
+  private async refuseReused(
+    newPassword: string,
+    refusedHashes: readonly string[]
+  ): Promise<Result<void, AuthErrorCode>> {
+    for (const oldHash of refusedHashes) {
+      const { valid: isReused } = await this.verifyPassword(newPassword, oldHash);
+      if (isReused) {
+        return err("PASSWORD_REUSED");
+      }
+    }
+
+    return ok(undefined);
+  }
+
+  /** Revokes every active session of the administrator once the password has changed. */
+  private async revokeSessionsAfterChange(userId: string): Promise<void> {
     await this.prisma.adminSession.updateMany({
       where: {
         userId,
@@ -156,13 +265,16 @@ export class PasswordService {
         revokeReason: "PASSWORD_CHANGED",
       },
     });
-
-    return ok(true);
   }
 
   /**
-   * Initiate password reset (forgot password flow)
-   * Generates reset token and stores it in database
+   * @method initiatePasswordReset
+   * @description Starts the forgotten-password flow: stores a reset token valid for one hour on
+   *   an active administrator with that e-mail and records the request. An unknown or inactive
+   *   e-mail gets a stand-in value, so the answer does not say whether the address exists.
+   * @param email - The address the reset was requested for
+   * @param onSecurityEvent - Audit sink for the request
+   * @returns The reset token the caller e-mails, or the stand-in value
    */
   async initiatePasswordReset(
     email: string,

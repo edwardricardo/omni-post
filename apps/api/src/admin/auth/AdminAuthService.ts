@@ -8,14 +8,19 @@
  * while delegating specific concerns to specialized services.
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { AdminUser, PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import { MFA_SUBJECT_TYPE, type BruteForceProtectionPort } from "@ports/core";
+import {
+  MFA_SUBJECT_TYPE,
+  type BruteForceProtectionPort,
+  type CheckLoginAttemptInput,
+} from "@ports/core";
 import { deriveActorType } from "@core/domain/repositories/AuditLogRepository.js";
 import type {
   AdminUserProfile,
   LoginRequest,
   LoginResponse,
+  RequiredPasswordChangeRequest,
   RefreshTokenRequest,
   RefreshTokenResponse,
   DeviceFingerprint,
@@ -32,6 +37,18 @@ import { SessionManager } from "./SessionManager.js";
 import { MfaService } from "./MfaService.js";
 import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
+
+/** The credentials the sign-in's checks verify. */
+type SignInCredentials = Pick<LoginRequest, "email" | "password" | "mfaToken">;
+
+/** The attempt the brute-force port counts: the e-mail as presented, the address, the agent. */
+function attemptOf(email: string, device: DeviceFingerprint): CheckLoginAttemptInput {
+  return {
+    identifier: email,
+    ip: device.ipAddress ?? "0.0.0.0",
+    userAgent: device.userAgent ?? "",
+  };
+}
 
 export class AdminAuthService {
   private passwordService: PasswordService;
@@ -53,97 +70,28 @@ export class AdminAuthService {
   // ==========================================================================
 
   /**
-   * Login admin user
+   * @method login
+   * @description Signs an administrator in: runs the sign-in's checks, then opens a session,
+   *   writes `lastLoginAt`, clears the brute-force counters and records the sign-in.
+   * @param request - The e-mail, the password, the second factor's code when there is one, and
+   *   whether the session is remembered
+   * @param device - The caller's device, whose address and agent the session and the attempt
+   *   records carry
+   * @returns The administrator's profile and the session's tokens; otherwise the code of the
+   *   check that failed, or `INTERNAL_ERROR` when the profile cannot be read back
    */
   async login(
     request: LoginRequest,
     device: DeviceFingerprint
   ): Promise<Result<LoginResponse, AuthErrorCode>> {
-    const { email, password, mfaToken, rememberMe = false } = request;
-    const ip = device.ipAddress ?? "0.0.0.0";
-    const userAgent = device.userAgent ?? "";
+    const { rememberMe = false } = request;
+    const attempt = attemptOf(request.email, device);
 
-    // Brute-force gate (NIST SP 800-63B-4 §rate-limiting + OWASP Auth Cheat Sheet).
-    // Account-based primary — IP rotation does not bypass this counter.
-    const check = await this.bruteForce.checkLoginAttempt({
-      identifier: email,
-      ip,
-      userAgent,
-    });
-    if (!check.allowed) {
-      if (check.reason === "account_lockout") return err("ACCOUNT_LOCKED");
-      return err("RATE_LIMIT_EXCEEDED");
+    const verified = await this.verifySignIn(request, attempt);
+    if (!verified.ok) {
+      return err(verified.error);
     }
-    if (check.delaySeconds > 0) {
-      await new Promise((resolve) => setTimeout(resolve, check.delaySeconds * 1000));
-    }
-
-    // Find user (include role relation for profile mapping)
-    const user = await this.prisma.adminUser.findUnique({
-      where: { email: normalizeEmail(email) },
-      include: { role: true },
-    });
-
-    if (!user) {
-      await this.bruteForce.recordFailedAttempt({
-        identifier: email,
-        ip,
-        userAgent,
-        failureReason: "USER_NOT_FOUND",
-      });
-      return err("INVALID_CREDENTIALS");
-    }
-
-    // Admin manual lock (independent of BF gate — admin UI can lock a user
-    // outside the rate-limit flow; keep this check to honor that decision).
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      return err("ACCOUNT_LOCKED");
-    }
-
-    // Check if account is active
-    if (!user.isActive) {
-      await this.bruteForce.recordFailedAttempt({
-        identifier: email,
-        ip,
-        userAgent,
-        failureReason: "ACCOUNT_INACTIVE",
-      });
-      return err("ACCOUNT_INACTIVE");
-    }
-
-    // Verify password
-    const { valid } = await this.passwordService.verifyPassword(password, user.passwordHash);
-
-    if (!valid) {
-      await this.bruteForce.recordFailedAttempt({
-        identifier: email,
-        ip,
-        userAgent,
-        failureReason: "INVALID_PASSWORD",
-      });
-      return err("INVALID_CREDENTIALS");
-    }
-
-    // Check MFA
-    if (user.mfaEnabled) {
-      if (!mfaToken) {
-        return err("MFA_REQUIRED");
-      }
-
-      const mfaResult = await this.mfaService.verifyMfaToken(
-        { type: MFA_SUBJECT_TYPE.ADMIN, id: user.id },
-        mfaToken
-      );
-      if (!mfaResult.ok) {
-        await this.bruteForce.recordFailedAttempt({
-          identifier: email,
-          ip,
-          userAgent,
-          failureReason: "MFA_INVALID",
-        });
-        return err("MFA_INVALID");
-      }
-    }
+    const user = verified.value;
 
     // Cleanup expired sessions
     await this.sessionManager.cleanupExpiredSessions(user.id);
@@ -166,29 +114,9 @@ export class AdminAuthService {
     });
 
     // Successful authentication — clear per-identifier counters.
-    await this.bruteForce.recordSuccessfulAttempt({
-      identifier: email,
-      ip,
-      userAgent,
-    });
+    await this.bruteForce.recordSuccessfulAttempt(attempt);
 
-    // Log security event - build event object conditionally
-    const securityEvent: SecurityEvent = {
-      type: "LOGIN_SUCCESS",
-      userId: user.id,
-      email: user.email,
-      ipAddress: device.ipAddress,
-      userAgent: device.userAgent,
-      deviceId: device.deviceId,
-      success: true,
-      timestamp: new Date(),
-    };
-
-    if (device.location) {
-      securityEvent.location = device.location;
-    }
-
-    await this.logSecurityEvent(securityEvent);
+    await this.logSecurityEvent(this.successEventOf("LOGIN_SUCCESS", user, device));
 
     const profile = await this.getUserProfile(user.id);
     if (!profile.ok) {
@@ -203,7 +131,171 @@ export class AdminAuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * @method changeRequiredPassword
+   * @description Replaces the password of an administrator who must change it, for a caller who
+   *   holds no session. It runs the sign-in's checks on the e-mail and the current password,
+   *   refuses an administrator whose password is not marked to be changed, and replaces the
+   *   password and clears the mark in one guarded write. It opens no session, issues no token,
+   *   leaves `lastLoginAt` as it is and revokes every session of the administrator, so the
+   *   administrator then signs in with the new password.
+   *
+   *   The policy, which needs no secret and no row, is checked first, so a password it refuses
+   *   spends no second-factor code. The refusals that need the row (not marked, reused, the
+   *   current password, the guarded write) come after the second factor, so a caller who holds
+   *   the password but not the second factor learns neither whether the administrator is marked
+   *   nor anything of the password history.
+   * @param request - The e-mail, the current password, the new password, and the second
+   *   factor's code when the administrator has one
+   * @param device - The caller's device, whose address and agent the attempt records and the
+   *   security event carry
+   * @returns `ok` once the password is replaced; otherwise `PASSWORD_TOO_WEAK`, the code of the
+   *   sign-in check that failed, `PASSWORD_CHANGE_NOT_REQUIRED`, `PASSWORD_REUSED` or
+   *   `CONCURRENT_MODIFICATION`
+   */
+  public async changeRequiredPassword(
+    request: RequiredPasswordChangeRequest,
+    device: DeviceFingerprint
+  ): Promise<Result<void, AuthErrorCode>> {
+    if (!this.passwordService.validatePassword(request.newPassword).valid) {
+      return err("PASSWORD_TOO_WEAK");
+    }
+
+    const attempt = attemptOf(request.email, device);
+    const verified = await this.verifySignIn(
+      {
+        email: request.email,
+        password: request.currentPassword,
+        ...(request.mfaToken !== undefined && { mfaToken: request.mfaToken }),
+      },
+      attempt
+    );
+    if (!verified.ok) {
+      return err(verified.error);
+    }
+
+    const admin = verified.value;
+    // The credentials were right, so this refusal records no failed attempt.
+    if (!admin.mustChangePassword) {
+      return err("PASSWORD_CHANGE_NOT_REQUIRED");
+    }
+
+    const replaced = await this.passwordService.replaceRequiredPassword(admin, request.newPassword);
+    if (!replaced.ok) {
+      return replaced;
+    }
+
+    await this.logSecurityEvent(this.successEventOf("PASSWORD_CHANGED", admin, device));
+
+    await this.bruteForce.recordSuccessfulAttempt(attempt);
+    return ok(undefined);
+  }
+
+  /**
+   * The security event of an operation an administrator completed from a device: who, from
+   * which address, agent and device, and where, when the device's location is known.
+   */
+  private successEventOf(
+    type: SecurityEvent["type"],
+    admin: Pick<AdminUser, "id" | "email">,
+    device: DeviceFingerprint
+  ): SecurityEvent {
+    const event: SecurityEvent = {
+      type,
+      userId: admin.id,
+      email: admin.email,
+      ipAddress: device.ipAddress,
+      userAgent: device.userAgent,
+      deviceId: device.deviceId,
+      success: true,
+      timestamp: new Date(),
+    };
+    if (device.location) {
+      event.location = device.location;
+    }
+    return event;
+  }
+
+  /**
+   * The sign-in's checks, in order: the brute-force gate and the delay it asks for, the lookup by
+   * normalized e-mail, the manual lock, the active check, the password and the second factor.
+   * Every failure but the manual lock and a missing second factor is recorded as a failed
+   * attempt. Nothing is written to the administrator's row.
+   */
+  private async verifySignIn(
+    credentials: SignInCredentials,
+    attempt: CheckLoginAttemptInput
+  ): Promise<Result<AdminUser, AuthErrorCode>> {
+    const { email, password, mfaToken } = credentials;
+
+    // Brute-force gate (NIST SP 800-63B-4 §rate-limiting + OWASP Auth Cheat Sheet).
+    // Account-based primary — IP rotation does not bypass this counter.
+    const check = await this.bruteForce.checkLoginAttempt(attempt);
+    if (!check.allowed) {
+      if (check.reason === "account_lockout") return err("ACCOUNT_LOCKED");
+      return err("RATE_LIMIT_EXCEEDED");
+    }
+    if (check.delaySeconds > 0) {
+      await new Promise((resolve) => setTimeout(resolve, check.delaySeconds * 1000));
+    }
+
+    // Find user (include role relation for profile mapping)
+    const user = await this.prisma.adminUser.findUnique({
+      where: { email: normalizeEmail(email) },
+      include: { role: true },
+    });
+
+    if (!user) {
+      await this.bruteForce.recordFailedAttempt({ ...attempt, failureReason: "USER_NOT_FOUND" });
+      return err("INVALID_CREDENTIALS");
+    }
+
+    // Admin manual lock (independent of BF gate — admin UI can lock a user
+    // outside the rate-limit flow; keep this check to honor that decision).
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      return err("ACCOUNT_LOCKED");
+    }
+
+    // Check if account is active
+    if (!user.isActive) {
+      await this.bruteForce.recordFailedAttempt({ ...attempt, failureReason: "ACCOUNT_INACTIVE" });
+      return err("ACCOUNT_INACTIVE");
+    }
+
+    // Verify password
+    const { valid } = await this.passwordService.verifyPassword(password, user.passwordHash);
+
+    if (!valid) {
+      await this.bruteForce.recordFailedAttempt({ ...attempt, failureReason: "INVALID_PASSWORD" });
+      return err("INVALID_CREDENTIALS");
+    }
+
+    // Check MFA
+    if (user.mfaEnabled) {
+      if (!mfaToken) {
+        return err("MFA_REQUIRED");
+      }
+
+      const mfaResult = await this.mfaService.verifyMfaToken(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: user.id },
+        mfaToken
+      );
+      if (!mfaResult.ok) {
+        await this.bruteForce.recordFailedAttempt({ ...attempt, failureReason: "MFA_INVALID" });
+        return err("MFA_INVALID");
+      }
+    }
+
+    return ok(user);
+  }
+
+  /**
+   * @method refreshToken
+   * @description Issues a new access token for an active, unexpired session whose CSRF token and
+   *   stored refresh-token hash match the ones presented. The refresh token is not rotated.
+   * @param request - The refresh token and the session's CSRF token
+   * @returns The new access token with the same refresh token, and the administrator's profile;
+   *   otherwise `SESSION_EXPIRED`, `CSRF_TOKEN_MISMATCH`, `INVALID_TOKEN`, a token verification
+   *   code, or `INTERNAL_ERROR` when the profile cannot be read
    */
   async refreshToken(
     request: RefreshTokenRequest
@@ -275,7 +367,13 @@ export class AdminAuthService {
   }
 
   /**
-   * Logout admin user
+   * @method logout
+   * @description Revokes every active session of the administrator, or the one named, and
+   *   records the sign-out.
+   * @param userId - The administrator signing out
+   * @param sessionId - The session to revoke when not revoking all of them
+   * @param allSessions - Whether every active session is revoked
+   * @returns `ok(true)` once the sessions are revoked and the event recorded
    */
   async logout(
     userId: string,
@@ -322,8 +420,11 @@ export class AdminAuthService {
   // ==========================================================================
 
   /**
-   * Verify and decode access token
-   * Public method for middleware usage
+   * @method verifyAccessToken
+   * @description Verifies and decodes an administrator's access token, for the authentication
+   *   middleware.
+   * @param token - The bearer access token
+   * @returns The token's payload; otherwise `TOKEN_EXPIRED` or `INVALID_TOKEN`
    */
   public verifyAccessToken(
     token: string
@@ -336,14 +437,24 @@ export class AdminAuthService {
   // ==========================================================================
 
   /**
-   * Validate password strength
+   * @method validatePassword
+   * @description Scores a password against the administrators' password policy.
+   * @param password - The password to score
+   * @returns Whether the policy accepts it, its strength, and the errors and suggestions
    */
   public validatePassword(password: string): PasswordValidation {
     return this.passwordService.validatePassword(password);
   }
 
   /**
-   * Change password for authenticated user
+   * @method changePassword
+   * @description Changes the password of a signed-in administrator who presents the current one,
+   *   and revokes every session of that administrator.
+   * @param userId - The signed-in administrator
+   * @param currentPassword - The password the administrator signed in with
+   * @param newPassword - The replacement, checked against the policy and the recent passwords
+   * @returns `ok(true)` once changed; otherwise `USER_NOT_FOUND`, `INVALID_CREDENTIALS`,
+   *   `PASSWORD_TOO_WEAK` or `PASSWORD_REUSED`
    */
   public async changePassword(
     userId: string,
@@ -359,15 +470,25 @@ export class AdminAuthService {
   }
 
   /**
-   * Initiate password reset (forgot password flow)
-   * Generates reset token and stores it in database
+   * @method initiatePasswordReset
+   * @description Starts the forgotten-password flow: stores a reset token valid for one hour on
+   *   an active administrator with that e-mail. An unknown or inactive e-mail gets a stand-in
+   *   value, so the answer does not say whether the address exists.
+   * @param email - The address the reset was requested for
+   * @returns The reset token the caller e-mails, or the stand-in value
    */
   public async initiatePasswordReset(email: string): Promise<Result<string, AuthErrorCode>> {
     return this.passwordService.initiatePasswordReset(email, this.logSecurityEvent.bind(this));
   }
 
   /**
-   * Confirm password reset with token
+   * @method confirmPasswordReset
+   * @description Completes a password reset by claiming the reset token; at most one caller
+   *   consumes a token.
+   * @param token - The reset token presented
+   * @param newPassword - The replacement, checked against the policy and the recent passwords
+   * @returns `ok(true)` for the caller that consumed the token; otherwise `INVALID_TOKEN`,
+   *   `PASSWORD_TOO_WEAK`, `PASSWORD_REUSED`, `CONCURRENT_MODIFICATION` or `INTERNAL_ERROR`
    */
   public async confirmPasswordReset(
     token: string,
@@ -385,8 +506,12 @@ export class AdminAuthService {
   // ==========================================================================
 
   /**
-   * Update the authenticated admin's own profile. Only the provided fields are
-   * written; returns the list of updated keys. Callers validate non-empty input.
+   * @method updateProfile
+   * @description Updates the signed-in administrator's own profile. Only the provided fields are
+   *   written; callers validate that at least one is provided.
+   * @param userId - The signed-in administrator
+   * @param data - The time zone, locale or avatar URL to write
+   * @returns The keys that were written
    */
   public async updateProfile(
     userId: string,
@@ -402,8 +527,11 @@ export class AdminAuthService {
   }
 
   /**
-   * Resolve an admin's display name + email for transactional emails (e.g. the
-   * password-reset notification). Returns null when no admin matches.
+   * @method findAdminContactByEmail
+   * @description Reads an administrator's display name and e-mail for a transactional e-mail,
+   *   such as the password-reset notification.
+   * @param email - The stored address to look up
+   * @returns The name and e-mail, or null when no administrator has that address
    */
   public async findAdminContactByEmail(
     email: string
@@ -419,7 +547,12 @@ export class AdminAuthService {
   // ==========================================================================
 
   /**
-   * Setup MFA for admin user (generates secret and QR code)
+   * @method setupMfa
+   * @description Starts the second factor's enrolment: generates the secret, its QR code and
+   *   the backup codes.
+   * @param userId - The signed-in administrator
+   * @returns The secret, the QR code and the backup codes; otherwise `USER_NOT_FOUND`,
+   *   `INVALID_REQUEST` when a second factor is already enabled, or `INTERNAL_ERROR`
    */
   public async setupMfa(userId: string): Promise<Result<MfaSetupResponse, AuthErrorCode>> {
     const user = await this.prisma.adminUser.findUnique({
@@ -444,7 +577,12 @@ export class AdminAuthService {
   }
 
   /**
-   * Verify MFA token and enable MFA
+   * @method verifyAndEnableMfa
+   * @description Enables the second factor once a code from the enrolled secret verifies.
+   * @param userId - The signed-in administrator
+   * @param token - A code from the enrolled secret
+   * @returns `ok(true)` once enabled; otherwise `MFA_INVALID`, `USER_NOT_FOUND` or
+   *   `INVALID_REQUEST`
    */
   public async verifyAndEnableMfa(
     userId: string,
@@ -468,9 +606,15 @@ export class AdminAuthService {
   }
 
   /**
-   * Disable MFA for a user. The password re-check is an AdminAuthService concern
-   * (not an MFA concern) and stays here; the MFA-token check + state clearing is
-   * delegated to the unified MFA service.
+   * @method disableMfa
+   * @description Disables the second factor after the password and a code verify. The password
+   *   re-check is this service's concern; the code check and the clearing of the second
+   *   factor's state belong to the MFA service.
+   * @param userId - The signed-in administrator
+   * @param password - The administrator's password
+   * @param mfaToken - A code from the enrolled secret
+   * @returns `ok(true)` once disabled; otherwise `USER_NOT_FOUND`, `INVALID_REQUEST`,
+   *   `INVALID_CREDENTIALS`, `MFA_INVALID` or `INTERNAL_ERROR`
    */
   public async disableMfa(
     userId: string,
@@ -511,7 +655,10 @@ export class AdminAuthService {
   }
 
   /**
-   * Get MFA status for a user
+   * @method getMfaStatus
+   * @description Reads whether the second factor is enabled and how many backup codes remain.
+   * @param userId - The signed-in administrator
+   * @returns The status; otherwise `USER_NOT_FOUND` or `INTERNAL_ERROR`
    */
   public async getMfaStatus(userId: string): Promise<Result<MfaStatusResponse, AuthErrorCode>> {
     const result = await this.mfaService.getMfaStatus({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId });
@@ -529,14 +676,22 @@ export class AdminAuthService {
   // ==========================================================================
 
   /**
-   * List active sessions for a user
+   * @method listSessions
+   * @description Lists the administrator's active sessions.
+   * @param userId - The signed-in administrator
+   * @returns The active sessions
    */
   public async listSessions(userId: string): Promise<Result<SessionInfo[], AuthErrorCode>> {
     return this.sessionManager.listSessions(userId);
   }
 
   /**
-   * Revoke a specific session
+   * @method revokeSession
+   * @description Revokes one session of the administrator and records the revocation.
+   * @param userId - The signed-in administrator
+   * @param sessionId - The session to revoke
+   * @param reason - Why the session is revoked
+   * @returns `ok(true)` once revoked; otherwise the session manager's code
    */
   public async revokeSession(
     userId: string,
