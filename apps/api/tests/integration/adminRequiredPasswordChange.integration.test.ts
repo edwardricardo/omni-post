@@ -1,11 +1,15 @@
 /**
  * @file adminRequiredPasswordChange.integration.test.ts
- * @description `POST /admin/auth/password/change-required` against a database of its own,
- *              migrated from empty. Each case empties the administrators' tables and creates the
- *              first administrator through the composition the operator command uses, so the
- *              administrator holds a single-use password and must change it. The route runs over
- *              the real `AdminAuthService` on a client of that database; the brute-force port
- *              allows every attempt and records nothing, since the subject is the stored row.
+ * @description `POST /admin/auth/password/change-required` and the two password sign-ins of an
+ *              administrator, `POST /admin/auth/login` and `POST /auth/login`, against a database
+ *              of its own, migrated from empty. Each case empties the administrators' tables and
+ *              creates the first administrator through the composition the operator command
+ *              uses, so the administrator holds a single-use password and must change it. The
+ *              routes run over the real `AdminAuthService` and `AuthService` on a client of that
+ *              database, without Redis; the brute-force port allows every attempt and records
+ *              nothing, since the subject is the stored rows. Both sign-ins refuse the
+ *              single-use password with no session and no `lastLoginAt`; once the password is
+ *              changed, the administrator signs in with the new one and the old one is refused.
  *
  *              The case of two calls at once does not leave the interleaving to chance: a third
  *              connection holds the administrator's row lock, which plain reads do not wait on,
@@ -21,6 +25,7 @@
 import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import Fastify, { type FastifyInstance } from "fastify";
+import fastifyCookie from "@fastify/cookie";
 import { ok } from "@shared/types";
 import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 import { assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
@@ -34,6 +39,12 @@ import { composeCreateFirstAdministrator } from "../../src/infrastructure/contai
 import { AdminAuthService } from "../../src/admin/auth/AdminAuthService.js";
 import type { MfaService } from "../../src/admin/auth/MfaService.js";
 import { adminAuthRoutes } from "../../src/admin/auth/adminAuthRoutes.js";
+import { AuthService } from "../../src/auth/authService.js";
+import { authRoutes } from "../../src/auth/authRoutes.js";
+import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { PrismaAuditLogRepository } from "../../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { verifyPassword } from "../../src/auth/passwordHashing.js";
@@ -44,6 +55,8 @@ assertSeedChannelConfigured();
 const TIMING = { timeout: 180_000 } as const;
 
 const ROUTE = "/admin/auth/password/change-required";
+const ADMIN_SIGN_IN = "/admin/auth/login";
+const SIGN_IN = "/auth/login";
 const ADMIN_EMAIL = "first.admin@required-change-integration.test";
 const NEW_PASSWORD = "Fixture-Lasting-Pw-4q!";
 const RIVAL_PASSWORD = "Fixture-Rival-Pw-7u?";
@@ -64,6 +77,11 @@ interface FirstAdministrator {
 interface Call {
   readonly status: number;
   readonly body: unknown;
+}
+
+/** A sign-in's answer, with the cookies it set. */
+interface SignInCall extends Call {
+  readonly cookies: readonly unknown[];
 }
 
 /** A brute-force port that allows every attempt: the subject here is the stored row. */
@@ -132,7 +150,7 @@ describe("The required password change on a migrated database", { concurrency: 1
     return { id: created.value.id, email: created.value.email, password: created.value.password };
   }
 
-  /** The route over the real service on the application's client of the scratch database. */
+  /** The routes over the real services on the application's client of the scratch database. */
   async function buildApp() {
     assert.ok(appClient, "an application client of the scratch database was built");
     const app = Fastify({ logger: false });
@@ -140,6 +158,17 @@ describe("The required password change on a migrated database", { concurrency: 1
     container.registerInstance(
       TOKENS.AdminAuthService,
       new AdminAuthService(appClient, permissiveBruteForce, noSecondFactor)
+    );
+    container.registerInstance(
+      TOKENS.AuthService,
+      new AuthService(
+        appClient,
+        new PrismaAdminUserRepository(appClient),
+        noSecondFactor,
+        new PrismaRoleRepository(appClient),
+        new PrismaAdminSessionRepository(appClient),
+        new PrismaAuditLogRepository(appClient)
+      )
     );
     container.registerInstance(TOKENS.PlatformCredentialService, {
       getCredential: async () => ok(null),
@@ -150,9 +179,35 @@ describe("The required password change on a migrated database", { concurrency: 1
     });
     app.decorate("container", container);
     openApp = app;
+    // So a sign-in that wrongly succeeded would show its cookie rather than fail to set it.
+    await app.register(fastifyCookie);
     await app.register(adminAuthRoutes);
+    await app.register(authRoutes);
     await app.ready();
     return app;
+  }
+
+  /** One sign-in at `url` with the administrator's e-mail and `password`. */
+  async function signIn(
+    app: Awaited<ReturnType<typeof buildApp>>,
+    url: string,
+    password: string
+  ): Promise<SignInCall> {
+    const res = await app.inject({
+      method: "POST",
+      url,
+      payload: { email: ADMIN_EMAIL, password },
+    });
+    return { status: res.statusCode, body: JSON.parse(res.body) as unknown, cookies: res.cookies };
+  }
+
+  /** How many sessions and audit rows name the administrator. */
+  async function sessionsAndAuditRows(id: string) {
+    const client = migrated();
+    return {
+      sessions: await client.adminSession.count({ where: { userId: id } }),
+      auditRows: await client.auditLog.count({ where: { userId: id } }),
+    };
   }
 
   /** One call of the route. */
@@ -287,6 +342,76 @@ describe("The required password change on a migrated database", { concurrency: 1
       assert.equal(await verifyPassword(row.passwordHash, loser), false);
       assert.equal(row.mustChangePassword, false);
       assert.deepEqual(row.passwordHistory, [rowBefore.passwordHash]);
+    }
+  );
+
+  it(
+    "refuses the single-use password at POST /admin/auth/login with 403, opening no session and leaving the row as it was",
+    TIMING,
+    async () => {
+      const admin = await firstAdministrator();
+      const rowBefore = await storedAdmin(admin.id);
+      const app = await buildApp();
+
+      const call = await signIn(app, ADMIN_SIGN_IN, admin.password);
+
+      assert.deepEqual(call, {
+        status: 403,
+        body: { ok: false, error: "PASSWORD_CHANGE_REQUIRED" },
+        cookies: [],
+      });
+      assert.deepEqual(await storedAdmin(admin.id), rowBefore);
+      assert.equal(rowBefore.lastLoginAt, null);
+      assert.deepEqual(await sessionsAndAuditRows(admin.id), { sessions: 0, auditRows: 0 });
+    }
+  );
+
+  it(
+    "refuses the single-use password at POST /auth/login with 403 and no cookie, opening no session and leaving the row as it was",
+    TIMING,
+    async () => {
+      const admin = await firstAdministrator();
+      const rowBefore = await storedAdmin(admin.id);
+      const app = await buildApp();
+
+      const call = await signIn(app, SIGN_IN, admin.password);
+
+      assert.deepEqual(call, {
+        status: 403,
+        body: { ok: false, error: "Password change required" },
+        cookies: [],
+      });
+      assert.deepEqual(await storedAdmin(admin.id), rowBefore);
+      assert.equal(rowBefore.lastLoginAt, null);
+      assert.deepEqual(await sessionsAndAuditRows(admin.id), { sessions: 0, auditRows: 0 });
+    }
+  );
+
+  it(
+    "signs in at POST /admin/auth/login with the new password once it is changed, opening a session and setting lastLoginAt, and refuses the single-use one",
+    TIMING,
+    async () => {
+      const admin = await firstAdministrator();
+      const app = await buildApp();
+      const changed = await change(app, admin.password, NEW_PASSWORD);
+      assert.equal(changed.status, 200);
+
+      const withNew = await signIn(app, ADMIN_SIGN_IN, NEW_PASSWORD);
+      const withOld = await signIn(app, ADMIN_SIGN_IN, admin.password);
+
+      assert.equal(withNew.status, 200);
+      const signedIn = withNew.body as { ok: boolean; data: { user: { id: string } } };
+      assert.equal(signedIn.ok, true);
+      assert.equal(signedIn.data.user.id, admin.id);
+      assert.deepEqual(withOld, {
+        status: 401,
+        body: { ok: false, error: "INVALID_CREDENTIALS" },
+        cookies: [],
+      });
+      const row = await storedAdmin(admin.id);
+      assert.ok(row.lastLoginAt instanceof Date, "the sign-in wrote lastLoginAt");
+      assert.equal(row.mustChangePassword, false);
+      assert.equal(await migrated().adminSession.count({ where: { userId: admin.id } }), 1);
     }
   );
 });
