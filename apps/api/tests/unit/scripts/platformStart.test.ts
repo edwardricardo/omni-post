@@ -14,7 +14,8 @@
  *   two services are sockets this suite opens, so no container starts here: the run against real
  *   containers is the sequence's own proof. The API is a small Node script that the pnpm stand-in
  *   runs in its place, and the case says whether it answers 200, answers 503, never answers or
- *   exits; the workers are another, which answers 200 on `/health/ready` alone, and each portal a
+ *   exits, and what its detailed report says; the workers are another, which answers 200 on
+ *   `/health/ready` and its detailed report on `/health/detailed` alone, and each portal a
  *   third, made from one script for both (`portalDouble`), which takes its port from the
  *   checkout's `apps/admin/package.json` or `apps/client/package.json`, as `next dev -p` does, and
  *   forwards `/api/backend/health` to `API_URL`. Every API, workers and portal stand-in a case
@@ -322,7 +323,80 @@ const ADMIN_PARENT = parentFor("ADMIN");
 const CLIENT_PARENT = parentFor("CLIENT");
 
 /**
- * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers every request with 200, `503`
+ * The dependencies each app registers with its health manager, in its order: the API's six
+ * (`apps/api/src/health/healthRoutes.ts`), of which `cache`, `storage` and `providers` are not
+ * critical, and the workers' three (`apps/workers/src/bootstrap.ts`), all critical. A report's
+ * overall status follows from them by the manager's rule
+ * (`packages/monitoring/health-checks/src/index.ts`, `calculateOverallHealth`): `unhealthy` when a
+ * critical one is, else `degraded` when more than 30% are degraded or the average score (1, 0.5, 0)
+ * is under 0.7, else `healthy`; each case's report states the status that rule gives.
+ */
+const REGISTERED = {
+  API: ["database", "redis", "cache", "queue", "storage", "providers"],
+  WORKERS: ["database", "redis", "consumer:publish"],
+} as const;
+
+/** Every dependency an app registers, healthy, but for those a case names with their status. */
+function dependenciesOf(
+  app: keyof typeof REGISTERED,
+  notHealthy: Record<string, string> = {}
+): Record<string, string> {
+  return Object.fromEntries(REGISTERED[app].map((name) => [name, notHealthy[name] ?? "healthy"]));
+}
+
+/**
+ * A detailed report as the API and the workers build it (`/health/detailed`,
+ * `apps/api/src/health/healthRoutes.ts` and `apps/workers/src/health/healthRequestHandler.ts`): its
+ * status and each dependency with its name and its status, beside the free text the run must never
+ * print, a message and details that name where the dependency is, with a password, and an alert
+ * that does too.
+ */
+function healthReport(status: string, dependencies: Record<string, string>): string {
+  return JSON.stringify({
+    ok: true,
+    status,
+    score: 0.75,
+    dependencies: Object.entries(dependencies).map(([name, of]) => ({
+      name,
+      type: "database",
+      status: of,
+      latency: 1500,
+      message: `${name} at postgresql://omnipost:hunter2@db.internal:5432/omnipost is ${of}`,
+      critical: true,
+      details: { error: "connect ETIMEDOUT db.internal:5432" },
+    })),
+    alerts: [{ level: "warning", message: "redis://:hunter2@cache.internal:6379 is slow" }],
+  });
+}
+
+/**
+ * The branch of the API's or the workers' stand-in that answers `/health/detailed` in mode `ok`,
+ * as a case wants it (`FAKE_API_REPORT*` for the API, `FAKE_WORKERS_REPORT*` for the workers): the
+ * text of `FAKE_<APP>_REPORT`, the app's report with every dependency healthy when unset, with the
+ * status of `FAKE_<APP>_REPORT_STATUS`, 200 when unset. `FAKE_<APP>_REPORT=silent` takes the
+ * request and never answers it; `FAKE_<APP>_REPORT=reset` answers 200 with half of the healthy
+ * report, under the length of all of it, and then destroys the connection.
+ */
+function reportReply(app: keyof typeof REGISTERED): string {
+  const healthy = healthReport("healthy", dependenciesOf(app));
+  return `if (mode === "ok" && request.url === "/health/detailed") {
+    const report = process.env.FAKE_${app}_REPORT ?? ${JSON.stringify(healthy)};
+    if (report === "silent") return;
+    if (report === "reset") {
+      const whole = ${JSON.stringify(healthy)};
+      response.writeHead(200, { "content-length": String(Buffer.byteLength(whole)) });
+      response.write(whole.slice(0, whole.length / 2), () => response.socket.destroy());
+      return;
+    }
+    response.statusCode = Number(process.env.FAKE_${app}_REPORT_STATUS ?? 200);
+    response.end(report);
+    return;
+  }`;
+}
+
+/**
+ * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers `/health/detailed` with its
+ * report (`reportReply`) and every other request with 200, `503`
  * with 503, `silent` takes the connection and never answers, `stubborn` answers 503 and ignores
  * SIGTERM, writing a line to its log each time it receives one, and `exit` ends at once with a line
  * on stderr. Like the real API, it takes `PORT` from its environment or else from the checkout's
@@ -343,6 +417,7 @@ if (mode === "exit" || port !== Number(process.env.FAKE_API_PORT)) {
 }
 const server = createServer((request, response) => {
   if (mode === "silent") return;
+  ${reportReply("API")}
   response.statusCode = mode === "503" || mode === "stubborn" ? 503 : 200;
   response.end("{}");
 });
@@ -362,8 +437,9 @@ process.on("SIGTERM", () => {
 
 /**
  * The workers as a case wants them, chosen by `FAKE_WORKERS_MODE`: `ok` answers 200 on
- * `/health/ready` and 404 on every other path, so a run that asked them anything else would wait
- * in vain; `503` answers `/health/ready` with 503, and `silent` takes the connection and never
+ * `/health/ready`, their report on `/health/detailed` (`reportReply`) and 404 on every other path,
+ * so a run that waited on anything else would wait in vain; `503` answers `/health/ready` with
+ * 503, and `silent` takes the connection and never
  * answers. Like the real workers, they load the checkout's environment file themselves, `.env.test`
  * when `NODE_ENV` is `test` and `.env` otherwise (a variable the process holds wins), and take
  * `METRICS_PORT` from it, an empty value read as absent, else 3300. They bind only the port the
@@ -381,6 +457,7 @@ if (port !== Number(process.env.FAKE_WORKERS_PORT)) {
 }
 const server = createServer((request, response) => {
   if (mode === "silent") return;
+  ${reportReply("WORKERS")}
   response.statusCode = request.url !== "/health/ready" ? 404 : mode === "503" ? 503 : 200;
   response.end("{}");
 });
@@ -4173,4 +4250,518 @@ describe("the services step of the full start", () => {
       ],
     });
   });
+});
+
+describe("a degraded answer, named by the run", () => {
+  /**
+   * What a run prints after the migration and before the administration portal's stage, one entry
+   * per line: the API's two lines and the workers' two lines by their names (`API answers`, `API
+   * stop`, `workers answer`, `workers stop`), and every other line word for word, so a line the
+   * run adds shows in its place among them.
+   */
+  function appStages(stdout: string): string[] {
+    const lines = stdout.split("\n");
+    const from = lines.indexOf("platform-start: the database is migrated") + 1;
+    const to = lines.findIndex((line) =>
+      line.startsWith("platform-start: the administration portal answers ")
+    );
+    const names: Array<[RegExp, string]> = [
+      [/^platform-start: the API answers \/health with 200 on /, "API answers"],
+      [/^platform-start: stop it with .* which runs the API /, "API stop"],
+      [/^platform-start: the workers answer \/health\/ready with 200 on /, "workers answer"],
+      [/^platform-start: stop them with .* which runs the workers /, "workers stop"],
+    ];
+    return lines
+      .slice(from, to)
+      .map((line) => names.find(([pattern]) => pattern.test(line))?.[1] ?? line);
+  }
+
+  it("adds no line when both detailed reports say healthy", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: ["API answers", "API stop", "workers answer", "workers stop"],
+    });
+  });
+
+  it("names the API's degraded database although its report says healthy overall, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of six degraded, an average of 0.917: healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", dependenciesOf("API", { database: "degraded" })),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with database degraded",
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("names the API's unhealthy storage, which is not critical, although its report says healthy overall", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // No critical one unhealthy, none degraded, an average of 0.833: healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", dependenciesOf("API", { storage: "unhealthy" })),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with storage unhealthy",
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("names the workers when their report says degraded overall, after their own stage, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of three degraded, more than 30%: degraded overall.
+      asked(staged, {
+        FAKE_WORKERS_REPORT: healthReport(
+          "degraded",
+          dependenciesOf("WORKERS", { redis: "degraded" })
+        ),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "workers answer",
+        "workers stop",
+        "platform-start: the workers report degraded overall, with redis degraded",
+      ],
+    });
+  });
+
+  it("names, for each app, every dependency that is not healthy, each line after its own app's stage", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        // One of six degraded and no critical one unhealthy, an average of 0.75: healthy overall.
+        FAKE_API_REPORT: healthReport(
+          "healthy",
+          dependenciesOf("API", { database: "degraded", storage: "unhealthy" })
+        ),
+        FAKE_WORKERS_REPORT: healthReport(
+          "degraded",
+          dependenciesOf("WORKERS", { database: "degraded" })
+        ),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with database degraded, storage unhealthy",
+        "workers answer",
+        "workers stop",
+        "platform-start: the workers report degraded overall, with database degraded",
+      ],
+    });
+  });
+
+  /** The line a run prints for an app whose detailed report it could not read, and why. */
+  const unread = (app: "API" | "workers", why: string) =>
+    `platform-start: the detailed report of the ${app} (/health/detailed) could not be read (${why}): whether every dependency of the ${app} is healthy is not known`;
+
+  /** Why a report that answered 200 could not be read. */
+  const NOT_A_REPORT = "it answered 200 with a body that is not a health report";
+
+  it("says a report could not be read when it answers another status than 200, or a body that is not JSON, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        // A critical dependency unhealthy: unhealthy overall, which the API answers with 503.
+        FAKE_API_REPORT: healthReport(
+          "unhealthy",
+          dependenciesOf("API", { database: "unhealthy" })
+        ),
+        FAKE_API_REPORT_STATUS: "503",
+        FAKE_WORKERS_REPORT: "not json",
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", "it answered 503"),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+    });
+  });
+
+  it("says a report could not be read when it answers 200 with a status the apps answer 503 with, or with no list of dependencies", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("unhealthy", { database: "unhealthy" }),
+        FAKE_WORKERS_REPORT: JSON.stringify({ status: "degraded", dependencies: { redis: "x" } }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+    });
+  });
+
+  it("prints nothing of a report whose dependency has a status that is not one of the three, or no name: it could not be read", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("degraded", {
+          database: "down at postgresql://omnipost:hunter2@db.internal:5432/omnipost",
+        }),
+        FAKE_WORKERS_REPORT: JSON.stringify({
+          status: "degraded",
+          dependencies: [{ status: "degraded" }],
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+    });
+  });
+
+  it("prints nothing of a report whose dependency's name holds a line break or a space, text that would read as a line of the run or as prose: it could not be read", async () => {
+    const staged = await stage();
+    const forged = "platform-start: every dependency of the workers is healthy";
+    const prose = "database is fine";
+
+    const result = await start(
+      ["--root", staged.root],
+      // Each well formed but for one name: one of seven degraded, healthy overall; one of three
+      // degraded, degraded overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", { ...dependenciesOf("API"), [prose]: "degraded" }),
+        FAKE_WORKERS_REPORT: healthReport("degraded", {
+          database: "healthy",
+          [`redis\n${forged}`]: "degraded",
+          "consumer:publish": "healthy",
+        }),
+      })
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      stages: appStages(result.stdout),
+      carrying: result.stdout
+        .split("\n")
+        .filter((line) => line.includes(forged) || line.includes(prose)),
+    }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
+  it("names the workers' consumer of the publish queue when it is not healthy, its name and its separator as the report gives them", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of three degraded, more than 30%: degraded overall.
+      asked(staged, {
+        FAKE_WORKERS_REPORT: healthReport(
+          "degraded",
+          dependenciesOf("WORKERS", { "consumer:publish": "degraded" })
+        ),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "workers answer",
+        "workers stop",
+        "platform-start: the workers report degraded overall, with consumer:publish degraded",
+      ],
+    });
+  });
+
+  it("names a dependency whose name holds a digit and a hyphen, the way a queue's name is built, when it is not healthy", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of seven degraded, an average of 0.929: healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", {
+          ...dependenciesOf("API"),
+          "redis-replica-2": "degraded",
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with redis-replica-2 degraded",
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("names a dependency whose name holds a capital letter and an underscore, when it is not healthy", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of seven degraded, an average of 0.929: healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", {
+          ...dependenciesOf("API"),
+          Search_Index: "degraded",
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with Search_Index degraded",
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("names a dependency whose name is 64 characters long, and reads as not a report the one whose name is 65", async () => {
+    const staged = await stage();
+    // "consumer:" is 9 characters: 9 + 55 = 64, the longest name the line prints.
+    const atTheCap = `consumer:${"q".repeat(55)}`;
+    const pastTheCap = `${atTheCap}q`;
+
+    const result = await start(
+      ["--root", staged.root],
+      // Each well formed: one of seven degraded, healthy overall; one of four degraded, an average
+      // of 0.875, healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", {
+          ...dependenciesOf("API"),
+          [atTheCap]: "degraded",
+        }),
+        FAKE_WORKERS_REPORT: healthReport("healthy", {
+          ...dependenciesOf("WORKERS"),
+          [pastTheCap]: "degraded",
+        }),
+      })
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      stages: appStages(result.stdout),
+      carrying: result.stdout.split("\n").filter((line) => line.includes(pastTheCap)),
+    }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        `platform-start: the API reports healthy overall, with ${atTheCap} degraded`,
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
+  it("prints nothing of a report whose dependency's name holds a `.` or a `/`, which would read as a host or as a path: it could not be read", async () => {
+    const staged = await stage();
+    const host = "db.internal";
+    const path = "var/run/redis";
+
+    const result = await start(
+      ["--root", staged.root],
+      // Each well formed but for one name: one of seven degraded, healthy overall; one of four
+      // degraded, healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", { ...dependenciesOf("API"), [host]: "degraded" }),
+        FAKE_WORKERS_REPORT: healthReport("healthy", {
+          ...dependenciesOf("WORKERS"),
+          [path]: "degraded",
+        }),
+      })
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      stages: appStages(result.stdout),
+      carrying: result.stdout
+        .split("\n")
+        .filter((line) => line.includes(host) || line.includes(path)),
+    }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
+  it("reads as not a report the one whose dependency has an empty name", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // Well formed but for one name: one of seven degraded, healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", { ...dependenciesOf("API"), "": "degraded" }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+      ],
+    });
+  });
+
+  it("says a report could not be read when its connection ends before its body does, and still exits 0", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      asked(staged, { FAKE_WORKERS_REPORT: "reset" })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "workers answer",
+        "workers stop",
+        unread("workers", "nothing answered it"),
+      ],
+    });
+  });
+
+  it(
+    "says a report could not be read when nothing answers it in time, goes on, and still exits 0",
+    { timeout: 30_000 },
+    async () => {
+      const staged = await stage();
+
+      const result = await start(
+        ["--root", staged.root],
+        asked(staged, { FAKE_API_REPORT: "silent" })
+      );
+
+      expect({
+        code: result.code,
+        stderr: result.stderr,
+        stages: appStages(result.stdout),
+      }).toEqual({
+        code: 0,
+        stderr: "",
+        stages: [
+          "API answers",
+          "API stop",
+          unread("API", "nothing answered it"),
+          "workers answer",
+          "workers stop",
+        ],
+      });
+    }
+  );
 });
