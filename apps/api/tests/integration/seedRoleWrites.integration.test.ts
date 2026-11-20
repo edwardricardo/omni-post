@@ -37,14 +37,25 @@ import {
 
 assertSeedChannelConfigured();
 
-/** Budget for every test and hook in this file: the migration in `before` blocks for minutes. */
-const TIMING = { timeout: 240_000 } as const;
+/** Budget for each hook in this file: the migration in `before` blocks for minutes. */
+const HOOK_TIMING = { timeout: 240_000 } as const;
 
 const PRISMA_DIR = fileURLToPath(new URL("../../../../infra/prisma/", import.meta.url));
 const TSX_CLI = createRequire(path.join(PRISMA_DIR, "package.json")).resolve("tsx/cli");
 
 /** How long one run of the seed may take before the runner ends it with SIGTERM. */
 const SEED_RUN_LIMIT_MS = 180_000;
+
+/** What a case takes besides its seed runs: the trigger, the reads and the cleanup. */
+const CASE_MARGIN_MS = 60_000;
+
+/**
+ * The budget of a case that runs the seed `seedRuns` times: every run's limit plus the margin, so a
+ * run that hangs is ended by its own limit, with `killed` set, before the case's timeout cancels it.
+ */
+function caseTiming(seedRuns: number): { readonly timeout: number } {
+  return { timeout: seedRuns * SEED_RUN_LIMIT_MS + CASE_MARGIN_MS };
+}
 
 /** The trigger, its function and the sequence that counts its firings. */
 const FAILURE = {
@@ -188,12 +199,12 @@ describe("The development seed's role writes on a migrated database", { concurre
   before(async () => {
     database = await createMigratedScratchDatabase("omnipost_seed_roles");
     scratch = createTestPrismaClient(database.url);
-  }, TIMING);
+  }, HOOK_TIMING);
 
   after(async () => {
     await scratch?.$disconnect();
     await database?.drop();
-  }, TIMING);
+  }, HOOK_TIMING);
 
   /** The scratch database's URL and client, after asserting the migration ran. */
   function migrated(): { url: string; client: PrismaClient } {
@@ -205,7 +216,7 @@ describe("The development seed's role writes on a migrated database", { concurre
 
   it(
     "leaves no row of an administration role whose permissions fail partway on a first run",
-    TIMING,
+    caseTiming(1),
     async () => {
       const { url, client } = migrated();
       await failPermissionRow(client, "RolePermission", "role-admin", "audit:read");
@@ -232,7 +243,7 @@ describe("The development seed's role writes on a migrated database", { concurre
 
   it(
     "leaves no row of a customer role whose permissions fail partway on a first run",
-    TIMING,
+    caseTiming(1),
     async () => {
       const { url, client } = migrated();
       await failPermissionRow(client, "CustomerRolePermission", "role-manager", "approval:review");
@@ -260,7 +271,7 @@ describe("The development seed's role writes on a migrated database", { concurre
 
   it(
     "keeps every row and the description a role held when a rerun fails partway through it",
-    TIMING,
+    caseTiming(2),
     async () => {
       const { url, client } = migrated();
       const complete = await runSeed(url);

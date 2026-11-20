@@ -18,6 +18,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runInOwnProcessGroup } from "../../integration/helpers/migratedScratchDatabase.js";
+import { hasProcessEnded } from "../helpers/processState.js";
 
 /** The limit of the cases that reach it: far past what the wait for a pid moves the clock. */
 const LIMIT_MS = 60_000;
@@ -35,18 +36,6 @@ afterEach(() => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
-
-/**
- * Whether the process `pid` has ended: it no longer exists, or only its exit status is left for
- * a parent to collect (state `Z` or `X` in `/proc/<pid>/stat`).
- */
-function hasEnded(pid: number): boolean {
-  const stat = `/proc/${String(pid)}/stat`;
-  if (!existsSync(stat)) return true;
-  const line = readFileSync(stat, "utf8");
-  const state = line.slice(line.lastIndexOf(")") + 2)[0];
-  return state === "Z" || state === "X";
-}
 
 /** A path, in a directory of the case's own, for the started process to write a pid to. */
 function pidFile(): string {
@@ -109,7 +98,7 @@ describe("runInOwnProcessGroup", () => {
       expect(outcome.error?.message).toBe(
         `sh outlived its limit of ${String(LIMIT_MS)} ms, so its process group was ended`
       );
-      expect(hasEnded(started)).toBe(true);
+      expect(hasProcessEnded(started)).toBe(true);
     },
     CASE_TIMEOUT_MS
   );

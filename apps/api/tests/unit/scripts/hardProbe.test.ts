@@ -36,6 +36,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
 import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it } from "vitest";
+import { hasProcessEnded } from "../helpers/processState.js";
 
 type Result<T> = { value: T } | { error: string };
 type Outcome = "GREEN" | "RED" | "LOAD-ERROR";
@@ -2205,25 +2206,6 @@ describe("pendingTempPath", () => {
   );
 });
 
-/** Whether a process still runs: absent, a zombie or dead in `/proc` is not running. */
-const running = (pid: number): boolean => {
-  if (existsSync("/proc/self/stat")) {
-    try {
-      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-      const state = stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3);
-      return state !== "Z" && state !== "X";
-    } catch {
-      return false;
-    }
-  }
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 /** A node process that starts a worker of its own, prints the worker's pid, then ends or waits. */
 const parentOfWorker = (then: "ends" | "waits"): string[] => [
   "-e",
@@ -2237,7 +2219,8 @@ describe("runTool", () => {
   let workers: number[] = [];
 
   afterEach(() => {
-    for (const pid of workers.filter(running)) process.kill(pid, "SIGKILL");
+    for (const pid of workers.filter((worker) => !hasProcessEnded(worker)))
+      process.kill(pid, "SIGKILL");
     workers = [];
   });
 
@@ -2257,7 +2240,7 @@ describe("runTool", () => {
 
       expect(ran).toMatchObject({ status: null, timedOut: true, spawnError: null });
       expect(Number.isInteger(worker) && worker > 0).toBe(true);
-      await until(() => !running(worker), {
+      await until(() => hasProcessEnded(worker), {
         description: `worker ${worker} to end with its timed-out runner`,
         timeoutMs: 5_000,
       });
@@ -2273,7 +2256,7 @@ describe("runTool", () => {
 
       expect(ran).toMatchObject({ status: 0, timedOut: false, spawnError: null, stderr: "" });
       expect(Number.isInteger(worker) && worker > 0).toBe(true);
-      await until(() => !running(worker), {
+      await until(() => hasProcessEnded(worker), {
         description: `worker ${worker} to end with its runner`,
         timeoutMs: 5_000,
       });
@@ -2313,7 +2296,8 @@ describe("a signal", () => {
   let leftovers: number[] = [];
 
   afterEach(() => {
-    for (const pid of leftovers.filter(running)) process.kill(pid, "SIGKILL");
+    for (const pid of leftovers.filter((leftover) => !hasProcessEnded(leftover)))
+      process.kill(pid, "SIGKILL");
     leftovers = [];
   });
 
@@ -2378,7 +2362,7 @@ describe("a signal", () => {
       leftovers.push(runner);
 
       process.kill(toolPid, signal);
-      await until(() => !running(runner), {
+      await until(() => hasProcessEnded(runner), {
         description: `runner ${runner} to end with its process group`,
         timeoutMs: 10_000,
       });

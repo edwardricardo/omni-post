@@ -54,6 +54,7 @@ import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
 import { evaluateAdminPassword } from "../../../../../infra/prisma/src/seedGuard.js";
+import { hasProcessEnded } from "../helpers/processState.js";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -625,19 +626,9 @@ function signal(target: number, name: NodeJS.Signals): boolean {
   return true;
 }
 
-/**
- * Whether a process is running. An orphan that has ended can stay a zombie until its new parent
- * reaps it, and the system still answers for it, so the state the kernel reports decides first.
- */
+/** Whether a process is running, by the shared probe: it raises where there is no procfs. */
 function alive(pid: number): boolean {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    return stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3) !== "Z";
-  } catch (error) {
-    // A process that ends while it is read can fail the read with ESRCH instead of ENOENT.
-    if (!["ENOENT", "ESRCH"].includes(String((error as NodeJS.ErrnoException).code))) throw error;
-    return false;
-  }
+  return !hasProcessEnded(pid);
 }
 
 /**
