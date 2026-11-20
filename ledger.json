@@ -27,7 +27,7 @@
       "total": 1260
     },
     "blocks": {
-      "total": 15624,
+      "total": 15626,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15313
+        "BEHAVIOURAL": 15315
       }
     },
     "deleted": {
@@ -79074,7 +79074,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 170,
+      "blockCount": 172,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
@@ -80246,22 +80246,36 @@
           "bodyHash": "900d790742ee19d7ff3fb08145ccd89747edb38afd1a93c0676da196b248cc00"
         },
         {
-          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints nothing of a report whose dependency's name is not one the apps register, a name that would read as a line of the run: it could not be read",
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints nothing of a report whose dependency's name holds a line break or a space, text that would read as a line of the run or as prose: it could not be read",
           "line": 4490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "3766802d4fd4f365c99a43c9e0ae9dbe564cb508fd50f0606e298cb1f7f12e9e"
+          "bodyHash": "99f162061032e919fd43d1f3d3f92277de4f720689d6de8ba72254ff4bc0b808"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the workers' consumer of the publish queue when it is not healthy, its name and its separator as the report gives them",
+          "line": 4531,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "29a4d8bccc9de1df591bc0ab608c29520c7bf7ebd224e1ea75efb3c7d821dcd0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names a dependency whose name holds a digit and a hyphen, the way a queue's name is built, when it is not healthy",
+          "line": 4558,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3a04e2a279a5e9a4251059f4b427d3cb5b13a23dba6d25a69b737c1e69f2600c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says a report could not be read when its connection ends before its body does, and still exits 0",
-          "line": 4525,
+          "line": 4585,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0ea4558f00b19fb731c3fb984768dc64834a81cc4c2d18db59e9bcd18ec63198"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says a report could not be read when nothing answers it in time, goes on, and still exits 0",
-          "line": 4546,
+          "line": 4606,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3068c0e06fd527d1d40baa54d2d518b4f2e2f5ea03f25ef28ecdc9d5d0498cf"

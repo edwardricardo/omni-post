@@ -4487,14 +4487,17 @@ describe("a degraded answer, named by the run", () => {
     });
   });
 
-  it("prints nothing of a report whose dependency's name is not one the apps register, a name that would read as a line of the run: it could not be read", async () => {
+  it("prints nothing of a report whose dependency's name holds a line break or a space, text that would read as a line of the run or as prose: it could not be read", async () => {
     const staged = await stage();
     const forged = "platform-start: every dependency of the workers is healthy";
+    const prose = "database is fine";
 
     const result = await start(
       ["--root", staged.root],
-      // Well formed but for one name: one of three degraded, degraded overall.
+      // Each well formed but for one name: one of seven degraded, healthy overall; one of three
+      // degraded, degraded overall.
       asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", { ...dependenciesOf("API"), [prose]: "degraded" }),
         FAKE_WORKERS_REPORT: healthReport("degraded", {
           database: "healthy",
           [`redis\n${forged}`]: "degraded",
@@ -4507,8 +4510,39 @@ describe("a degraded answer, named by the run", () => {
       code: result.code,
       stderr: result.stderr,
       stages: appStages(result.stdout),
-      carrying: result.stdout.split("\n").filter((line) => line.includes(forged)),
+      carrying: result.stdout
+        .split("\n")
+        .filter((line) => line.includes(forged) || line.includes(prose)),
     }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        unread("API", NOT_A_REPORT),
+        "workers answer",
+        "workers stop",
+        unread("workers", NOT_A_REPORT),
+      ],
+      carrying: [],
+    });
+  });
+
+  it("names the workers' consumer of the publish queue when it is not healthy, its name and its separator as the report gives them", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of three degraded, more than 30%: degraded overall.
+      asked(staged, {
+        FAKE_WORKERS_REPORT: healthReport(
+          "degraded",
+          dependenciesOf("WORKERS", { "consumer:publish": "degraded" })
+        ),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
       code: 0,
       stderr: "",
       stages: [
@@ -4516,9 +4550,35 @@ describe("a degraded answer, named by the run", () => {
         "API stop",
         "workers answer",
         "workers stop",
-        unread("workers", NOT_A_REPORT),
+        "platform-start: the workers report degraded overall, with consumer:publish degraded",
       ],
-      carrying: [],
+    });
+  });
+
+  it("names a dependency whose name holds a digit and a hyphen, the way a queue's name is built, when it is not healthy", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root],
+      // One of seven degraded, an average of 0.929: healthy overall.
+      asked(staged, {
+        FAKE_API_REPORT: healthReport("healthy", {
+          ...dependenciesOf("API"),
+          "redis-replica-2": "degraded",
+        }),
+      })
+    );
+
+    expect({ code: result.code, stderr: result.stderr, stages: appStages(result.stdout) }).toEqual({
+      code: 0,
+      stderr: "",
+      stages: [
+        "API answers",
+        "API stop",
+        "platform-start: the API reports healthy overall, with redis-replica-2 degraded",
+        "workers answer",
+        "workers stop",
+      ],
     });
   });
 

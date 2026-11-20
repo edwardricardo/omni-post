@@ -365,16 +365,18 @@ const REPORT_TIMEOUT_MS = 10_000;
 const DEPENDENCY_STATUSES = new Set(["healthy", "degraded", "unhealthy"]);
 
 /**
- * The shape of every name the two apps register a dependency under: one lowercase word
- * (`database`, `redis`, `cache`, `queue`, `storage`, `providers` in
- * `apps/api/src/health/healthRoutes.ts`, `database` and `redis` in `apps/workers/src/bootstrap.ts`),
- * or `consumer:` and a queue's name, one lowercase word too (`consumer:publish`, built by
- * `publishConsumerDependencyName` in `apps/workers/src/health/readiness.ts` over
- * `PUBLISH_PIPELINE_QUEUES` in `packages/adapters/queue-bullmq/src/constants.ts`). The line prints
- * a name, so a name of another shape, which could hold a line break or any text, makes the body not
- * a report.
+ * What a dependency's name may hold for the line to print it: an identifier, never text. Letters
+ * of either case, digits, and the separators identifiers of dependencies and queues are built with:
+ * `-` and `_` inside a word, as queue names join theirs
+ * (`packages/adapters/queue-bullmq/src/constants.ts`), and `:` between a kind and a name, as the
+ * workers name a queue's consumer (`apps/workers/src/health/readiness.ts`). No space, line break or
+ * other control character, so the line stays one line and holds no prose; no `.` or `/`, which turn
+ * an identifier into a host or a path. At most 64 characters, nearly twice the longest name a
+ * queue's consumer could take today (34, `consumer:bulk-schedule-dead-letter`), so a name has room
+ * to grow and still never fills the line. A name outside this makes the body not a report, as a
+ * status outside the three does.
  */
-const DEPENDENCY_NAME = /^[a-z]+(?::[a-z]+)?$/;
+const DEPENDENCY_NAME = /^[A-Za-z0-9_:-]{1,64}$/;
 
 /** The pause between two attempts: short beside the default wait, long beside one Compose call. */
 const POLL_INTERVAL_MS = 500;
@@ -1262,8 +1264,8 @@ function fieldsOf(value) {
  * @param {string} body - The body the report answered 200 with.
  * @returns {{ status: string, notHealthy: string[] } | null} What it says, or `null` for a body that
  *   is not such a report: not JSON, a status the apps do not answer 200 with (`isUsable`), no list
- *   of dependencies, or a dependency whose name is not of the apps' shape (`DEPENDENCY_NAME`) or
- *   whose status is not one of the three.
+ *   of dependencies, or a dependency whose name is not an identifier (`DEPENDENCY_NAME`) or whose
+ *   status is not one of the three.
  */
 function readReport(body) {
   let parsed;
@@ -1299,7 +1301,7 @@ function readReport(body) {
  *   the report's overall status, which can be `healthy` all the same, and each such dependency with
  *   its status. When the report cannot be read, one line says so and why, since a report whose
  *   every dependency is healthy adds no line and silence would read as one. Neither line fails the
- *   run: a degraded app is usable. The line holds only names of the shape the apps register
+ *   run: a degraded app is usable. The line holds only names that are identifiers
  *   (`DEPENDENCY_NAME`) and the three statuses, so it is one line and carries no other text of the
  *   report.
  * @param {App} app - The API or the workers, by its descriptor: its name, its words and its port.
