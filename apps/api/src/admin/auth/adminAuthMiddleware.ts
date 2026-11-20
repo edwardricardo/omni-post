@@ -108,6 +108,7 @@ export async function requireAdminAuth(
       INTERNAL_ERROR: "Internal error",
       CONCURRENT_MODIFICATION: "Concurrent modification, retry the request",
       PASSWORD_CHANGE_NOT_REQUIRED: "Password change not required",
+      PASSWORD_CHANGE_REQUIRED: "Password change required",
     };
 
     const errorCode = result.error as AuthErrorCode;

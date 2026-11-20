@@ -8,6 +8,7 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import jwt from "jsonwebtoken";
+import { err, ok } from "@shared/types";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
 import type { AuthTokens } from "../../src/auth/authTypes.js";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
@@ -263,6 +264,84 @@ describe("AuthService", () => {
       if (user) {
         stores.adminUser.update(user.id as string, { isActive: true });
       }
+    });
+
+    it("refuses an administrator who must change the password with PASSWORD_CHANGE_REQUIRED, opening no session and recording only the refusal", async () => {
+      stores.adminUser.update(testUserId, { mustChangePassword: true });
+      const auditRowsBefore = auditLog.rows.length;
+
+      const result = await authService.login(
+        { email: testEmail, password: testPassword },
+        "192.168.1.100",
+        "Mozilla/5.0 Test"
+      );
+
+      expect(result).toEqual(err("PASSWORD_CHANGE_REQUIRED"));
+      expect(stores.adminSession.all()).toEqual([]);
+      const stored = stores.adminUser.all().find((u) => u.id === testUserId);
+      expect(stored?.lastLoginAt).toBeNull();
+      expect(auditLog.rows.slice(auditRowsBefore)).toEqual([
+        {
+          id: expect.any(String),
+          userId: testUserId,
+          customerUserId: null,
+          actorType: "ADMIN",
+          accountId: null,
+          action: "USER_LOGIN",
+          resource: null,
+          resourceId: null,
+          details: {
+            email: testEmail.toLowerCase(),
+            reason: "PASSWORD_CHANGE_REQUIRED",
+            category: "AUTHENTICATION",
+            severity: "HIGH",
+          },
+          ipAddress: "192.168.1.100",
+          userAgent: "Mozilla/5.0 Test",
+          success: false,
+          error: "PASSWORD_CHANGE_REQUIRED",
+          createdAt: expect.any(Date),
+        },
+      ]);
+    });
+
+    it("answers a wrong password with INVALID_CREDENTIALS for an administrator who must change the password", async () => {
+      stores.adminUser.update(testUserId, { mustChangePassword: true });
+
+      const result = await authService.login(
+        { email: testEmail, password: "WrongPassword123!" },
+        "192.168.1.100",
+        "Mozilla/5.0 Test"
+      );
+
+      expect(result).toEqual(err("INVALID_CREDENTIALS"));
+      expect(stores.adminSession.all()).toEqual([]);
+    });
+
+    it("asks a marked administrator with a second factor for the code, without saying the password must be changed", async () => {
+      stores.adminUser.update(testUserId, { mustChangePassword: true, mfaEnabled: true });
+
+      const result = await authService.login(
+        { email: testEmail, password: testPassword },
+        "192.168.1.100",
+        "Mozilla/5.0 Test"
+      );
+
+      expect(result).toEqual(ok({ mfaRequired: true, userId: testUserId }));
+      expect(stores.adminSession.all()).toEqual([]);
+    });
+
+    it("answers USER_INACTIVE, not PASSWORD_CHANGE_REQUIRED, for a deactivated administrator who must change the password", async () => {
+      stores.adminUser.update(testUserId, { mustChangePassword: true, isActive: false });
+
+      const result = await authService.login(
+        { email: testEmail, password: testPassword },
+        "192.168.1.100",
+        "Mozilla/5.0 Test"
+      );
+
+      expect(result).toEqual(err("USER_INACTIVE"));
+      expect(stores.adminSession.all()).toEqual([]);
     });
   });
 

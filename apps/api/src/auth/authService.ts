@@ -62,6 +62,15 @@ export class AuthService {
     this.session = new AuthServiceSession(prisma, this.core, metrics);
   }
 
+  /**
+   * @method registerAdmin
+   * @description Delegates to {@link AuthServiceCore.registerAdmin}, which states the contract.
+   * @param email - Passed through
+   * @param password - Passed through
+   * @param name - Passed through
+   * @param role - Passed through
+   * @returns What the delegate returns
+   */
   async registerAdmin(
     email: string,
     password: string,
@@ -71,6 +80,15 @@ export class AuthService {
     return this.core.registerAdmin(email, password, name, role);
   }
 
+  /**
+   * @method login
+   * @description Delegates to {@link AuthServiceCore.login}, which states the contract.
+   * @param credentials - Passed through
+   * @param ipAddress - Passed through
+   * @param userAgent - Passed through
+   * @param fingerprint - Passed through
+   * @returns What the delegate returns
+   */
   async login(
     credentials: LoginCredentials,
     ipAddress?: string,
@@ -84,12 +102,21 @@ export class AuthService {
       | "MFA_REQUIRED"
       | "INVALID_MFA_TOKEN"
       | "TOO_MANY_SESSIONS"
+      | "PASSWORD_CHANGE_REQUIRED"
       | "DATABASE_ERROR"
     >
   > {
     return this.core.login(credentials, ipAddress, userAgent, fingerprint);
   }
 
+  /**
+   * @method refreshTokens
+   * @description Delegates to {@link AuthServiceSession.refreshTokens}, which states the contract.
+   * @param refreshToken - Passed through
+   * @param ipAddress - Passed through
+   * @param fingerprint - Passed through
+   * @returns What the delegate returns
+   */
   async refreshTokens(
     refreshToken: string,
     ipAddress?: string,
@@ -103,6 +130,14 @@ export class AuthService {
     return this.session.refreshTokens(refreshToken, ipAddress, fingerprint);
   }
 
+  /**
+   * @method verifyAccessToken
+   * @description Delegates to {@link AuthServiceSession.verifyAccessToken}, which states the
+   *   contract.
+   * @param token - Passed through
+   * @param fingerprint - Passed through
+   * @returns What the delegate returns
+   */
   async verifyAccessToken(
     token: string,
     fingerprint?: SessionFingerprint
@@ -115,16 +150,36 @@ export class AuthService {
     return this.session.verifyAccessToken(token, fingerprint);
   }
 
+  /**
+   * @method logout
+   * @description Delegates to {@link AuthServiceSession.logout}, which states the contract.
+   * @param refreshToken - Passed through
+   * @returns What the delegate returns
+   */
   async logout(
     refreshToken: string
   ): Promise<Result<void, "SESSION_NOT_FOUND" | "DATABASE_ERROR">> {
     return this.session.logout(refreshToken);
   }
 
+  /**
+   * @method revokeAllSessions
+   * @description Delegates to {@link AuthServiceSession.revokeAllSessions}, which states the
+   *   contract.
+   * @param userId - Passed through
+   * @returns What the delegate returns
+   */
   async revokeAllSessions(userId: string): Promise<Result<number, "DATABASE_ERROR">> {
     return this.session.revokeAllSessions(userId);
   }
 
+  /**
+   * @method getUserSessions
+   * @description Delegates to {@link AuthServiceSession.getUserSessions}, which states the
+   *   contract.
+   * @param userId - Passed through
+   * @returns What the delegate returns
+   */
   async getUserSessions(userId: string): Promise<Result<AdminSession[], "DATABASE_ERROR">> {
     return this.session.getUserSessions(userId);
   }

@@ -283,6 +283,7 @@
         "runtime-import": {
           "production": ["apps/api/src/index.ts"],
           "test": [
+            "apps/api/tests/integration/adminRequiredPasswordChange.integration.test.ts",
             "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
             "apps/api/tests/unit/analyticsRoutes.test.ts",
             "apps/api/tests/unit/approvals/approvalRoutes.test.ts",

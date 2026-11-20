@@ -1,10 +1,13 @@
 /**
  * @file adminAuthRoutes.changeRequired.test.ts
- * @description Route-level boundary for `POST /admin/auth/password/change-required`. Drives the
- *   real Fastify handler, its schema and its status map over a stubbed service, so what a caller
- *   without a session receives is pinned: the schema's refusals, the status of every code, the
- *   success body, the sign-in's rate limit, and that neither password reaches a response or a
- *   logged object.
+ * @description Route-level boundary for the two routes that run the administrators' sign-in
+ *   checks without a session, `POST /admin/auth/password/change-required` and
+ *   `POST /admin/auth/login`. Drives the real Fastify handlers, their schemas and their status
+ *   maps over a stubbed service, so what a caller without a session receives is pinned: for the
+ *   change, the schema's refusals, the status of every code, the success body, the sign-in's rate
+ *   limit, and that neither password reaches a response or a logged object; for the sign-in, the
+ *   status and body of every code its map names, the answer that asks for the second factor, the
+ *   success body, and the one rate-limit bucket both routes spend.
  * @layer infrastructure
  */
 
@@ -63,7 +66,8 @@ const limiterStub = {
   ),
 };
 
-function buildApp() {
+/** The routes over the stubs, registered under `prefix` when one is given. */
+function buildApp(options: { prefix?: string } = {}) {
   const app = Fastify({ logger: false });
   const container = new Container();
   container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
@@ -71,7 +75,7 @@ function buildApp() {
   container.registerInstance(TOKENS.EmailPort, emailStub);
   container.registerInstance(TOKENS.HttpRateLimiter, limiterStub);
   app.decorate("container", container);
-  app.register(adminAuthRoutes);
+  app.register(adminAuthRoutes, options);
   return app;
 }
 
@@ -199,7 +203,8 @@ describe("POST /admin/auth/password/change-required", () => {
   });
 
   // MFA_REQUIRED and RATE_LIMIT_EXCEEDED are left out: this route answers both with statuses of
-  // its own, which the table above pins, and the sign-in's own answers for them are not pinned here.
+  // its own, which the table above pins, while the sign-in answers MFA_REQUIRED as a success that
+  // asks for the code, which the sign-in's block below pins.
   it.each(["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "ACCOUNT_INACTIVE", "MFA_INVALID"])(
     "answers %s with the status the sign-in gives it",
     async (code) => {
@@ -257,5 +262,101 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(logged.length).toBeGreaterThan(0);
     expect(written.includes(CURRENT_PASSWORD)).toBe(false);
     expect(written.includes(NEW_PASSWORD)).toBe(false);
+  });
+});
+
+describe("POST /admin/auth/login", () => {
+  const SIGN_IN_ROUTE = "/admin/auth/login";
+  const SIGN_IN_BODY = { email: TYPED_EMAIL, password: CURRENT_PASSWORD };
+
+  /** A completed sign-in, in the shape the service returns it. */
+  const SIGNED_IN = {
+    user: { id: "admin-route-sign-in", email: STORED_EMAIL, role: "SUPER_ADMIN" },
+    tokens: {
+      accessToken: "fixture-access-token",
+      refreshToken: "fixture-refresh-token",
+      expiresIn: 900,
+      csrfToken: "fixture-csrf-token",
+    },
+    requiresMfa: false,
+  };
+
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    loginResult = ok(SIGNED_IN);
+    limiterAllows = true;
+    app = buildApp();
+    await app.ready();
+  });
+
+  // Closed here rather than at the end of each case, so a failed assertion does not leave it open.
+  afterEach(async () => {
+    await app.close();
+  });
+
+  async function signIn() {
+    return app.inject({
+      method: "POST",
+      url: SIGN_IN_ROUTE,
+      headers: { "user-agent": USER_AGENT },
+      payload: SIGN_IN_BODY,
+    });
+  }
+
+  it("answers 200 with the profile and the tokens, and hands the service the normalized e-mail", async () => {
+    const res = await signIn();
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true, data: SIGNED_IN });
+    expect(adminAuthStub.login).toHaveBeenCalledTimes(1);
+    expect(adminAuthStub.login).toHaveBeenCalledWith(
+      { email: STORED_EMAIL, password: CURRENT_PASSWORD, rememberMe: false },
+      { deviceId: "", userAgent: USER_AGENT, ipAddress: "127.0.0.1" }
+    );
+  });
+
+  it.each([
+    ["INVALID_CREDENTIALS", 401],
+    ["ACCOUNT_LOCKED", 403],
+    ["ACCOUNT_INACTIVE", 403],
+    ["MFA_INVALID", 401],
+    ["PASSWORD_CHANGE_REQUIRED", 403],
+  ])("answers %s with %i and the code", async (code, status) => {
+    loginResult = err(code);
+
+    const res = await signIn();
+
+    expect(res.statusCode).toBe(status);
+    expect(JSON.parse(res.body)).toEqual({ ok: false, error: code });
+  });
+
+  it("answers a missing second factor with 200 and a body that asks for it", async () => {
+    loginResult = err("MFA_REQUIRED");
+
+    const res = await signIn();
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true, data: { requiresMfa: true } });
+  });
+
+  it("keys the sign-in and the change by the sign-in's pattern when the routes are registered under a prefix", async () => {
+    const prefixed = buildApp({ prefix: "/v1" });
+    try {
+      await prefixed.ready();
+      await prefixed.inject({ method: "POST", url: `/v1${SIGN_IN_ROUTE}`, payload: SIGN_IN_BODY });
+      await prefixed.inject({ method: "POST", url: `/v1${ROUTE}`, payload: VALID_BODY });
+    } finally {
+      await prefixed.close();
+    }
+
+    const keys = (limiterStub.tryConsume.mock.calls as unknown as [string, unknown][]).map(
+      ([key]) => key
+    );
+    expect(keys).toEqual([
+      "admin:127.0.0.1:/admin/auth/login",
+      "admin:127.0.0.1:/admin/auth/login",
+    ]);
   });
 });

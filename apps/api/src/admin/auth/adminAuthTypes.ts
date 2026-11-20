@@ -436,6 +436,9 @@ export type AuthErrorCode =
   | "INTERNAL_ERROR"
   // The credentials verified, but the administrator's password is not marked to be changed.
   | "PASSWORD_CHANGE_NOT_REQUIRED"
+  // The credentials verified, but the administrator must change the password before any
+  // session is opened.
+  | "PASSWORD_CHANGE_REQUIRED"
   // A concurrent password write moved the row between a flow's read and its
   // claim; the credential presented is still live, so the caller should retry.
   | "CONCURRENT_MODIFICATION";
