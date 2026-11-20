@@ -53,6 +53,7 @@ import { promisify } from "node:util";
 import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
+import { evaluateAdminPassword } from "../../../../../infra/prisma/src/seedGuard.js";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -64,6 +65,7 @@ type Entries = Array<[string, string]>;
 
 interface EnvironmentModule {
   REQUIRED_KEYS: readonly string[];
+  DEVELOPMENT_TOOL_KEYS: readonly string[];
   generateEnvironment(options: {
     randomBytes: (size: number) => Buffer;
     postgresHostPort?: number;
@@ -139,6 +141,7 @@ const SECRETS = [
   "PLATFORM_ENCRYPTION_KEY",
   "OAUTH_ENCRYPTION_KEY",
   "DELETION_NAME_DIGEST_KEY_RING",
+  "ADMIN_PASSWORD",
 ];
 
 /** Which database a connection reached, as the command asks a server for it. */
@@ -877,6 +880,35 @@ describe("the generated environment", () => {
     );
   });
 
+  it("holds what the platform requires and, besides it, what the development tools need", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    expect(core.DEVELOPMENT_TOOL_KEYS).toEqual(["ADMIN_PASSWORD"]);
+    expect(core.REQUIRED_KEYS.filter((key) => core.DEVELOPMENT_TOOL_KEYS.includes(key))).toEqual(
+      []
+    );
+    expect(Object.keys(values).sort()).toEqual(
+      [...core.REQUIRED_KEYS, ...core.DEVELOPMENT_TOOL_KEYS].sort()
+    );
+  });
+
+  it("requires nothing of an existing file that only the development tools read", () => {
+    const values = Object.fromEntries(
+      core.generateEnvironment({ randomBytes }).filter(([key]) => key !== "ADMIN_PASSWORD")
+    );
+
+    expect(core.missingKeys(values)).toEqual([]);
+  });
+
+  it("gives the development seed an ADMIN_PASSWORD its password rule accepts", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    expect(evaluateAdminPassword(values)).toEqual({
+      allowed: true,
+      password: values.ADMIN_PASSWORD,
+    });
+  });
+
   it("gives the platform encryption key exactly 32 bytes, written in base64", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
     const key = Buffer.from(values.PLATFORM_ENCRYPTION_KEY ?? "", "base64");
@@ -946,7 +978,7 @@ describe("the start sequence", () => {
     expect(statSync(staged.file).mode & 0o777).toBe(0o600);
     expect(core.missingKeys(values)).toEqual([]);
     expect(new URL(values.DATABASE_URL ?? "").port).toBe(staged.ports.POSTGRES_HOST_PORT);
-    expect(result.stdout).toContain(`wrote ${staged.file} with 21 variables`);
+    expect(result.stdout).toContain(`wrote ${staged.file} with 22 variables`);
     expect(SECRETS.filter((key) => result.stdout.includes(values[key] ?? "unset"))).toEqual([]);
   });
 
@@ -963,6 +995,32 @@ describe("the start sequence", () => {
     expect(result.stdout).toContain(
       `Postgres on 127.0.0.1:${listening.postgres} and Redis on 127.0.0.1:${listening.redis}`
     );
+  });
+
+  it("keeps the ADMIN_PASSWORD an existing file holds, and shows it nowhere", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const kept = "fake-admin-password-the-developer-chose";
+    const before = `${writeEnvironment(staged.file, ["ADMIN_PASSWORD"], listening)}ADMIN_PASSWORD=${kept}\n`;
+    writeFileSync(staged.file, before);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+    expect(result.stdout.includes(kept)).toBe(false);
+  });
+
+  it("starts with an existing file that lacks ADMIN_PASSWORD, and leaves the file as it was", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const before = writeEnvironment(staged.file, ["ADMIN_PASSWORD"], listening);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+    expect(result.stdout).toContain(`${staged.file} holds every required variable`);
   });
 
   it("fails naming each variable an existing file lacks, and leaves the file as it was", async () => {
