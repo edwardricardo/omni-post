@@ -3,7 +3,8 @@
 
 Closes the privilege-escalation hole: if Claude could edit `pre_bash.py` or
 `settings.json`, it could neutralize the other hooks. It also protects
-schema/secrets from accidental changes.
+schema/secrets from accidental changes, and the rule that counts the existing
+error sites from a change that would lower the count without converting a site.
 
 Bypass: a time-boxed token created by `omnipost-allow sensitive-edit`
 (TTL 15 min), validated like the push token. Missing or expired
@@ -36,6 +37,12 @@ SENSITIVE_PATTERNS = [
     "/.env",  # includes .env, .env.test, .env.example, .envrc
     "/encryption/",
     "/.github/workflows/",
+    # What counts an existing error site: the rule, its scope and the gate that holds
+    # the list to shrinking. A session that could edit them could lower the list by
+    # changing what is counted instead of converting a site (ADR-0047).
+    "/packages/eslint-plugin-errors/",
+    "/scripts/testing/lib/error-scope.mjs",
+    "/scripts/testing/error-sites-gate.mjs",
 ]
 
 # The grant store, or a file in it.
