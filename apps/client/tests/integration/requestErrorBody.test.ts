@@ -140,6 +140,26 @@ describe("request given a legacy route's error body", () => {
   });
 });
 
+describe("request given a JSON body that is not an object", () => {
+  it.each([
+    ["a string", "upstream down"],
+    ["a number", 42],
+    ["null", null],
+  ])("throws an ApiError naming the status when the body is %s", async (_kind, body) => {
+    server.use(
+      http.get(`${PROXY_BASE}/health`, () =>
+        HttpResponse.json(body, { status: 502, statusText: "Bad Gateway" })
+      )
+    );
+
+    const error = await rejectionOf(request(PROXY_BASE, "/health"));
+
+    expect(error.status).toBe(502);
+    expect(error.code).toBeNull();
+    expect(error.message).toBe("HTTP 502: Bad Gateway");
+  });
+});
+
 describe("uploadRequest given a legacy route's error body", () => {
   it("throws an ApiError with the body's error when it carries no message", async () => {
     server.use(

@@ -14,6 +14,22 @@ import type { ErrorResponse } from "../types";
 export const PROXY_BASE = "/api/backend";
 
 /**
+ * A failed response's body when it is a JSON object; any other body, unparsable or not an object,
+ * gives the body this helper builds, whose message names the status.
+ */
+async function readErrorBody(response: Response, unreadable: string): Promise<ErrorResponse> {
+  const body: unknown = await response.json().catch(() => null);
+  if (typeof body === "object" && body !== null) {
+    return body as ErrorResponse;
+  }
+  return {
+    ok: false,
+    error: unreadable,
+    message: `HTTP ${response.status}: ${response.statusText}`,
+  };
+}
+
+/**
  * The `ApiError` a failed response's body stands for: a problem body gives its code and its
  * `detail`; a legacy route's body gives its `message`, else its `error`, with its code and details.
  */
@@ -51,13 +67,7 @@ export async function request<T>(
   });
 
   if (!response.ok) {
-    const errorData: ErrorResponse = await response.json().catch(() => ({
-      ok: false as const,
-      error: "Unknown error occurred",
-      message: `HTTP ${response.status}: ${response.statusText}`,
-    }));
-
-    throw apiErrorOf(response.status, errorData);
+    throw apiErrorOf(response.status, await readErrorBody(response, "Unknown error occurred"));
   }
 
   return response.json();
@@ -86,13 +96,7 @@ export async function uploadRequest<T>(
   });
 
   if (!response.ok) {
-    const errorData: ErrorResponse = await response.json().catch(() => ({
-      ok: false as const,
-      error: "Upload failed",
-      message: `HTTP ${response.status}: ${response.statusText}`,
-    }));
-
-    throw apiErrorOf(response.status, errorData);
+    throw apiErrorOf(response.status, await readErrorBody(response, "Upload failed"));
   }
 
   return response.json();

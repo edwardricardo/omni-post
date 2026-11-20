@@ -3,8 +3,9 @@
  * @description How the client's authentication API turns a failed response's body into an
  *              `ApiError`: the API's problem body gives its code and its `detail`, never the
  *              endpoint's own fallback text, and a legacy body that carries both `error` and
- *              `message` keeps giving its `error`. Exercised through MSW v2; the other legacy
- *              bodies are held by `lib/auth/__tests__/authApi.test.ts`.
+ *              `message` keeps giving its `error`; a JSON body that is not an object gives the
+ *              endpoint's fallback text. Exercised through MSW v2; the other legacy bodies are
+ *              held by `lib/auth/__tests__/authApi.test.ts`.
  * @layer infrastructure
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
@@ -80,4 +81,25 @@ describe("authApi given the rate limiter's legacy body", () => {
     expect(failure).toBeInstanceOf(ApiError);
     expect(failure).toMatchObject({ status: 429, code: null, message: "RATE_LIMIT_EXCEEDED" });
   });
+});
+
+describe("authApi given a JSON body that is not an object", () => {
+  it.each([
+    ["a string", "upstream down"],
+    ["a number", 42],
+    ["null", null],
+  ])(
+    "rejects a sign-in with the endpoint's fallback text when the body is %s",
+    async (_kind, body) => {
+      server.use(http.post(`${AUTH_BASE}/login`, () => HttpResponse.json(body, { status: 502 })));
+
+      const failure = await authApi.login({ email: "a@b.com", password: "x" }).then(
+        () => undefined,
+        (reason: unknown) => reason
+      );
+
+      expect(failure).toBeInstanceOf(ApiError);
+      expect(failure).toMatchObject({ status: 502, code: null, message: "Login failed" });
+    }
+  );
 });
