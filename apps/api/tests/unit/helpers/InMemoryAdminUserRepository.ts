@@ -13,6 +13,7 @@ import type {
   AdminUserRepositoryPort,
   AdminUserCreateInput,
   AdminUserUpdate,
+  SingleUsePasswordReplacement,
 } from "@core/domain/repositories/AdminUserRepository.js";
 import type { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
 import type {
@@ -303,6 +304,36 @@ export class InMemoryAdminUserRepository implements AdminUserRepositoryPort {
     };
     this.users.set(id, updated);
     return toPublic(updated);
+  }
+
+  /**
+   * @method replaceSingleUsePassword
+   * @description Replace the hash and the change date of a stored user only while it still has
+   *   the given id and the hash as read, is marked to change the password and has no sign-in
+   *   date, as the Prisma adapter's guarded update does.
+   * @param replacement - The user, the hash as read and the new hash
+   * @returns Ok(true) when the user matched and was written, Ok(false) otherwise
+   */
+  async replaceSingleUsePassword(
+    replacement: SingleUsePasswordReplacement
+  ): Promise<Result<boolean, RepositoryFailureError>> {
+    const existing = this.users.get(replacement.id);
+    if (
+      existing === undefined ||
+      existing.passwordHash !== replacement.currentPasswordHash ||
+      !existing.mustChangePassword ||
+      existing.lastLoginAt !== null
+    ) {
+      return ok(false);
+    }
+    const now = new Date();
+    this.users.set(replacement.id, {
+      ...existing,
+      passwordHash: replacement.passwordHash,
+      passwordChangedAt: now,
+      updatedAt: now,
+    });
+    return ok(true);
   }
 
   /**

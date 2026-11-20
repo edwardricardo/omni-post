@@ -46,6 +46,19 @@ export interface AdminUserUpdate {
 }
 
 /**
+ * A new single-use password for an administrator, and the hash the caller read: the write lands
+ * only while the row still holds that hash.
+ */
+export interface SingleUsePasswordReplacement {
+  /** The administrator whose single-use password is replaced. */
+  readonly id: string;
+  /** The password hash as the caller read it. */
+  readonly currentPasswordHash: string;
+  /** The hash of the new single-use password. */
+  readonly passwordHash: string;
+}
+
+/**
  * Port interface for admin user lookup operations.
  *
  * Consumers receive this interface via constructor injection —
@@ -156,6 +169,26 @@ export interface AdminUserRepositoryPort {
    * @returns The updated user as an AdminUserDto (role exposed as its name)
    */
   update(id: string, data: AdminUserUpdate): Promise<AdminUserDto>;
+
+  /**
+   * Replace the single-use password of an administrator who has never signed
+   * in and must still change the password: the hash and the date the password
+   * changed are written only where the row still has the given id and the hash
+   * as read, `mustChangePassword` true and no sign-in date. The mark, the
+   * sign-in date and the password history are left as they are. The hash's
+   * algorithm is left as it is too, because the hasher's port does not report
+   * its algorithm and an eligible row was hashed by the same hasher. Inside an
+   * open Unit of Work it writes through that transaction, and an error
+   * returned there means the store may have aborted it.
+   *
+   * @param replacement - The administrator, the hash as read and the new hash
+   * @returns Ok(true) when one row matched and was written, Ok(false) when the
+   *          row no longer holds what was read and nothing was written,
+   *          Err(RepositoryFailureError) carrying what the store raised
+   */
+  replaceSingleUsePassword(
+    replacement: SingleUsePasswordReplacement
+  ): Promise<Result<boolean, RepositoryFailureError>>;
 
   /**
    * List all admin users assigned to a given role, newest first.
