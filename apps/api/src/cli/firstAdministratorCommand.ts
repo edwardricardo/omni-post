@@ -82,8 +82,8 @@ Without --reissue it creates an administrator once: once an administrator exists
 later run without --reissue is refused.
 
 With --reissue it prints a new single-use password for the administrator with that e-mail
-instead, for when the first administrator's password was never seen: only for an active
-administrator who has never signed in and is still marked to change the password. The new
+instead, for when its single-use password was never seen. It serves any active administrator,
+not only the first, who has never signed in and is still marked to change the password. The new
 password replaces the old one, which no longer works, every session of the administrator is
 ended, and the mark stays, so the new password too must be changed at the first sign-in. Any
 other administrator is refused and nothing is changed; a deactivated one must be reactivated
