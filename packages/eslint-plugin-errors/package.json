@@ -1,0 +1,27 @@
+{
+  "name": "@packages/eslint-plugin-errors",
+  "private": true,
+  "engines": {
+    "node": ">=26.13.1 <27"
+  },
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
+    "@types/node": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

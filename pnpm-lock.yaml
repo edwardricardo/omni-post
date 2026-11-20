@@ -3148,6 +3148,27 @@ importers:
         specifier: 'catalog:'
         version: 4.1.12(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(@vitest/browser-playwright@4.1.12)(@vitest/coverage-v8@4.1.12)(jsdom@31.0.0)(msw@2.15.0(@types/node@26.6.6)(typescript@6.0.3))(vite@8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/eslint-plugin-errors:
+    devDependencies:
+      '@packages/vitest-shared':
+        specifier: workspace:*
+        version: link:../vitest-shared
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      '@typescript-eslint/parser':
+        specifier: 'catalog:'
+        version: 8.72.2(eslint@9.39.5(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.5(jiti@2.7.0)(supports-color@10.2.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(@vitest/browser-playwright@4.1.12)(@vitest/coverage-v8@4.1.12)(jsdom@31.0.0)(msw@2.15.0(@types/node@26.6.6)(typescript@6.0.3))(vite@8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/eslint-plugin-testing:
     devDependencies:
       '@packages/vitest-shared':
