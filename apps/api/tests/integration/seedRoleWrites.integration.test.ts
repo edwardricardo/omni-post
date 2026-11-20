@@ -15,13 +15,15 @@
  *
  *              The seed runs as `pnpm db:seed` runs it (`tsx --conditions development seed.ts` in
  *              `infra/prisma`), under `NODE_ENV=test`, with a fake administrator password and a
- *              key of zeros, on the owner channel's connection to the scratch database. The cases
- *              run in order and build on each other's rows: the first two find their role
- *              unwritten, and the third and the fourth write everything before they rerun.
+ *              key of zeros, on the owner channel's connection to the scratch database. The
+ *              database is emptied before each case, back to what the migration left, so a case
+ *              starts from no row of the application whatever ran before it: the first two find
+ *              their role unwritten, and the third and the fourth write everything before they
+ *              rerun.
  * @layer infrastructure
  */
 
-import { describe, it, before, after } from "node:test";
+import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
@@ -205,6 +207,14 @@ describe("The development seed's role writes on a migrated database", { concurre
   after(async () => {
     await scratch?.$disconnect();
     await database?.drop();
+  }, HOOK_TIMING);
+
+  // A hook that fails before a case fails that case with the hook's message, so a migration that
+  // did not finish is reported here, with its own output, before anything is emptied.
+  beforeEach(async () => {
+    assert.ok(database, "the scratch database was created");
+    database.assertMigrated();
+    await database.empty();
   }, HOOK_TIMING);
 
   /** The scratch database's URL and client, after asserting the migration ran. */

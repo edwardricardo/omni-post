@@ -14,55 +14,55 @@
     },
     {
       "path": "apps/admin/tests/e2e/a11y.spec.ts",
-      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/admin/tests/e2e/auth.spec.ts",
-      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/admin/tests/e2e/content-flow.spec.ts",
-      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/admin/tests/e2e/smoke.spec.ts",
-      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/client/tests/e2e/tests/a11y.spec.ts",
-      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/client/tests/e2e/tests/analytics.spec.ts",
-      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/client/tests/e2e/tests/auth.spec.ts",
-      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/client/tests/e2e/tests/publishing.spec.ts",
-      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },
     {
       "path": "apps/client/tests/e2e/tests/visual.spec.ts",
-      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs this configuration (Platform Start runs only the first administrator's journey, from a configuration of its own, and the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
       "owner": "WU-6.E8",
       "since": "2026-10-14"
     },

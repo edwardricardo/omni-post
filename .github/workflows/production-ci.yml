@@ -143,10 +143,10 @@ jobs:
   test-and-build:
     name: Test and Build
     runs-on: ubuntu-latest
-    # 30m: once .env.test is synthesized, apps/api's full suite actually runs
-    # (it previously fail-fasted on env validation), so test + build legitimately
-    # exceed the old 15m budget. Tests pass; this is wall-clock, not a failure.
-    timeout-minutes: 30
+    # 45m: when a change touches apps/api, the test step replays nothing from the cache and runs
+    # the API's whole suite in one piece. Measured on main at 27 to 30 minutes, where a limit of
+    # 30 cancelled a run whose every step was green; with the cache the job takes about 6 minutes.
+    timeout-minutes: 45
     needs: security-audit
     services:
       postgres:
@@ -243,6 +243,16 @@ jobs:
       packages: write
       security-events: write
 
+    # Each leg reports its image's Node version under its own service's key, for the
+    # `node-runtime-advisory` job below. GitHub combines a matrix's outputs across its legs, and
+    # the last leg to set a name wins, so one shared key would keep a single image's version; an
+    # empty value is not set, so the three legs that leave a key empty do not erase the fourth's.
+    outputs:
+      node-version-api: ${{ steps.node-version.outputs.api }}
+      node-version-workers: ${{ steps.node-version.outputs.workers }}
+      node-version-admin: ${{ steps.node-version.outputs.admin }}
+      node-version-client: ${{ steps.node-version.outputs.client }}
+
     strategy:
       matrix:
         service: [api, workers, admin, client]
@@ -311,6 +321,27 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
+
+      # The Node runtime advisory is judged by the `node-runtime-advisory` job below, which is
+      # not a required check: a Node security release the base has not shipped yet, or a
+      # nodejs.org that does not answer, must not stop this job's smoke, scan or push. This leg
+      # only reports the version its image's own executable prints. Read right after the build,
+      # so the version reaches that job even when the smoke or the scan then fails.
+      # `continue-on-error`, because nothing here may fail on the advisory's account. When this
+      # step fails, its own log says why, its image reaches the advisory job with no version, and
+      # that job names the image as not checked rather than passing it. A Node that cannot run at
+      # all also fails step 1 of the smoke below, so this leg goes red as well; any other failure
+      # of this step, such as its write to `$GITHUB_OUTPUT`, leaves this leg green, and the
+      # advisory job's "not checked" is then the only red that shows it.
+      - name: Node version — reported to the Node Runtime Advisory job
+        id: node-version
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          IMAGE="local/${{ matrix.service }}:scan"
+          NODE_VERSION="$(docker run --rm --entrypoint /nodejs/bin/node "$IMAGE" --version)"
+          echo "  $IMAGE runs Node $NODE_VERSION"
+          echo "${{ matrix.service }}=$NODE_VERSION" >> "$GITHUB_OUTPUT"
 
       # Placed BEFORE the scanner on purpose: a broken image should say so even on
       # a run where Trivy is red for an unrelated advisory. Until this step
@@ -573,3 +604,76 @@ jobs:
           build-args: ${{ env.SENTRY_DSN_BUILD_ARG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # The image scanner reads an image's OS packages and its module manifests, never the `node`
+  # executable a distroless base ships without a package record, so this job holds that executable
+  # to Node's own release index. It is a job of its own, not a required check, and nothing needs
+  # it, because the two cases it exists for are outside the team's repair: a Node security release
+  # the images' base has not shipped yet, and an index nodejs.org does not serve. Its other red
+  # cases are failures the team repairs, each named by its annotation: an image not checked, whose
+  # leg's `Node version` step or an earlier step of that leg says why no version came; the gate's
+  # code 2, a printed version that is not a stable vX.Y.Z, which points at the image's Node base;
+  # the gate's code 4, a failure of the gate itself, whose lines carry the error and point at the
+  # gate's script; and a code the gate does not define, which points at the gate's own output.
+  # None of them blocks a merge, a scan or a push. Its verdict is the gate's on this run's images
+  # alone, so the first run after the cause is repaired, or after the index answers again, is green.
+  node-runtime-advisory:
+    name: Node Runtime Advisory
+    runs-on: ubuntu-latest
+    # Each image's gate makes at most three attempts of 30 s with pauses of 5 s and 10 s, so the
+    # four take at most seven minutes.
+    timeout-minutes: 10
+    needs: container-security
+    # Skipped when Container Security was skipped, because a job above it did not succeed: no
+    # image was built, nothing could be validated, and a red here would not be about Node. A leg
+    # that ran and failed does not skip it: the job runs and names each image whose leg reported
+    # no version as not checked. `!cancelled()` keeps a cancelled run from starting it, and naming
+    # it drops the implicit `success()`, which would skip the job whenever any leg failed.
+    if: ${{ !cancelled() && needs.container-security.result != 'skipped' }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # The gate imports Node's own modules only, so it runs on the runner's Node, with nothing
+      # installed and no Node set up. The versions reach the script through env rather than being
+      # written into it, because they are text an image printed.
+      - name: Node runtime advisory — no later security release of each image's Node line
+        env:
+          CONTAINER_SECURITY_RESULT: ${{ needs.container-security.result }}
+          NODE_VERSION_API: ${{ needs.container-security.outputs.node-version-api }}
+          NODE_VERSION_WORKERS: ${{ needs.container-security.outputs.node-version-workers }}
+          NODE_VERSION_ADMIN: ${{ needs.container-security.outputs.node-version-admin }}
+          NODE_VERSION_CLIENT: ${{ needs.container-security.outputs.node-version-client }}
+        run: |
+          set -euo pipefail
+          # Every image is judged even after one fails, so the step fails once, at the end, with
+          # each image's reason already written.
+          FAILED=0
+          for SERVICE in api workers admin client; do
+            VERSION_VAR="NODE_VERSION_${SERVICE^^}"
+            NODE_VERSION="${!VERSION_VAR:-}"
+            if [ -z "$NODE_VERSION" ]; then
+              echo "::error title=Node runtime advisory: $SERVICE not checked::Container Security ($SERVICE) reported no Node version, and Container Security ended $CONTAINER_SECURITY_RESULT, so the $SERVICE image was not judged. That leg's log says why: a step before its Node version step did not complete, or that step failed itself; this job is red because the image went unchecked, not for an advisory."
+              FAILED=1
+              continue
+            fi
+            echo "$SERVICE image runs Node $NODE_VERSION"
+            CODE=0
+            node scripts/testing/node-runtime-advisory-gate.mjs --version "$NODE_VERSION" || CODE=$?
+            case "$CODE" in
+              0) continue ;;
+              # Each reason names a "code", so fitness #34, which reads this step line by line,
+              # pairs the annotations with the one real failure at the end and with no text.
+              1) REASON="code 1, the gate's verdict that a later release of the image's Node line is a security release; its lines above name each one and the floor to raise the Node bases to" ;;
+              2) REASON="code 2, a usage error: the version the image printed is not a stable vX.Y.Z the gate can judge" ;;
+              3) REASON="code 3, Node's release index could not be read in full, so nothing was judged; re-run this job once nodejs.org answers" ;;
+              4) REASON="code 4, the gate itself failed, so nothing was judged; its lines above carry the error and its trace, and the repair is in the gate's script, not in the image" ;;
+              *) REASON="code $CODE, which the gate does not define; its output above is the only account of it" ;;
+            esac
+            echo "::error title=Node runtime advisory: $SERVICE::$SERVICE runs Node $NODE_VERSION, and the gate failed it with $REASON."
+            FAILED=1
+          done
+          exit "$FAILED"
