@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1225  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15420 |
+| Blocks                  | 15406 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -147,7 +147,7 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/sagaIntegration.monitoring.test.ts`             | test  | 6      | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/sagaIntegration.routes.test.ts`                 | test  | 15     | 1          | REWRITE | machine | some-decorative |
 | `apps/api/tests/unit/secureSchemas.query.test.ts`                    | test  | 37     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/securityHeaders.test.ts`                        | test  | 48     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/securityHeaders.test.ts`                        | test  | 44     | 0          | KEEP    | machine | behavioural     |
 
 ## Slice 2.8.2d
 
@@ -1019,7 +1019,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/tenantParamPreHandler.test.ts`                                          | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/tenantScopedQueryContract.type-test.ts`                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/security/trustedProxy.test.ts`                                                   | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/seedGuard.test.ts`                                                               | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts`                                     | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/NotificationBroadcaster.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
@@ -1069,7 +1069,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/videoProcessor.codecs-watermark.test.ts`                                         | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.metadata-processing.test.ts`                                      | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 39     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 40     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookDashboardService.test.ts`                                                 | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.processing.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
