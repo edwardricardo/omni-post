@@ -4,11 +4,16 @@
  *   `pnpm check:plan-closure`: a feature whose state in the chain table of `docs/product/PLAN.md`
  *   is `closed` holds no open item under its record, an item being an entry of the record's
  *   attached list or of a findings list, and a closed item being one marked `Closed by #<n>` or
- *   `Closed by decision of the <role> on <date>: <the decision>`. Every case writes its own small
+ *   `Closed by decision of the <role> on <date>: <the decision>`, the date a calendar date no later
+ *   than the day the check runs and the decision holding a letter. Every case writes its own small
  *   plan tree (the plan, the chain and the areas) in a scratch directory, so the suite measures the
  *   rule and never this repository's plan, and it can prove each red path while the live plan is in
- *   any state. Each fail-closed path is pinned to exit 3, apart from the violations' exit 1, so a
- *   scan that read nothing never renders as a plan with every item closed.
+ *   any state. Every fail-closed path the gate's header names is pinned to exit 3 with its message,
+ *   apart from the violations' exit 1, and exit 3 is pinned to win over exit 1 with both printed,
+ *   so a scan that read nothing never renders as a plan with every item closed. The record's shape
+ *   is pinned too: a nested entry, and a line shaped like an item that no item list reads (at the
+ *   top level, after a line that ended its list, inside a note, on a label's line), fail closed,
+ *   and a fenced block is read neither as the chain table nor as an item.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -24,7 +29,7 @@ type Outcome = { exitCode: number; stdout: string[]; stderr: string[] };
 type GateModule = {
   PLAN: string;
   RECORDS: readonly string[];
-  runGate: (input: { root: string }) => Outcome;
+  runGate: (input: { root: string; now?: Date }) => Outcome;
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
@@ -144,7 +149,37 @@ const plant = (rows: readonly Row[], records: readonly RecordFixture[]): void =>
   write(AREAS, AREAS_TEXT);
 };
 
-const scan = (): Outcome => runGate({ root });
+/**
+ * Writes a plan tree whose one closed feature, F-01, has the given body lines as its record. The
+ * record's heading is line 5 of the chain, so body line `k` (from 0) is line `7 + k`.
+ */
+const plantBody = (body: readonly string[]): void => {
+  write(PLAN, renderPlan([{ id: "F-01", state: "closed" }]));
+  write(
+    CHAIN,
+    [
+      "# The chain: features",
+      "",
+      "## Platform and operation",
+      "",
+      "### F-01 The feature F-01",
+      "",
+      ...body,
+      "",
+      "## Decisions",
+      "",
+    ].join("\n")
+  );
+  write(AREAS, AREAS_TEXT);
+};
+
+/** The fail-closed line for a line shaped like an item that no item list reads. */
+const unlisted = (line: number, text: string): string =>
+  `plan-closure-gate: ${CHAIN}:${String(line)}, in the record of F-01, reads "${text}", which is ` +
+  'shaped like an item ("**<id>**: ") and is not an entry of an "Attached (<n>)" or "Findings" ' +
+  'list, so whether it is open cannot be read; write it as "  - **<id>**: <text>" under one of them';
+
+const scan = (now?: Date): Outcome => runGate(now === undefined ? { root } : { root, now });
 
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "plan-closure-gate-test-"));
@@ -256,7 +291,23 @@ describe("a closed feature", () => {
       "**K8S-1**: Closed by decision of the Product Owner on 2026-02-30: it waits for production.",
     ],
     ["the decision itself", "**K8S-1**: Closed by decision of the Product Owner on 2026-11-20."],
+    [
+      "anything after its colon",
+      "**K8S-1**: Closed by decision of the Product Owner on 2026-11-20:",
+    ],
+    [
+      "a word in its decision",
+      "**K8S-1**: Closed by decision of the Product Owner on 2026-11-20: .",
+    ],
+    [
+      "a date that has come",
+      "**K8S-1**: Closed by decision of the Maintainer on 2999-01-01: it waits for production.",
+    ],
     ["the pull request's number", "**K8S-1**: Closed by pull request 916. The start passes."],
+    ["a pull request number from 1", "**K8S-1**: Closed by #0. The start passes."],
+    ["a number with no leading zero", "**K8S-1**: Closed by #01. The start passes."],
+    ["a number that ends its word", "**K8S-1**: Closed by #916abc The start passes."],
+    ["the case of its words", "**K8S-1**: closed by #916. The start passes."],
   ])("refuses a closure that lacks %s, as an open item that names both forms", (_lack, entry) => {
     plant([{ id: "F-01", state: "closed" }], [{ id: "F-01", attached: [entry] }]);
 
@@ -265,6 +316,29 @@ describe("a closed feature", () => {
     expect(outcome.exitCode).toBe(1);
     expect(outcome.stderr).toEqual([
       `plan-closure-gate: F-01 is closed (${PLAN}:11) and its record holds an item that starts "Closed by" in neither form, so it is open: K8S-1 (${CHAIN}:12, in "Attached (1)"); ${GRAMMAR_HINT}`,
+      "plan-closure-gate: 1 open item under 1 closed feature",
+    ]);
+  });
+
+  it("takes a decision dated up to the day the check runs, in UTC, and none dated after it", () => {
+    plant(
+      [{ id: "F-01", state: "closed" }],
+      [
+        {
+          id: "F-01",
+          attached: [
+            closedByDecision("TODAY", "Product Owner", "2026-11-20"),
+            closedByDecision("TOMORROW", "Product Owner", "2026-11-21"),
+          ],
+        },
+      ]
+    );
+
+    const outcome = scan(new Date("2026-11-20T23:59:59Z"));
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr).toEqual([
+      `plan-closure-gate: F-01 is closed (${PLAN}:11) and its record holds an item that starts "Closed by" in neither form, so it is open: TOMORROW (${CHAIN}:13, in "Attached (2)"); ${GRAMMAR_HINT}`,
       "plan-closure-gate: 1 open item under 1 closed feature",
     ]);
   });
@@ -325,12 +399,198 @@ describe("a feature that is not closed", () => {
   });
 });
 
-describe("fail-closed", () => {
-  const failure = (outcome: Outcome): { exitCode: number; stderr: string[] } => ({
-    exitCode: outcome.exitCode,
-    stderr: outcome.stderr,
+const failure = (outcome: Outcome): { exitCode: number; stderr: string[] } => ({
+  exitCode: outcome.exitCode,
+  stderr: outcome.stderr,
+});
+
+describe("the shape of a closed feature's record", () => {
+  it.each([
+    ["an item", "    - **DEF-2**: The endpoint still answers 404."],
+    ["a bullet of prose", "    - see the log of the run."],
+    ["an ordered entry", "    1. **DEF-2**: The endpoint still answers 404."],
+  ])("exits 3 on a nested list entry under an entry, %s or not", (_kind, nested) => {
+    plantBody(["- **Attached (1):**", "  - **DEF-1**: Closed by #916. Fixed.", nested]);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${CHAIN}:9, in "Attached (1)" of F-01, reads "${nested}", a nested list entry: an item list holds no nested list, so an item written there cannot be told from prose; write each item as its own entry ("  - **<id>**: <text>")`,
+      ],
+    });
   });
 
+  it.each([
+    ["three spaces", "   - **DEF-2**: The endpoint still answers 404."],
+    ["a tab", "\t- **DEF-2**: The endpoint still answers 404."],
+  ])("exits 3 on an entry indented by %s, which is neither an entry nor its text", (_by, entry) => {
+    plantBody(["- **Attached (2):**", "  - **DEF-1**: Closed by #916. Fixed.", entry]);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${CHAIN}:9, in "Attached (2)" of F-01, reads "${entry}", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
+      ],
+    });
+  });
+
+  it("reads a line indented four spaces with no list marker as the text of the entry above", () => {
+    plantBody([
+      "- **Attached (1):**",
+      "  - **DEF-1**: Closed by #916. The start needed a file",
+      "    that a clean checkout lacks.",
+    ]);
+
+    const outcome = scan();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.stdout).toEqual([
+      "plan-closure-gate: 1 feature in the chain table, 1 closed; 1 item under the records of the closed features, every one closed",
+    ]);
+  });
+
+  it.each([
+    [
+      "after a line that ended its findings list",
+      [
+        "- **Attached (0):**",
+        "- **Findings since the feature opened:**",
+        "  - **A**: Closed by #916. Fixed.",
+        "Two more were found later:",
+        "  - **B**: The endpoint answers 404.",
+      ],
+      11,
+    ],
+    [
+      "after a line that ended its attached list, the count left as it was",
+      [
+        "- **Attached (1):**",
+        "  - **A**: Closed by #916. Fixed.",
+        "Found later:",
+        "  - **B**: The endpoint answers 404.",
+      ],
+      10,
+    ],
+    [
+      "under a label whose colon is outside the bold",
+      [
+        "- **Attached (0):**",
+        "- **Findings since the feature opened**:",
+        "  - **B**: The endpoint answers 404.",
+      ],
+      9,
+    ],
+    [
+      "at the top level, under a sub-heading",
+      ["- **Attached (0):**", "", "#### Findings", "", "- **B**: The endpoint answers 404."],
+      11,
+    ],
+    [
+      "at the top level of the record",
+      ["- **Attached (0):**", "- **B** (MP:1): The page answers 404."],
+      8,
+    ],
+    [
+      "inside a note",
+      [
+        "- **Attached (0):**",
+        "- **Findings since the feature opened:**",
+        "  - Note: **B**: The endpoint answers 404.",
+      ],
+      9,
+    ],
+    [
+      "on the line of a label",
+      [
+        "- **Attached (0):**",
+        "- **Findings since the feature opened:** **B**: The endpoint answers 404.",
+      ],
+      8,
+    ],
+    [
+      "in a prose list",
+      ["- **Wrong as read:**", "  - **B**: The endpoint answers 404.", "- **Attached (0):**"],
+      8,
+    ],
+  ])("exits 3 on a line shaped like an item %s", (_where, body, line) => {
+    plantBody(body);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [unlisted(line, body[line - 7] ?? "")],
+    });
+  });
+});
+
+describe("fenced code blocks", () => {
+  it("never reads a fenced table as the chain table", () => {
+    write(
+      PLAN,
+      [
+        "# The plan",
+        "",
+        "## The chain",
+        "",
+        "```markdown",
+        "| #    | State |",
+        "| ---- | ----- |",
+        "| F-09 | open  |",
+        "```",
+        "",
+        "| #    | State  |",
+        "| ---- | ------ |",
+        "| F-01 | closed |",
+        "",
+      ].join("\n")
+    );
+    write(CHAIN, renderChain([{ id: "F-01", attached: [openItem("DEF-29")] }]));
+    write(AREAS, AREAS_TEXT);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 1,
+      stderr: [
+        `plan-closure-gate: F-01 is closed (${PLAN}:13) and its record holds an open item: DEF-29 (${CHAIN}:12, in "Attached (1)"); ${GRAMMAR_HINT}`,
+        "plan-closure-gate: 1 open item under 1 closed feature",
+      ],
+    });
+  });
+
+  it("never reads a line of a fenced example in a record as an item", () => {
+    plantBody([
+      "- **Attached (1):**",
+      "  - **A**: Closed by #916. Fixed.",
+      "",
+      "```markdown",
+      "  - **B**: The endpoint answers 404.",
+      "- **C**: An example at the top level.",
+      "```",
+    ]);
+
+    const outcome = scan();
+
+    expect(outcome.stderr).toEqual([]);
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.stdout).toEqual([
+      "plan-closure-gate: 1 feature in the chain table, 1 closed; 1 item under the records of the closed features, every one closed",
+    ]);
+  });
+
+  it("never reads a fenced heading as the opening of a record", () => {
+    write(PLAN, renderPlan([{ id: "F-01", state: "closed" }]));
+    write(CHAIN, ["# The chain", "", "```markdown", "### F-01 An example", "```", ""].join("\n"));
+    write(AREAS, AREAS_TEXT);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: F-01 is closed (${PLAN}:11) and no heading of ${CHAIN} or ${AREAS} opens its record, so no item of it was read`,
+      ],
+    });
+  });
+});
+
+describe("fail-closed", () => {
   it("exits 3 when the plan is missing, never reading the absent file as no closed feature", () => {
     write(CHAIN, renderChain([{ id: "F-01", attached: [openItem("DEF-1")] }]));
     write(AREAS, AREAS_TEXT);
@@ -364,6 +624,89 @@ describe("fail-closed", () => {
       exitCode: 3,
       stderr: [
         `plan-closure-gate: ${PLAN} has no "## The chain" section, so no feature's state was read`,
+      ],
+    });
+  });
+
+  it("exits 3 when the plan opens the chain section twice", () => {
+    plant([{ id: "F-01", state: "closed" }], [{ id: "F-01", attached: [closedByDecision("A")] }]);
+    write(
+      PLAN,
+      `${renderPlan([{ id: "F-01", state: "closed" }])}\n## The chain\n\n| # | State |\n| --- | --- |\n| F-02 | open |\n`
+    );
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${PLAN} opens "## The chain" 2 times (lines 7, 21), so which one holds the chain table is ambiguous`,
+      ],
+    });
+  });
+
+  it("exits 3 when the chain table has no # column", () => {
+    plant([{ id: "F-01", state: "closed" }], [{ id: "F-01", attached: [closedByDecision("A")] }]);
+    write(PLAN, renderPlan([{ id: "F-01", state: "closed" }]).replace("| #    |", "| Id   |"));
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: the chain table of ${PLAN}:9 has no "#" column, so no feature's state was read`,
+      ],
+    });
+  });
+
+  it("exits 3 on a row whose cells are not the header's", () => {
+    plant(
+      [{ id: "F-01", state: "closed | extra" }],
+      [{ id: "F-01", attached: [closedByDecision("A")] }]
+    );
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${PLAN}:11 holds 7 cells where the chain table's header holds 6, so its state cannot be read`,
+      ],
+    });
+  });
+
+  it("exits 3 on a row with no feature id", () => {
+    plant([{ id: "", state: "closed" }], [{ id: "F-01", attached: [openItem("DEF-1")] }]);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [`plan-closure-gate: ${PLAN}:11 is a row of the chain table with no feature id`],
+    });
+  });
+
+  it("exits 3 on a feature the chain table lists twice", () => {
+    plant(
+      [
+        { id: "F-01", state: "closed" },
+        { id: "F-01", state: "open" },
+      ],
+      [{ id: "F-01", attached: [closedByDecision("A")] }]
+    );
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${PLAN}:12 lists F-01, which line 11 lists too, so its state is ambiguous`,
+      ],
+    });
+  });
+
+  it("exits 3 over exit 1, printing the unreadable entry and the open item", () => {
+    plantBody([
+      "- **Attached (2):**",
+      "  - **DEF-29**: The endpoint answers 404.",
+      "  - DEF-30 (MP:13): No bold id.",
+    ]);
+
+    expect(failure(scan())).toEqual({
+      exitCode: 3,
+      stderr: [
+        `plan-closure-gate: ${CHAIN}:9, in "Attached (2)" of F-01, reads "  - DEF-30 (MP:13): No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
+        `plan-closure-gate: F-01 is closed (${PLAN}:11) and its record holds an open item: DEF-29 (${CHAIN}:8, in "Attached (2)"); ${GRAMMAR_HINT}`,
       ],
     });
   });

@@ -33,21 +33,25 @@
    record's `Attached (<n>)` list or of a list whose label starts with `Findings`. Each item is
    resolved in code and marked `Closed by #<n>`, the pull request that resolved it, or closed by a
    recorded decision and marked `Closed by decision of the <role> on <YYYY-MM-DD>: <the decision>`,
-   where the role is `Product Owner` or `Maintainer`. Examples: `Closed by #916.`;
+   where the role is `Product Owner` or `Maintainer`, the date is a calendar date no later than the
+   day the check runs, and the decision holds at least one word. Examples: `Closed by #916.`;
    `Closed by decision of the Product Owner on 2026-11-20: it waits for the move to production.`
 2. **A gate holds it.** Fitness #56, `scripts/testing/plan-closure-gate.mjs`
    (`pnpm check:plan-closure`), reads the chain table of the plan and refuses a `closed` feature
    whose record holds an open item, naming the feature and each item. It fails closed, with its own
    message and exit 3, when the plan or a record file cannot be read, when the chain table cannot
    be read, when a closed feature's record is not found or is found twice, and when a record's
-   items cannot be read. It runs in the `fitness` job of the fitness workflow and as the static
-   battery step `plan-closure`. Its block in
-   [FITNESS_FUNCTIONS.md](../development/FITNESS_FUNCTIONS.md), under `# 56.`, gives its scope and
-   its residual limits.
-3. **No baseline.** F-01 is `closed` with 24 open items on the day the gate lands, so the gate is
-   red on the tree, and no baseline and no allowlist hold it green: what happens to those items
-   and to F-01's state is the Product Owner's decision, taken in the order of 2026-11-20 (the
-   decisions of F-02's items, then those of F-01's, then the repairs of each).
+   items cannot be read: an entry that is neither an item nor a note, a nested list entry, and any
+   line of the record shaped like an item that no item list reads, wherever it is written. Fenced
+   code blocks are never read. It runs in the `fitness` job of the fitness workflow, a required
+   check of the `main` ruleset (`.github/rulesets/main.json`), and as the static battery step
+   `plan-closure`. Its block in [FITNESS_FUNCTIONS.md](../development/FITNESS_FUNCTIONS.md), under
+   `# 56.`, gives its scope and its residual limits.
+3. **No baseline, and F-01 reopens.** F-01 was `closed` with 24 open items when the gate was
+   written. No baseline and no allowlist hold the gate green: the Product Owner decided on
+   2026-11-20 that F-01 returns to `in progress` in the same change that brings the gate, and
+   closes again when its rows are resolved, in the order of that day (the decisions of F-02's
+   items, then those of F-01's, then the repairs of each).
 
 ## Rationale
 
@@ -86,10 +90,17 @@
 
 **Negative / costs**
 
-- The gate is red on the tree until F-01's 24 items are settled or F-01 leaves `closed`. Step 4 of
-  "Extending the suite" in `CLAUDE.md` asks for a count of 0 on `main` before the wire merges.
+- The gate runs inside a required check, so a feature marked `closed` with an open item under its
+  record, or a closed feature's record the gate cannot read, blocks every merge to `main` until it
+  is repaired. F-01 returns to `in progress` for that reason (decision 3), which also gives the
+  count of 0 on `main` that step 4 of "Extending the suite" in `CLAUDE.md` asks for before the wire
+  merges.
 - The `Attached (<n>)` count of a record is now load-bearing: a record whose count disagrees with
-  its items fails closed when its feature closes.
+  its items fails closed when its feature closes. Measured with all 18 features marked closed on a
+  copy of the plan at commit `72718bb2`: F-05's `Attached (10)` list held no entry, its rows written
+  under the next label, and the gate read 177 open items.
+- A record holds no nested list and no item outside its item lists: such a line fails closed while
+  its feature is closed.
 - The battery runs one more static step.
 
 ## Legal impact
@@ -120,7 +131,7 @@ check is added, changed or retired; the gate reads files of the repository only`
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | An item is marked closed by a pull request that did not fix it | Review reads the marker; the gate proves the form only, a stated limit       |
 | A decision is written in a form the gate does not read         | The gate names the item and prints both forms; the item counts as open       |
-| An item is written where the gate cannot read it               | Fail-closed on an unreadable entry and on a count that differs from the list |
+| An item is written where the gate cannot read it               | Fail-closed on any item-shaped line no list reads, and on a count off a list |
 
 ## References
 

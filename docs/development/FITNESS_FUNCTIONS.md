@@ -2216,36 +2216,49 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # with 22. The Product Owner's rule of that day: no feature closes with an open item (ADR-0046).
 # WHAT IT RUNS: `pnpm check:plan-closure`, which is `node scripts/testing/plan-closure-gate.mjs`,
 # pinned by apps/api/tests/unit/scripts/planClosureGate.test.ts. The script's header states the
-# rule in full, and this block summarises it. It reads the first table of `## The chain` in
-# docs/product/PLAN.md by its `#` and `State` columns and, for each row whose State is `closed`,
-# the record that the one heading of docs/product/plan/chain.md or docs/product/plan/areas.md whose
-# text starts with that id opens, up to the next heading of its level or above. The record's items
-# are the entries of its `Attached (<n>)` list and of every list whose bold label starts with
-# `Findings`, each `  - **<id>**: <text>` with an optional `(<reference>)` after the id; a
-# `  - Note: <text>` entry is not an item, and every other list of the record is prose. An item is
-# closed when its text starts with one of two forms: `Closed by #<n>`, or `Closed by decision of
-# the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`, the date a calendar date. Every
-# other item is open.
+# rule in full, and this block summarises it. Fenced code blocks are never read, in the plan or in
+# the records. It reads the first table of `## The chain` in docs/product/PLAN.md by its `#` and
+# `State` columns and, for each row whose State is `closed`, the record that the one heading of
+# docs/product/plan/chain.md or docs/product/plan/areas.md whose text is that id alone, or that id
+# followed by a space, opens, up to the next heading of its level or above. The record's items are
+# the entries of its `Attached (<n>)` list and of every list whose bold label, colon inside the
+# bold, starts with `Findings`: each entry is a line indented two spaces, `  - **<id>**: <text>`
+# with an optional `(<reference>)` after the id, and a line indented four spaces or more that opens
+# no list continues the entry above it; a `  - Note: <text>` entry is not an item, and every other
+# list of the record is prose. An item is closed when its text starts with one of two forms:
+# `Closed by #<n>`, the number from 1 with no leading zero and ending its word, or `Closed by
+# decision of the <Product Owner|Maintainer> on <YYYY-MM-DD>: <the decision>`, the date a calendar
+# date no later than the day the check runs (UTC) and the decision holding at least one letter.
+# Every other item is open.
 # WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing: the gate reads
-# three Markdown files and imports nothing beyond Node's own modules. The battery runs it through
-# its alias, `pnpm check:plan-closure`, as its static step `plan-closure`.
+# three Markdown files and imports nothing beyond Node's own modules, which is why it keeps its own
+# entry-point check rather than importing lib/record-helpers.mjs, a module that imports prettier.
+# The battery runs it through its alias, `pnpm check:plan-closure`, as its static step
+# `plan-closure`.
 # WHAT FAILS, exit 1, each on stderr as `plan-closure-gate: <problem>`: an open item under a closed
 # feature, named with the feature, its line in the table, the item's id, its line and its list; an
-# item that starts `Closed by` in neither form, named as such; then the line `<k> open items under
-# <c> closed features`. A feature that is `open` or `in progress` is never judged.
-# FAIL-CLOSED, exit 3, which wins over 1: the plan, chain.md or areas.md that cannot be read; no
-# `## The chain` section, or two; a section with no table; a table with no `#` or no `State`
-# column, a row whose cells are not the header's, a row with no id, an id listed twice, or no
-# feature row; a state other than open, in progress and closed; a closed feature whose record no
-# heading opens, or more than one does; a record with no `Attached (<n>)` list, or whose `<n>` is
-# not the number of items read under it; and an entry of an item list that is neither an item nor a
-# note. A usage error, anything but no argument or `--root <dir>`, exits 2.
+# item that starts `Closed by`, in any case, in neither form, named as such; then the line `<k> open
+# items under <c> closed features`. A feature that is `open` or `in progress` is never judged.
+# FAIL-CLOSED, exit 3, which wins over 1 and prints the open items too: the plan, chain.md or
+# areas.md that cannot be read; no `## The chain` section, or two; a section with no table; a table
+# with no `#` or no `State` column, a row whose cells are not the header's, a row with no id, an id
+# listed twice, or no feature row; a state other than open, in progress and closed; a closed
+# feature whose record no heading opens, or more than one does; a record with no `Attached (<n>)`
+# list, or whose `<n>` is not the number of items read under it; an entry of an item list that is
+# neither an item nor a note, a mis-indented entry included; a nested list entry under an entry of
+# an item list, whether it holds an item or prose, because an item written there could not be told
+# from prose; and any line of the record shaped like an item (a bold text that ends with neither a
+# colon nor a space, then `: `, anywhere on the line) that no item list reads as an entry: an item
+# at the record's top level, after a line that ended its list, under a label whose colon is outside
+# the bold, in a prose list, inside a note or on a label's line. A usage error, anything but no
+# argument or `--root <dir>`, exits 2.
 # RESIDUAL LIMITS, stated rather than implied: (1) it reads the plan by its line shapes, not with a
 # Markdown parser; (2) it proves the form of a marker, never that pull request #<n> resolved the
 # item or that the decision was taken; (3) an item attached to a closed feature from outside its
-# record, such as a cross-cutting row that names the feature, is not read; (4) a record's prose
-# lists (`Wrong as read`, `To build`) are not items, so a defect they describe is not judged; (5)
-# the table's `Closed by` column is not compared with the items.
+# record, such as a cross-cutting row that names the feature or a list placed after a heading that
+# ends the record, is not read; (4) a record's prose lists (`Wrong as read`, `To build`) hold no
+# item, so a defect they describe in prose is not judged; (5) the table's `Closed by` column is not
+# compared with the items.
 # RETIRES WHEN: the plan leaves the tree under the Plan closure rule of CLAUDE.md, or a recorded
 # decision of the Product Owner lets a feature close with an open item.
 node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:

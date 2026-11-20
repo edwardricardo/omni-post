@@ -10,41 +10,50 @@
  *   says it is waiting. The Product Owner's rule of 2026-11-20 is that no feature closes with an
  *   open item, and this gate holds it (ADR-0046).
  *
- *   WHAT IT READS. The chain table is the first Markdown table of the section `## The chain` of
- *   the plan; its columns are found by their header, `#` for the feature's id and `State` for its
- *   state, which is one of `open`, `in progress` and `closed`. A feature's record is the one
- *   heading, in `docs/product/plan/chain.md` or `docs/product/plan/areas.md`, whose text is the id
- *   or starts with the id and a space, and it runs to the next heading of its level or above. Its
- *   item lists are its top-level bullets whose bold label is `Attached (<n>)` or starts with
- *   `Findings`; every other bullet of the record, the prose lists `Wrong as read` and `To build`
- *   included, is prose. An entry of an item list is a line indented two spaces, then `- `: either
- *   an item, `**<id>**: <text>` with an optional `(<reference>)` after the id, or a note,
- *   `Note: <text>`. A line indented four spaces or more continues the entry above it.
+ *   WHAT IT READS. Fenced code blocks are never read, in the plan or in the records. The chain table
+ *   is the first Markdown table of the section `## The chain` of the plan; its columns are found by
+ *   their header, `#` for the feature's id and `State` for its state, which is one of `open`,
+ *   `in progress` and `closed`. A feature's record is the one heading, in
+ *   `docs/product/plan/chain.md` or `docs/product/plan/areas.md`, whose text is the id alone or the
+ *   id followed by a space, and it runs to the next heading of its level or above. Its item lists
+ *   are its top-level bullets whose bold label, colon inside the bold, is `Attached (<n>)` or starts
+ *   with `Findings`; every other bullet of the record, the prose lists `Wrong as read` and
+ *   `To build` included, is prose. An entry of an item list is a line indented two spaces, then
+ *   `- `: either an item, `**<id>**: <text>` with an optional `(<reference>)` after the id, or a
+ *   note, `Note: <text>`. A line indented four spaces or more that opens no list continues the entry
+ *   above it.
  *
  *   WHAT CLOSES AN ITEM: its text starts with one of two forms. `Closed by #<n>`, the pull request
- *   that resolved it, its number written from 1 with no leading zero; or `Closed by decision of the
- *   <role> on <YYYY-MM-DD>: <the decision>`, where the role is `Product Owner` or `Maintainer`, the
- *   date is a calendar date, and the decision follows the colon. Every other item is open, and an
- *   item whose text starts `Closed by` in neither form is named as such.
+ *   that resolved it, its number written from 1 with no leading zero and ending the word; or
+ *   `Closed by decision of the <role> on <YYYY-MM-DD>: <the decision>`, where the role is
+ *   `Product Owner` or `Maintainer`, the date is a calendar date no later than the day the check runs
+ *   (UTC), and the decision after the colon holds at least one letter. Every other item is open, and
+ *   an item whose text starts `Closed by`, in any case, in neither form is named as such.
  *
  *   WHAT FAILS, exit 1, each on stderr: an open item under the record of a closed feature, named
  *   with the feature, the table's line, the item's id, its line and its list; then one line with
  *   the count. A feature that is `open` or `in progress` is never judged.
  *
- *   FAIL-CLOSED, exit 3: the plan or a record file that cannot be read; no `## The chain` section,
- *   or two; a section with no table; a table with no `#` or no `State` column, a row whose cells
- *   are not the header's, a row with no id, an id listed twice, or no feature row at all; a state
- *   that is none of the three; a closed feature whose record no heading opens, or more than one
- *   does; a record with no `Attached (<n>)` list, or whose `<n>` is not the number of items read
- *   under it; and an entry of an item list that is neither an item nor a note. A scan that read
- *   nothing never renders as a plan with every item closed. A usage error exits 2.
+ *   FAIL-CLOSED, exit 3, which wins over 1 and prints the open items too: the plan or a record file
+ *   that cannot be read; no `## The chain` section, or two; a section with no table; a table with no
+ *   `#` or no `State` column, a row whose cells are not the header's, a row with no id, an id listed
+ *   twice, or no feature row at all; a state that is none of the three; a closed feature whose record
+ *   no heading opens, or more than one does; a record with no `Attached (<n>)` list, or whose `<n>`
+ *   is not the number of items read under it; an entry of an item list that is neither an item nor a
+ *   note; a nested list entry under an entry of an item list, because an item written there could
+ *   not be told from prose; and any line of the record shaped like an item (a bold id, then `: `,
+ *   anywhere on the line) that is not read as an entry of an item list: an item at the record's top
+ *   level, after a line that ended its list, inside a note, on a label's line, or under a label
+ *   whose colon is outside the bold. A scan that read nothing never renders as a plan with every
+ *   item closed. A usage error exits 2.
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) Textual: the gate reads the plan's Markdown
  *   by its line shapes, not with a Markdown parser. (2) It proves the marker's form, never that pull
  *   request `#<n>` resolved the item or that the decision was taken. (3) An item attached to a
- *   closed feature from outside its record (a row of `cross-cutting.md` that names it) is not read.
- *   (4) The prose lists of a record (`Wrong as read`, `To build`) are not items, so a defect they
- *   describe is not judged. (5) The `Closed by` column of the table is not compared with the items.
+ *   closed feature from outside its record (a row of `cross-cutting.md` that names it, or a list
+ *   placed after a heading that ends the record) is not read. (4) A record's prose lists
+ *   (`Wrong as read`, `To build`) hold no item, so a defect they describe in prose is not judged.
+ *   (5) The `Closed by` column of the table is not compared with the items.
  *
  *   Usage: `node scripts/testing/plan-closure-gate.mjs [--root <dir>]`. The root defaults to the
  *   repository this file lives in, located from the script's own URL: no git, and nothing read from
@@ -71,7 +80,8 @@ const HINT =
   'close it with "Closed by #<n>." or "Closed by decision of the <Product Owner|Maintainer> on ' +
   '<YYYY-MM-DD>: <the decision>.", or set the feature back to "in progress"';
 
-const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
 const HEADING = /^(#{1,6})\s+(.*?)\s*$/;
 const TABLE_ROW = /^\s*\|/;
 const SEPARATOR_CELL = /^:?-{3,}:?$/;
@@ -81,13 +91,21 @@ const ATTACHED = /^Attached \((\d+)\)$/;
 const FINDINGS = /^Findings(?:\s|$)/;
 /** An entry of an item list: exactly two spaces, then the list marker. */
 const ENTRY = /^ {2}- (.*)$/;
+/** A list entry nested under an entry: four spaces or more, then a bullet or an ordered marker. */
+const NESTED = /^\s{4,}(?:[-*+]|\d+[.)])(?:\s|$)/;
 /** A line that continues the entry above it, indented four spaces or more. */
 const CONTINUATION = /^ {4,}\S/;
 const ITEM = /^\*\*([^*]+)\*\*(?: \([^)]*\))?: (\S.*)$/;
+/**
+ * Anything shaped like an item, anywhere on a line: a bold text that does not end with a colon or
+ * a space, an optional reference, then `: `. A label (`**Who:**`) does not match.
+ */
+const ITEM_SHAPED = /\*\*[^*]*[^*:\s]\*\*(?: \([^)]*\))?: /;
 const NOTE = /^Note: \S/;
 const CLOSED_BY_PULL_REQUEST = /^Closed by #[1-9]\d*(?!\w)/;
 const CLOSED_BY_DECISION =
-  /^Closed by decision of the (?:Product Owner|Maintainer) on (\d{4})-(\d{2})-(\d{2}): \S/;
+  /^Closed by decision of the (?:Product Owner|Maintainer) on (\d{4})-(\d{2})-(\d{2}): (.*)$/;
+const LETTER = /\p{L}/u;
 const CLOSURE_LOOKALIKE = /^closed by\b/i;
 
 /**
@@ -103,6 +121,22 @@ const CLOSURE_LOOKALIKE = /^closed by\b/i;
  * @property {"closed" | "open" | "lookalike"} status
  * @property {number} line One-based line in its file.
  * @property {string} list The label of the list that holds it.
+ */
+
+/**
+ * @typedef {object} Text
+ * @property {string} file The file, relative to the root.
+ * @property {string[]} lines
+ * @property {boolean[]} fenced Per line: inside a fenced code block, its fences included.
+ */
+
+/**
+ * @typedef {object} ItemList
+ * @property {string} label
+ * @property {number} line One-based line of the label.
+ * @property {number | null} count The count an `Attached (<n>)` label states, else `null`.
+ * @property {number} items
+ * @property {number} unreadable Entries of the list that were refused.
  */
 
 /**
@@ -122,40 +156,43 @@ function plural(count, noun) {
 }
 
 /**
+ * The lines of a text, each marked when a fenced code block holds it: an example written in a
+ * fence is never a table, a heading or an item.
+ *
+ * @param {string} file
  * @param {string} text
- * @returns {string[]}
+ * @returns {Text}
  */
-function linesOf(text) {
-  return text.split(/\r?\n/);
+function textOf(file, text) {
+  const lines = text.split(/\r?\n/);
+  /** @type {string | null} */
+  let fence = null;
+  const fenced = lines.map((line) => {
+    if (fence !== null) {
+      const close = FENCE_CLOSE.exec(line)?.[1] ?? "";
+      if (close.startsWith(fence[0] ?? "") && close.length >= fence.length) fence = null;
+      return true;
+    }
+    const open = FENCE_OPEN.exec(line);
+    if (open !== null) fence = open[1] ?? "";
+    return open !== null;
+  });
+  return { file, lines, fenced };
 }
 
 /**
- * The headings of a Markdown text outside its code blocks, each with its level and its line index.
+ * The headings of a text outside its fenced code blocks, each with its level and its line index.
  *
- * @param {string[]} lines
+ * @param {Text} text
  * @returns {{ index: number, level: number, text: string }[]}
  */
-function headingsOf(lines) {
-  /** @type {{ index: number, level: number, text: string }[]} */
-  const headings = [];
-  /** @type {string | null} */
-  let fence = null;
-  for (const [index, line] of lines.entries()) {
-    const marker = FENCE.exec(line);
-    if (fence !== null) {
-      if (marker !== null && (marker[1] ?? "").startsWith(fence)) fence = null;
-      continue;
-    }
-    if (marker !== null) {
-      fence = marker[1] ?? "";
-      continue;
-    }
-    const heading = HEADING.exec(line);
-    if (heading !== null) {
-      headings.push({ index, level: (heading[1] ?? "").length, text: heading[2] ?? "" });
-    }
-  }
-  return headings;
+function headingsOf({ lines, fenced }) {
+  return lines.flatMap((line, index) => {
+    const heading = fenced[index] === true ? null : HEADING.exec(line);
+    return heading === null
+      ? []
+      : [{ index, level: (heading[1] ?? "").length, text: heading[2] ?? "" }];
+  });
 }
 
 /**
@@ -175,12 +212,14 @@ function cellsOf(line) {
 
 /**
  * @description The rows of the chain table, or the reasons it cannot be read.
- * @param {string} text The plan.
+ * @param {Text} plan
  * @returns {{ rows: Row[], failures: string[] }}
  */
-function readChainTable(text) {
-  const lines = linesOf(text);
-  const headings = headingsOf(lines);
+function readChainTable(plan) {
+  const { lines, fenced } = plan;
+  /** @type {(index: number) => boolean} */
+  const tableRow = (index) => fenced[index] !== true && TABLE_ROW.test(lines[index] ?? "");
+  const headings = headingsOf(plan);
   const sections = headings.filter((h) => h.level === 2 && h.text === CHAIN_SECTION);
   const none = { rows: [], failures: [] };
   if (sections.length !== 1) {
@@ -197,13 +236,12 @@ function readChainTable(text) {
   }
   const start = (sections[0]?.index ?? 0) + 1;
   const end = headings.find((h) => h.index >= start && h.level <= 2)?.index ?? lines.length;
-  const first = lines.slice(start, end).findIndex((line) => TABLE_ROW.test(line));
-  const headerIndex = start + first;
-  const separator = cellsOf(lines[headerIndex + 1] ?? "");
+  let headerIndex = start;
+  while (headerIndex < end && !tableRow(headerIndex)) headerIndex += 1;
   if (
-    first === -1 ||
-    !TABLE_ROW.test(lines[headerIndex + 1] ?? "") ||
-    !separator.every((cell) => SEPARATOR_CELL.test(cell))
+    headerIndex >= end ||
+    !tableRow(headerIndex + 1) ||
+    !cellsOf(lines[headerIndex + 1] ?? "").every((cell) => SEPARATOR_CELL.test(cell))
   ) {
     return {
       ...none,
@@ -232,7 +270,7 @@ function readChainTable(text) {
   const rows = [];
   /** @type {string[]} */
   const failures = [];
-  for (let index = headerIndex + 2; index < end && TABLE_ROW.test(lines[index] ?? ""); index += 1) {
+  for (let index = headerIndex + 2; index < end && tableRow(index); index += 1) {
     const at = `${PLAN}:${String(index + 1)}`;
     const cells = cellsOf(lines[index] ?? "");
     if (cells.length !== header.length) {
@@ -273,71 +311,128 @@ function readChainTable(text) {
 
 /**
  * @description Where the record of a feature is opened: every heading, in every record file,
- *   whose text is the id or starts with the id and a space.
+ *   whose text is the id alone or the id followed by a space.
  * @param {string} id
- * @param {{ file: string, lines: string[] }[]} records
- * @returns {{ file: string, lines: string[], start: number, end: number }[]} `start` is the
- *   heading's index, `end` the index of the next heading of its level or above.
+ * @param {Text[]} records
+ * @returns {{ text: Text, start: number, end: number }[]} `start` is the heading's index, `end`
+ *   the index of the next heading of its level or above.
  */
 function recordsOf(id, records) {
-  return records.flatMap(({ file, lines }) => {
-    const headings = headingsOf(lines);
+  return records.flatMap((text) => {
+    const headings = headingsOf(text);
     return headings
       .filter((h) => h.text === id || h.text.startsWith(`${id} `))
       .map((h) => ({
-        file,
-        lines,
+        text,
         start: h.index,
         end:
           headings.find((next) => next.index > h.index && next.level <= h.level)?.index ??
-          lines.length,
+          text.lines.length,
       }));
   });
 }
 
 /**
  * @description Whether an item's text closes it, opens it, or starts like a closure in neither
- *   form. A decision's date must be a calendar date, so `2026-02-30` closes nothing.
+ *   form. A decision's date must be a calendar date no later than `today`, so `2026-02-30` and a
+ *   date to come close nothing, and its decision must hold a letter, so `: .` closes nothing.
  * @param {string} text The item's text, after its id.
+ * @param {string} today The day the check runs, `YYYY-MM-DD` in UTC.
  * @returns {Item["status"]}
  */
-function statusOf(text) {
+function statusOf(text, today) {
   if (CLOSED_BY_PULL_REQUEST.test(text)) return "closed";
   const decision = CLOSED_BY_DECISION.exec(text);
   if (decision !== null) {
     const [year, month, day] = [decision[1], decision[2], decision[3]].map(Number);
     const date = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day ?? 0));
-    if (
+    const calendar =
       date.getUTCFullYear() === year &&
       date.getUTCMonth() + 1 === month &&
-      date.getUTCDate() === day
-    ) {
-      return "closed";
-    }
+      date.getUTCDate() === day;
+    const written = `${decision[1] ?? ""}-${decision[2] ?? ""}-${decision[3] ?? ""}`;
+    if (calendar && written <= today && LETTER.test(decision[4] ?? "")) return "closed";
   }
   return CLOSURE_LOOKALIKE.test(text) ? "lookalike" : "open";
 }
 
 /**
+ * @param {string} file
+ * @param {number} index
+ * @param {string} label
+ * @param {string} id
+ * @param {string} line
+ * @returns {string}
+ */
+function unreadableEntry(file, index, label, id, line) {
+  return (
+    `${file}:${String(index + 1)}, in "${label}" of ${id}, reads "${line}", which is neither an ` +
+    'item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ' +
+    '("  - Note: <text>")'
+  );
+}
+
+/**
+ * @param {string} file
+ * @param {number} index
+ * @param {string} label
+ * @param {string} id
+ * @param {string} line
+ * @returns {string}
+ */
+function nestedEntry(file, index, label, id, line) {
+  return (
+    `${file}:${String(index + 1)}, in "${label}" of ${id}, reads "${line}", a nested list entry: ` +
+    "an item list holds no nested list, so an item written there cannot be told from prose; write " +
+    'each item as its own entry ("  - **<id>**: <text>")'
+  );
+}
+
+/**
+ * @param {string} file
+ * @param {number} index
+ * @param {string} id
+ * @param {string} line
+ * @returns {string}
+ */
+function unlistedItem(file, index, id, line) {
+  return (
+    `${file}:${String(index + 1)}, in the record of ${id}, reads "${line}", which is shaped like ` +
+    'an item ("**<id>**: ") and is not an entry of an "Attached (<n>)" or "Findings" list, so ' +
+    'whether it is open cannot be read; write it as "  - **<id>**: <text>" under one of them'
+  );
+}
+
+/**
  * @description The items of a record's item lists, or the reasons the record cannot be read.
  * @param {string} id The feature's id.
- * @param {{ file: string, lines: string[], start: number, end: number }} record
+ * @param {{ text: Text, start: number, end: number }} record
+ * @param {string} today The day the check runs, `YYYY-MM-DD` in UTC.
  * @returns {{ items: Item[], failures: string[] }}
  */
-function readItems(id, record) {
+function readItems(id, record, today) {
+  const { file, lines, fenced } = record.text;
   /** @type {Item[]} */
   const items = [];
   /** @type {string[]} */
   const failures = [];
-  /** @type {{ label: string, line: number, count: number | null, items: number, unreadable: number } | null} */
+  /** The lines read as items or already refused, which the item-shape scan leaves alone. */
+  const accounted = new Set();
+  /** @type {ItemList | null} */
   let list = null;
-  /** @type {{ label: string, line: number, count: number | null, items: number, unreadable: number }[]} */
+  /** @type {ItemList[]} */
   const attached = [];
   let entryOpen = false;
+  /** @type {(index: number, line: string, current: ItemList, nested: boolean) => void} */
+  const refuse = (index, line, current, nested) => {
+    failures.push((nested ? nestedEntry : unreadableEntry)(file, index, current.label, id, line));
+    accounted.add(index);
+    current.unreadable += 1;
+  };
 
   for (let index = record.start + 1; index < record.end; index += 1) {
-    const line = record.lines[index] ?? "";
-    if (line.trim() === "") continue;
+    const line = lines[index] ?? "";
+    if (fenced[index] === true || line.trim() === "") continue;
     const label = LABEL.exec(line);
     if (label !== null) {
       const name = label[1] ?? "";
@@ -358,14 +453,14 @@ function readItems(id, record) {
     }
     if (!/^\s/.test(line)) {
       list = null;
+      entryOpen = false;
       continue;
     }
     if (list === null) continue;
     const entry = ENTRY.exec(line);
     if (entry === null) {
-      if (entryOpen && CONTINUATION.test(line)) continue;
-      failures.push(unreadableEntry(record.file, index, list.label, id, line));
-      list.unreadable += 1;
+      if (NESTED.test(line)) refuse(index, line, list, true);
+      else if (!entryOpen || !CONTINUATION.test(line)) refuse(index, line, list, false);
       continue;
     }
     const content = entry[1] ?? "";
@@ -373,24 +468,32 @@ function readItems(id, record) {
     if (item !== null) {
       items.push({
         id: (item[1] ?? "").trim(),
-        status: statusOf(item[2] ?? ""),
+        status: statusOf(item[2] ?? "", today),
         line: index + 1,
         list: list.label,
       });
+      accounted.add(index);
       list.items += 1;
       entryOpen = true;
     } else if (NOTE.test(content)) {
       entryOpen = true;
     } else {
-      failures.push(unreadableEntry(record.file, index, list.label, id, line));
-      list.unreadable += 1;
+      refuse(index, line, list, false);
       entryOpen = false;
+    }
+  }
+
+  // An item written where no list reads it would otherwise pass unseen, open or not.
+  for (let index = record.start + 1; index < record.end; index += 1) {
+    const line = lines[index] ?? "";
+    if (fenced[index] !== true && !accounted.has(index) && ITEM_SHAPED.test(line)) {
+      failures.push(unlistedItem(file, index, id, line));
     }
   }
 
   if (attached.length === 0) {
     failures.push(
-      `the record of ${id} (${record.file}:${String(record.start + 1)}) holds no "Attached (<n>)" ` +
+      `the record of ${id} (${file}:${String(record.start + 1)}) holds no "Attached (<n>)" ` +
         "list, so whether it holds an open item cannot be read"
     );
   }
@@ -398,7 +501,7 @@ function readItems(id, record) {
   for (const stated of attached) {
     if (stated.unreadable === 0 && stated.count !== stated.items) {
       failures.push(
-        `the record of ${id} (${record.file}:${String(stated.line)}) states "${stated.label}" and ` +
+        `the record of ${id} (${file}:${String(stated.line)}) states "${stated.label}" and ` +
           `${plural(stated.items, "item")} ${stated.items === 1 ? "was" : "were"} read under it, so ` +
           "an item is written where the gate cannot read it"
       );
@@ -408,30 +511,16 @@ function readItems(id, record) {
 }
 
 /**
- * @param {string} file
- * @param {number} index
- * @param {string} label
- * @param {string} id
- * @param {string} line
- * @returns {string}
- */
-function unreadableEntry(file, index, label, id, line) {
-  return (
-    `${file}:${String(index + 1)}, in "${label}" of ${id}, reads "${line}", which is neither an ` +
-    'item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ' +
-    '("  - Note: <text>")'
-  );
-}
-
-/**
  * @description Judges a plan tree: every feature the chain table marks closed must hold no open
  *   item under its record. Reads the plan and the record files under `root`, never git.
- * @param {{ root: string }} input The directory that holds `docs/product/`.
+ * @param {{ root: string, now?: Date }} input `root` holds `docs/product/`; `now`, the moment
+ *   the check runs, decides which decision dates are still to come (the current time by default).
  * @returns {Outcome} The exit code and the lines for each stream, each prefixed with the gate's
  *   name: 0 when no closed feature holds an open item, 1 when one does, 3 when the plan cannot be
  *   read as the gate's header states.
  */
-export function runGate({ root }) {
+export function runGate({ root, now = new Date() }) {
+  const today = now.toISOString().slice(0, 10);
   /** @type {string[]} */
   const failures = [];
   /** @type {(file: string, what: string) => string | null} */
@@ -446,15 +535,15 @@ export function runGate({ root }) {
       return null;
     }
   };
-  const plan = read(PLAN, "no feature's state");
-  const records = RECORDS.map((file) => ({ file, text: read(file, "no record") }));
-  if (plan === null || records.some((record) => record.text === null)) {
+  const planText = read(PLAN, "no feature's state");
+  const recordTexts = RECORDS.map((file) => ({ file, text: read(file, "no record") }));
+  if (planText === null || recordTexts.some((record) => record.text === null)) {
     return { exitCode: 3, stdout: [], stderr: failures.map((line) => PREFIX + line) };
   }
 
-  const table = readChainTable(plan);
+  const table = readChainTable(textOf(PLAN, planText));
   failures.push(...table.failures);
-  const parsed = records.map(({ file, text }) => ({ file, lines: linesOf(text ?? "") }));
+  const records = recordTexts.map(({ file, text }) => textOf(file, text ?? ""));
   const closed = table.rows.filter((row) => row.state === CLOSED);
   /** @type {string[]} */
   const violations = [];
@@ -463,21 +552,21 @@ export function runGate({ root }) {
 
   for (const row of closed) {
     const at = `${PLAN}:${String(row.line)}`;
-    const found = recordsOf(row.id, parsed);
+    const found = recordsOf(row.id, records);
     if (found.length !== 1) {
       failures.push(
         found.length === 0
           ? `${row.id} is closed (${at}) and no heading of ${RECORDS.join(" or ")} opens its ` +
               "record, so no item of it was read"
           : `${row.id} is closed (${at}) and its record is opened more than once ` +
-              `(${found.map((r) => `${r.file}:${String(r.start + 1)}`).join(", ")}), so which one ` +
-              "holds its items is ambiguous"
+              `(${found.map((r) => `${r.text.file}:${String(r.start + 1)}`).join(", ")}), so ` +
+              "which one holds its items is ambiguous"
       );
       continue;
     }
     const record = found[0];
     if (record === undefined) continue;
-    const { items, failures: unreadable } = readItems(row.id, record);
+    const { items, failures: unreadable } = readItems(row.id, record, today);
     failures.push(...unreadable);
     itemCount += items.length;
     for (const item of items) {
@@ -489,7 +578,7 @@ export function runGate({ root }) {
           : "an open item";
       violations.push(
         `${row.id} is closed (${at}) and its record holds ${what}: ${item.id} ` +
-          `(${record.file}:${String(item.line)}, in "${item.list}"); ${HINT}`
+          `(${record.text.file}:${String(item.line)}, in "${item.list}"); ${HINT}`
       );
     }
   }
@@ -533,8 +622,10 @@ function rootOf(argv) {
 }
 
 /**
- * True only when this file is the process entry point. The rule is exported for the suite, and
- * importing it must not run the CLI as a side effect.
+ * True only when this file is the process entry point, so the suite's import runs nothing. It is
+ * written here rather than imported from `lib/record-helpers.mjs`, whose `isEntryPoint` is the
+ * same check: that module imports `prettier`, and the fitness job that runs this gate installs no
+ * package, so the import would fail there before the gate read a line.
  *
  * @returns {boolean}
  */
