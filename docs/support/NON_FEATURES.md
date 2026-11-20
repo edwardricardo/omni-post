@@ -219,4 +219,6 @@ Every capability candidate the tree yields, and what covers it for support: the 
 
 ## Documented
 
-None.
+| Support page                                  | Candidates it documents |
+| --------------------------------------------- | ----------------------- |
+| [first-administrator](first-administrator.md) |                         |
