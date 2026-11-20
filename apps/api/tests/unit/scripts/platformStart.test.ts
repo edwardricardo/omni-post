@@ -4025,3 +4025,152 @@ describe("the stop of a failed start, driven in this process", () => {
     expect(line).toContain(`SIGKILL to ${pid} (/bin/sleep 60), still running 1 s later`);
   });
 });
+
+describe("db:up, the services alone (--services-only)", () => {
+  /** Every call the pnpm stand-in logged: the proof, the migration and each app. */
+  const pnpmCalls = (staged: Stage): string[] =>
+    ["", ".api", ".workers", ".admin", ".client"].flatMap((suffix) =>
+      loggedCalls(`${staged.pnpmLog}${suffix}`)
+    );
+
+  it("starts both services, waits until each answers, and stops there: nothing migrated, no app", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const before = writeEnvironment(staged.file, [], listening);
+
+    const result = await start(["--root", staged.root, "--services-only"], staged.env);
+
+    expect(result).toEqual({
+      code: 0,
+      stdout:
+        `platform-start: ${staged.file} holds every required variable\n` +
+        `platform-start: Postgres on 127.0.0.1:${listening.postgres} answers a query\n` +
+        `platform-start: Redis on 127.0.0.1:${listening.redis} answers PING\n`,
+      stderr: "",
+    });
+    expect(dockerCalls(staged)).toEqual([
+      `compose version|${staged.root}`,
+      `${COMPOSE} up -d postgres redis|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c ${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE} || ' ' || ${INITIAL_DATABASE}"|${staged.root}`,
+    ]);
+    expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
+    expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
+    expect(pnpmCalls(staged)).toEqual([]);
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+  });
+
+  it("writes the environment a checkout lacks, as the start does, and starts nothing else", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--services-only"], {
+      ...staged.env,
+      POSTGRES_HOST_PORT: staged.ports.POSTGRES_HOST_PORT,
+      REDIS_HOST_PORT: staged.ports.REDIS_HOST_PORT,
+    });
+
+    expect({
+      code: result.code,
+      firstLine: result.stdout.split("\n")[0],
+      missing: core.missingKeys(core.readEnvironment(readFileSync(staged.file, "utf8"))),
+      pnpm: pnpmCalls(staged),
+    }).toEqual({
+      code: 0,
+      firstLine: `platform-start: wrote ${staged.file} with 22 variables, its secrets random`,
+      missing: [],
+      pnpm: [],
+    });
+  });
+
+  it("does not read the apps' ports: a PORT that is not a port refuses only the full start", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+
+    const result = await start(["--root", staged.root, "--services-only"], {
+      ...staged.env,
+      PORT: "70000",
+    });
+
+    expect({ code: result.code, stderr: result.stderr }).toEqual({ code: 0, stderr: "" });
+  });
+
+  it("fails naming Redis when it never answers PING, after saying Postgres answered", async () => {
+    const staged = await stage({ redis: await listen(null) });
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+
+    const result = await start(
+      ["--root", staged.root, "--services-only", "--wait-seconds", "1"],
+      staged.env
+    );
+
+    expect({
+      code: result.code,
+      postgres: result.stdout.includes(`Postgres on 127.0.0.1:${staged.postgres.port} answers`),
+      stderr: result.stderr,
+      pnpm: pnpmCalls(staged),
+    }).toEqual({
+      code: 1,
+      postgres: true,
+      stderr: `platform-start: Redis did not answer PING on 127.0.0.1:${staged.redis.port} within 1 s (\`docker compose logs redis\`)\n`,
+      pnpm: [],
+    });
+  });
+
+  it("fails naming Postgres when it never answers, before Redis is asked", async () => {
+    const staged = await stage({ postgres: await listen(null) });
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+
+    const result = await start(
+      ["--root", staged.root, "--services-only", "--wait-seconds", "1"],
+      staged.env
+    );
+
+    expect({
+      code: result.code,
+      stderr: result.stderr,
+      redisAsked: staged.redis.received.length,
+    }).toEqual({
+      code: 1,
+      stderr: `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`,
+      redisAsked: 0,
+    });
+  });
+
+  it("says in the usage that --services-only starts the two services and stops once they answer", async () => {
+    const { root } = makeRoot();
+
+    const result = await start(["--root", root, "--help"]);
+
+    expect(result.stdout).toContain(
+      "  --services-only      start Postgres and Redis, wait until each answers, and stop there:\n" +
+        "                       nothing is migrated and no app is started (pnpm db:up)\n"
+    );
+  });
+
+  it("is what pnpm db:up runs, from the repository's root", () => {
+    const manifest = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string | undefined>;
+    };
+
+    expect(manifest.scripts["db:up"]).toBe("node scripts/start/platform-start.mjs --services-only");
+  });
+});
+
+describe("the services step of the full start", () => {
+  it("says in one line that both services accept connections, naming neither on a line of its own", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect({
+      code: result.code,
+      services: result.stdout
+        .split("\n")
+        .filter((line) => /^platform-start: (Postgres|Redis) on /.test(line)),
+    }).toEqual({
+      code: 0,
+      services: [
+        `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} and Redis on 127.0.0.1:${staged.redis.port} accept connections`,
+      ],
+    });
+  });
+});

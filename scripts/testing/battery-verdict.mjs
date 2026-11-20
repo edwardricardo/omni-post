@@ -26,7 +26,48 @@
  *   the verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
  *   own pino records at level "warn" — the code under test logging on the failure paths its tests
  *   exercise. Those records are counted per message, so a new one is visible without failing the
- *   run.
+ *   run. Pino writes the level in two spellings, and both are that record. The label, as the API's
+ *   logger formats it (`"level":"warn"`): a line that holds that text anywhere is taken for the
+ *   record, whatever else the line says. The number, pino's default, written by every logger that
+ *   sets no level formatter (the packages' loggers, Fastify's own): a line that starts with
+ *   `{"level":40,` and parses as one JSON object, so a numeric record at another level, a line that
+ *   only quotes the record, one that continues after it and one that is cut are read whole. Pino
+ *   writes its own level first, so a record at another level cannot start that way; a logger that
+ *   defined a custom level numbered 40 would, and the repository defines none.
+ *
+ *   One kind of text is not read: the title of a test block on the line where the record-coverage
+ *   gate (`scripts/testing/record-coverage-gate.mjs`) lists that block. A title is data the gate
+ *   copies from a test, often a block of the base the change's author cannot edit, so a block named
+ *   "logs warnings" is not a warning. The exception holds only in the log named exactly
+ *   `record-coverage.log` at the top of the log directory, and only on a line that is, from its
+ *   first character to its last, the gate's grammar
+ *   `record-coverage-gate: <class>: <path>::<title> (<kind>): <detail>`, with `<class>` one of
+ *   `refused`, `behaviour change`, `live`, `no-collector` and `moved`, and `<kind>` `deletion` or
+ *   `rewrite`. The title starts after the first `::` and runs to the last ` (<kind>): `, so it may
+ *   hold `::`, parentheses and the gate's own words. A `moved` line's detail,
+ *   `its bodyHash reappears as <path>::<title>`, names a second block whose title is not read either;
+ *   its first title runs to the last ` (deletion): its bodyHash reappears as ` that a colon-free path
+ *   and `::` follow. Everything else on such a line is read (the class, the paths, the detail), and
+ *   so is the gate's grammar written after other text, every other line of that log (the gate's
+ *   summary and its own problems, a runtime warning) and every line of every other log. A change to
+ *   the gate's line that the grammar no longer matches turns its titles back into warning lines:
+ *   RED, never a waived warning.
+ *
+ *   Its residual limits, stated rather than implied. (1) A title may not hold every character: a
+ *   carriage return before the line's end, U+2028 or U+2029 makes the line read whole, so a
+ *   warning word in its title counts again, and a line feed splits it into lines that are each
+ *   read whole. (2) That a path holds no `:` is
+ *   assumed, never checked: a path holding `::` has the text after its first `::` read as the
+ *   title, and a path holding a single `:` makes the line read whole. (3) No detail is known to hold
+ *   no ` (<kind>): `: a behaviour-change detail lists changed file names and record file names, and
+ *   a refused detail holds a record's verdict, which is free text. When one holds ` (deletion): ` or
+ *   ` (rewrite): `, the detail's text before the last of them is taken for title and not read. What
+ *   is then skipped is data of the tree, never a tool's own warning, and a refused line's step exits
+ *   1, so it is RED anyway. (4) A moved line whose second title itself holds the moved phrase, a
+ *   colon-free run and `::` splits there, and that run is read as a path: a warning word in it still
+ *   counts. (5) The name must match exactly and the walk lists the top level only: a log whose name
+ *   differs from `record-coverage.log` in case is read whole, and a `record-coverage.log` in a
+ *   subdirectory, like every file there, is not read at all.
  * @layer infrastructure
  */
 import { readdirSync, readFileSync } from "node:fs";
@@ -50,7 +91,24 @@ const WARNING_WORD = new RegExp(
 const WARNING_CATEGORY = new RegExp(
   `${NO_PATH_NEIGHBOUR_BEFORE}[A-Z][A-Za-z]*Warning${NO_PATH_NEIGHBOUR_AFTER}`
 );
+const COVERAGE_GATE_LOG = "record-coverage.log";
+/**
+ * The record-coverage gate's line for one listed block of every class but `moved`. The groups are
+ * the text before the title and the text after it; the title between them is greedy, so it runs to
+ * the last ` (<kind>): `.
+ */
+const COVERAGE_BLOCK_LINE =
+  /^(record-coverage-gate: (?:refused|behaviour change|live|no-collector): [^:]*::).*( \((?:deletion|rewrite)\): .*)$/;
+/**
+ * The gate's `moved` line. The groups are the text before the first title and the text between the
+ * two titles; the first title is greedy, so it runs to the last phrase a colon-free path and `::`
+ * follow.
+ */
+const COVERAGE_MOVED_LINE =
+  /^(record-coverage-gate: moved: [^:]*::).*( \(deletion\): its bodyHash reappears as [^:]*::).*$/;
 const APP_WARN_RECORD = '"level":"warn"';
+/** How pino starts a record at warn when no formatter renames its level: the number, first. */
+const NUMERIC_WARN_RECORD_START = '{"level":40,';
 const APP_WARN_MESSAGE = /"msg":"((?:[^"\\]|\\.)*)/;
 const NO_MESSAGE = "<no msg field>";
 const UNHANDLED_LINE = /Worker exited|Unhandled Error/;
@@ -160,12 +218,43 @@ function readSteps(outDir) {
 }
 
 /**
+ * @param {string} line A line of a step's log.
+ * @returns {boolean} Whether the line is an application record at warn: it holds the level's label,
+ *   or it starts with the level's number and parses as one JSON object, so another tool's text
+ *   before or after the record leaves the line a line to read.
+ */
+function isAppWarnRecord(line) {
+  if (line.includes(APP_WARN_RECORD)) return true;
+  if (!line.startsWith(NUMERIC_WARN_RECORD_START)) return false;
+  try {
+    JSON.parse(line);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * @param {string} line A line carrying an application warn record.
  * @returns {string}
  */
 function messageOf(line) {
   const hit = APP_WARN_MESSAGE.exec(line);
   return hit === null ? NO_MESSAGE : (hit[1] ?? "").slice(0, MESSAGE_LIMIT);
+}
+
+/**
+ * The text of a log line the warning rule reads: the line whole, except a line of the record-coverage
+ * gate's log that lists a test block, which is read without its block titles.
+ *
+ * @param {string} log The log's file name.
+ * @param {string} text The line, without its line ending.
+ * @returns {string}
+ */
+function warningTextOf(log, text) {
+  if (log !== COVERAGE_GATE_LOG) return text;
+  const hit = COVERAGE_BLOCK_LINE.exec(text) ?? COVERAGE_MOVED_LINE.exec(text);
+  return hit === null ? text : hit.slice(1).join("");
 }
 
 /**
@@ -204,13 +293,14 @@ function scanLogs(outDir, entries) {
       if (run !== null && UNHANDLED_LINE.test(text)) {
         unhandled.set(run, (unhandled.get(run) ?? 0) + 1);
       }
-      if (text.includes(APP_WARN_RECORD)) {
+      if (isAppWarnRecord(text)) {
         total += 1;
         const msg = messageOf(text);
         messages.set(msg, (messages.get(msg) ?? 0) + 1);
         return;
       }
-      if (!WARNING_WORD.test(text) && !WARNING_CATEGORY.test(text)) return;
+      const read = warningTextOf(log, text);
+      if (!WARNING_WORD.test(read) && !WARNING_CATEGORY.test(read)) return;
       warnings.push({ log, line: index + 1, text: text.slice(0, WARNING_TEXT_LIMIT) });
     });
   }

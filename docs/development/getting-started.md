@@ -69,7 +69,7 @@ The `docker-compose.yml` starts these services, each bound to `127.0.0.1`. `pnpm
 | Grafana    | 3001        | Dashboards (credentials from `GF_SECURITY_ADMIN_*`) |
 | Jaeger     | 16686       | Distributed tracing UI (OTLP HTTP receiver on 4318) |
 
-`pnpm db:up` does not start containers: it resolves, reaches and authenticates against the PostgreSQL and Redis named by `DATABASE_URL` and `REDIS_URL` in `.env`, local or shared, and fails with an actionable message when one is not usable.
+`pnpm db:up` starts PostgreSQL and Redis the way `pnpm start:platform` does and stops there, so a migration can follow: it writes the root `.env` when the checkout has none and checks the one it has, runs `docker compose up -d postgres redis`, prints one line for each service as it answers (PostgreSQL a query with the user, password and database of `.env`, Redis `PING`), and exits 0. A service that does not answer within the wait (60 s, `--wait-seconds` of `scripts/start/platform-start.mjs --services-only`) ends it with exit 1 and a line that names the service. It migrates nothing and starts no application.
 
 ### Storage, tracing and mail
 
@@ -120,7 +120,7 @@ pnpm format:check  # Check formatting only
 ### Database Commands
 
 ```bash
-pnpm db:up         # Preflight only, starts nothing: resolve, reach and authenticate DATABASE_URL and REDIS_URL from .env (start local ones first with docker compose up -d)
+pnpm db:up         # Start PostgreSQL and Redis with Docker Compose and wait until each answers; migrates nothing
 pnpm db:studio     # Open Prisma Studio
 pnpm db:migrate    # Run migrations
 pnpm db:seed       # Seed test data; needs ADMIN_PASSWORD (generated for a new .env) and NODE_ENV development, test or unset
@@ -174,10 +174,10 @@ docker compose ps
 
 ```bash
 curl http://localhost:3000/health
-# {"ok":true,"timestamp":"..."}
+# {"status":"healthy","timestamp":"...","uptime":...}: 200 for healthy or degraded, 503 for unhealthy
 
-curl http://localhost:3000/health/full
-# Shows database and Redis status
+curl http://localhost:3000/health/detailed
+# Shows the status of each dependency
 
 curl http://localhost:3300/health/ready   # the workers
 curl http://localhost:3100/api/health     # the administration portal

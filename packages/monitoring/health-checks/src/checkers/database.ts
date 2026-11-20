@@ -1,39 +1,48 @@
 /**
  * @file database.ts
- * @description Health checker for database connectivity that exercises the RepoPort with a
- *              simple list operation to verify Postgres availability.
+ * @description Health checkers for the database: its connectivity, asked through the repository
+ *              port's ping so the latency measures the connection and never the size of a table,
+ *              and its connection pool.
  * @layer infrastructure
  */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
+import { DEGRADED_LATENCY_MS } from "../thresholds.js";
 import type { RepoPort } from "@ports/core";
 
 export class DatabaseHealthChecker implements HealthChecker {
-  constructor(private repo: RepoPort) {}
+  /**
+   * @param database - The repository whose ping the check asks; it reads no table.
+   */
+  constructor(private readonly database: Pick<RepoPort, "ping">) {}
 
+  /**
+   * @method check
+   * @description Pings the database once and grades the answer by its latency: healthy up to one
+   *   second, degraded above it, and unhealthy when the ping fails. A ping slower than the
+   *   manager's timeout never reaches this grading: the manager reports it unhealthy first.
+   * @returns The status, the latency in milliseconds, a message and the report's details.
+   */
   async check(): Promise<HealthCheckResult> {
     const startTime = Date.now();
 
     try {
-      // Test basic connectivity by listing accounts (available in RepoPort)
-      const accountsResult = await this.repo.listAccounts();
-
-      if (!accountsResult.ok) {
-        throw new Error("Database connectivity test failed");
-      }
-
+      const ping = await this.database.ping();
       const latency = Date.now() - startTime;
 
-      // Connection pool metrics not available through RepoPort interface
-      const poolSize = 0;
+      if (!ping.ok) {
+        return {
+          status: "unhealthy",
+          latency,
+          message: "Database connection failed",
+          error: "Database connectivity test failed",
+          details: { errorType: ping.error },
+        };
+      }
 
       let status: HealthCheckResult["status"] = "healthy";
       let message = "Database is healthy";
 
-      // Determine health based on latency
-      if (latency > 5000) {
-        status = "unhealthy";
-        message = `Database response time too high: ${latency}ms`;
-      } else if (latency > 1000) {
+      if (latency > DEGRADED_LATENCY_MS) {
         status = "degraded";
         message = `Database response time elevated: ${latency}ms`;
       }
@@ -44,9 +53,7 @@ export class DatabaseHealthChecker implements HealthChecker {
         message,
         details: {
           responseTime: latency,
-          poolConnections: poolSize,
           engine: "postgresql",
-          version: "unknown", // Not accessible through RepoPort
         },
       };
     } catch (error: unknown) {
@@ -58,15 +65,10 @@ export class DatabaseHealthChecker implements HealthChecker {
         error: error instanceof Error ? error.message : String(error),
         details: {
           errorType: error instanceof Error ? error.constructor.name : "Unknown",
-          code: (error as Record<string, unknown>)["code"],
+          code: error instanceof Error && "code" in error ? error.code : undefined,
         },
       };
     }
-  }
-
-  private async getDatabaseVersion(): Promise<string> {
-    // Database version not accessible through RepoPort interface
-    return "unknown";
   }
 }
 
@@ -76,6 +78,12 @@ export class DatabaseConnectionPoolHealthChecker implements HealthChecker {
     private maxConnections = 10
   ) {}
 
+  /**
+   * @method check
+   * @description Grades the pool's utilization against `maxConnections`. The port exposes no pool
+   *   counts, so every count reads 0 and the status is always healthy.
+   * @returns The status, the latency in milliseconds, a message and the pool's counts.
+   */
   async check(): Promise<HealthCheckResult> {
     const startTime = Date.now();
 

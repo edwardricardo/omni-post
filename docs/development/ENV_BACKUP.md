@@ -77,9 +77,12 @@ After restore:
 # 1. Verify required vars are present
 grep -cE '^(JWT_|PLATFORM_|OAUTH_|POSTGRES_PASSWORD)=.' .env  # → ≥9
 
-# 2. If POSTGRES_PASSWORD or MINIO_ROOT_PASSWORD differ from running containers,
-#    you'll get auth failures. Resolution:
-docker compose down && pnpm db:up
+# 2. If POSTGRES_PASSWORD differs from the one the Postgres volume was created with,
+#    pnpm db:up stops and says so. Resolution: `--volumes` removes every named volume
+#    docker-compose.yml declares, so it loses the database (pgdata), Redis's data
+#    (redisdata), the media stored in MinIO (minio-data), Grafana's own data
+#    (grafana-data) and Prometheus's metrics (prometheus-data):
+docker compose down --volumes && pnpm db:up && pnpm db:migrate
 
 # 3. Restart dev environment
 pnpm dev

@@ -19,7 +19,7 @@ Every row carries its provenance: **R** = executed on 2026-09-27 and read from t
 | E2E, first local runs                              | client: 3 passed, 795 failed, 36 skipped; admin: 8 passed, 29 failed                                                      | R     |
 | k6 load scenarios ever executed                    | 0 of 6                                                                                                                    | P     |
 | Configs that measure coverage                      | 1 of 86 (`apps/api`)                                                                                                      | P + M |
-| Required checks on `main`                          | 19, `strict: false`                                                                                                       | M     |
+| Required checks on `main`                          | 25 in `.github/rulesets/main.json`, 20 enforced until the live protection takes them; `strict: false`                     | M     |
 | Gates that cannot fail or cannot explain a failure | 5 structural defects, listed under "Gates that cannot fail"                                                               | P + F |
 | `main` red on `6701be00`                           | `integration:outbox` smoke races the API's own outbox relay; the same SHA passed on re-run                                | F     |
 

@@ -9,6 +9,7 @@ import { ok, err, type Result } from "@shared/types";
 import * as pino from "pino";
 import * as client from "prom-client";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { DEGRADED_LATENCY_MS } from "./thresholds.js";
 import type {
   HealthStatus,
   DependencyHealth,
@@ -42,6 +43,30 @@ const systemHealth = new client.Gauge({
   help: "Overall system health score (0-1)",
 });
 
+/** How long a check's one attempt may take before it reports a failure. */
+const HEALTH_CHECK_TIMEOUT_MS = 5_000;
+
+/** The refresh interval while the last report is healthy or degraded. */
+const HEALTHY_REFRESH_INTERVAL_MS = 30_000;
+
+/**
+ * The refresh interval while the last report is unhealthy. A check makes one attempt bounded by
+ * the timeout, so a dependency that recovers reads healthy within one interval plus one timeout.
+ */
+const UNHEALTHY_REFRESH_INTERVAL_MS = 5_000;
+
+/** The timing and alert thresholds a manager uses for every setting its caller does not pass. */
+const DEFAULT_HEALTH_CHECK_CONFIG: HealthCheckConfig = {
+  timeout: HEALTH_CHECK_TIMEOUT_MS,
+  interval: HEALTHY_REFRESH_INTERVAL_MS,
+  unhealthyInterval: UNHEALTHY_REFRESH_INTERVAL_MS,
+  alertThresholds: {
+    degradedLatency: DEGRADED_LATENCY_MS,
+    unhealthyLatency: HEALTH_CHECK_TIMEOUT_MS,
+    criticalFailureCount: 3,
+  },
+};
+
 // Re-export shared types from types.ts so external consumers continue to
 // import from this barrel without breaking their existing import paths.
 export type {
@@ -72,25 +97,23 @@ export class HealthCheckManager {
   private isRunning = false;
   private scheduler: BackgroundTaskScheduler | undefined;
   private readonly periodicTaskId = "health-check-manager-periodic";
+  /** The interval the refresh task is registered with now; set by `start`. */
+  private refreshIntervalMs: number | undefined;
 
   constructor(
-    private globalConfig: HealthCheckConfig = {
-      timeout: 5000,
-      interval: 30000,
-      retries: 3,
-      alertThresholds: {
-        degradedLatency: 1000,
-        unhealthyLatency: 5000,
-        criticalFailureCount: 3,
-      },
-    },
+    private globalConfig: HealthCheckConfig = DEFAULT_HEALTH_CHECK_CONFIG,
     scheduler?: BackgroundTaskScheduler
   ) {
     this.scheduler = scheduler;
   }
 
   /**
-   * Register a health checker
+   * @method register
+   * @description Registers a checker under a dependency name, with this manager's timing unless
+   *   the options override it. A dependency is critical unless the options say otherwise.
+   * @param name - The dependency name reports and `checkDependency` use.
+   * @param checker - The checker that probes the dependency.
+   * @param options - The dependency's type, whether it is critical, and any timing override.
    */
   register(
     name: string,
@@ -117,7 +140,12 @@ export class HealthCheckManager {
   }
 
   /**
-   * Check health of a specific dependency
+   * @method checkDependency
+   * @description Runs one dependency's checker now, in one attempt, and records its result in the
+   *   report `getCurrentStatus` answers from.
+   * @param name - The dependency name it was registered under.
+   * @returns The dependency's health, `NOT_FOUND` for a name nothing registered, or `CHECK_FAILED`
+   *   when the check could not be run.
    */
   async checkDependency(
     name: string
@@ -144,6 +172,8 @@ export class HealthCheckManager {
       );
 
       this.results.set(name, result);
+      // The report `/health` serves now holds this result, so its refresh follows it too.
+      this.rearmRefresh(this.calculateOverallHealth(Array.from(this.results.values())).overall);
       return ok(result);
     } catch (error: unknown) {
       timer({ status: "error" });
@@ -153,7 +183,10 @@ export class HealthCheckManager {
   }
 
   /**
-   * Check health of all dependencies
+   * @method checkAll
+   * @description Runs every registered checker concurrently, one attempt each, records the
+   *   results, updates the metrics and the alerts, and builds the system report.
+   * @returns The report: overall status, score, dependencies, process metrics and active alerts.
    */
   async checkAll(): Promise<SystemHealthReport> {
     const timer = healthCheckDuration.startTimer({
@@ -198,6 +231,7 @@ export class HealthCheckManager {
 
     // Calculate overall health
     const { overall, score } = this.calculateOverallHealth(dependencies);
+    this.rearmRefresh(overall);
 
     // Update system health metric
     systemHealth.set(score);
@@ -229,7 +263,10 @@ export class HealthCheckManager {
   }
 
   /**
-   * Start periodic health checks
+   * @method start
+   * @description Starts refreshing the report on the scheduler: a first refresh at once, then
+   *   every `interval` while the last report is healthy or degraded and every
+   *   `unhealthyInterval` while it is unhealthy.
    */
   start(): void {
     if (this.isRunning) {
@@ -244,23 +281,21 @@ export class HealthCheckManager {
     }
 
     this.isRunning = true;
-    this.scheduler.register(
-      this.periodicTaskId,
-      async () => {
-        await this.checkAll();
-      },
-      this.globalConfig.interval,
-      {
-        immediate: true,
-        onError: (err) => logger.error({ err }, "Periodic health check failed"),
-      }
-    );
+    this.refreshIntervalMs = this.globalConfig.interval;
+    this.scheduler.register(this.periodicTaskId, this.refresh, this.refreshIntervalMs, {
+      immediate: true,
+      onError: this.onRefreshError,
+    });
 
-    logger.info(`Health check manager started (interval: ${this.globalConfig.interval}ms)`);
+    logger.info(
+      `Health check manager started (interval: ${this.globalConfig.interval}ms, ` +
+        `${this.globalConfig.unhealthyInterval}ms while unhealthy)`
+    );
   }
 
   /**
-   * Stop periodic health checks
+   * @method stop
+   * @description Stops the refresh. A refresh already running finishes without re-arming it.
    */
   stop(): void {
     if (!this.isRunning) return;
@@ -273,8 +308,38 @@ export class HealthCheckManager {
     logger.info("Health check manager stopped");
   }
 
+  /** One refresh: check every dependency; `checkAll` arms the next refresh for the report. */
+  private readonly refresh = async (): Promise<void> => {
+    await this.checkAll();
+  };
+
+  private readonly onRefreshError = (err: unknown): void => {
+    logger.error({ err }, "Periodic health check failed");
+  };
+
   /**
-   * Get current health status
+   * Registers the refresh again under its id when the report calls for the other interval, after
+   * every check that records results, a refresh or a check on demand, since either moves the
+   * report `/health` serves. The scheduler replaces a task registered twice under one id. An
+   * unchanged interval keeps the running task and its phase, and a stopped manager is never
+   * re-armed.
+   */
+  private rearmRefresh(overall: HealthStatus): void {
+    const intervalMs =
+      overall === "unhealthy" ? this.globalConfig.unhealthyInterval : this.globalConfig.interval;
+    if (!this.isRunning || !this.scheduler || intervalMs === this.refreshIntervalMs) return;
+
+    this.refreshIntervalMs = intervalMs;
+    this.scheduler.register(this.periodicTaskId, this.refresh, intervalMs, {
+      onError: this.onRefreshError,
+    });
+  }
+
+  /**
+   * @method getCurrentStatus
+   * @description Builds the report from the results last recorded, by a refresh or a check on
+   *   demand, without running any checker.
+   * @returns The report, or `null` before any check has run.
    */
   getCurrentStatus(): SystemHealthReport | null {
     if (this.results.size === 0) return null;
@@ -299,7 +364,10 @@ export class HealthCheckManager {
   }
 
   /**
-   * Acknowledge an alert
+   * @method acknowledgeAlert
+   * @description Marks an alert acknowledged, so it leaves the active alerts of later reports.
+   * @param alertId - The alert's id.
+   * @returns `true` when an alert has that id, `false` otherwise.
    */
   acknowledgeAlert(alertId: string): boolean {
     const alert = this.alerts.find((a) => a.id === alertId);
@@ -312,14 +380,19 @@ export class HealthCheckManager {
   }
 
   /**
-   * Get alerts by level
+   * @method getAlerts
+   * @description Lists the alerts raised so far, acknowledged ones included.
+   * @param level - When given, only the alerts of that level.
+   * @returns A copy of the matching alerts.
    */
   getAlerts(level?: HealthAlert["level"]): HealthAlert[] {
     return level ? this.alerts.filter((a) => a.level === level) : [...this.alerts];
   }
 
   /**
-   * Clear acknowledged alerts
+   * @method clearAcknowledgedAlerts
+   * @description Drops every acknowledged alert.
+   * @returns How many alerts were dropped.
    */
   clearAcknowledgedAlerts(): number {
     const count = this.alerts.filter((a) => a.acknowledged).length;
@@ -334,54 +407,42 @@ export class HealthCheckManager {
     config: HealthCheckConfig & { critical: boolean; type: DependencyHealth["type"] }
   ): Promise<DependencyHealth> {
     const startTime = Date.now();
+    let timeoutHandle: NodeJS.Timeout | undefined;
 
-    let lastError: Error | undefined;
-    for (let attempt = 1; attempt <= config.retries; attempt++) {
-      try {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Health check timeout")), config.timeout);
-        });
+    // One attempt: a failure is reported at once, and the next refresh is the retry, which is
+    // what keeps an unhealthy report from outliving a recovered dependency.
+    try {
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error("Health check timeout")), config.timeout);
+      });
 
-        const result = await Promise.race([checker.check(), timeoutPromise]);
+      const result = await Promise.race([checker.check(), timeout]);
 
-        const latency = Date.now() - startTime;
-
-        return {
-          name,
-          type: config.type,
-          status: result.status,
-          latency,
-          message: result.message || `${name} is ${result.status}`,
-          details: {
-            ...result.details,
-            attempt,
-            maxAttempts: config.retries,
-          },
-          lastChecked: new Date(),
-          critical: config.critical,
-        };
-      } catch (error: unknown) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        if (attempt < config.retries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-        }
-      }
+      return {
+        name,
+        type: config.type,
+        status: result.status,
+        latency: Date.now() - startTime,
+        message: result.message || `${name} is ${result.status}`,
+        details: { ...result.details },
+        lastChecked: new Date(),
+        critical: config.critical,
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        name,
+        type: config.type,
+        status: "unhealthy",
+        latency: Date.now() - startTime,
+        message: `Health check failed: ${errorMessage}`,
+        details: { error: errorMessage },
+        lastChecked: new Date(),
+        critical: config.critical,
+      };
+    } finally {
+      clearTimeout(timeoutHandle);
     }
-
-    const latency = Date.now() - startTime;
-    return {
-      name,
-      type: config.type,
-      status: "unhealthy",
-      latency,
-      message: `Health check failed after ${config.retries} attempts`,
-      details: {
-        error: lastError?.message,
-        attempts: config.retries,
-      },
-      lastChecked: new Date(),
-      critical: config.critical,
-    };
   }
 
   private calculateOverallHealth(dependencies: DependencyHealth[]): {
@@ -505,19 +566,26 @@ export class HealthCheckManager {
 // Global health check manager instance
 let globalHealthManager: HealthCheckManager | null = null;
 
+/**
+ * @function createHealthCheckManager
+ * @description Returns the process's health manager, building it on the first call: the package's
+ *   timeout and refresh intervals, with any setting the caller passes in their place. Later calls
+ *   return the same manager and ignore their arguments.
+ * @param config - Settings that replace the package's defaults, field by field.
+ * @param scheduler - The scheduler the refresh runs on; `start` requires one.
+ * @returns The process's health manager.
+ */
 export function createHealthCheckManager(
   config?: Partial<HealthCheckConfig>,
   scheduler?: BackgroundTaskScheduler
 ): HealthCheckManager {
   if (!globalHealthManager) {
     const fullConfig: HealthCheckConfig = {
-      timeout: config?.timeout ?? 5000,
-      interval: config?.interval ?? 30000,
-      retries: config?.retries ?? 3,
+      ...DEFAULT_HEALTH_CHECK_CONFIG,
+      ...config,
       alertThresholds: {
-        degradedLatency: config?.alertThresholds?.degradedLatency ?? 1000,
-        unhealthyLatency: config?.alertThresholds?.unhealthyLatency ?? 5000,
-        criticalFailureCount: config?.alertThresholds?.criticalFailureCount ?? 3,
+        ...DEFAULT_HEALTH_CHECK_CONFIG.alertThresholds,
+        ...config?.alertThresholds,
       },
     };
     globalHealthManager = new HealthCheckManager(fullConfig, scheduler);
@@ -525,9 +593,16 @@ export function createHealthCheckManager(
   return globalHealthManager;
 }
 
+/**
+ * @function getHealthCheckManager
+ * @description Returns the process's health manager when `createHealthCheckManager` built one.
+ * @returns The manager, or `null` before it was built.
+ */
 export function getHealthCheckManager(): HealthCheckManager | null {
   return globalHealthManager;
 }
+
+export { isUsable } from "./usable.js";
 
 // Export all health checkers
 export { DatabaseHealthChecker, DatabaseConnectionPoolHealthChecker } from "./checkers/database.js";

@@ -2696,8 +2696,12 @@ describe("ledger.mjs --area", () => {
   });
 });
 
-/** The run over the repository pays the reach engine and two full ledgers. */
-const REPOSITORY_TIMEOUT = 60_000;
+/**
+ * The run over the repository pays the reach engine and two full ledgers, and both grow with the
+ * tree. The budget is sized for the slowest collector that runs this file: a CI runner, which
+ * shares its cores with the rest of the shard and takes about three times the local time.
+ */
+const REPOSITORY_TIMEOUT = 180_000;
 
 describe("ledger.mjs over the repository", () => {
   let scratch = "";
