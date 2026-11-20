@@ -27,7 +27,7 @@
       "total": 1243
     },
     "blocks": {
-      "total": 15462,
+      "total": 15471,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15151
+        "BEHAVIOURAL": 15160
       }
     },
     "deleted": {
@@ -55088,42 +55088,42 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors of a setupServices connection (%s)",
-          "line": 138,
+          "line": 152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "68afb87e5998b58f1110b23439359089d06c5f3ca54ace2f3c64bdbbc12baa83"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors of the gateway switch job service's connection (setupBillingUseCases)",
-          "line": 159,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea336ff631bc0d615501b0cab74a79ffc3e1e0e39a808ef91e23dcf7788dc34d"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors of a role connection (registerRedisConnections, %s)",
-          "line": 169,
+          "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e69feab31d5fbe486af35e2e0d572cce6bcd410b22436dab2bf512187e798fc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::still registers each role connection with its options and returns it",
-          "line": 186,
+          "line": 201,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e7cef16d256dabe0c45af54338ef6ea1bbfa543befee6e1cdb201139097ee9ef"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::logs one line for two errors the gateway switch job queue emits",
-          "line": 204,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48df9be175109a02724f8f4775500ed629f80778544d79344cff05e0c8292a5a"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts::still creates the notification and job service connections with the default options",
-          "line": 217,
+          "line": 232,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91dfbf40e3a448bcfdb395e3d802a05a4fea610e9851a9cf6e6fd1b86c171f7f"
@@ -117075,7 +117075,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/logger/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "packages/observability/logger/tests/redaction.test.ts::masks every credential field the shared list adds when they are logged at the top level",
@@ -117113,8 +117113,15 @@
           "bodyHash": "b1346735651ee865a8eef9a1504c9102ad65f100115bcde82946d754cbe2e1c6"
         },
         {
-          "id": "packages/observability/logger/tests/redaction.test.ts::writes no command argument when the throttled listener logs an error",
+          "id": "packages/observability/logger/tests/redaction.test.ts::masks the command arguments three levels down: a deeper error, an array of errors, an AggregateError",
           "line": 176,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1a8cce56a827db73415464c18d5041e108bdaa1948ec7b8f25f8794232d5fd94"
+        },
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::writes no command argument when the throttled listener logs an error",
+          "line": 187,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9799acab5b7e9b914285357f6884b7c1198b086acd908665f24cb66145adac6e"
@@ -117134,102 +117141,158 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/logger/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 22,
       "blocks": [
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs the first error at once with its type, message, code and stack and the connection's name",
-          "line": 57,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cdbcc2fe97875ff3301e842a9d4d91b4776fe9d4aa81927b55130b8c961ab9a8"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs the name of the command an error carries and never its arguments",
-          "line": 78,
+          "line": 80,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c5df8eb44768cd19d5751c410f12e31a898a0d8072b6a951363adc1fae0903c"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::holds back a repeat of the same error inside the window",
-          "line": 89,
+          "line": 91,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50f81c96b1c33f7e01b6359a04d45e3d28791dce0f900aa568adb0c6c68c3c5f"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::logs one line with the count it held back once the window has passed",
-          "line": 101,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a648d4103ed188b093322ef1333d58f14330127014a9718d48b0f0334fcb87bb"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::resets the held-back count once a line has reported it",
-          "line": 114,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d75b7e465d117e419979664f87b0df7552526466c7d8c6942e2cd773ba872a13"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::measures the window from the last written line, not from the first",
-          "line": 129,
+          "line": 131,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f0295ae34bfd8cb94485553227c5da44e662ce4bad1f67adca9375807e0b21ee"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::measures the window on a monotonic clock that a wall-clock jump does not move",
-          "line": 142,
+          "line": 144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "327bd62ce655d36513ed65fc064e3f430bb22af01d8c2031fbf3acbc7b6f211e"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::writes a different error inside the window instead of counting it behind the first",
-          "line": 153,
+          "line": 155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df5f2f32fc55bccd36bd9c105d4eb56d67c2bc0e5ed599e1ef35f05ffce80054"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::past the bound of tracked identities, throttles every further identity together",
-          "line": 167,
+          "line": 169,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c86b2a83bbea79cbf6c4ce9d5aada65586e228c9ce0361f1fddab63000604f94"
         },
         {
-          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::reports the count the overflow bucket held back once its window has passed",
-          "line": 178,
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::reports in the recovery line the count the overflow window held back",
+          "line": 180,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ffc5aa147c90c9d17dd89713083ca95156e7ea6933de662ce690e8ceede9c37a"
+          "bodyHash": "bd26bf462d060d508ab5000571a97a3ff0e2a76ab3e3270f154e2323b2054af6"
         },
         {
-          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::flush writes one recovery line with the count held back, and the next error is written at once",
-          "line": 191,
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::drops an identity whose window has expired, so the bound counts only live windows",
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "12f6c8264b564a338d1e19b07dd41f8e94de9ab3ff630bfba6e5d56e25dcee26"
+          "bodyHash": "891d25e067bb16128c100d27339a6a9b94af38413eec078070e36f7b30466cf2"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::flush reports the count held back and keeps the window, so the same error inside it stays held",
+          "line": 209,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "83d97b5b98a8c36be1dff2dd2778a58302b94593cb1e08e6e9db7731f5cdf265"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::a connection that flaps N times inside one window writes one error line and one recovery line",
+          "line": 226,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "15082640dfe608a6e6a3afc78e6fffd578b488402115353bab5ba6354834a239"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::flush writes nothing when no error came since the last flush",
-          "line": 206,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71fbf6cc7263f777bbfd9fcb8040b23df517e8fef2c8b0a045304cdfb6c84b81"
         },
         {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::keeps the socket diagnostics: errno, syscall, address and port",
+          "line": 278,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4b4ca529ba97060734b491e4433884a397b16187a2abdb7e48750a2b0426fe45"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::copies no field outside the allow-list",
+          "line": 296,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6d8dfa44633d09a4b39cdd1ed0283f47bf3adfff9cdf4983c4358b8bafbba43c"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::describes each nested error of an AggregateError the same way",
+          "line": 305,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "24fc56c28678da436c32bdd2b115fd449f5b777846bd4efa43b63f779821c629"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::never writes a nested error's command arguments",
+          "line": 321,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1fda232869ef29a49a99bad0a1fe099e54c0b54613bbf8a157b591408f2b6f16"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::describes at most ${MAX_NESTED_ERRORS} nested errors per level and counts the rest",
+          "line": 330,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ce16322c95fe7026a8f5e32f851f18594a578a0244e1345878722ac3e28c973b"
+        },
+        {
+          "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::describes nested errors down to ${MAX_NESTED_DEPTH} levels and counts what lies deeper",
+          "line": 345,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "447909901620a4396a716c37f4cb64ea0c2e44763c5d55b899f2f5927b3b9e1c"
+        },
+        {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::names the worker and says the error is the worker's, not a connection's",
-          "line": 220,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc0a1290bd33b6e24f975850b18fcc6de70ec32cd53be8c013be2c9e140d8462"
         },
         {
           "id": "packages/observability/logger/tests/throttledErrorListener.test.ts::throttles the emitter's errors and reports recovery when it is ready again",
-          "line": 241,
+          "line": 384,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7c2d29b3af27bb5a9dba85633efbf062b3556f87906f36258dab67981c870462"

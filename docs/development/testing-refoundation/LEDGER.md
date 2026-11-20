@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1233  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15462 |
+| Blocks                  | 15471 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1312,8 +1312,8 @@ Deleted: 0 files, 31 blocks.
 | `packages/observability/background-scheduler/tests/noop-scheduler.test.ts`                            | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/console-adapter.test.ts`                                 | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/port.test.ts`                                            | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/logger/tests/redaction.test.ts`                                               | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/logger/tests/throttledErrorListener.test.ts`                                  | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/logger/tests/redaction.test.ts`                                               | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/logger/tests/throttledErrorListener.test.ts`                                  | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts`                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fsSpans.test.ts`                                          | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
