@@ -15,7 +15,10 @@ import { execFile } from "node:child_process";
 
 /** What to run, where, with which environment and for how long. */
 export interface PseudoTerminalOptions {
-  /** The command line the shell runs, its words quoted by the caller. */
+  /**
+   * The command line the shell runs. A caller builds it with {@link commandLine} from the
+   * command's words, so that each word reaches the command as written.
+   */
   readonly command: string;
   /** The working directory of the command. */
   readonly cwd: string;
@@ -39,6 +42,18 @@ export interface PseudoTerminalRun {
   readonly stdout: string;
   /** What `script` itself wrote to its standard error. */
   readonly stderr: string;
+}
+
+/**
+ * @description Joins words into a command line for the shell `script` runs it through. Each word
+ *   is put in single quotes, inside which the shell expands nothing, and each single quote of a
+ *   word closes the quotes, is escaped and opens them again, so every word reaches the command as
+ *   one argument, unchanged, whatever characters it holds.
+ * @param words - The command and its arguments
+ * @returns The command line
+ */
+export function commandLine(words: readonly string[]): string {
+  return words.map((word) => `'${word.replaceAll("'", `'\\''`)}'`).join(" ");
 }
 
 /**

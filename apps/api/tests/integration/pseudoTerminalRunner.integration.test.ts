@@ -7,9 +7,10 @@
  *              has installed: the command's three standard streams are a terminal, its exit code
  *              and what it wrote come back, a signal that ends it comes back as 128 plus the
  *              signal's number, it runs in the directory and with only the environment it is
- *              given, the time limit ends it, and a `script` that cannot be started comes back as a
- *              run with no exit code. It needs no database and no Redis, and reads no environment
- *              variable.
+ *              given, the time limit ends it, a `script` that cannot be started comes back as a
+ *              run with no exit code, and the words `commandLine` joins reach the command as
+ *              separate, unchanged arguments. It needs no database and no Redis, and reads no
+ *              environment variable.
  * @layer infrastructure
  */
 
@@ -18,7 +19,7 @@ import assert from "node:assert/strict";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { until } from "@packages/vitest-shared/determinism";
-import { runInPseudoTerminal } from "@packages/vitest-shared/pseudo-terminal";
+import { commandLine, runInPseudoTerminal } from "@packages/vitest-shared/pseudo-terminal";
 
 /** The directory each command runs in, the suite's own, resolved as the shell reports it. */
 const DIRECTORY = realpathSync(fileURLToPath(new URL(".", import.meta.url)));
@@ -87,13 +88,15 @@ describe("runInPseudoTerminal", () => {
   });
 
   it("ends a command that outlives its limit and returns no exit code, killed", async () => {
-    // Five seconds outlast the limit many times over and end well inside the runner's 30 s per
+    // `script` and its shell printed the pid within 15 ms in every one of 45 runs on two cores
+    // saturated by four busy loops; the limit of one second leaves a loaded runner that start-up
+    // many times over. Ten seconds outlast the limit and end well inside the collector's 30 s per
     // test, so a runner that ignored its limit fails this case instead of having it cancelled.
     const run = await runInPseudoTerminal({
-      command: `printf '%s\\n' "$$"; exec sleep 5`,
+      command: `printf '%s\\n' "$$"; exec sleep 10`,
       cwd: DIRECTORY,
       env: {},
-      timeoutMs: 200,
+      timeoutMs: 1_000,
     });
 
     assert.deepEqual(
@@ -116,5 +119,23 @@ describe("runInPseudoTerminal", () => {
     });
 
     assert.deepEqual(run, { code: -1, killed: false, stdout: "", stderr: "" });
+  });
+
+  it("passes each word commandLine joins to the command as one unchanged argument", async () => {
+    const words = ["a b", "it's", 'say "hi"', "$HOME", "$(echo x)", "back\\slash"];
+
+    const run = await runInPseudoTerminal({
+      command: commandLine(["printf", "[%s]\\n", ...words]),
+      cwd: DIRECTORY,
+      env: {},
+      timeoutMs: LIMIT_MS,
+    });
+
+    assert.deepEqual(run, {
+      code: 0,
+      killed: false,
+      stdout: words.map((word) => `[${word}]\r\n`).join(""),
+      stderr: "",
+    });
   });
 });

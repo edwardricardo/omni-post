@@ -27,7 +27,7 @@
       "total": 1262
     },
     "blocks": {
-      "total": 15620,
+      "total": 15621,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15309
+        "BEHAVIOURAL": 15310
       }
     },
     "deleted": {
@@ -479,7 +479,7 @@
       "blocks": [
         {
           "id": "apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts::the first administrator signs in with the single-use password, sets a new one and signs in with it",
-          "line": 90,
+          "line": 88,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f9256ad2050f7a6f7cd3042aced2aab9c8fc03b9d83ee77600fa1f7defa0956"
@@ -7612,49 +7612,56 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::gives the command a terminal as its standard input, output and error",
-          "line": 40,
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9b9cbb65ff3b2de9a4ef46e0eb8d6f5ed99e4c246efa8f2d48491b37012738b"
         },
         {
           "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns the command's exit code and what it wrote, its lines ending CR LF",
-          "line": 51,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "478a43c784d5762aa081f2a045a2a1c3a73612eec915aed0eab732914a0477f9"
         },
         {
           "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns 128 plus the signal's number when a signal ends the command",
-          "line": 62,
+          "line": 63,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "27cdf3096496a02801ffe0633b3a29a87196f82cc89ad1a043eb1c3147cd26c3"
         },
         {
           "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::runs the command in the given directory with only the given environment",
-          "line": 73,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a29fe3ee808bb0f5d1ecc41f0e726f7172fdc0d5a8d122ffc36043fcc9eade6b"
         },
         {
           "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::ends a command that outlives its limit and returns no exit code, killed",
-          "line": 89,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f5aaf92d5506663380722ee9933df1438ac7cc4c4351d39ba655b80c9fbcd118"
+          "bodyHash": "6868ccb2f7841d0bc448592c74d06afdbbc6363c4da481f6a7bedfbb0ec40338"
         },
         {
           "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::returns no exit code and nothing written when script cannot be started",
-          "line": 110,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "186d41d1da504ee27ae3c3bf03898069f4c70561869446962d11978eaacdd182"
+        },
+        {
+          "id": "apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts::passes each word commandLine joins to the command as one unchanged argument",
+          "line": 124,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7e007a539edbe184b94ca88ee74b85b7d1054e38fe16c6a794fce9ce43f953b4"
         }
       ],
       "verdict": "KEEP",

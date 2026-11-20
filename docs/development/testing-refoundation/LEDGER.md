@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1250  |
 | Confirmed rows          | 12    |
-| Blocks                  | 15620 |
+| Blocks                  | 15621 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -465,7 +465,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts`                            | integration-test | 12     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/projectAccountScope.integration.test.ts`                                  | integration-test | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/projectMemberTenantIsolation.integration.test.ts`                         | integration-test | 7      | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts`                                 | integration-test | 6      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/integration/pseudoTerminalRunner.integration.test.ts`                                 | integration-test | 7      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/publishWorkerTenantIsolation.integration.test.ts`                         | integration-test | 9      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/publishing/failedWrite.smoke.integration.test.ts`                         | integration-test | 2      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts`                         | integration-test | 14     | 0          | KEEP       | machine                         | behavioural          |

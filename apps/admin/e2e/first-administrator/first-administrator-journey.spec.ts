@@ -25,7 +25,7 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { runInPseudoTerminal } from "@packages/vitest-shared/pseudo-terminal";
+import { commandLine, runInPseudoTerminal } from "@packages/vitest-shared/pseudo-terminal";
 
 const API_DIR = fileURLToPath(new URL("../../../api/", import.meta.url));
 
@@ -48,7 +48,7 @@ const SESSION_COOKIE = "admin-session";
  * command that printed its block and then failed to end would otherwise carry.
  */
 async function createFirstAdministrator(): Promise<string> {
-  const command = [
+  const command = commandLine([
     process.execPath,
     "--conditions",
     "development",
@@ -57,9 +57,7 @@ async function createFirstAdministrator(): Promise<string> {
     "src/cli/createFirstAdministrator.ts",
     "--email",
     EMAIL,
-  ]
-    .map((word) => `'${word}'`)
-    .join(" ");
+  ]);
   const run = await runInPseudoTerminal({
     command,
     cwd: API_DIR,
