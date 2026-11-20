@@ -70,6 +70,13 @@ Both layers are pinned by cases that write through the real factories: `packages
 
 Each further wildcard level makes pino walk every key of that level on every line written, so the list stops at three.
 
+**What the connection-error listener guarantees.** It throttles each error identity (name and message) to one line per window. Its header in `packages/observability/logger/src/throttledErrorListener.ts` states two invariants, and its cases pin them:
+
+- Every held-back error is counted in exactly one later written line: the next line of its own identity, the next recovery line, or, when its window expired first, the next line of either kind under `suppressedByExpiredWindows`.
+- The last line a source that is ready again wrote is never an error line. `logConnectionErrors` writes a recovery line on `ready` whenever an error line was written since the last one. It writes none when every error since then was held back, which is what a connection that flaps on one error inside its window does.
+
+A BullMQ queue or worker emits no `ready`, so the second invariant applies only to the Redis connections. Where a queue stops failing, its last line can be an error.
+
 If a developer creates a side `pino()` instance without these paths, **the redaction is silently bypassed**. There's no compile-time check or runtime warning. Logs get aggregated, the secret is in plain text, and the threat-model assumes secrets never reach disk — but they did. That class of bug is exactly OWASP A09:2025 (Security Logging and Alerting Failures).
 
 The factory enforces the redaction at the only layer that's compile-time visible: where the logger gets named.

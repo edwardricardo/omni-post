@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1233  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15471 |
+| Blocks                  | 15475 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -832,7 +832,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/infrastructure/constraintViolation.test.ts`                                      | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/containerSetupOptionsContract.type-test.ts`             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/infrastructure/container/firstAdministratorRole.test.ts`                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts`                  | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/container/redisConnectionErrorListeners.test.ts`                  | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/registerBootstrapConnections.test.ts`                   | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/setupAccountUseCases.test.ts`                           | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/container/setupExternalNotificationUseCases.test.ts`              | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
@@ -1313,7 +1313,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/observability/browser-logger/tests/console-adapter.test.ts`                                 | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/port.test.ts`                                            | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/logger/tests/redaction.test.ts`                                               | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/logger/tests/throttledErrorListener.test.ts`                                  | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/logger/tests/throttledErrorListener.test.ts`                                  | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts`                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fsSpans.test.ts`                                          | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |

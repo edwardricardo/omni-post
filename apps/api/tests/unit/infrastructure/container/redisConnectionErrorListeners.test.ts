@@ -1,10 +1,11 @@
 /**
  * @file redisConnectionErrorListeners.test.ts
  * @description Pins that every Redis connection and BullMQ queue the composition root builds
- *   logs its errors through the throttled listener: the eleven connections of `setupServices`
- *   (the queue registry's included), the
+ *   logs its errors through the throttled listener: the ten connections of `setupServices`, the
  *   connection and queue of `setupBillingUseCases` and the three role connections of
- *   `registerRedisConnections`. Each factory is run against a container double with Redis, its
+ *   `registerRedisConnections`. The queue registry's connection is the exception, pinned too:
+ *   BullMQ attaches its own `error` handler to a client it is given and re-emits on each queue,
+ *   whose adapter logs it, so a listener of its own would only write each failure twice. Each factory is run against a container double with Redis, its
  *   subscriber duplicate and BullMQ's Queue stubbed, so no socket opens. The same error is handed
  *   twice to the listener the site attached, and the observable result is the lines the `redis`
  *   logger receives: exactly one, carrying the connection's name, so a site that discards the
@@ -160,7 +161,6 @@ describe("Redis connection error listeners of the composition root", () => {
     [TOKENS.AnalyticsStreamBroadcaster, "redis:analytics-stream-broadcaster"],
     [TOKENS.BruteForceProtectionPort, "redis:brute-force-protection"],
     [TOKENS.MfaChallengeStore, "redis:mfa-challenge-store"],
-    [TOKENS.QueuePortRegistry, "redis:queue-registry"],
   ])("logs one line for two errors of a setupServices connection (%s)", (token, name) => {
     const { container, factories } = makeContainer();
     setupServices(container);
@@ -197,6 +197,15 @@ describe("Redis connection error listeners of the composition root", () => {
       expectOneLine(name);
     }
   );
+
+  it("gives the queue registry's connection no error listener of its own, so a failure is not written twice", () => {
+    const { container, factories } = makeContainer();
+    setupServices(container);
+
+    const connection = connectionCreatedBy(factories, TOKENS.QueuePortRegistry);
+
+    expect(connection.on.mock.calls.map(([event]) => event)).toEqual([]);
+  });
 
   it("still registers each role connection with its options and returns it", () => {
     const { container, factories } = makeContainer();

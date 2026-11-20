@@ -12,12 +12,20 @@
  *              line. A different error is never counted behind the first: each identity has its
  *              own window, up to `MAX_TRACKED_ERROR_IDENTITIES` live windows at a time; past that
  *              bound every further identity shares one window. A window that has expired is
- *              dropped, its held-back count kept for the next recovery line, so the bound limits
- *              what is tracked at one time and not over the life of the process.
+ *              dropped, so the bound limits what is tracked at one time and not over the life of
+ *              the process.
  *
- *              The recovery line `flush` writes is throttled too: at most one per window, and it
- *              never restarts an error's window. A connection that flaps writes, per window, one
- *              line per distinct error and one recovery line, however many times it drops.
+ *              Two invariants hold:
+ *              - Every held-back error is counted in exactly one later written line: the next line
+ *                of its own identity (`suppressed`), the next recovery line (`suppressed`), or,
+ *                when its window expired first, the next line of either kind
+ *                (`suppressedByExpiredWindows`).
+ *              - The last line a source that is ready again wrote is never an error line: `flush`
+ *                writes a recovery line whenever an error line was written since the last one.
+ *                It writes none when every error since then was held back, which is what a
+ *                connection that flaps on one error inside its window does; it never restarts an
+ *                error's window. Per window that is at most one line per live identity and one
+ *                recovery line after each of them.
  *
  *              A line describes an error by an allow-list of fields, never by the error object:
  *              ioredis attaches `command.args` to the error it emits, and on an AUTH failure those
@@ -47,9 +55,9 @@ export interface ErrorLogSink {
 export interface ThrottledErrorListener {
   (error: unknown): void;
   /**
-   * Writes one line saying the source is ready again, with the count held back since the
-   * last recovery line, unless such a line was written less than a window ago; it writes
-   * nothing when no error came since the last recovery line. It never restarts an error's
+   * Writes one line saying the source is ready again, with the counts its live windows held
+   * back, when an error line was written since the last recovery line; otherwise it writes
+   * nothing and the counts wait for the next written line. It never restarts an error's
    * window: the same error inside the window of its last line is still held back.
    */
   flush(): void;
@@ -143,22 +151,27 @@ function createListener(
   kind: ListenerKind
 ): ThrottledErrorListener {
   const windows = new Map<string, Window>();
-  let heldBackFromExpired = 0;
-  let lastRecoveryAt: number | undefined;
-  let erredSinceRecovery = false;
+  let suppressedByExpiredWindows = 0;
+  let errorLineSinceRecovery = false;
 
-  /** Drops every expired window but `kept`, keeping its held-back count for the recovery line. */
+  /** Drops every expired window but `kept`, keeping its held-back count for the next line. */
   const dropExpired = (now: number, kept?: string): void => {
     for (const [key, window] of windows) {
       if (key !== kept && now - window.lastWrittenAt >= CONNECTION_ERROR_LOG_WINDOW_MS) {
-        heldBackFromExpired += window.suppressed;
+        suppressedByExpiredWindows += window.suppressed;
         windows.delete(key);
       }
     }
   };
 
+  /** The count expired windows held back, as the field the next written line carries; resets it. */
+  const takeExpiredCount = (): Record<string, number> => {
+    const carried = suppressedByExpiredWindows;
+    suppressedByExpiredWindows = 0;
+    return carried > 0 ? { suppressedByExpiredWindows: carried } : {};
+  };
+
   const listener = (error: unknown): void => {
-    erredSinceRecovery = true;
     const now = performance.now();
     const identity = identityOf(error);
     const ownWindow = windows.has(identity);
@@ -171,30 +184,30 @@ function createListener(
       return;
     }
     logger.error(
-      { err: describeError(error), [kind.field]: name, suppressed: window?.suppressed ?? 0 },
+      {
+        err: describeError(error),
+        [kind.field]: name,
+        suppressed: window?.suppressed ?? 0,
+        ...takeExpiredCount(),
+      },
       kind.errorMessage
     );
     windows.set(key, { lastWrittenAt: now, suppressed: 0 });
+    errorLineSinceRecovery = true;
   };
 
   const flush = (): void => {
-    const now = performance.now();
-    if (
-      !erredSinceRecovery ||
-      (lastRecoveryAt !== undefined && now - lastRecoveryAt < CONNECTION_ERROR_LOG_WINDOW_MS)
-    ) {
+    if (!errorLineSinceRecovery) {
       return;
     }
-    dropExpired(now);
-    let suppressed = heldBackFromExpired;
+    dropExpired(performance.now());
+    let suppressed = 0;
     for (const window of windows.values()) {
       suppressed += window.suppressed;
       window.suppressed = 0;
     }
-    logger.info({ [kind.field]: name, suppressed }, kind.readyMessage);
-    heldBackFromExpired = 0;
-    lastRecoveryAt = now;
-    erredSinceRecovery = false;
+    logger.info({ [kind.field]: name, suppressed, ...takeExpiredCount() }, kind.readyMessage);
+    errorLineSinceRecovery = false;
   };
 
   return Object.assign(listener, { flush });
@@ -240,9 +253,9 @@ export function createThrottledWorkerErrorListener(
 
 /**
  * @description Logs a connection's errors through a throttled listener and reports, on its
- *              `ready` event, that it recovered and how many errors were held back. The
- *              recovery line is written at most once per window, so a connection that flaps
- *              cannot defeat the throttle.
+ *              `ready` event, that it recovered and how many errors were held back. A recovery
+ *              line follows every written error line, and none follows errors that were all held
+ *              back, so a connection that flaps on one error inside its window stays throttled.
  * @param connection - The connection; an ioredis client emits both events.
  * @param logger - Logger the listener writes through.
  * @param name - Name of the connection, a role and never an address.

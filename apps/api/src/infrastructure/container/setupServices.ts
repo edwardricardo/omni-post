@@ -666,9 +666,8 @@ export function setupServices(
         commandTimeout: 5_000,
         connectTimeout: 5_000,
       });
-      // Each queue built on it also logs the connection's errors, throttled, under its own
-      // name; this listener is the one line that names the connection and reports it ready.
-      logConnectionErrors(connection, redisLogger, "redis:queue-registry");
+      // No listener of its own: BullMQ attaches one to a client it is given and re-emits the
+      // client's errors on each queue, whose adapter logs them throttled under the queue's name.
       const defaultJobOptionsByQueue = {
         [QUEUE_NAMES.PUBLISH]: {
           attempts: 3,

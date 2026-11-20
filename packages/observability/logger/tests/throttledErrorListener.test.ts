@@ -177,7 +177,7 @@ describe("createThrottledErrorListener", () => {
     expect(sink.error).toHaveBeenCalledTimes(MAX_TRACKED_ERROR_IDENTITIES + 1);
   });
 
-  it("reports in the recovery line the count the overflow window held back", () => {
+  it("carries what expired windows held back, the overflow's included, to the recovery line", () => {
     const sink = makeSink();
     const listener = createThrottledErrorListener(sink, CONNECTION);
     for (let index = 0; index < MAX_TRACKED_ERROR_IDENTITIES + 3; index += 1) {
@@ -188,7 +188,80 @@ describe("createThrottledErrorListener", () => {
     listener.flush();
 
     expect(sink.info.mock.calls).toEqual([
-      [{ connection: CONNECTION, suppressed: 2 }, "Connection ready again"],
+      [
+        { connection: CONNECTION, suppressed: 0, suppressedByExpiredWindows: 2 },
+        "Connection ready again",
+      ],
+    ]);
+  });
+
+  it("carries an expired window's count to the next error line once, on a source nothing flushes", () => {
+    const sink = makeSink();
+    const listener = createThrottledErrorListener(sink, CONNECTION);
+
+    listener(new Error("job 1 lost its lock"));
+    listener(new Error("job 1 lost its lock"));
+    listener(new Error("job 1 lost its lock"));
+    vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
+    listener(new Error("job 2 lost its lock"));
+    vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
+    listener(new Error("job 3 lost its lock"));
+
+    expect(sink.error.mock.calls.map(([context]) => context)).toEqual([
+      expect.objectContaining({ suppressed: 0 }),
+      expect.objectContaining({ suppressed: 0, suppressedByExpiredWindows: 2 }),
+      expect.not.objectContaining({ suppressedByExpiredWindows: expect.anything() }),
+    ]);
+  });
+
+  it("carries the overflow window's count to an error line once that window has expired", () => {
+    const sink = makeSink();
+    const listener = createThrottledErrorListener(sink, CONNECTION);
+    const tracked = Array.from(
+      { length: MAX_TRACKED_ERROR_IDENTITIES },
+      (_, index) => `tracked ${index}`
+    );
+    for (const message of tracked) {
+      listener(new Error(message));
+    }
+    vi.advanceTimersByTime(1);
+    listener(new Error("overflow 1"));
+    listener(new Error("overflow 2"));
+    listener(new Error("overflow 3"));
+    vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS - 1);
+    for (const message of tracked) {
+      listener(new Error(message));
+    }
+    vi.advanceTimersByTime(1);
+
+    listener(new Error("overflow 4"));
+
+    expect(sink.error.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ suppressed: 0, suppressedByExpiredWindows: 2 })
+    );
+  });
+
+  it("writes a recovery line after every written error line, so a healthy source never ends on an error", () => {
+    const written: string[] = [];
+    const sink = {
+      error: vi.fn((_context: Record<string, unknown>, message: string) => written.push(message)),
+      info: vi.fn((_context: Record<string, unknown>, message: string) => written.push(message)),
+    };
+    const listener = createThrottledErrorListener(sink, CONNECTION);
+
+    listener(new Error("connect ECONNREFUSED 127.0.0.1:6379"));
+    vi.advanceTimersByTime(1_000);
+    listener.flush();
+    vi.advanceTimersByTime(29_000);
+    listener(new Error("READONLY You can't write against a read only replica."));
+    vi.advanceTimersByTime(1_000);
+    listener.flush();
+
+    expect(written).toEqual([
+      "Connection error",
+      "Connection ready again",
+      "Connection error",
+      "Connection ready again",
     ]);
   });
 
@@ -235,13 +308,11 @@ describe("createThrottledErrorListener", () => {
     }
     const linesInsideTheWindow = sink.error.mock.calls.length + sink.info.mock.calls.length;
     vi.advanceTimersByTime(CONNECTION_ERROR_LOG_WINDOW_MS);
+    listener(new Error("connect ECONNREFUSED 127.0.0.1:6379"));
     listener.flush();
 
     expect(linesInsideTheWindow).toBe(2);
-    expect(sink.info.mock.calls.map(([context]) => context)).toEqual([
-      { connection: CONNECTION, suppressed: 0 },
-      { connection: CONNECTION, suppressed: cycles - 1 },
-    ]);
+    expect([suppressedCounts(sink), sink.info.mock.calls.length]).toEqual([[0, cycles - 1], 2]);
   });
 
   it("flush writes nothing when no error came since the last flush", () => {
