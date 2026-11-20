@@ -808,6 +808,18 @@ ruleTester.run("no-inline-error: inlineReply", rule, {
       errors: [1, 2, 3, 4, 5, 6].map((line) => inlineReply(line)),
     },
     {
+      // A success body excuses only a status the rule cannot read: a failure status written in
+      // place, or an `error` key beside `ok: true`, is still a failure built in place.
+      code: lines(
+        "reply.code(404).send({ ok: true, error: 'Not found' });",
+        "reply.code(404).send({ ok: true });",
+        "reply.status(status).send({ ok: true, error: message });",
+        "reply.send({ ok: true, error: message });",
+        "reply.status(status).code(500).send({ ok: true, data });"
+      ),
+      errors: [1, 2, 3, 4, 5].map((line) => inlineReply(line)),
+    },
+    {
       code: lines(
         "(reply as FastifyReply).status(404).send(body);",
         "reply.code(404)!.send(body);",

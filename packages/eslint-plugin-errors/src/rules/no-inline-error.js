@@ -50,7 +50,8 @@
  *     anything but a numeric literal below 400, or when `send` is given an object literal with a
  *     key `error`, or a key `ok` whose value is the literal `false`; through type wrappers,
  *     optional chains, the chain's other calls and static keys. A body literal whose `ok` is the
- *     literal `true` is a success answer whatever sets its status, and is not reported. Not
+ *     literal `true` excuses a status that is no numeric literal, and nothing else: with a
+ *     numeric literal of 400 or above, or with a key `error` beside it, the call is reported. Not
  *     reported in the one file the `bodyWriter` option names, by its exact path, and only there;
  *     every other shape is.
  *
@@ -513,6 +514,17 @@ function isSuccessStatus(status) {
 }
 
 /**
+ * @param {unknown} status The argument of a `status` or `code` call.
+ * @returns {boolean} Whether it is a numeric literal at or above the first failure status.
+ */
+function isFailureStatus(status) {
+  const node = unwrap(status);
+  return (
+    node?.type === "Literal" && typeof node.value === "number" && node.value >= FIRST_FAILURE_STATUS
+  );
+}
+
+/**
  * @param {ObjectEntry} entry A property of an object literal.
  * @param {boolean} literal The literal `ok` must hold.
  * @returns {boolean} Whether it is the key `ok` with that literal as its value.
@@ -533,7 +545,8 @@ function isFailureBody(body) {
 /**
  * @param {unknown} body The argument of a `send`.
  * @returns {boolean} Whether it is an object literal written as a success, a key `ok` whose value
- *   is the literal `true`, which answers no failure whatever sets its status.
+ *   is the literal `true`. It excuses a status the rule cannot read, and nothing else: a failure
+ *   status written in place, or a failure body's key beside it, is still reported.
  */
 function isSuccessBody(body) {
   return (objectEntries(body) ?? []).some((entry) => isOk(entry, true));
@@ -843,10 +856,15 @@ const rule = {
         const callee = unwrap(node.callee);
         if (callee?.type !== "MemberExpression" || propertyName(callee) !== "send") return;
         const chain = readReplyChain(callee.object);
-        if (!chain.isReply || isSuccessBody(node.arguments[0])) return;
+        if (!chain.isReply) return;
+        const body = node.arguments[0];
+        const unreadStatus = chain.statuses.some(
+          (status) => !isSuccessStatus(status) && !isFailureStatus(status)
+        );
         if (
-          chain.statuses.some((status) => !isSuccessStatus(status)) ||
-          isFailureBody(node.arguments[0])
+          chain.statuses.some(isFailureStatus) ||
+          isFailureBody(body) ||
+          (unreadStatus && !isSuccessBody(body))
         ) {
           report(asNode(node), "inlineReply");
         }
