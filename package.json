@@ -61,6 +61,7 @@
     "check:i18n": "node scripts/testing/i18n-lint.mjs",
     "check:artifact-language": "node scripts/testing/artifact-language-gate.mjs",
     "check:instruction-context": "node scripts/testing/instruction-context-gate.mjs",
+    "check:plan-closure": "node scripts/testing/plan-closure-gate.mjs",
     "check:record-coverage": "node scripts/testing/record-coverage-gate.mjs --retire-check",
     "check:legal": "node scripts/legal/run.mjs --check",
     "legal:inventory": "node scripts/legal/run.mjs",
