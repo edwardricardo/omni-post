@@ -3,9 +3,11 @@
  * @description Pins `hasProcessEnded` (`processState.ts`), the probe the suites that end processes
  *   use. It raises where there is no procfs, so a case that checks a process ended fails instead
  *   of passing on a probe that proved nothing; where procfs exists, a gone entry and a zombie or
- *   dead state are ended, and any other state is running. Each case but the last builds a procfs
- *   of its own in a temporary directory, so the rule is held without a second platform; the last
- *   reads the real one for this process.
+ *   dead state are ended, and any other state is running; an entry that cannot be read for any
+ *   other reason raises with the read's own error. Each case but the last builds a procfs of its
+ *   own in a temporary directory, so the rule is held without a second platform; the last reads
+ *   the real one for this process. The ESRCH arm has no case: only the kernel's procfs gives it,
+ *   for a process that ends while its entry is read, and a procfs built in a directory cannot.
  * @layer infrastructure
  */
 import { afterEach, describe, expect, it } from "vitest";
@@ -64,6 +66,13 @@ describe("hasProcessEnded", () => {
 
   it("returns false when the process runs, reading the state after the last parenthesis", () => {
     expect(hasProcessEnded(PID, procfsWith(`${PID} (a) Z (b) S 1 1 1\n`))).toBe(false);
+  });
+
+  it("raises the read's own error when the process's entry cannot be read", () => {
+    const root = procfsWith();
+    mkdirSync(path.join(root, String(PID), "stat"), { recursive: true });
+
+    expect(() => hasProcessEnded(PID, root)).toThrow(/^EISDIR: /);
   });
 
   it("returns false for this process, read from the real procfs", () => {

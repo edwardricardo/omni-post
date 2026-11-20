@@ -34,12 +34,14 @@ export class AccountSessionService extends AuditableService {
   /**
    * @method resetPassword
    * @description Sets a new password on an account for another administrator and records it.
-   *   When a change is required, a placeholder reset token valid for 24 hours is stored with it.
+   *   When a change is required, a placeholder reset token is stored with it, with the expiry
+   *   this method sets.
    * @param accountId - The administrator whose password is reset
    * @param data - The new password, and whether its holder must change it
    * @param resetByUserId - The administrator who resets it, when known
    * @returns `ok` once the password is stored; `NOT_FOUND` when no administrator has the id,
-   *   `VALIDATION_ERROR` for a password shorter than 8 characters, `DATABASE_ERROR` otherwise
+   *   `VALIDATION_ERROR` for a password shorter than this method's minimum length,
+   *   `DATABASE_ERROR` otherwise
    */
   async resetPassword(
     accountId: string,
@@ -144,7 +146,7 @@ export class AccountSessionService extends AuditableService {
   /**
    * @method revokeAllSessions
    * @description Ends every active session of an account for another administrator, with the
-   *   reason `ADMIN_REVOKED` on each, and records it.
+   *   reason `ADMIN_SESSION_REVOKE_REASONS.ADMIN_REVOKED` on each, and records it.
    * @param accountId - The administrator whose sessions end
    * @param revokedByUserId - The administrator who ends them, when known
    * @returns The count of sessions ended; `NOT_FOUND` when no administrator has the id,

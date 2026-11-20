@@ -34,12 +34,15 @@ export class SessionManager {
 
   /**
    * @method createSession
-   * @description Creates an admin session with the device's fingerprint, valid for 30 days when
-   *   remembered and 7 otherwise, and issues its tokens: the refresh token, whose hash the row
-   *   stores, an access token that lasts the configured session timeout, and the CSRF token.
+   * @description Creates an admin session with the device's fingerprint and issues its tokens:
+   *   the refresh token, whose hash the row stores, an access token, and the CSRF token. The
+   *   session's lifetime is the one `expirationDays` takes from `rememberMe` in this method; the
+   *   access token's is `SecuritySettings.sessionTimeoutMinutes`, or this method's fallback when
+   *   no settings row exists.
    * @param userId - The administrator the session belongs to
    * @param device - The device's address, agent, id, and its name and location when known
-   * @param rememberMe - Whether the session lasts 30 days instead of 7
+   * @param rememberMe - Whether the session takes the longer of the two lifetimes `expirationDays`
+   *   chooses between
    * @param getUserProfile - Reads the administrator's profile for the access token
    * @returns The session's id and its tokens; it throws when the profile cannot be read
    */
@@ -119,7 +122,8 @@ export class SessionManager {
   /**
    * @method cleanupExpiredSessions
    * @description Ends the administrator's active sessions that expired or stayed inactive past
-   *   the configured timeout, with the reason `SESSION_EXPIRED`.
+   *   `adminAuthConfig.security.sessionInactivityTimeout`, with the reason
+   *   `ADMIN_SESSION_REVOKE_REASONS.SESSION_EXPIRED`.
    * @param userId - The administrator whose sessions are cleaned up
    */
   async cleanupExpiredSessions(userId: string): Promise<void> {
@@ -149,7 +153,8 @@ export class SessionManager {
   /**
    * @method enforceMaxSessions
    * @description Ends the administrator's least recently used active sessions, with the reason
-   *   `MAX_SESSIONS_EXCEEDED`, so that a new one fits within `maxSessions`.
+   *   `ADMIN_SESSION_REVOKE_REASONS.MAX_SESSIONS_EXCEEDED`, so that a new one fits within
+   *   `maxSessions`.
    * @param userId - The administrator whose sessions are counted
    * @param maxSessions - How many active sessions the administrator may hold
    */
@@ -225,7 +230,7 @@ export class SessionManager {
   /**
    * @method revokeSession
    * @description Ends one session of the administrator, storing the reason given, or
-   *   `USER_REVOKED` when none is, and records the revocation.
+   *   `ADMIN_SESSION_REVOKE_REASONS.USER_REVOKED` when none is, and records the revocation.
    * @param userId - The administrator the session must belong to
    * @param sessionId - The session to end
    * @param reason - The reason the caller gives, stored as given

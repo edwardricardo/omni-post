@@ -1,22 +1,23 @@
 /**
  * @file seedRoleWrites.integration.test.ts
  * @description The development seed writes each role whole or not at all, against a database of
- *              its own migrated from empty. Each case installs a trigger that fails one permission
- *              row of one role, partway through that role's list, so the seed dies while it writes
- *              that role. The role then holds what it held before the run: no row on a first run,
- *              and on a rerun the rows and the description it held, a stale permission row and a
- *              changed description the case wrote before the rerun included, which a rerun that
- *              completed would have removed and restored. The trigger counts each time it fires on
- *              a sequence, which a rollback does not undo, so a case also shows that the run died
- *              on that row and not before it. Each case asserts how the run ended first, with the
- *              seed's output as the message, and then the rows, with no message, so a failure
- *              shows the rows that differed.
+ *              its own migrated from empty. Each of the first three cases installs a trigger that
+ *              fails one permission row of one role, partway through that role's list, so the seed
+ *              dies while it writes that role. The role then holds what it held before the run: no
+ *              row on a first run, and on a rerun the rows and the description it held, a stale
+ *              permission row and a changed description the case wrote before the rerun included.
+ *              The fourth case is their control: with the same stale row and changed description
+ *              and no trigger, a rerun that completes removes the row and restores the description.
+ *              The trigger counts each time it fires on a sequence, which a rollback does not undo,
+ *              so a case also shows that the run died on that row and not before it. Each case
+ *              asserts how the run ended first, with the seed's output as the message, and then the
+ *              rows, with no message, so a failure shows the rows that differed.
  *
  *              The seed runs as `pnpm db:seed` runs it (`tsx --conditions development seed.ts` in
  *              `infra/prisma`), under `NODE_ENV=test`, with a fake administrator password and a
  *              key of zeros, on the owner channel's connection to the scratch database. The cases
  *              run in order and build on each other's rows: the first two find their role
- *              unwritten, and the third writes everything before it reruns.
+ *              unwritten, and the third and the fourth write everything before they rerun.
  * @layer infrastructure
  */
 
@@ -311,6 +312,54 @@ describe("The development seed's role writes on a migrated database", { concurre
       } finally {
         await removeFailure(client, "RolePermission");
       }
+    }
+  );
+
+  it(
+    "removes a stale permission and restores the description when a rerun completes",
+    caseTiming(2),
+    async () => {
+      const { url, client } = migrated();
+      const first = await runSeed(url);
+      assert.deepStrictEqual(
+        { code: first.code, killed: first.killed },
+        { code: 0, killed: false },
+        first.output
+      );
+      const written = {
+        permissions: await adminRolePermissions(client, "role-support"),
+        description: await adminRoleDescription(client, "role-support"),
+      };
+      assert.ok(
+        written.permissions !== null && written.description !== CHANGED_DESCRIPTION,
+        "the first run wrote the role from its definition"
+      );
+      await client.rolePermission.createMany({
+        data: [{ roleId: "role-support", permission: STALE_PERMISSION }],
+        skipDuplicates: true,
+      });
+      await client.role.update({
+        where: { id: "role-support" },
+        data: { description: CHANGED_DESCRIPTION },
+      });
+
+      const rerun = await runSeed(url);
+
+      assert.deepStrictEqual(
+        { code: rerun.code, killed: rerun.killed },
+        { code: 0, killed: false },
+        rerun.output
+      );
+      assert.deepStrictEqual(
+        {
+          permissions: await adminRolePermissions(client, "role-support"),
+          description: await adminRoleDescription(client, "role-support"),
+        },
+        {
+          permissions: written.permissions.filter((permission) => permission !== STALE_PERMISSION),
+          description: written.description,
+        }
+      );
     }
   );
 });

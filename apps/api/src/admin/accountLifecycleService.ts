@@ -63,13 +63,14 @@ export class AccountLifecycleService extends AuditableService {
   /**
    * @method createAccount
    * @description Creates an administrator with the given password, under the role the request
-   *   names (`ADMIN` when it names none), and records the creation. The administrator is marked
-   *   to change that password, since its creator chose it, so the sign-in refuses it until the
-   *   administrator sets one of its own.
+   *   names or, when it names none, the default role this method falls back to, and records the
+   *   creation. The administrator is marked to change that password, since its creator chose it,
+   *   so the sign-in refuses it until the administrator sets one of its own.
    * @param data - The e-mail, password, name and role of the new account
    * @param createdByUserId - The administrator who creates it, when known
    * @returns The new account's profile; `EMAIL_EXISTS` when the address is taken,
-   *   `VALIDATION_ERROR` for a password shorter than 8 characters, `DATABASE_ERROR` otherwise
+   *   `VALIDATION_ERROR` for a password shorter than this method's minimum length,
+   *   `DATABASE_ERROR` otherwise
    */
   async createAccount(
     data: CreateAccountRequest,
@@ -295,8 +296,8 @@ export class AccountLifecycleService extends AuditableService {
   /**
    * @method suspendAccount
    * @description Deactivates an account and ends its active sessions with the reason
-   *   `ACCOUNT_SUSPENDED`, in one transaction when a Unit of Work is given, and records a
-   *   compliance event.
+   *   `ADMIN_SESSION_REVOKE_REASONS.ACCOUNT_SUSPENDED`, in one transaction when a Unit of Work is
+   *   given, and records a compliance event.
    * @param accountId - The administrator to suspend
    * @param reason - Why it is suspended, recorded in the compliance event
    * @param suspendedByUserId - The administrator who suspends it, when known

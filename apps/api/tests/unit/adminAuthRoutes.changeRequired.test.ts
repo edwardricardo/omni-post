@@ -327,6 +327,25 @@ describe("POST /admin/auth/password/change-required in the published contract", 
   });
 });
 
+describe("POST /admin/auth/password/change-required on a host without the Zod validator", () => {
+  it("refuses to start, naming the route, rather than serving it unvalidated", async () => {
+    const app = Fastify({ logger: false });
+    const container = new Container();
+    container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
+    container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);
+    container.registerInstance(TOKENS.EmailPort, emailStub);
+    container.registerInstance(TOKENS.HttpRateLimiter, limiterStub);
+    app.decorate("container", container);
+    app.register(adminAuthRoutes);
+
+    try {
+      await expect(app.ready()).rejects.toThrow(ROUTE);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 describe("POST /admin/auth/login", () => {
   const SIGN_IN_ROUTE = "/admin/auth/login";
   const SIGN_IN_BODY = { email: TYPED_EMAIL, password: CURRENT_PASSWORD };
