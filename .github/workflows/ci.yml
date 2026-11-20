@@ -45,10 +45,18 @@ jobs:
           #   it matched a .turbo cache from ANY commit, branch, or lockfile,
           #   and served a months-stale dist that produced the TS2724 false red
           #   on PR #189.
-          # - Honest residual limitation: the key below still matches any commit
-          #   sharing the same pnpm-lock.yaml + turbo.json hash, so removing the
-          #   catch-all closes only the lockfile-or-turbo.json-change subset of
-          #   stale-cache transport.
+          # - On main the prefix restore-key is absent too: a run on main
+          #   restores only an exact match of its key, the entry Build Check
+          #   saved for the same commit. Turbo replays a cached dist without
+          #   its .tsbuildinfo, so a dependent's `tsc -b` rebuilds that package
+          #   while others read its half-written declarations. That has failed
+          #   Build Check and this job, and on main each failure costs a rerun
+          #   per merge. With nothing replayed from an earlier commit, a first
+          #   attempt on main builds from source.
+          # - Honest residual limitation: on every other ref the prefix key
+          #   below still matches any commit sharing the same pnpm-lock.yaml +
+          #   turbo.json hash, so a pull request run can still replay such a
+          #   dist; and on main a rerun finds the exact entry and replays it.
           # - Entries also flow BETWEEN jobs of the same run under this shared
           #   key — which is why only the gated Build Check job saves and every
           #   other turbo job restores read-only.
@@ -56,8 +64,7 @@ jobs:
           #   this exact key scheme read-only; changing the scheme here without
           #   changing it there leaves the probe observing a cache CI no longer
           #   uses.
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Check formatting
         run: pnpm format:check
@@ -629,22 +636,16 @@ jobs:
       - name: Setup Turborepo cache
         # The ONLY turbo cache step in this file with save enabled: every entry
         # that reaches the cache is minted by this job, under the no-output
-        # gate below.
-        #
-        # No restore-keys on purpose: this job restores only on an exact match
-        # of its key, which is a rerun of the same commit. On a new commit it
-        # builds every package from source, so the entry it saves holds nothing
-        # replayed from an earlier entry. With the prefix restore-key it had,
-        # this job built against a restored `dist` nothing verified, and it
-        # failed on main when that `dist` was partial. The restore-only jobs
-        # keep the prefix key and read what this job built from source.
-        #
-        # Key rationale: see the canonical comment on the Lint job's restore
-        # step (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md AC-1).
+        # gate below. On main it restores only an exact match of its key, a
+        # rerun of the same commit, so the entry it saves for a new commit is
+        # built from source and holds nothing replayed from an earlier entry.
+        # Key + restore-key rationale: see the canonical comment on the Lint
+        # job's restore step (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md AC-1).
         uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Build all packages
         # Turbo 2.9.16 has no --fail-on-warning flag, so a task that declares
@@ -849,8 +850,7 @@ jobs:
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Setup test environment
         # Some package suites (e.g. fallback-strategies) self-skip without env

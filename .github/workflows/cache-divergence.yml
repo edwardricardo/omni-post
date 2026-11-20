@@ -76,8 +76,9 @@ jobs:
       # write back to it, so a divergent artifact cannot be laundered into a
       # fresh cache entry by the probe itself.
       #
-      # COUPLING — this key expression MUST stay identical to the "Setup
-      # Turborepo cache" steps in ci.yml. GitHub Actions cannot import an
+      # COUPLING — the key and the restore-keys expressions MUST stay identical
+      # to the three turbo cache steps in ci.yml (the Lint job's restore step
+      # holds the canonical rationale). GitHub Actions cannot import an
       # expression across workflow files, so the coupling holds by convention
       # only: the fitness #34-family checks do NOT cover it, and drift makes
       # this probe permanently blind (restoring nothing, or a key space CI
@@ -86,23 +87,24 @@ jobs:
       # The bare `${{ runner.os }}-turbo-` catch-all prefix is deliberately
       # absent, mirroring ci.yml: it matched caches produced under other
       # lockfiles, the cross-lockfile poisoning path the audit removed there.
-      # Honest residual (same as ci.yml): the prefix restore-key below still
-      # matches any commit sharing the same pnpm-lock.yaml + turbo.json hash,
-      # so removing the catch-all closes only the lockfile-change subset of
-      # stale-cache transport.
+      # On main, where the scheduled probe runs, there is no prefix key either,
+      # as in ci.yml: the probe restores the entry Build Check saved for the
+      # commit it checks out, the only entry a run on main consumes. Honest
+      # residual (same as ci.yml): on every other ref the prefix restore-key
+      # still matches any commit sharing the same pnpm-lock.yaml + turbo.json
+      # hash.
       - name: Restore Turborepo cache (read-only)
         id: turbo-cache
         uses: actions/cache/restore@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+          restore-keys: ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Gate on restored cache identity
-        # On a scheduled run against the default branch there is always a
-        # predecessor cache entry: the last push to main saved one under this
-        # key scheme. An empty restore is therefore a probe malfunction (key
+        # On a scheduled run against the default branch there is an entry for
+        # the commit checked out: the push run of that commit saved it under
+        # this key. An empty restore is therefore a probe malfunction (key
         # drift from ci.yml, purged caches, or a cache-service failure) — NOT
         # an empty universe to check. Proceeding would compare two cold builds
         # and certify nothing while looking green, so a scheduled run fails
