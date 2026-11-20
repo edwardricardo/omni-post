@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1252,
+      "total": 1259,
       "byShape": {
-        "test": 1005,
+        "test": 1012,
         "integration-test": 91,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1082,
-        "ADJUDICATE": 97,
+        "KEEP": 1088,
+        "ADJUDICATE": 98,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1242,
+      "machine": 1249,
       "confirmed": 10,
-      "total": 1252
+      "total": 1259
     },
     "blocks": {
-      "total": 15556,
+      "total": 15600,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15245
+        "BEHAVIOURAL": 15289
       }
     },
     "deleted": {
@@ -50521,6 +50521,183 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/health/databaseHealthChecker.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 5,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::pings the database once and never lists its accounts",
+          "line": 37,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7f2f7caf95dfcd6d0ca96a16496c713228b145a7ac0f23ef0f31f6222cb3a97"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports unhealthy when the database does not answer the ping",
+          "line": 49,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0ef537990224c65e758ec80e263b51969a0c16e019b5b4b47a18fe4bc1017ea5"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports degraded above one second and healthy at exactly one second",
+          "line": 60,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c35e465a29c5db516baa378e92275ee541974dcc85a71353b1b9a64d21b69175"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports its latency, its message and the response time and engine in its details",
+          "line": 70,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c2a3a89f82823282d5f880270fa1efa6d5ada0594a91b26badfcc0325cff9d60"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports unhealthy with the raised error's message, type and code",
+          "line": 86,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "27bfbab4750c22cb427c48d0c7c2828f4f34a16ec457b291b66bd144dafd9707"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/health/healthCheckManager.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 12,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::starts refreshing every 30 s, the first refresh run at once",
+          "line": 55,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "51a29cf38f33018ccd46b0656fb7df7573ec0132e613aa9fb6eec6b0b2a242cb"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::refreshes every 5 s once a report is unhealthy",
+          "line": 66,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a86cba84af40854fb3b81f186d61546b7f553519c51f7edcfa14a2098d934ad1"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::returns to every 30 s once a report is healthy again",
+          "line": 74,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "501b9c91171616f154211e6fe0341c631bcf396bc46872aead626b11f7a6664a"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::keeps refreshing every 30 s after a degraded report",
+          "line": 89,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9f6506da1bc2e49e379cc69b1665e96cbc85749fc4596b5f4d873f8b8c67c4f8"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::does not re-arm a refresh that completes after the manager stopped",
+          "line": 97,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "168e799ce1eb890c8b37a803f75b72968ded3fd8696cc8d1d33c56cef4b303d9"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::makes exactly one attempt when a check fails",
+          "line": 126,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5437d0e4bae9bdcb609354b304adccff95ea1349319b83a26b48b80b8c95f236"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::gives up on a check that never answers at the 5 s timeout, once",
+          "line": 146,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6ba8e0eecfb3dbf4130bc5ac55422ab0f6945ad5dd910ec3c2f6f192c3338ba3"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::reports a passing check's own status, message and details under its dependency",
+          "line": 175,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "73a98b16db1ca8a5d37d58e69b2d0a578a84dffaef170a7fcabe6cd7a5eeb31f"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::keeps one task under the refresh's id, firing at the new interval and never at the old one",
+          "line": 212,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e18f984d5f65f4ebf0ae84429015bfce7de1da94073223dcbf9b8a308155b541"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::reads healthy up to 1000 ms, degraded above it until the 5000 ms timeout, and unhealthy past it",
+          "line": 282,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "26cd98f09cf0689e0a923be3cc4a3b2969313b8eb02fd51faafc46785dc5f882"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::registers the refresh again only when the interval changes, so it keeps its phase",
+          "line": 300,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7f92bc811c9fd89dd7d77505f2c6febd4a34bf767d5726fa9b8600afb116a1e"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::does not re-arm the refresh from an on-demand check once the manager stopped",
+          "line": 316,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0df9b618958c802aee8e6bfe4c2bc442723a6bfd745f8619c4672069f03c4ca4"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/health/healthRoutesReadiness.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/healthRoutesReadiness.test.ts::answers 503 naming the dependency whose check failed and the one with no checker",
+          "line": 57,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "408310651dd6da45cc83a740979124a530afa765dbf8fddc2808c1c1049ffc46"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/health/queueHealthChecker.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -50555,6 +50732,30 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d819aff76960512de11a4e2bee02ede75e17fa36d6f6044075ef9f40282672f2"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/health/usableStatus.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/usableStatus.test.ts::counts healthy and degraded as usable, and unhealthy or an unknown status as not",
+          "line": 12,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "861369a4cbbd9697d2a45680ed21a2b6cdc3bcdd63d3bce4ced536d5435b7e6e"
         }
       ],
       "verdict": "KEEP",
@@ -50795,88 +50996,137 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 with healthy status",
-          "line": 187,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "54b9dd3969ac1a4de2d5b8f7b2271671785c6c1c5d134a1e5143c6f382f77e83"
         },
         {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers from the last refreshed report without running the checks",
+          "line": 209,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a8506da58685669dcab14c40845c7a0be5a272463fad667be29c46e349ef0b6d"
+        },
+        {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return comprehensive health information",
-          "line": 203,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1aecaa4b28eea729b91ad097448433f90306989528658a200b6854b3a98ce2e7"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should always return 200 for liveness probe",
-          "line": 223,
+          "line": 241,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28bde23c8c76c679ff9d428d4bbb42a2f3fe8efdd2ee7a3a977c963d662b4ac3"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should include process uptime",
-          "line": 237,
+          "line": 255,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f35469712aa9ff9cbe807d6e973c613244c377c03e7b06eb1ecdf594d72ec872"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 when critical dependencies are healthy",
-          "line": 250,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9838a4796cbf69dc86e82a353858ee3768b383afead2d3b47e57b009cee95a87"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return specific dependency health",
-          "line": 265,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d78284ae528401e47e98fefac482fd1faea2abe4a8c333b77e275878cd7f80fb"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 404 for unknown dependency",
-          "line": 283,
+          "line": 301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6aa678e8cc0cf543797c24c09df47f95285613d6c8c294982b05ab38d614196c"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should not enumerate registered dependencies to an unauthenticated caller",
-          "line": 297,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd9e991982007961e376a8732fb3641016f2453078889956a9aaa7f6c53f441c"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 503 rather than 404 when a registered dependency's check fails",
-          "line": 312,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6707a6e0d46cf91ebb8e10f9a6c28233e837321dde1df9e7e2d384d94faf870b"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::registers each checker the composition root built under its dependency name",
-          "line": 330,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d85bc2a65994a94900e3919eaea038d3091d788a5b49176533ed6500540459f2"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::serves its routes from the options alone, with no DI container on the instance",
-          "line": 337,
+          "line": 355,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "61dcafe1d4efff69f9ae66fcd40581b83dbf345f9687d46a3358265c197ec5ae"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::builds its health manager on the composition root's scheduler, overriding no timing",
+          "line": 359,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ab15ca62e80c419075207fddf4b0370a99ab2249af5b0c921d35ca9a1231a0e"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 425,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "89f971228c4b2979c27a876b94d9b544f446d94044e385126bcd7fd1b138da4d"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health/ready with ready for healthy or degraded critical dependencies and 503 for unhealthy ones",
+          "line": 450,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "09740fa5c3bf243507b0fa275c5b979dbbc7c810dba9010d3b5af3b7e3522629"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::names, on /health/ready, only the critical dependency that cannot serve",
+          "line": 464,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f7e155c81d61b0c3d8e9ef6d7a4db64997e74c335ddcb5a6e661005618927eb1"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health/detailed with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 474,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3e4683e9e207054e1517035a172f0957a792210e13d07b98a1127d71489902d3"
+        },
+        {
+          "id": "apps/api/tests/unit/healthRoutes.test.ts::answers /health/dependency/:name with 200 for a healthy or degraded dependency and 503 for an unhealthy one",
+          "line": 488,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cef75861dcefdeaad0f8fed60a5393226195ab186314c3989eeb6d5bf9b9d83a"
         }
       ],
-      "verdict": "KEEP",
-      "basis": "behavioural",
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
       "status": "machine",
       "sliceId": "2.8.2b",
       "subject": {
@@ -78716,7 +78966,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 151,
+      "blockCount": 159,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
@@ -79774,6 +80024,62 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07f645a8ba9fcd6f3e7db4d06c0b724ec3b13a91ac70708bb40109e48e9dd56b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services, waits until each answers, and stops there: nothing migrated, no app",
+          "line": 4036,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "36b1f09ec1f74c8cd087f4ac76231d8fd04a4c72ea1a56b92cc5c30c7fc93c31"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, as the start does, and starts nothing else",
+          "line": 4062,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "045e9b7fbd90a061979edebf8a2a5204d6a601c10a21c92a0ebd99362c790254"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not read the apps' ports: a PORT that is not a port refuses only the full start",
+          "line": 4084,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "105d3afcf05c07909551ac6785102100a100c8c528b9d35ce30de535da5d04d3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Redis when it never answers PING, after saying Postgres answered",
+          "line": 4096,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7564933136c12bb1b5d638c6b71a7200d38291e8fc8dfb1ae69f21817b614dca"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Postgres when it never answers, before Redis is asked",
+          "line": 4118,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "95efda6df7df3b3833fa07a3d00ee23e49e497ca15d7907c0ed82db2c63f9dea"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that --services-only starts the two services and stops once they answer",
+          "line": 4138,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "716b9017d5b0022c530218bb4d22aeb091fe46111e1b66bbf99a55bf26cca528"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is what pnpm db:up runs, from the repository's root",
+          "line": 4149,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b0563564201b9299cf7c6df6af98833195f4016267f85a21ad709ee11387e6a9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in one line that both services accept connections, naming neither on a line of its own",
+          "line": 4159,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "14435f3f0a667febdee396a9f5059341330a57ded6c738484083ae400e7e3288"
         }
       ],
       "verdict": "KEEP",
@@ -80624,6 +80930,37 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "183fac0d2d9d551e0363b6b1fef19b5be58cd2c4eef90ec1090141cadca0289e"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/workersDevScript.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/workersDevScript.test.ts::starts as the API's dev does, naming the checkout's environment file, with its own entry",
+          "line": 48,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "03555028cd9650d2112cd57a642b9994cce3a9d88aaded1b74e802d4d8558475"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/workersDevScript.test.ts::hands the shared logger a LOG_LEVEL set only in the environment file",
+          "line": 62,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ebbd25b29dfe30ed03c6f6915386f73d4d02ff3d51583215f3d7a83b6bf9d921"
         }
       ],
       "verdict": "KEEP",
@@ -104505,6 +104842,55 @@
       "importers": null
     },
     {
+      "path": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/workers/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::answers /health with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 73,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "808a6a6d82de52ca0159edec182411a1bc96ba5093b53c9410da7653c63cde13"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::answers /health/detailed with 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 81,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b8300ae0c3b97ff065b5114c320af77482c96589416a7e74a8ff10409610bf43"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::answers /health/ready with ready for healthy or degraded critical dependencies and 503 for unhealthy ones",
+          "line": 89,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "53e9d3a995e66060b73cb2f3484737b6805117e060da36747fb6c4c993595450"
+        },
+        {
+          "id": "apps/workers/tests/unit/healthRequestHandler.unit.test.ts::moves to 5 s when /health/ready records an unhealthy dependency, and back to 30 s once it recovers",
+          "line": 99,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d3860336613fa792bf32554ddd882bcbc6528c69fd55e7c572c4da9e52d59c85"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "healthRequestHandler",
+        "module": "apps/workers/src/health/healthRequestHandler.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/workers/tests/unit/publishWorker.drain-order.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -104629,49 +105015,63 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/workers/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is ready when every critical dependency, including the publish consumer, is healthy",
-          "line": 34,
+          "line": 38,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd0bff40cdddab9890b6b99b98efc2a970d7120f403fc5007e9cd204096add02"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when nothing is consuming the publish queue",
-          "line": 42,
+          "line": 46,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0de3a7b0b8f0c578156d4a6698282c080f1f6e362995eb536730afdb730494c3"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a critical dependency has no registered checker",
-          "line": 50,
+          "line": 54,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4210225a7b27be4a136a9ce36b368b494f346f9d5ce102c19a22b8c454a3009b"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a dependency check fails outright",
-          "line": 62,
+          "line": 66,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5fe09d7ef2116ba32851851fc83087ba363912dd3ae411bfbc19332e6cdc5413"
         },
         {
-          "id": "apps/workers/tests/unit/readiness.unit.test.ts::treats a degraded critical dependency as not ready",
-          "line": 74,
+          "id": "apps/workers/tests/unit/readiness.unit.test.ts::treats a degraded critical dependency as ready, since it still answers",
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "dbc04271ea75a3434e098580936c8e780a8313058b016a49fda8aa937d269b08"
+          "bodyHash": "93727576026317a3fb3d501a2d0f2beb1d9343603deee93d56c9ce068885735c"
+        },
+        {
+          "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a dependency reports a status other than healthy or degraded",
+          "line": 87,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "66b6df08416265a3a395ac8438b4c91df2df12bfd56d161edc38a28017c37090"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::names the consumer dependency after the queue it watches",
-          "line": 82,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4adafbe40e2aa5eb13d3c98161a92ff0d99317a8b8b2f9551ea12bef373317ba"
+        },
+        {
+          "id": "apps/workers/tests/unit/readiness.unit.test.ts::is 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 106,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ead2e1a070c665a355415dbac856d770e53735df671a6d46eae5dd2817e262ff"
         }
       ],
       "verdict": "KEEP",
@@ -106614,6 +107014,30 @@
       "importers": null
     },
     {
+      "path": "packages/adapters/db-prisma/tests/cachedRepositoryAdapter.unit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "packages/adapters/db-prisma/tests/cachedRepositoryAdapter.unit.test.ts::asks the wrapped repository on every ping, so a later failure is seen",
+          "line": 30,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "df5d64c33a11a5e36352e5ec3873bead6c1084ca013ac0f5dd836b4b4760b67a"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "packages/adapters/db-prisma/tests/channelRepository.decryptInput.unit.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -106650,7 +107074,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $queryRaw on the INJECTED client during initial health check",
@@ -106667,15 +107091,29 @@
           "bodyHash": "795f86639d9e940fb87dbebc4f001a9e6a82f13799859e74f38fc1b7c4da6d00"
         },
         {
-          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $disconnect on the INJECTED client",
+          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::asks the INJECTED client one SELECT 1 and answers ok",
           "line": 96,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "61ddc096f2edee6a9fb55060f403fc856b32eec95d072387482b9d9af9276514"
+        },
+        {
+          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::answers DATABASE_ERROR when the database does not answer",
+          "line": 111,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "09d7f6983ee020f3be1a7ba2a2e798e17e544c6012af36692d7e44fb824df8c1"
+        },
+        {
+          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $disconnect on the INJECTED client",
+          "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ccbf7246602496818442988ba3319f2d207d3960b24251e16e91eb83c99b3ad"
         },
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::unregisters the scheduler task on close()",
-          "line": 105,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5dd80da2202d0e3f24bd9c78c499efd9d7a95ed0d5e29bb5cb9c04442cfe6d1"
@@ -107135,123 +107573,116 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::createAccount — uses INJECTED client, not global",
-          "line": 253,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2072afc225824b6f8c5ddf42a21ab7165ed284760e8831807eb3f7649326f1dc"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getAccountById — uses INJECTED client, not global",
-          "line": 271,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bec741a44f5db456ca66c204871b7e19c2ecfa324447e89bf86df967588fb3e6"
         },
         {
-          "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::listAccounts — uses INJECTED client, not global",
-          "line": 289,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "28bde27c312347fa126805dd068ba693d3adeb30c06ef12fdf7434f72ef07e5d"
-        },
-        {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getProjectsByAccount — uses INJECTED client, not global",
-          "line": 298,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "56ce36fd564fe61efeb546a55bd819ea30bcbdfd4da0015774ee943be03b7b1c"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getPostById — uses INJECTED client, not global",
-          "line": 307,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "efc5b87ebec4043ff93e6f291dc3d0bfd95ab6acb94bdf0278313b4a4a2cebfb"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::listPosts — uses INJECTED client, not global",
-          "line": 314,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f423c891d42f7ed97dcd607c1c1eee9f1ff7a042f7ad684ab539130b66f23d4"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::createPost — writes the media rows on the TRANSACTION, never on the base client",
-          "line": 322,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "389e7f0e9aa64a29c4b539f5499de0456d234652614c73b5909556941bf2003e"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelsByIds — uses INJECTED client, not global",
-          "line": 344,
+          "line": 334,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62f5eb7deed4d6a0c8f5e0a1cb56323dbe6f9d3700bef0a70f6ca525043511ea"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelOwnerAccountId — uses INJECTED client, not global",
-          "line": 361,
+          "line": 351,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2cb24d9982a8337f39ce1c7a0e19872574d4d84e796825f60cb3df11120d854"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelsByIds — rejects a blank tenant scope without querying",
-          "line": 374,
+          "line": 364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "614235b18832eb206a781f60fc92419411691883aa12bd125a596977abbd2f1e"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getChannelOwnerAccountId — resolves no owner for a blank channelId without querying",
-          "line": 392,
+          "line": 382,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af5a789534df7244124e37fc9cbcb47a695c5699b5c3d241080737279d9ab928"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::logPublish — uses INJECTED client, not global",
-          "line": 406,
+          "line": 396,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7fcb4aa1e8fab9513ea5b280c22af051763c8c326e399a0974136254e3ef9aa1"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getLogByDedupeKey — uses INJECTED client, not global",
-          "line": 420,
+          "line": 410,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c024639c709e6b862b33af77b6c41cebe1f56333f895ccc3d47a70a3d44a1d32"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::listAnalytics — uses INJECTED client, not global",
-          "line": 429,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63c102fc6ab2149a02f64cec41fd4b3ed54e3973d1cda1649246b65b005d88b0"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::addAnalytics — uses INJECTED client, not global",
-          "line": 436,
+          "line": 426,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "434349f25656a2cbf5fd8fa20a91bc375407f50457454158a34c52ae303495a1"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getThreadByPostId — uses INJECTED client, not global",
-          "line": 445,
+          "line": 435,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b00b8dbe6a772f4827361c596e679e30f6c6283a10019334039ce9a9b8d4f2d7"
         },
         {
           "id": "packages/adapters/db-prisma/tests/subRepos.di.test.ts::getTweetsByThread — uses INJECTED client, not global",
-          "line": 452,
+          "line": 442,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7bef9442fae8b18e97fb4fd60d9e96a1a1691586b581722ef78bb09e6eee15d8"

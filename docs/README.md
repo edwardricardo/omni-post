@@ -20,7 +20,7 @@ Quick start, with the versions `package.json` pins (Node `>=26.13.1 <27`, pnpm 1
 pnpm install
 cp .env.example .env   # fill in every value marked (required)
 docker compose up -d   # PostgreSQL, Redis and the local services
-pnpm db:up             # preflight: reaches the PostgreSQL and Redis of .env, starts nothing
+pnpm db:up             # starts PostgreSQL and Redis and waits until each answers
 pnpm db:migrate
 pnpm dev               # API (port 3000) and workers; pnpm dev:admin (3100), pnpm dev:client (3200)
 ```
