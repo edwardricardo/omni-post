@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1229  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15451 |
+| Blocks                  | 15454 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -819,7 +819,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/infrastructure/adapters/PrismaAdminMfaUserRepository.test.ts`                    | test             | 22     | 0          | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/infrastructure/adapters/PrismaCustomerMfaUserRepository.test.ts`                 | test             | 22     | 0          | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/infrastructure/adapters/PrismaMentionRepository.test.ts`                         | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts`                          | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts`                          | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/RedisMfaChallengeStoreAdapter.test.ts`                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts`                            | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/infrastructure/adapters/TeamsNotifierAdapter.test.ts`                            | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
@@ -885,7 +885,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/integration-events/EventUpcaster.test.ts`                                        | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integration-events/IntegrationEvent.test.ts`                                     | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integration-events/IntegrationEventConsumer.test.ts`                             | test             | 28     | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts`                             | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/integration-helpers/migratedScratchDatabase.test.ts`                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integrationEventDeliveryHandler.test.ts`                                         | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/apiReference.test.ts`                                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts`                                            | test             | 25     | 2          | REWRITE    | machine                     | some-decorative      |
@@ -988,7 +988,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 150    | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 151    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
