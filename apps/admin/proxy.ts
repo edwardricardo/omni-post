@@ -13,8 +13,10 @@ import { routing } from "./i18n/routing";
 const handleI18nRouting = createMiddleware(routing);
 
 const COOKIE_NAME = "admin-session";
-// Paths compared AFTER stripping the locale prefix.
-const PUBLIC_PATHS = ["/login"];
+// Paths compared AFTER stripping the locale prefix. The required password change is named on its
+// own: no session exists until the password is changed, so it stays public whatever the
+// comparison is.
+const PUBLIC_PATHS = ["/login", "/login/change-password"];
 
 // The first path segment: where the "always" prefix mode puts the locale.
 const FIRST_SEGMENT_RE = /^\/([^/]*)/;

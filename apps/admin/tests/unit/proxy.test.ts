@@ -1,8 +1,9 @@
 /**
  * @file proxy.test.ts
  * @description Pins the admin proxy's auth gate around the locale prefix: the prefix is
- *   stripped for every locale `routing.locales` declares, so a public page stays public in
- *   each of them and a protected page redirects to the same locale's login. The routing is
+ *   stripped for every locale `routing.locales` declares, so a public page (the sign-in, the
+ *   required password change) stays public in each of them and a protected page redirects to the
+ *   same locale's login. The routing is
  *   the real one, or a mocked one declaring a third locale. next-intl's middleware is a
  *   recording stand-in: its ESM build imports the extensionless `next/server`, which Node's
  *   resolver refuses outside Next's bundler (the reason the portal's tests also mock
@@ -110,6 +111,45 @@ describe("admin proxy with the declared routing (en, es)", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(`${ORIGIN}/en/login`);
+  });
+
+  it("lets an anonymous visitor reach the required password change at /es/login/change-password", async () => {
+    const proxy = await loadProxy();
+
+    const response = proxy(requestTo("/es/login/change-password"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(i18nMiddleware.handledPaths).toEqual(["/es/login/change-password"]);
+  });
+
+  it("lets an anonymous visitor reach the required password change without a locale prefix", async () => {
+    const proxy = await loadProxy();
+
+    const response = proxy(requestTo("/login/change-password"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(i18nMiddleware.handledPaths).toEqual(["/login/change-password"]);
+  });
+
+  it("redirects a signed-in user on /en/login/change-password to /en", async () => {
+    const proxy = await loadProxy();
+
+    const response = proxy(requestTo("/en/login/change-password", SESSION_COOKIE));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`${ORIGIN}/en`);
+  });
+
+  it("still lets an anonymous visitor through another path under /en/login/", async () => {
+    const proxy = await loadProxy();
+
+    const response = proxy(requestTo("/en/login/other"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(i18nMiddleware.handledPaths).toEqual(["/en/login/other"]);
   });
 
   it("does not strip a first segment that only begins with a locale", async () => {
