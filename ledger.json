@@ -27,7 +27,7 @@
       "total": 1258
     },
     "blocks": {
-      "total": 15834,
+      "total": 15837,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15523
+        "BEHAVIOURAL": 15526
       }
     },
     "deleted": {
@@ -60311,21 +60311,42 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 2,
+      "blockCount": 5,
       "blocks": [
         {
           "id": "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts::answers %s at its own status, with one warn line that carries the failure's projection",
-          "line": 123,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "758083452e8a3ba717fefa3d22f394a5c8bca870cc8ff1a6cd77644ac4a83269"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts::keeps %s out of the line and the body, and logs the failure's projection",
-          "line": 164,
+          "line": 180,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "accb675ccbc4f33de8dfeeacbb06b72e87a34aeb5079c5b205047091538202e1"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts::logs each cause of the failure as its own projection, and none of a cause's other fields",
+          "line": 224,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a79789d54c5d0a275fe249590707900dfe18df5bdf744364e88224cf086f93e5"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts::logs a cause that is not an Error as its type, never its content",
+          "line": 243,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "343fbf7eb123bc08e09d39ea03fd2d09c1c8889c99b2b3cf4c21c260c6765c1e"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts::follows five causes and no more, so a chain that circles ends the line",
+          "line": 255,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "206c2ff014c7db431d033217758e2bda2c6476236513e1f550d1c9a85335c8b5"
         }
       ],
       "verdict": "KEEP",
@@ -118672,35 +118693,35 @@
       "blocks": [
         {
           "id": "packages/eslint-plugin-errors/tests/no-inline-error.test.ts::reports through the plugin entry under the rule id errors/no-inline-error",
-          "line": 947,
+          "line": 959,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9ff8d0d221c5d8285becc2ec727dd276a8b646dfc7b82d98982ffd4f264648f5"
         },
         {
           "id": "packages/eslint-plugin-errors/tests/no-inline-error.test.ts::accepts the options the sites gate holds the rule to, one value each",
-          "line": 955,
+          "line": 967,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ecf28fa2803dc3884e259f2bd89dac7830e2225bc92bfdd206ec4debd128f7fe"
         },
         {
           "id": "packages/eslint-plugin-errors/tests/no-inline-error.test.ts::refuses a list of body writers: the exemption names one file",
-          "line": 966,
+          "line": 978,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41e844aa8e7e4b929449ef3a2ea99e4ba8855b2e83cc869bd0813bcf65691c1b"
         },
         {
           "id": "packages/eslint-plugin-errors/tests/no-inline-error.test.ts::refuses a body writer path that is %s",
-          "line": 972,
+          "line": 984,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26165c8455dd9ad97ab8a99b555ccec8a178174b089766b892ef43e9e5c06ebf"
         },
         {
           "id": "packages/eslint-plugin-errors/tests/no-inline-error.test.ts::refuses an option the rule does not declare",
-          "line": 985,
+          "line": 997,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "642db9ce793726fa610ac47efbf013e63c78fc2ea8fab5dca23eb0ed188f4577"
