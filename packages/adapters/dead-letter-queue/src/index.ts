@@ -9,7 +9,7 @@ import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { createLogger } from "@observability/logger";
+import { createLogger, createThrottledWorkerErrorListener } from "@observability/logger";
 
 const logger = createLogger("dead-letter-queue");
 
@@ -142,7 +142,8 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Register a retry target so the DLQ knows where to re-enqueue
+   * @method registerRetryTarget
+   * @description Registers a retry target so the DLQ knows where to re-enqueue
    * failed operations for a given service.
    *
    * @param service  - The logical service name (e.g. "publishing", "webhooks")
@@ -204,7 +205,14 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Add a failed operation to the dead letter queue
+   * @method addFailedOperation
+   * @description Adds a failed operation to the dead letter queue.
+   * @param service - The logical service the operation belongs to.
+   * @param operation - Name of the operation that failed.
+   * @param args - The operation's arguments, kept for a retry.
+   * @param originalError - The error the operation failed with.
+   * @param context - Retry count, first attempt, fallback outcome and request metadata.
+   * @returns The id of the stored operation, or `QUEUE_ERROR` when it could not be enqueued.
    */
   async addFailedOperation(
     service: string,
@@ -289,7 +297,9 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Start processing dead letter queue jobs
+   * @method startProcessing
+   * @description Starts the worker that processes dead letter jobs and the event stream; a
+   *   second call is a no-op.
    */
   async startProcessing(): Promise<void> {
     if (this.isProcessing) {
@@ -316,6 +326,13 @@ export class DeadLetterQueueManager {
       logger.error(`Dead letter job ${job?.id} processing failed: ${error}`);
     });
 
+    // The worker emits its job-level failures and re-emits its connection's errors here; it is
+    // throttled per error because the connection errs on every reconnection while Redis is down.
+    this.worker.on(
+      "error",
+      createThrottledWorkerErrorListener(logger, `bullmq-worker:${this.config.queueName}`)
+    );
+
     // The constructor disabled autorun, so the event stream starts here. `run()` resolves only
     // when the stream ends, so it is deliberately not awaited; `close()` ends it.
     void this.queueEvents.run().catch((error: unknown) => {
@@ -327,7 +344,8 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Stop processing dead letter queue jobs
+   * @method stopProcessing
+   * @description Closes the worker that processes dead letter jobs, when one runs.
    */
   async stopProcessing(): Promise<void> {
     if (this.worker) {
@@ -452,7 +470,9 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Get dead letter queue statistics
+   * @method getQueueStats
+   * @description Reads the dead letter queue's statistics.
+   * @returns The statistics.
    */
   async getQueueStats(): Promise<{
     waiting: number;
@@ -477,7 +497,11 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Get failed operations by status
+   * @method getFailedOperations
+   * @description Lists the failed operations, newest first.
+   * @param status - Only operations in this status; every status when absent.
+   * @param limit - Highest number of jobs read.
+   * @returns The failed operations.
    */
   async getFailedOperations(
     status?: "pending" | "retrying" | "resolved" | "abandoned",
@@ -496,7 +520,10 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Manually retry a specific failed operation
+   * @method manualRetry
+   * @description Retries one failed operation now.
+   * @param operationId - Id of the failed operation.
+   * @returns Nothing on success; `NOT_FOUND` or `QUEUE_ERROR` otherwise.
    */
   async manualRetry(operationId: string): Promise<Result<void, "NOT_FOUND" | "QUEUE_ERROR">> {
     try {
@@ -525,7 +552,8 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Clean up old completed/failed jobs
+   * @method cleanup
+   * @description Removes completed and failed jobs older than the retention window.
    */
   async cleanup(): Promise<void> {
     const _cutoffDate = new Date();
@@ -540,7 +568,8 @@ export class DeadLetterQueueManager {
   }
 
   /**
-   * Close all connections
+   * @method close
+   * @description Stops processing and closes the queue events, the queues and the connection.
    */
   async close(): Promise<void> {
     await this.stopProcessing();
@@ -562,11 +591,17 @@ export class DeadLetterQueueManager {
 }
 
 /**
- * Calculate retry delay with exponential backoff and optional
+ * @description Calculates a retry delay with exponential backoff and optional
  * deterministic jitter.
  *
  * When jitter is enabled, uses Knuth's multiplicative hash instead of
  * `Math.random()` so the delay is reproducible for a given attempt.
+ * @param attempt - Number of the attempt, from 0.
+ * @param baseDelay - Delay of the first attempt, in milliseconds.
+ * @param maxDelay - Highest delay, in milliseconds.
+ * @param multiplier - Growth factor per attempt.
+ * @param jitter - Whether to spread the delay deterministically.
+ * @returns The delay, in milliseconds.
  */
 export function calculateRetryDelay(
   attempt: number,
@@ -587,6 +622,11 @@ export function calculateRetryDelay(
 // Global instance
 let globalDeadLetterQueue: DeadLetterQueueManager | null = null;
 
+/**
+ * @description Returns the process's dead letter queue manager, building it on the first call.
+ * @param config - Configuration used when the manager is built; ignored afterwards.
+ * @returns The manager.
+ */
 export function createDeadLetterQueue(config: DeadLetterQueueConfig): DeadLetterQueueManager {
   if (!globalDeadLetterQueue) {
     globalDeadLetterQueue = new DeadLetterQueueManager(config);
@@ -594,10 +634,18 @@ export function createDeadLetterQueue(config: DeadLetterQueueConfig): DeadLetter
   return globalDeadLetterQueue;
 }
 
+/**
+ * @description Returns the process's dead letter queue manager.
+ * @returns The manager, or null before `createDeadLetterQueue` ran.
+ */
 export function getDeadLetterQueue(): DeadLetterQueueManager | null {
   return globalDeadLetterQueue;
 }
 
+/**
+ * @description Forgets the process's dead letter queue manager, so the next
+ *   `createDeadLetterQueue` builds a new one. It does not close the old one.
+ */
 export function resetDeadLetterQueue(): void {
   globalDeadLetterQueue = null;
 }

@@ -175,7 +175,7 @@ function makeRoleStore(order: NestedOrder, seed?: StoreSeed) {
     const { id } = readOnly(where, ["id"], "where");
     if (typeof id !== "string") throw new Error("where.id is not a string");
     const existing = roles.get(id);
-    const scalars = ["name", "description", "level", "isSystem", "permissions"];
+    const scalars = ["name", "description", "level", "isSystem", "isActive", "permissions"];
     const branch =
       existing === undefined
         ? readOnly(create, ["id", ...scalars], "create")
@@ -284,6 +284,20 @@ describe("PrismaSystemRoleRepository save", () => {
       );
     }
   );
+
+  it("returns ok with the role active again when the role was deactivated", async () => {
+    const held = makeHeldRole();
+    const store = makeRoleStore("deleteMany first", {
+      ...held,
+      role: { ...held.role, isActive: false },
+    });
+    const repo = new PrismaSystemRoleRepository(store.client as never);
+
+    const result = await repo.save(DEFINITION);
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect([...store.roles.values()]).toEqual([EXPECTED_ROLE]);
+  });
 
   it.each<NestedOrder>(["deleteMany first", "createMany first"])(
     "returns ok and deletes or inserts no row when the role already holds the definition (%s)",

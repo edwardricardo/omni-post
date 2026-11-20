@@ -3,7 +3,7 @@ feature: first-administrator
 owner: Maintainer
 status: live
 verified:
-  sha: d471eef9fc1387e5e56c714949db1e7236d28cd9
+  sha: 36cea51050a7df8c74d0946d96549f80a6b2ae5f
   date: 2026-11-20
   by: Maintainer
 paths:
@@ -137,7 +137,7 @@ When the creation's output was lost, or it ended with an unknown outcome, the op
 pnpm --silent create-first-admin --reissue --email admin@example.com
 ```
 
-`ReissueAdministratorPasswordUseCase` serves only an administrator who exists, has never signed in (`lastLoginAt` is empty) and must still change the password. In one transaction it replaces the password, clears a pending password reset, ends every session of the administrator and writes the audit row `ADMINISTRATOR_PASSWORD_REISSUED`. The mark stays, so the new password must be changed at the first sign-in too. Exit code 0 and:
+`ReissueAdministratorPasswordUseCase` serves only an administrator who exists, is active, has never signed in (`lastLoginAt` is empty) and must still change the password. In one transaction it replaces the password, clears a pending password reset, ends every session of the administrator and writes the audit row `ADMINISTRATOR_PASSWORD_REISSUED`. The mark stays, so the new password must be changed at the first sign-in too. Exit code 0 and:
 
 ```text
 A new single-use password was issued.
@@ -148,7 +148,10 @@ A new single-use password was issued.
 The password is shown this once and is stored nowhere: only its hash is kept.
 The previous single-use password no longer works, and every session of this administrator was ended.
 Sign in with it now and change it at once.
+If the sign-in answers that the account is locked, the lock that failed sign-ins set is still in place: it ends by itself within 30 minutes.
 ```
+
+The last line is there because the command opens no Redis connection: it neither reads nor clears a lock that failed sign-ins set, and that lock outlives the re-issue for 30 minutes at most.
 
 A refused re-issue ends with exit code 1 and replaces nothing:
 
@@ -157,6 +160,7 @@ A refused re-issue ends with exit code 1 and replaces nothing:
 | `Refused: No administrator has this e-mail: there is no single-use password to re-issue`                                                                                                                                    | The address is not an administrator's; check its spelling. Nothing changed                                                                                                                                                                                                              |
 | `Refused: This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued`                                                                                             | The administrator holds a password of its own; this command does not serve it. Nothing changed and that password still works                                                                                                                                                            |
 | `Refused: This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued`                                                                           | The password is the administrator's own: already changed, or set another way, as by the development seed. Nothing changed and that password still works                                                                                                                                 |
+| `Refused: This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued`                                                                               | The administrator is inactive, so no password would let it sign in. Nothing changed; reactivate it first                                                                                                                                                                                |
 | `Refused: The administrator changed between the read and the write (another re-issue, a password change, a requested password reset or a sign-in), so nothing was replaced: run the re-issue again to see what is true now` | Another write won between the re-issue's read and its write. Whether the previous password still works depends on which: after another re-issue or a password change it does not, after a requested password reset or a sign-in it does. Run the re-issue again to see what is true now |
 
 When the re-issue's outcome is unknown, standard error shows `Failed: The transaction that re-issues the single-use password failed and its outcome is unknown: the password may have been replaced without the new one being shown, so run the re-issue again` or `Failed: re-issuing the single-use password stopped without an answer, so whether it was replaced is not known: run this command again with --reissue and the same --email.` Both are answered by running the re-issue again.
@@ -213,7 +217,7 @@ SELECT action, "userId", "ipAddress", "createdAt" FROM "AuditLog"
 WHERE error = 'PASSWORD_CHANGE_REQUIRED' ORDER BY "createdAt" DESC;
 ```
 
-An administrator with `mustChangePassword` true and `lastLoginAt` empty has not set a password yet and is eligible for `--reissue`. `mustChangePassword` false means the administrator signs in with a password of its own: for the administrator the command created, the password was changed (or reset); the administrator the development seed creates, and one created from the administration API (ADMIN-USER-SERVICE-TEMP-PASSWORD-NO-MUST-CHANGE), were never marked.
+An administrator with `mustChangePassword` true and `lastLoginAt` empty has not set a password yet and is eligible for `--reissue`. `mustChangePassword` false means the administrator signs in with a password of its own: for the administrator the command created, the password was changed (or reset); the administrator the development seed creates is never marked, and every administrator another administrator creates, through either creation route and whether the password is generated or supplied, is marked.
 
 **Queues and jobs.** None: nothing of this feature is queued.
 
@@ -221,30 +225,34 @@ An administrator with `mustChangePassword` true and `lastLoginAt` empty has not 
 
 ## Known failure modes
 
-| The ticket looks like                                                    | Usually because                                                                                                                | Check                                                                     | Fix or escalate                                                                                                   |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| "The command says an administrator already exists"                       | An earlier run, or the development seed, created one                                                                           | The first query above                                                     | Sign in as that administrator; if it never signed in and nobody has its password, run `--reissue` with its e-mail |
-| "Nobody has the first administrator's password"                          | The output was lost, or the creation ended with an unknown outcome                                                             | The administrator has `mustChangePassword` true and `lastLoginAt` empty   | `--reissue --email <its address>`                                                                                 |
-| "The command will not run: not an interactive terminal"                  | Its output goes to a pipe or a file, or `docker exec` ran without `-it`                                                        | The exact command line                                                    | Run it again attached to a terminal                                                                               |
-| "The command could not be set up in this environment"                    | The API's environment is missing or invalid; the message names no variable (FIRST-ADMIN-COMMAND-FAILURES-NAME-NO-REASON)       | Whether the API starts in the same environment, which names what is wrong | Fix the environment the way the API's own start reports it; otherwise escalate to the Maintainer                  |
-| "The command refuses: a role with the administration role's name exists" | A `SUPER_ADMIN` role was written under another id                                                                              | `SELECT id, name FROM "Role" WHERE name = 'SUPER_ADMIN';`                 | Escalate to the Maintainer: the role must be renamed or removed                                                   |
-| "Signing in sends me to Set a new password"                              | Expected: the password is the single-use one                                                                                   | —                                                                         | Complete the page, then sign in with the new password                                                             |
-| "The page says the account does not need a password change"              | The password was already changed                                                                                               | `mustChangePassword` is false                                             | Sign in with the new password                                                                                     |
-| "My authentication code was refused right after another error"           | A refusal that comes after the second factor spends its code (REQUIRED-CHANGE-REFUSALS-AFTER-THE-SECOND-FACTOR-SPEND-ITS-CODE) | —                                                                         | Enter a new code                                                                                                  |
-| "After the re-issue the account is still locked"                         | A lock from failed sign-ins outlives a re-issue (REISSUE-LEAVES-THE-BRUTE-FORCE-LOCK-IN-PLACE)                                 | The page shows "This account is locked. Try again later."                 | Wait for the lock to end, 30 minutes after it was set at most, then sign in                                       |
-| "The re-issue worked, but the sign-in says the account is inactive"      | The re-issue serves a deactivated administrator (REISSUE-ISSUES-A-PASSWORD-TO-A-DEACTIVATED-ADMINISTRATOR)                     | `isActive` is false                                                       | Escalate to the Maintainer                                                                                        |
-| "Too many attempts"                                                      | Too many requests from one address (about 15 a minute), or too many failed attempts                                            | —                                                                         | Wait a minute and try again                                                                                       |
+| The ticket looks like                                                    | Usually because                                                                                                          | Check                                                                     | Fix or escalate                                                                                                   |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| "The command says an administrator already exists"                       | An earlier run, or the development seed, created one                                                                     | The first query above                                                     | Sign in as that administrator; if it never signed in and nobody has its password, run `--reissue` with its e-mail |
+| "Nobody has the first administrator's password"                          | The output was lost, or the creation ended with an unknown outcome                                                       | The administrator has `mustChangePassword` true and `lastLoginAt` empty   | `--reissue --email <its address>`                                                                                 |
+| "The command will not run: not an interactive terminal"                  | Its output goes to a pipe or a file, or `docker exec` ran without `-it`                                                  | The exact command line                                                    | Run it again attached to a terminal                                                                               |
+| "The command could not be set up in this environment"                    | The API's environment is missing or invalid; the message names no variable (FIRST-ADMIN-COMMAND-FAILURES-NAME-NO-REASON) | Whether the API starts in the same environment, which names what is wrong | Fix the environment the way the API's own start reports it; otherwise escalate to the Maintainer                  |
+| "The command refuses: a role with the administration role's name exists" | A `SUPER_ADMIN` role was written under another id                                                                        | `SELECT id, name FROM "Role" WHERE name = 'SUPER_ADMIN';`                 | Escalate to the Maintainer: the role must be renamed or removed                                                   |
+| "Signing in sends me to Set a new password"                              | Expected: the password is the single-use one                                                                             | —                                                                         | Complete the page, then sign in with the new password                                                             |
+| "The page says the account does not need a password change"              | The password was already changed                                                                                         | `mustChangePassword` is false                                             | Sign in with the new password                                                                                     |
+| "My authentication code was refused right after another error"           | A refusal after the second factor spends its code; the order is deliberate, by decision of the Product Owner             | —                                                                         | Enter a new code                                                                                                  |
+| "After the re-issue the account is still locked"                         | A lock from failed sign-ins outlives a re-issue, and the command says so in its last line                                | The page shows "This account is locked. Try again later."                 | Wait for the lock to end, 30 minutes after it was set at most, then sign in                                       |
+| "The re-issue refused: the administrator is deactivated"                 | The re-issue refuses a deactivated administrator, because no password would let it sign in                               | `isActive` is false                                                       | Escalate to the Maintainer: the administrator must be reactivated first                                           |
+| "Too many attempts"                                                      | Too many requests from one address (about 15 a minute), or too many failed attempts                                      | —                                                                         | Wait a minute and try again                                                                                       |
 
 ### What it does not do yet
 
 These are open items of F-02 in [chain.md](../product/plan/chain.md), named by id:
 
-- **ADMIN-USER-SERVICE-TEMP-PASSWORD-NO-MUST-CHANGE**: an administrator created from the administration API with a temporary password is not marked, so that password is never forced out.
-- **MARKED-ADMINISTRATOR-KEEPS-AN-EXISTING-SESSION**: the mark is read only at sign-in and at the change, so a session opened before the mark keeps working until the password is changed.
-- **REISSUE-REVOKES-SESSIONS-WITH-NO-REASON**: the sessions a re-issue ends carry no revoke reason.
-- **REISSUE-LEAVES-THE-BRUTE-FORCE-LOCK-IN-PLACE** and **REISSUE-ISSUES-A-PASSWORD-TO-A-DEACTIVATED-ADMINISTRATOR**: the two rows of the table above.
 - **FIRST-ADMIN-COMMAND-FAILURES-NAME-NO-REASON**: a failed run says that it failed, not why.
-- An administrator who has signed in and lost the password is not served by this command: the re-issue refuses it.
+- **FIRST-ADMINISTRATOR-JOURNEY-HAS-NO-PROOF-ACROSS-THE-APPLICATIONS**: no test drives the command, the API and the portal together.
+- **REISSUE-REACHES-ANY-ADMINISTRATOR-WHO-NEVER-SIGNED-IN**: since every administrator another one creates is marked, `--reissue` serves any marked administrator who never signed in, not only the first.
+
+These behaviors are accepted by decision of the Product Owner, so a support person meets them as they are:
+
+- A session opened before an administrator is marked keeps working until it ends; whoever marks an existing administrator ends its sessions in the same write.
+- A refusal that comes after the second factor has spent its code.
+
+An administrator who has signed in and lost the password is not served by this command: the re-issue refuses it.
 
 ## Configuration
 
@@ -252,7 +260,7 @@ These are open items of F-02 in [chain.md](../product/plan/chain.md), named by i
 - **The password policy** of the change (12 characters at least, the four character kinds, no reuse of the last 5) is code, `adminAuthConfig.passwordPolicy` (`apps/api/src/admin/auth/adminAuthConfig.ts`); the page states the same numbers from `apps/admin/lib/auth/passwordPolicy.ts`. No operator can change it.
 - **The request limit** of 15 requests a minute per client address (100 under `NODE_ENV=test`), shared by the sign-in and the required change, is code (`apps/api/src/admin/auth/adminAuthRoutes.ts`).
 - **The portal** reaches the API at `API_URL` (`apps/admin/lib/env.ts`).
-- **The development seed** (`pnpm db:seed`) also creates an administrator, `admin@omnipost.local`, with the password `ADMIN_PASSWORD` and no mark. It refuses under `NODE_ENV=production` and is never run against a production database.
+- **The development seed** (`pnpm db:seed`) also creates an administrator, `admin@omnipost.local`, with the password `ADMIN_PASSWORD` and no mark. It runs only when `NODE_ENV` is `development` or `test`, or is unset, and refuses every other value, `staging` and an empty value included; it is never run against a production database. Each run sets the administrator's password again, as intended.
 
 ## Data and privacy
 
@@ -269,4 +277,4 @@ These are open items of F-02 in [chain.md](../product/plan/chain.md), named by i
 
 ## Verification
 
-Last verified against main d471eef9fc1387e5e56c714949db1e7236d28cd9 on 2026-11-20 by Maintainer
+Last verified against main 36cea51050a7df8c74d0946d96549f80a6b2ae5f on 2026-11-20 by Maintainer

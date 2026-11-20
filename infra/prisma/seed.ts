@@ -5,22 +5,17 @@
  *   subscriptions and pricing, AI prompt templates, tracked terms, the administration and customer
  *   roles with their permissions, and an administrator. It runs through `pnpm db:seed`, or through
  *   `prisma db seed`, which runs the command `prisma.config.ts` names. It loads its env file from
- *   the repository root, then refuses to run, before it builds its database client, when the
+ *   the repository root, then refuses to run, before it loads its database client, when the
  *   environment it ends up with is a production one, or gives no `ADMIN_PASSWORD` for the
  *   administrator it creates.
  * @layer infrastructure
  */
 import { existsSync } from "fs";
 import path from "path";
-import { PrismaClient } from "./generated/prisma/client/client.js";
-import { Provider, TrackedTermKind } from "./generated/prisma/client/client.js";
-import type { Prisma } from "./generated/prisma/client/client.js";
-import argon2 from "argon2";
 import { randomBytes, createCipheriv } from "node:crypto";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { createLogger } from "@observability/logger";
+import type { $Enums, Prisma } from "./generated/prisma/client/client.js";
 import { evaluateAdminPassword, evaluateSeedEnvironment } from "./src/seedGuard.js";
-import { SUPER_ADMIN_ROLE } from "./src/adminSystemRoles.js";
+import { SUPER_ADMIN_ROLE, type AdminSystemRole } from "./src/adminSystemRoles.js";
 
 // Load env from project root. Mirror apps/api/src/config/env.ts: under
 // NODE_ENV=test load `.env.test` (CI synthesizes it via
@@ -29,11 +24,11 @@ const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 const envPath = path.join(import.meta.dirname, "../..", envFile);
 if (existsSync(envPath)) process.loadEnvFile(envPath);
 
-// The guard runs here, once the env file is loaded and before the seed builds its database
-// client: the file fills a variable the process left unset, so it may be what sets
-// NODE_ENV=production. The modules imported above are evaluated before any statement of this
-// file, and none of them opens a connection, so a refused seed reaches no database. A module that
-// cannot be loaded ends the run with the loader's error before this point.
+// The guard runs here, once the env file is loaded: the file fills a variable the process left
+// unset, so it may be what sets NODE_ENV=production. The modules imported above are pure and are
+// evaluated before any statement of this file; every other module is loaded below, after both
+// rules, so a refused seed loads no database client and opens no connection, and a module that
+// cannot be loaded does not hide the guard's reason.
 const seedVerdict = evaluateSeedEnvironment(process.env);
 if (!seedVerdict.allowed) {
   process.stderr.write(`${seedVerdict.reason}\n`);
@@ -48,6 +43,15 @@ if (!adminPasswordVerdict.allowed) {
   process.exit(1);
 }
 const adminPassword = adminPasswordVerdict.password;
+
+// Loaded only now, once the env file is: the logger reads LOG_LEVEL when its module is evaluated,
+// so a level the file alone sets applies to it.
+const { PrismaClient, Provider, TrackedTermKind } =
+  await import("./generated/prisma/client/client.js");
+const { default: argon2 } = await import("argon2");
+const { PrismaPg } = await import("@prisma/adapter-pg");
+const { createLogger } = await import("@observability/logger");
+const { SEED_ARGON2_PARAMS } = await import("./src/seedPasswordHashing.js");
 
 const logger = createLogger("seed");
 
@@ -154,6 +158,21 @@ async function seedProjectByAccountAndName(
   return existing
     ? prisma.project.update({ where: { id: existing.id }, data: update })
     : prisma.project.create({ data: create });
+}
+
+/**
+ * @description The nested write that inserts a role's permission rows, skipping each row the role
+ *   already holds, for an administration role and a customer role alike.
+ * @param permissions - The permissions the role is granted
+ * @returns The `createMany` of the role's `permissions` relation
+ */
+function permissionRows(permissions: readonly string[]) {
+  return {
+    createMany: {
+      data: permissions.map((permission) => ({ permission })),
+      skipDuplicates: true,
+    },
+  };
 }
 
 async function main() {
@@ -477,7 +496,7 @@ async function main() {
   }
 
   // Upsert system roles and their permissions before creating the admin user
-  const systemRoles = [
+  const systemRoles: readonly AdminSystemRole[] = [
     SUPER_ADMIN_ROLE,
     {
       id: "role-admin",
@@ -520,12 +539,20 @@ async function main() {
     },
   ];
 
+  // Each role and its permission rows are one nested write, which Prisma runs as one transaction,
+  // so a run that dies while it writes a role leaves the role as it was before the run. The update
+  // deletes the rows the definition no longer holds and inserts the ones it lacks.
   for (const roleDef of systemRoles) {
+    const grant = permissionRows(roleDef.permissions);
     await prisma.role.upsert({
       where: { id: roleDef.id },
       update: {
         description: roleDef.description,
         level: roleDef.level,
+        permissions: {
+          deleteMany: { permission: { notIn: [...roleDef.permissions] } },
+          ...grant,
+        },
       },
       create: {
         id: roleDef.id,
@@ -534,16 +561,9 @@ async function main() {
         level: roleDef.level,
         isSystem: roleDef.isSystem,
         isActive: true,
+        permissions: grant,
       },
     });
-
-    // Delete existing permissions and re-insert (idempotent)
-    await prisma.rolePermission.deleteMany({ where: { roleId: roleDef.id } });
-    for (const perm of roleDef.permissions) {
-      await prisma.rolePermission.create({
-        data: { roleId: roleDef.id, permission: perm },
-      });
-    }
   }
 
   // Customer-side RBAC roles (scoped to CustomerUser within an Account).
@@ -750,12 +770,18 @@ async function main() {
     },
   ];
 
+  // One nested write per role, as for the administration roles above.
   for (const roleDef of customerSystemRoles) {
+    const grant = permissionRows(roleDef.permissions);
     await prisma.customerRole.upsert({
       where: { id: roleDef.id },
       update: {
         description: roleDef.description,
         level: roleDef.level,
+        permissions: {
+          deleteMany: { permission: { notIn: [...roleDef.permissions] } },
+          ...grant,
+        },
       },
       create: {
         id: roleDef.id,
@@ -764,15 +790,9 @@ async function main() {
         level: roleDef.level,
         isSystem: roleDef.isSystem,
         isActive: true,
+        permissions: grant,
       },
     });
-
-    await prisma.customerRolePermission.deleteMany({ where: { roleId: roleDef.id } });
-    for (const perm of roleDef.permissions) {
-      await prisma.customerRolePermission.create({
-        data: { roleId: roleDef.id, permission: perm },
-      });
-    }
   }
   logger.info(
     {
@@ -783,12 +803,7 @@ async function main() {
   );
 
   // Seed SUPER_ADMIN user for local development
-  const hashedPassword = await argon2.hash(adminPassword, {
-    type: argon2.argon2id,
-    memoryCost: 65536,
-    timeCost: 3,
-    parallelism: 4,
-  });
+  const hashedPassword = await argon2.hash(adminPassword, SEED_ARGON2_PARAMS);
 
   const adminUser = await prisma.adminUser.upsert({
     where: { email: "admin@omnipost.local" },
@@ -843,7 +858,7 @@ async function main() {
       name: "Starter",
       slug: "starter",
       description: "X + Instagram + Facebook",
-      providers: ["X", "INSTAGRAM", "FACEBOOK"],
+      providers: [Provider.X, Provider.INSTAGRAM, Provider.FACEBOOK],
       pricePerAccountMonth: 20.0,
       sortOrder: 1,
       maxPostsPerMonth: 100,
@@ -853,7 +868,14 @@ async function main() {
       name: "Growth",
       slug: "growth",
       description: "Starter + LinkedIn + TikTok + YouTube",
-      providers: ["X", "INSTAGRAM", "FACEBOOK", "LINKEDIN", "TIKTOK", "YOUTUBE"],
+      providers: [
+        Provider.X,
+        Provider.INSTAGRAM,
+        Provider.FACEBOOK,
+        Provider.LINKEDIN,
+        Provider.TIKTOK,
+        Provider.YOUTUBE,
+      ],
       pricePerAccountMonth: 40.0,
       sortOrder: 2,
       maxPostsPerMonth: 500,
@@ -864,17 +886,17 @@ async function main() {
       slug: "agency-full",
       description: "All 11 providers",
       providers: [
-        "X",
-        "INSTAGRAM",
-        "FACEBOOK",
-        "YOUTUBE",
-        "TIKTOK",
-        "LINKEDIN",
-        "PINTEREST",
-        "SNAPCHAT",
-        "TELEGRAM",
-        "BLUESKY",
-        "THREADS",
+        Provider.X,
+        Provider.INSTAGRAM,
+        Provider.FACEBOOK,
+        Provider.YOUTUBE,
+        Provider.TIKTOK,
+        Provider.LINKEDIN,
+        Provider.PINTEREST,
+        Provider.SNAPCHAT,
+        Provider.TELEGRAM,
+        Provider.BLUESKY,
+        Provider.THREADS,
       ],
       pricePerAccountMonth: 60.0,
       sortOrder: 3,
@@ -925,7 +947,7 @@ async function seedTestAccounts() {
   const daysFromNow = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
   const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-  const ALL_PROVIDERS: Provider[] = [
+  const ALL_PROVIDERS: $Enums.Provider[] = [
     Provider.X,
     Provider.INSTAGRAM,
     Provider.FACEBOOK,
@@ -1072,21 +1094,10 @@ async function seedTestAccounts() {
     },
   ];
 
-  // Canonical Argon2id params — mirror of apps/api/src/auth/passwordHashing.ts
-  // ARGON2_PARAMS. Drift between the two is a bug; keep them in sync. Bumping
-  // here without bumping the helper (or vice-versa) breaks transparent rehash
-  // on login because `needsRehash` compares against the helper's params.
-  const ARGON2_CANON = {
-    type: argon2.argon2id,
-    memoryCost: 65536,
-    timeCost: 3,
-    parallelism: 4,
-    hashLength: 32,
-  } as const;
   const TEST_CUSTOMER_PASSWORD = "TestPassword123!";
   // Hash once — every real-password test customer reuses this. Argon2id with
   // m=64MiB/t=3/p=4 takes ~300ms; doing 50 hashes would add ~15s to seed.
-  const testCustomerHash = await argon2.hash(TEST_CUSTOMER_PASSWORD, ARGON2_CANON);
+  const testCustomerHash = await argon2.hash(TEST_CUSTOMER_PASSWORD, SEED_ARGON2_PARAMS);
 
   type TestUserRole = {
     suffix: "owner" | "manager" | "member1" | "member2" | "viewer";

@@ -10,7 +10,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import { Queue, type DefaultJobOptions } from "bullmq";
 import type { Redis } from "ioredis";
-import { createLogger } from "@observability/logger";
+import { createLogger, createThrottledErrorListener } from "@observability/logger";
 
 import {
   createCircuitBreaker,
@@ -69,6 +69,12 @@ export type BullMQQueueAdapter = QueuePort & {
   close(): Promise<void>;
 };
 
+/**
+ * @description Builds the `QueuePort` adapter over one BullMQ queue on the injected
+ *              connection, with its circuit breakers, retries and the queue's `error` listener.
+ * @param options - Queue name, the composition-root-owned connection and default job options.
+ * @returns The adapter; `close()` closes the queue and never the connection.
+ */
 export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): BullMQQueueAdapter {
   if (options.connection === undefined) {
     throw new Error(
@@ -86,6 +92,11 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
       defaultJobOptions: options.defaultJobOptions,
     }),
   });
+  // BullMQ re-emits every error of its Redis connection from the queue. With no listener,
+  // BullMQ catches the unhandled `error` and writes it with console.error, outside the
+  // structured logger; while Redis is down the connection errs on every reconnection attempt,
+  // so the listener is throttled.
+  queue.on("error", createThrottledErrorListener(logger, `bullmq-queue:${options.queueName}`));
   const metricsCollector = new MetricsCollector();
 
   const enqueueBreaker = createCircuitBreaker(

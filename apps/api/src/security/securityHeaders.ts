@@ -1,28 +1,22 @@
 /**
  * @file securityHeaders.ts
- * @description Security headers configuration applying helmet, CORS, HSTS, CSP,
+ * @description Security headers configuration applying helmet, HSTS, CSP,
  *              X-Frame-Options, and permissions policy to Fastify responses.
+ *              The API sends no CORS header: no browser calls it cross-origin,
+ *              since both portals call their own `/api/backend/*` and their
+ *              servers call the API. A feature that needs a cross-origin caller
+ *              defines its own policy for its routes.
  * @layer infrastructure
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import helmet from "@fastify/helmet";
-import cors from "@fastify/cors";
 import { logger } from "../lib/logger.js";
-import { env } from "../config/env.js";
 
 export interface SecurityConfig {
   contentSecurityPolicy: {
     enabled: boolean;
     directives?: Record<string, string | string[]>;
-  };
-  cors: {
-    enabled: boolean;
-    allowedOrigins: string[];
-    allowedMethods: string[];
-    allowedHeaders: string[];
-    allowCredentials: boolean;
-    maxAge: number;
   };
   hsts: {
     enabled: boolean;
@@ -59,29 +53,6 @@ export class SecurityManager {
           "upgrade-insecure-requests": [],
         },
       },
-      cors: {
-        enabled: true,
-        allowedOrigins: [
-          "http://localhost:3000",
-          "http://localhost:3100",
-          "http://localhost:3200",
-          "https://localhost:3000",
-          "https://localhost:3100",
-          "https://localhost:3200",
-        ],
-        allowedMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: [
-          "Content-Type",
-          "Authorization",
-          "X-Requested-With",
-          "Accept",
-          "Origin",
-          "Cache-Control",
-          "X-File-Name",
-        ],
-        allowCredentials: true,
-        maxAge: 86400, // 24 hours
-      },
       hsts: {
         enabled: true,
         maxAge: 31536000, // 1 year
@@ -107,7 +78,11 @@ export class SecurityManager {
   }
 
   /**
-   * Register security plugins with Fastify
+   * @method register
+   * @description Registers helmet and the hook that adds the custom security
+   *              headers to every response the app sends through `reply.send`.
+   * @param fastify - The app whose responses carry the headers
+   * @returns Resolves once both are registered
    */
   async register(fastify: FastifyInstance<any, any, any, any, ZodTypeProvider>): Promise<void> {
     // Register helmet for basic security headers
@@ -144,56 +119,11 @@ export class SecurityManager {
       },
     });
 
-    // Register CORS
-    if (this.config.cors.enabled) {
-      await fastify.register(cors, {
-        origin: this.config.cors.allowedOrigins,
-        methods: this.config.cors.allowedMethods,
-        allowedHeaders: this.config.cors.allowedHeaders,
-        credentials: this.config.cors.allowCredentials,
-        maxAge: this.config.cors.maxAge,
-      });
-    }
-
     // Add custom security headers
     fastify.addHook("onSend", async (request, reply, payload) => {
       this.addCustomHeaders(request, reply);
       return payload;
     });
-  }
-
-  /**
-   * Handle CORS origin validation
-   */
-  private handleCorsOrigin(
-    origin: string | undefined,
-    callback: (error: Error | null, allow?: boolean) => void
-  ): void {
-    // Allow requests with no origin (e.g., mobile apps, Postman)
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    // Check if origin is in allowed list
-    const isAllowed = this.config.cors.allowedOrigins.some((allowedOrigin) => {
-      if (allowedOrigin === "*") return true;
-      if (allowedOrigin === origin) return true;
-
-      // Support wildcard subdomains
-      if (allowedOrigin.startsWith("*.")) {
-        const domain = allowedOrigin.slice(2);
-        return origin.endsWith(domain);
-      }
-
-      return false;
-    });
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      logger.warn({ origin }, "CORS: Blocked origin");
-      callback(new Error(`CORS: Origin ${origin} not allowed`), false);
-    }
   }
 
   /**
@@ -289,7 +219,11 @@ export class SecurityManager {
   }
 
   /**
-   * Validate request for security issues
+   * @method validateRequest
+   * @description Checks a request's user agent, header size and URL against
+   *              known attack patterns.
+   * @param request - The request to check
+   * @returns Whether the request is clean, and the violations found
    */
   validateRequest(request: FastifyRequest): {
     isValid: boolean;
@@ -339,7 +273,11 @@ export class SecurityManager {
   }
 
   /**
-   * Create security validation middleware
+   * @method createSecurityMiddleware
+   * @description Builds a hook that stamps the request's start time, refuses a
+   *              request whose URL matches a malicious pattern with 400, and
+   *              adds the custom security headers.
+   * @returns The hook
    */
   createSecurityMiddleware() {
     return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -377,7 +315,10 @@ export class SecurityManager {
   }
 
   /**
-   * Update configuration at runtime
+   * @method updateConfig
+   * @description Replaces the top-level sections of the configuration that the
+   *              argument names; a section it omits keeps its current value.
+   * @param newConfig - The sections to replace
    */
   updateConfig(newConfig: Partial<SecurityConfig>): void {
     this.config = {
@@ -387,61 +328,11 @@ export class SecurityManager {
   }
 
   /**
-   * Get current security configuration
+   * @method getConfig
+   * @description Returns a shallow copy of the configuration in force.
+   * @returns The current configuration
    */
   getConfig(): SecurityConfig {
     return { ...this.config };
   }
 }
-
-/**
- * Pre-configured security setups
- */
-export const SecurityConfigs = {
-  development: {
-    contentSecurityPolicy: {
-      enabled: false, // Disabled for easier development
-    },
-    cors: {
-      enabled: true,
-      allowedOrigins: ["*"],
-      allowCredentials: false,
-    },
-    hsts: {
-      enabled: false,
-    },
-  },
-
-  production: {
-    contentSecurityPolicy: {
-      enabled: true,
-      directives: {
-        "default-src": ["'self'"],
-        "script-src": ["'self'"],
-        "style-src": ["'self'", "'unsafe-inline'"],
-        "img-src": ["'self'", "https:", "data:"],
-        "connect-src": ["'self'", "https:", "wss:"],
-        "font-src": ["'self'", "https:"],
-        "object-src": ["'none'"],
-        "base-uri": ["'self'"],
-        "form-action": ["'self'"],
-        "frame-ancestors": ["'none'"],
-        "upgrade-insecure-requests": [],
-      },
-    },
-    cors: {
-      enabled: true,
-      allowedOrigins: [
-        env.CLIENT_URL || "https://app.yourapp.com",
-        env.ADMIN_URL || "https://admin.yourapp.com",
-      ],
-      allowCredentials: true,
-    },
-    hsts: {
-      enabled: true,
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true,
-    },
-  },
-} as const;

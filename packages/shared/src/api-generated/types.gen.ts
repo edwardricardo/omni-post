@@ -1246,7 +1246,12 @@ export type PostAdminAuthLoginResponses = {
 };
 
 export type PostAdminAuthPasswordChangeRequiredData = {
-  body?: never;
+  body: {
+    email: string;
+    currentPassword: string;
+    newPassword: string;
+    mfaToken?: string;
+  };
   path?: never;
   query?: never;
   url: "/admin/auth/password/change-required";

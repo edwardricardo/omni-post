@@ -310,8 +310,8 @@ export class InMemoryAdminUserRepository implements AdminUserRepositoryPort {
    * @method replaceSingleUsePassword
    * @description Replace the hash and the change date of a stored user, and clear its pending
    *   password reset, only while it still has the given id, the hash and the reset token as
-   *   read, is marked to change the password and has no sign-in date, as the Prisma adapter's
-   *   guarded update does.
+   *   read, is marked to change the password, has no sign-in date and is active, as the Prisma
+   *   adapter's guarded update does.
    * @param replacement - The user, the hash and the reset token as read, and the new hash
    * @returns Ok(true) when the user matched and was written, Ok(false) otherwise
    */
@@ -324,7 +324,8 @@ export class InMemoryAdminUserRepository implements AdminUserRepositoryPort {
       existing.passwordHash !== replacement.currentPasswordHash ||
       existing.passwordResetToken !== replacement.currentPasswordResetToken ||
       !existing.mustChangePassword ||
-      existing.lastLoginAt !== null
+      existing.lastLoginAt !== null ||
+      !existing.isActive
     ) {
       return ok(false);
     }

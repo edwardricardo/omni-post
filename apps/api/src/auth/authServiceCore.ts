@@ -322,6 +322,8 @@ export class AuthServiceCore extends AuditableService {
 
       // The password must be changed first: refused only now, so the mark stays hidden from a
       // caller without the second factor, and before the session, so nothing of a sign-in lands.
+      // The second factor's code that verified above is therefore spent by this refusal, and the
+      // next attempt needs another.
       if (user.mustChangePassword) {
         await this.logUserAction(auditActor.admin(user.id), {
           action: "USER_LOGIN",

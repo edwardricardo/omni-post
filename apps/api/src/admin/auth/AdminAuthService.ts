@@ -16,6 +16,7 @@ import {
   type CheckLoginAttemptInput,
 } from "@ports/core";
 import { deriveActorType } from "@core/domain/repositories/AuditLogRepository.js";
+import { ADMIN_SESSION_REVOKE_REASONS } from "@core/domain/repositories/AdminSessionRepository.js";
 import type {
   AdminUserProfile,
   LoginRequest,
@@ -110,6 +111,9 @@ export class AdminAuthService {
     }
     const user = verified.value;
 
+    // Refused only after every check, the second factor's included, so a caller who holds the
+    // password but not the second factor never learns that the administrator is marked. The code
+    // that verified is therefore spent by this refusal, and the next attempt needs another.
     if (user.mustChangePassword) {
       await this.logSecurityEvent(
         this.deviceEventOf("LOGIN_FAILED", user, device, {
@@ -170,7 +174,8 @@ export class AdminAuthService {
    *   spends no second-factor code. The refusals that need the row (not marked, reused, the
    *   current password, the guarded write) come after the second factor, so a caller who holds
    *   the password but not the second factor learns neither whether the administrator is marked
-   *   nor anything of the password history.
+   *   nor anything of the password history; a refusal among them has therefore spent the code
+   *   that verified.
    * @param request - The e-mail, the current password, the new password, and the second
    *   factor's code when the administrator has one
    * @param device - The caller's device, whose address and agent the attempt records and the
@@ -201,7 +206,10 @@ export class AdminAuthService {
     }
 
     const admin = verified.value;
-    // The credentials were right, so this refusal records no failed attempt.
+    // The refusals from here on come after the second factor verified, so a caller who holds the
+    // password but not the second factor learns neither the mark nor anything of the password
+    // history; each of them has therefore spent the code. The credentials were right, so this
+    // refusal records no failed attempt.
     if (!admin.mustChangePassword) {
       return err("PASSWORD_CHANGE_NOT_REQUIRED");
     }
@@ -422,7 +430,7 @@ export class AdminAuthService {
         data: {
           isActive: false,
           revokedAt: new Date(),
-          revokeReason: "USER_LOGOUT",
+          revokeReason: ADMIN_SESSION_REVOKE_REASONS.USER_LOGOUT,
         },
       });
     } else if (sessionId) {
@@ -432,7 +440,7 @@ export class AdminAuthService {
         data: {
           isActive: false,
           revokedAt: new Date(),
-          revokeReason: "USER_LOGOUT",
+          revokeReason: ADMIN_SESSION_REVOKE_REASONS.USER_LOGOUT,
         },
       });
     }

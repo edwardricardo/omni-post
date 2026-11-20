@@ -8,7 +8,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import pino from "pino";
-import { createLogger } from "../src/index.js";
+import { createLogger, createThrottledErrorListener } from "../src/index.js";
 
 const MASK = "[REDACTED]";
 
@@ -156,4 +156,52 @@ describe("createLogger redaction", () => {
     expect(entry?.msg).toBe("mixed fields");
     expect(entry?.name).toBe("redaction-plain");
   });
+
+  it("masks the arguments of the command an error carries, under every key an error is logged", () => {
+    const { log, lines } = captureFromFactory("redaction-command-args");
+
+    log.error({ err: redisAuthFailure() }, "error under err");
+    log.error({ error: redisAuthFailure() }, "error under error");
+    log.error({ job: { err: redisAuthFailure() } }, "error one level down");
+
+    const written = JSON.stringify(lines());
+    expect(written).not.toContain(COMMAND_ARG_MARKER);
+    expect(lines().map((entry) => JSON.stringify(entry).includes('"name":"auth"'))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it("masks the command arguments three levels down: a deeper error, an array of errors, an AggregateError", () => {
+    const { log, lines } = captureFromFactory("redaction-command-args-deep");
+
+    log.error({ job: { attempt: { err: redisAuthFailure() } } }, "error two levels down");
+    log.error({ job: { errors: [redisAuthFailure()] } }, "array of errors one level down");
+    log.error({ err: new AggregateError([redisAuthFailure()], "failed") }, "aggregate error");
+
+    expect(lines()).toHaveLength(3);
+    expect(JSON.stringify(lines())).not.toContain(COMMAND_ARG_MARKER);
+  });
+
+  it("writes no command argument when the throttled listener logs an error", () => {
+    const { log, lines } = captureFromFactory("redaction-throttled-listener");
+
+    createThrottledErrorListener(log, "redis:test")(redisAuthFailure());
+
+    const [entry, ...rest] = lines();
+    expect(rest).toEqual([]);
+    expect(JSON.stringify(entry)).not.toContain(COMMAND_ARG_MARKER);
+    expect((entry?.err as { command?: unknown } | undefined)?.command).toBe("auth");
+  });
 });
+
+/** A value no written line may hold: it stands for the password an AUTH command carries. */
+const COMMAND_ARG_MARKER = "fake-redis-password-marker";
+
+/** An error as ioredis emits it when AUTH fails: the command, with its arguments, attached. */
+function redisAuthFailure(): Error {
+  const error = new Error("WRONGPASS invalid username-password pair");
+  error.name = "ReplyError";
+  return Object.assign(error, { command: { name: "auth", args: [COMMAND_ARG_MARKER] } });
+}

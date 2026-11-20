@@ -77,6 +77,14 @@ export const REDACT_PATHS: readonly string[] = Object.freeze([
   // Two levels down, a provider configuration inside a request context.
   "*.*.token",
   "*.*.secret",
+  // The arguments of the Redis command an error failed on: ioredis attaches `command.args` to
+  // the error it emits, and pino's error serializer copies it, so on an AUTH failure the line
+  // holds the password. An error is logged at the top level (`err`, `error`) or one level down;
+  // the third path reaches an error two levels down, an array of errors one level down and the
+  // nested errors of an AggregateError, which the serializer writes under `aggregateErrors`.
+  "*.command.args",
+  "*.*.command.args",
+  "*.*.*.command.args",
   "req.headers.authorization",
   "req.headers.cookie",
   // Use bracket notation for hyphenated keys
@@ -117,3 +125,15 @@ export function createLogger(name: string): pino.Logger {
 }
 
 export type { Logger } from "pino";
+export {
+  CONNECTION_ERROR_LOG_WINDOW_MS,
+  MAX_NESTED_DEPTH,
+  MAX_NESTED_ERRORS,
+  MAX_TRACKED_ERROR_IDENTITIES,
+  createThrottledErrorListener,
+  createThrottledWorkerErrorListener,
+  logConnectionErrors,
+  type ConnectionEventSource,
+  type ErrorLogSink,
+  type ThrottledErrorListener,
+} from "./throttledErrorListener.js";
