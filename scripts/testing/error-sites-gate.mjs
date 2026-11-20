@@ -64,8 +64,13 @@
  *   rule's birth, restarts the stall's window although nothing was fixed. The stall issue is never
  *   closed by the gate. The stall job runs on the runner's own Node, and the script uses nothing
  *   newer than Node 20. The step of fitness #57 compares with the pull request's base sha, as #37
- *   does, so a base that lags the merge ref's first parent is a false red and never a silent pass.
- *   A file deleted and added again, rewritten, under a source root the scope excludes whole leaves
+ *   does, and the head is the merge ref. A base that lags the merge ref's first parent reads the
+ *   main branch's later changes as the pull request's: S9 can then refuse a count that differs once
+ *   the main branch changed the rule's files, and S10 a row of the main branch beside the pull
+ *   request's or beside a count it does not cover, both false reds; and S7 can pass a count the
+ *   pull request lowered in a file it did not edit when the main branch edited that file after the
+ *   base. The battery's base can lead the branch's merge base instead, where S6 also names the main
+ *   branch's later falls as rises and S10 its later rows as deleted. A file deleted and added again, rewritten, under a source root the scope excludes whole leaves
  *   the list with no conversion, and nothing refuses a backend import of such a package: those
  *   roots are the fronts (`apps/admin`, `apps/client`, `packages/ui`, `packages/api-errors`,
  *   `packages/i18n`, `packages/query-client`, `packages/observability/browser-logger`) and the

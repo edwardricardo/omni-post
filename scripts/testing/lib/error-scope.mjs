@@ -41,7 +41,12 @@ export const EXCLUSION_KIND = Object.freeze({
   WHOLE_ROOT: "whole-root",
 });
 
-/** The files of every `errors/` rule's block: the four TypeScript extensions. */
+/**
+ * The files of every `errors/` rule's block: the four TypeScript extensions. The block of
+ * `eslint.config.ts` that gives a file the TypeScript parser names `.ts` and `.tsx` only, so the
+ * first `.mts` or `.cts` file of the scope fails the sites gate's S4, its parser not the one the
+ * gate holds, until that block names the extension too.
+ */
 export const ERROR_SCOPE_FILES = Object.freeze(["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"]);
 
 /**
@@ -76,6 +81,10 @@ export const ERROR_SCOPE_EXCLUSIONS = Object.freeze({
     ...entries(EXCLUSION_KIND.DECLARATION, "Declaration files hold no executable code", [
       "**/*.d.{ts,mts,cts}",
     ]),
+    // `packages/*/*/tests/**` names a grouped package's tests directory and, at the same depth,
+    // `packages/<package>/src/tests/` too, which the reason means to leave in scope. No such
+    // directory exists; once one does, S4 refuses this entry for taking files under a `src`
+    // directory, and the import rule of .dependency-cruiser.cjs refuses an import of them.
     ...entries(EXCLUSION_KIND.OUTSIDE_SRC, TESTS_BESIDE, [
       "apps/*/tests/**",
       "packages/*/tests/**",

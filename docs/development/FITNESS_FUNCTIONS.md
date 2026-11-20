@@ -2307,17 +2307,20 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # catalogs; the history, through the sites gate's own reader; and the tracked files of the
 # rule's scope. R1 every domains/<name>.ts has a name of the grammar
 # `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and exports one table, <NAME>_ERRORS, whose entries are of that
-# domain, and ERROR_TABLES holds every domain file's table once; R2 every key matches
+# domain, domains/ holds nothing but such files, and ERROR_TABLES holds every domain file's table
+# once; R2 every key matches
 # `^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, is at most 63 characters and is its entry's code; R3 no code is
 # in two tables; R4 the category is one of the twelve and the status one of its statuses; R5 the
 # message is one line that is not blank and holds a letter outside its placeholders, and its
 # `{name}` placeholders are exactly the declared parameters; R6 parameter names match
-# `^[a-z][A-Za-z0-9]*$`, kinds are string, number, boolean or string[], and `fronts` names each
-# portal the tree holds at most once; R7 a portal whose default locale's catalog holds
-# `errorCodes` is enrolled, and every catalog of it holds a text for each code that names it and
-# for nothing else, reading only that code's declared parameters, a number or a plural only a
-# number one, a select only a string or boolean one, and no tag; R8 every code is read in code as
-# `<TABLE>.<CODE>` in a file of the scope outside the registry directory; R9
+# `^[a-z][A-Za-z0-9]*$`, kinds are string, number, boolean or string[], and `fronts` is a list
+# that names each portal at most once and only portals the tree holds; R7 a portal whose default
+# locale's catalog holds `errorCodes` is enrolled, and every catalog of it holds a text for each
+# code that names it and for nothing else, reading only that code's declared parameters, a number
+# or a plural only a number one, a select only a string or boolean one, no date or time, and no
+# tag; R8 every code is read in code as `<TABLE>.<CODE>`, or through a namespace as
+# `ns.<TABLE>.<CODE>`, in a file of the scope outside the registry directory, a comment, a string
+# and a computed member being no reference; R9
 # docs/api/ERROR_CODES.md is byte for byte what scripts/testing/lib/error-reference-page.mjs
 # renders from the registry and the history (`--write` rewrites it); R10 the word `defineErrors`
 # occurs in no file of the scope outside the registry directory, in code, a string or a comment;
@@ -2329,9 +2332,9 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # (`ESLint#isPathIgnored`, `ESLint#calculateConfigForFile`); the rule package's manifest and
 # sources; and the portals' catalogs. Always: S1 every path of the baseline is a regular file git
 # tracks; S2 it is in its rule's scope; S3 the history exists exactly while the baseline holds an
-# `errors/` entry, every row is a birth or a row of fixed and moved sites, every rule with entries
-# is born once, and the births minus everything fixed equal, per context, what the baseline
-# yields; S4 the list of exclusions names only what exists, an entry of kind outside-src takes no
+# `errors/` entry, every row is a birth or a row of fixed and moved sites, every rule born is one
+# the gate holds and is born once, every rule with entries is born, and the births minus
+# everything fixed equal, per context, what the baseline yields; S4 the list of exclusions names only what exists, an entry of kind outside-src takes no
 # file under a `src` directory and every entry carries what its kind claims, no JavaScript file
 # lies under a `src` directory outside an excluded root, the plugin's package exports its `src`
 # and its `src` imports nothing outside itself but the allowed built-ins, the rule's `bodyWriter`
@@ -2366,15 +2369,18 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # base's count, the head's and the command that lowers it, and a missing row the `--record`
 # command that writes it.
 # FAIL-CLOSED, exit 3, which wins over 1 and prints the verdicts too. The registry gate: a root
-# that is not a directory; an exclusion list that is not a non-empty list of entries the matcher
-# reads; fewer than two portals; a routing file or a catalog that cannot be read, a default locale
-# with no catalog, or a text of an enrolled portal that is not valid ICU; domains/ missing or
-# holding no <name>.ts; the barrel or a domain file that cannot be loaded; ERROR_TABLES missing,
-# not an array or empty; a history its reader cannot read; the page unreadable for a reason other
-# than its absence; `git ls-files` failing or listing no source file of the scope, or a file of the
-# scope that cannot be read. The sites gate: `git ls-files` failing or listing nothing;
-# eslint-suppressions.json or a history entry, on the head or the base, that cannot be read, is
-# not JSON or is not its shape; a held rule with no list or no options; a glob the matcher does not
+# that is not a directory; an exclusion list that is not a non-empty list of entries, each with a
+# glob the matcher reads and a known kind; fewer than two portals; a routing file that cannot be
+# read or holds no one `defaultLocale` line; a catalog that is not JSON or not an object, a default
+# locale with no catalog, or a text of an enrolled portal that is not valid ICU; domains/ missing
+# or holding no <name>.ts; the barrel or a domain file that cannot be loaded; ERROR_TABLES
+# missing, not an array or empty; a history its reader cannot read, or a row it reports that is not
+# the format of its rows; the page unreadable for a reason other than its absence; `git ls-files`
+# failing or listing no source file of the scope, or a file of the scope that cannot be read; and
+# the command that cannot load the sites gate's reader. The sites gate: `git ls-files` failing or
+# listing nothing; eslint-suppressions.json, on the head or the base, that cannot be read, is not
+# JSON or is not ESLint's shape for an `errors/` entry (a missing file is no entry, as ESLint reads
+# it), or a history entry, on either side, that is no row file, is not JSON or is not a row; a held rule with no list or no options; a glob the matcher does not
 # read; ESLint's configuration that cannot be resolved; the plugin's manifest, a source file or a
 # catalog that cannot be read; a base that cannot be resolved; a git call against the base that
 # fails for a reason other than a path absent there. A check that needs an input that was not read
@@ -2402,11 +2408,30 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # (`process.getBuiltinModule`) is not seen; a file deleted and added again under a root the scope
 # excludes whole (the fronts and the tooling packages) leaves the list with no conversion, and
 # nothing refuses a backend import of such a package; a push with no pull request has no base,
-# and branch protection is what stops it; a base ahead of the branch's merge base, as origin/main
-# can be in the battery, reads the main branch's later changes as the branch's: S6 and S10 then
-# name false reds, and S7 can read a change of content the branch did not make; in CI the base is
-# the pull request's base sha, as for #37, so a base that lags the merge ref's first parent is a
-# false red and never a silent pass. Of the stall: a row's date is what its author wrote, the
+# and branch protection is what stops it. A base other than the merge base of what is compared
+# reads the main branch's changes after the merge base as the change's own. In the battery the
+# head is the branch and the base can be an origin/main ahead of its merge base: S6 can then name
+# a count the main branch lowered since as a rise, S10 a row it added since as deleted, and S9 any
+# count that differs once it changed the rule's files since, all false reds. In CI the base is the
+# pull request's base sha, as for #37, and the head the merge ref: when that base lags the merge
+# ref's first parent, S9 can name a false red the same way, and S10 one when the main branch's
+# later row sits beside the pull request's or beside a count it does not cover. Either way S7 can
+# pass: a count the change lowered in a file it did not edit reads as a fall with changed content
+# when the main branch edited that file since, so a count lowered by something S4 and S9 do not
+# watch (a parser's version in the lockfile, for one) is not refused. The import rule that keeps
+# production from importing test code, `production-imports-no-test-code` of
+# .dependency-cruiser.cjs, takes as origins only the modules under a `src` directory of the roots
+# it cruises and the infrastructure modules reached from them: the files of the scope outside a
+# `src` directory (infra/prisma/seed.ts, infra/prisma/prisma.config.ts, infra/prisma/scripts/*,
+# apps/api/vitest.coverage-thresholds.ts) are no origins, and an import through a variable or
+# through `createRequire` is not seen. The parser block of eslint.config.ts names `.ts` and `.tsx`
+# only, so the first `.mts` or `.cts` file of the scope turns S4 red, its parser not the one the
+# gate holds, until that block names the extension: it fails closed. The exclusion
+# `packages/*/*/tests/**` of the scope list, and `TESTS_BESIDE_SOURCE` of .dependency-cruiser.cjs,
+# match a grouped package's `tests` directory and also `packages/<package>/src/tests/`, which the
+# list means to leave in scope; no such directory exists, and once one does S4 turns red on its
+# files and the import rule refuses an import of them (the plan item
+# TESTS-BESIDE-SOURCE-GLOBS-MATCH-A-PACKAGE-SRC-TESTS-DIRECTORY). Of the stall: a row's date is what its author wrote, the
 # clock read only to refuse a date after today, and `--stalled` trusts it; two runs of one day
 # that read different counts both comment; it says the list moved inside the window, not that its
 # pace is enough, and it blocks no merge; scripts/testing/lib/issue-reminder.mjs, which it calls
