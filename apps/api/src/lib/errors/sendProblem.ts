@@ -50,8 +50,11 @@ function failureFields(error: unknown): ErrorFields | ValueFields {
 
 /**
  * @description Answers a failure with the API's one error body, at the problem's status, with the
- *   headers the failure needs, and logs it once at the answer's severity. A reply already sent is
- *   left as it is, and the line says the failure came after the answer.
+ *   headers the failure needs, and logs it once at the answer's severity. A reply whose answer has
+ *   ended, or that a handler hijacked, is left as it is, and the line says the failure came after
+ *   the answer. That is what the framework's `reply.sent` reads: a `send` still in its `onSend`
+ *   hooks is not seen, by this function or by the framework's own second `send`, and the problem
+ *   then replaces that answer's status and content type.
  * @param request - The request that failed; its correlation id, or its id when no hook set one,
  *   stamps the problem and the log line.
  * @param reply - The reply the problem is sent on.

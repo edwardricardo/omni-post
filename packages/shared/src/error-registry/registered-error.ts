@@ -164,7 +164,10 @@ export function resolveOccurrence<D extends RegisteredDefinition>(
  * `definition` and `params` are own fields that no enumeration reaches, as the runtime defines an
  * error's `message` and `cause`: a logger's error serializer copies every enumerable field, and it
  * takes the frozen definition, which has a string `message`, for an error it then cannot tag. A
- * copy made by spreading the error therefore keeps its code and leaves both fields behind.
+ * copy made by spreading the error therefore keeps its code and leaves both fields behind:
+ * resolved again, such a copy reads its definition from the registry by its code, and a message
+ * that declares parameters shows each placeholder as written, as it does for any coded error that
+ * carries no parameters.
  */
 export class RegisteredError extends Error implements CodedError {
   public readonly code: string;
