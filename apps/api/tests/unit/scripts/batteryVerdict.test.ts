@@ -352,6 +352,70 @@ describe("battery verdict", () => {
         ],
       });
     });
+
+    /** A package logger's record as pino writes it by default: the level as its number, first. */
+    const numericRecord = (level: number, msg: string): string =>
+      `{"level":${String(level)},"time":1795169176909,"pid":2419379,"hostname":"dev","name":"health-checks","msg":"${msg}"}`;
+
+    it("returns GREEN over the application's records at warn with the level as pino's number, and counts them per message", async () => {
+      const outDir = makeLogDir({
+        logs: {
+          "api-1.log": [
+            numericRecord(40, "Health alert: warning - cache is degraded"),
+            numericRecord(40, "Health alert: warning - cache is degraded"),
+            numericRecord(40, "queue paused"),
+            "Test Files  2 passed (2)",
+            "",
+          ].join("\n"),
+        },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.reasons).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+      expect(verdict.appWarnRecords).toEqual({
+        total: 3,
+        messages: [
+          { msg: "Health alert: warning - cache is degraded", count: 2 },
+          { msg: "queue paused", count: 1 },
+        ],
+      });
+    });
+
+    it.each([
+      ["a record at info that names a warning", numericRecord(30, "a warning was raised")],
+      ["a record at error that names a warning", numericRecord(50, "a warning was raised")],
+      [
+        "a warn record after another tool's text",
+        `vite: warning ${numericRecord(40, "queue paused")}`,
+      ],
+      [
+        "a warn record followed by another tool's text",
+        `${numericRecord(40, "queue paused")} warning: unused variable`,
+      ],
+      ["a line that starts as a warn record and is cut", '{"level":40,"time":1,"msg":"a warning'],
+      [
+        "a warn record that names a warning after a leading space",
+        ` ${numericRecord(40, "a warning was raised")}`,
+      ],
+      [
+        "a warn record that another tool's JSON line holds",
+        '{"tool":"x","record":{"level":40,"msg":"a warning was raised"}}',
+      ],
+      [
+        "a cut warn record that a whole record follows on the line",
+        '{"level":40,"time":1,"msg":"cut{"level":30,"msg":"a warning was raised"}',
+      ],
+    ])("returns RED over %s", async (_form, line) => {
+      const outDir = makeLogDir({ logs: { "api-1.log": `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "api-1.log", line: 2, text: line }]);
+      expect(verdict.appWarnRecords.total).toBe(0);
+    });
   });
 
   describe("missing inputs", () => {
