@@ -42,7 +42,7 @@ Legend:
 
 The data-retention task is registered in
 `apps/api/src/index.ts:943-950` (the outbox has its own hourly `OutboxCleaner`,
-started at `:901`):
+started at `:880`):
 
 ```typescript
 scheduler.register(
