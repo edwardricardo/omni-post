@@ -27,7 +27,7 @@
 import { once } from "node:events";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { connect, type AddressInfo, type Socket } from "node:net";
-import { PassThrough } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { HTTP_ERRORS } from "@shared/types";
@@ -75,6 +75,12 @@ let lateRelease: Deferred<void> = createDeferred<void>();
 let lateWritten: Deferred<void> = createDeferred<void>();
 /** The responses the route `/hijack-stream` writes on, for the case to end. */
 const hijackedStreams: ServerResponse[] = [];
+/** The sources the route `/stream-then-fail` answers with, for the case to fail. */
+const failingSources: Readable[] = [];
+/** Settled once the response of `/stream-then-fail` or `/destroyer` has emitted `close`. */
+let answerClosed: Deferred<void> = createDeferred<void>();
+/** Settled once the route `/fast` has ended its answer. */
+let fastEnded: Deferred<void> = createDeferred<void>();
 /** The ids of the requests whose answers the current case's server has sent, in order. */
 const answered: string[] = [];
 
@@ -126,6 +132,23 @@ function serverAsTheAppBuildsIt(): FastifyInstance {
     reply.raw.writeHead(200, { "content-type": "text/plain" });
     reply.raw.write("first chunk");
     hijackedStreams.push(reply.raw);
+  });
+  app.get("/stream-then-fail", (_request, reply) => {
+    const source = new Readable({ read: () => undefined });
+    source.push("first chunk");
+    failingSources.push(source);
+    reply.raw.once("close", () => answerClosed.resolve());
+    return reply.type("text/plain").send(source);
+  });
+  app.get("/destroyer", (_request, reply) => {
+    reply.raw.once("close", () => answerClosed.resolve());
+    reply.hijack();
+    reply.raw.destroy();
+  });
+  app.get("/fast", (_request, reply) => {
+    reply.send({ fast: true });
+    fastEnded.resolve();
+    return reply;
   });
   // Never answers, so a case holds a request in flight for as long as the case lasts.
   app.get("/hang", async () => new Promise<never>(() => undefined));
@@ -403,6 +426,9 @@ beforeEach(() => {
   lateRelease = createDeferred<void>();
   lateWritten = createDeferred<void>();
   hijackedStreams.splice(0);
+  failingSources.splice(0);
+  answerClosed = createDeferred<void>();
+  fastEnded = createDeferred<void>();
   vi.clearAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(fixedClock());
@@ -1424,6 +1450,266 @@ describe("a connection whose request cannot be read, on the server createServer 
     ]);
     expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
     expect(await connectionsOf(app)).toBe(0);
+  });
+
+  describe("behind a response destroyed before it finished", () => {
+    /** Fastify's own line for a stream that fails once its response's head is sent. */
+    const STREAM_LINE = "response terminated with an error with headers already sent";
+
+    /**
+     * @description Opens a connection holding `/slow` and, queued behind it, `/stream-then-fail`,
+     *   whose source then fails, so Fastify destroys that response before it finishes.
+     * @returns The connection and what it receives.
+     */
+    async function behindADestroyedResponse() {
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write(
+        "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /stream-then-fail HTTP/1.1\r\nHost: localhost\r\n\r\n"
+      );
+      await until(() => failingSources.length === 1, { description: "the stream answered" });
+      failingSources[0]?.destroy(new Error("the source failed"));
+      await answerClosed.promise;
+      return { socket, received };
+    }
+
+    it("answers a message that fails after it once the earlier answer still running ends, in arrival order, naming that request", async () => {
+      const lines = recordFailureLines(app);
+      const { socket, received } = await behindADestroyedResponse();
+      const failed = once(app.server, "clientError");
+      socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+      await failed;
+
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+      const refusal = raw.indexOf("HTTP/1.1 400 Bad Request");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "200",
+        "400",
+      ]);
+      expect([
+        raw.indexOf('{"slow":true}') < raw.indexOf("first chunk"),
+        raw.indexOf("first chunk") < refusal,
+      ]).toEqual([true, true]);
+      expect(lines.warn.mock.calls).toEqual([
+        [expect.anything(), STREAM_LINE],
+        followingLine(
+          HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+          { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+          routed[0]?.id
+        ),
+      ]);
+    });
+
+    it("keeps waiting when the answer it waits for is destroyed, until the earlier answer still running ends", async () => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write(
+        "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /stream-then-fail HTTP/1.1\r\nHost: localhost\r\n\r\n"
+      );
+      await until(() => failingSources.length === 1, { description: "the stream answered" });
+      const failed = once(app.server, "clientError");
+      socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+      await failed;
+
+      // The answer the refusal waits for is destroyed before it finishes.
+      failingSources[0]?.destroy(new Error("the source failed"));
+      await answerClosed.promise;
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "200",
+        "400",
+      ]);
+      expect(raw.indexOf('{"slow":true}') < raw.indexOf("HTTP/1.1 400")).toBe(true);
+      expect(lines.warn.mock.calls).toEqual([
+        [expect.anything(), STREAM_LINE],
+        followingLine(
+          HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+          { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+          routed[0]?.id
+        ),
+      ]);
+    });
+
+    it("answers a request whose body breaks after it once the earlier answer still running ends, under its own id, naming that request", async () => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write(
+        "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /stream-then-fail HTTP/1.1\r\nHost: localhost\r\n\r\nPOST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+      );
+      await until(() => failingSources.length === 1 && routed.length === 3, {
+        description: "three requests routed",
+      });
+      failingSources[0]?.destroy(new Error("the source failed"));
+      await answerClosed.promise;
+      const failed = once(app.server, "clientError");
+      socket.write("zz\r\n");
+      await failed;
+
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "200",
+        "400",
+      ]);
+      expect(lines.warn.mock.calls).toEqual([
+        [expect.anything(), STREAM_LINE],
+        [
+          expect.objectContaining({
+            code: "REQUEST_BODY_FRAMING_NOT_PARSABLE",
+            correlationId: routed[2]?.id,
+            method: "POST",
+            url: "/echo",
+            inFlightCorrelationId: routed[0]?.id,
+          }),
+          "Request failed",
+        ],
+      ]);
+    });
+
+    it("answers a CONNECT after it once the earlier answer still running ends, naming that request", async () => {
+      const lines = recordFailureLines(app);
+      const { socket, received } = await behindADestroyedResponse();
+      const tunnel = once(app.server, "connect");
+      socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+      await tunnel;
+
+      slowRelease.resolve();
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "200",
+        "501",
+      ]);
+      expect(lines.error.mock.calls).toEqual([
+        [
+          expect.objectContaining({
+            code: "CONNECT_NOT_IMPLEMENTED",
+            inFlightCorrelationId: routed[0]?.id,
+          }),
+          "Request failed",
+        ],
+      ]);
+    });
+
+    it("answers at once, naming no request, a message that fails after a hijacked response its route destroyed once every earlier answer has ended", async () => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.write(
+        "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /destroyer HTTP/1.1\r\nHost: localhost\r\n\r\n"
+      );
+      await answerClosed.promise;
+      slowRelease.resolve();
+      await until(() => answered.length === 1, { description: "the first answer sent" });
+
+      socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+      await once(socket, "close");
+      const raw = Buffer.concat(received).toString("utf8");
+      const body = JSON.parse(responseOf(raw.slice(raw.indexOf("HTTP/1.1 400"))).body);
+
+      expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+        "",
+        "200",
+        "400",
+      ]);
+      expect(lines.warn.mock.calls).toEqual([
+        connectionLine(HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE, body.correlationId, {
+          name: "Error",
+          message: "Parse Error: Invalid method encountered",
+          code: "HPE_INVALID_METHOD",
+        }),
+      ]);
+    });
+
+    it("ends its side once the client ends its own, with one line naming the earlier request it waited for", async () => {
+      const lines = recordFailureLines(app);
+      const socket = connect({ host: HOST, port });
+      const received: Buffer[] = [];
+      socket.on("data", (chunk: Buffer) => received.push(chunk));
+      socket.on("error", () => undefined);
+      socket.write(
+        "GET /hang HTTP/1.1\r\nHost: localhost\r\n\r\nGET /destroyer HTTP/1.1\r\nHost: localhost\r\n\r\n"
+      );
+      await answerClosed.promise;
+      const failed = once(app.server, "clientError");
+      socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+      await failed;
+
+      socket.end();
+      await until(async () => (await connectionsOf(app)) === 0, {
+        description: "the server's connection closed",
+      });
+      await until(() => lines.warn.mock.calls.length === 1, { description: "the failure's line" });
+
+      expect(received).toEqual([]);
+      expect(lines.warn.mock.calls).toEqual([
+        followingLine(
+          HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+          { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+          routed[0]?.id,
+          "Request failed on a connection that can no longer be written"
+        ),
+      ]);
+    });
+  });
+
+  it("waits for an answer its route has ended that is queued behind a slower one, then answers in arrival order, naming the later request", async () => {
+    const lines = recordFailureLines(app);
+    const socket = connect({ host: HOST, port });
+    const received: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => received.push(chunk));
+    socket.write(
+      "GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\nGET /fast HTTP/1.1\r\nHost: localhost\r\n\r\n"
+    );
+    await fastEnded.promise;
+    const failed = once(app.server, "clientError");
+    socket.write("TELL /things HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    await failed;
+
+    slowRelease.resolve();
+    await once(socket, "close");
+    const raw = Buffer.concat(received).toString("utf8");
+
+    expect(raw.split("HTTP/1.1 ").map((response) => response.slice(0, 3))).toEqual([
+      "",
+      "200",
+      "200",
+      "400",
+    ]);
+    expect([
+      raw.indexOf('{"slow":true}') < raw.indexOf('{"fast":true}'),
+      raw.indexOf('{"fast":true}') < raw.indexOf("HTTP/1.1 400"),
+    ]).toEqual([true, true]);
+    expect(lines.warn.mock.calls).toEqual([
+      followingLine(
+        HTTP_ERRORS.REQUEST_LINE_NOT_PARSABLE,
+        { message: "Parse Error: Invalid method encountered", code: "HPE_INVALID_METHOD" },
+        routed[1]?.id
+      ),
+    ]);
   });
 
   it("answers the failure of a following message once, whatever the client sends after it", async () => {
