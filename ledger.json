@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1225,
+      "total": 1227,
       "byShape": {
-        "test": 984,
+        "test": 985,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
         "runner": 0,
-        "helper": 120,
+        "helper": 121,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
         "KEEP": 1059,
-        "ADJUDICATE": 93,
+        "ADJUDICATE": 95,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1215,
+      "machine": 1217,
       "confirmed": 10,
-      "total": 1225
+      "total": 1227
     },
     "blocks": {
-      "total": 15286,
+      "total": 15323,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14975
+        "BEHAVIOURAL": 15012
       }
     },
     "deleted": {
@@ -5366,63 +5366,126 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates one administrator with the SUPER_ADMIN role and prints its password once, when the database is empty",
-          "line": 323,
+          "line": 429,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd01cbe7eeaadd5f3004b61a140831d5e24bb96000db8583591b606d02921284"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a second run with exit code 1 and leaves the first administrator unchanged",
-          "line": 365,
+          "line": 471,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8c72e7c89e73ac14465ea685240e8b08b5a61d280976bdad92dad8b29320af9"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses and rolls the role write back when an administrator exists under another role and no SUPER_ADMIN row does",
-          "line": 381,
+          "line": 487,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa9e4e6ed6ad7b0c7f244ca48c86c573ce39a4f071417793dd031c105fb15fc0"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator and refuses the other run as a concurrent one, when two runs start at once on an empty database",
-          "line": 409,
+          "line": 515,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "576796c16b43cf2203d32cf3a59009a23ebc56d208cc9092008b8e2d3301fe9f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::makes the SUPER_ADMIN role exactly its definition and creates the administrator, when the role holds other fields and permissions",
-          "line": 442,
+          "line": 548,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4d82c695437327650a49aafa89d3a277cb69940d9041f58a985342954fdbcd6"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses with the message of a lasting refusal and creates nothing, when a role of that name holds another id",
-          "line": 487,
+          "line": 593,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01429c11f87a339d76826c49fb229e77f8a71725e0802fc881d64bdd7eab7a9f"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::creates exactly one administrator when two runs start at once on a database where the SUPER_ADMIN role exists and no administrator does",
-          "line": 508,
+          "line": 614,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0cd389a2558df3bbefb6f6da7615b8acc0af547ef6105961d5b25e24c72c15a"
         },
         {
           "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::runs as a process in a pseudo-terminal, shows only the block and ends by itself",
-          "line": 546,
+          "line": 652,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d304b81d51f40f154329b17f2386ec95719fa3376537290ec02a8d9dbb127799"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues a different password that replaces the old one, ends every session and leaves one system audit record per run",
+          "line": 688,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "39d37339638df1531a9b38a81392fdfedf5ec4a607425cb9cbef8a80be59f8fd"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when no administrator has the e-mail",
+          "line": 785,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e2acf862f8539d062accfac4e690e5e9170a0237fe76ac317bd03337e77c753d"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator has signed in",
+          "line": 800,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b20534682e83a2b28783e7a9b626bfb967c9938d9afe6aec1dcd17fceffb2e68"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::refuses a re-issue and changes nothing, when the administrator is no longer marked to change the password",
+          "line": 821,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6ddd79bf9c0b8463900667010d640dcc4db34330f44b95be4764d509cef532df"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues exactly once when two re-issues start at once, and the stored hash is the printed password's",
+          "line": 841,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8ec1ac1b2679b6ef2e0ae2cbf841d497c1e57b5f338b327fcb6e3bcbb1d0a14a"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::re-issues as a process in a pseudo-terminal, shows only the block and ends by itself",
+          "line": 882,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6ea5832fdcb52d69712f4dcec9c043b1c6fd329ca1887be8ed899eac6fa20f0f"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves no role and no administrator when the audit write of the creation fails inside its transaction",
+          "line": 919,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "dff4607a048bfb7f7c7f4c6c75439930272f8deab28a81127469a4a382196c1e"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::leaves the stored hash, the mark and the sessions as they were when the audit write of a re-issue fails inside its transaction",
+          "line": 948,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "620dda401af55b3e03e3f0bedf388d87f98bccdc090dda2750799eda1608deb0"
+        },
+        {
+          "id": "apps/api/tests/integration/firstAdministratorCommand.integration.test.ts::lets exactly one of a re-issue and the administrator's own required change win when both wait on the administrator's row",
+          "line": 974,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "734c33ecdcd1f4db58ed108442c1d351ccc938bb69b2216fc22fcd91ae8a260f"
         }
       ],
       "verdict": "ADJUDICATE",
@@ -37281,91 +37344,140 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 19,
       "blocks": [
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, the reason and the usage, echoing no argument, when given $args",
-          "line": 133,
+          "line": 188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f53860705de567b262099733bcdc6f3f37c8550a305733712ddc5c6f56b0659"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the help on standard output, loading nothing, when given %j",
-          "line": 162,
+          "line": 226,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "2babfaa8ce1c3cf498d9d4779404d42b9e4ca3f6f99df2eab364d4070bd6ddcc"
+          "bodyHash": "84247520ec9867d435ee2116b31a225f96d4b6df422b93887d855f78912035f6"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses with exit code 2, loading nothing, when standard output's isTTY is $isTTY",
-          "line": 193,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "80463e434c981f995ef4f676c330b512f58964113579ebc5c8bdbc68b933a19d"
         },
         {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::refuses a re-issue with exit code 2, loading nothing, when standard output's isTTY is $isTTY",
+          "line": 286,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1cbb4501ab09ccc2f101abca9010eb8a7784ae964085f1fa65918c720a213622"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the re-issue's block with the password exactly once on standard output and nothing on standard error",
+          "line": 310,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0b1df64846d2baf12a45f67dd9682271f1b3bcc6abbd10026ecde929e4827b3f"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::re-issues when --reissue follows the e-mail",
+          "line": 323,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e2dbf0b9b96f0a4fa6ed391f51a4951f8a20b9cabb773e3a6db53f9a7630b5bd"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::runs the creation and not the re-issue when --reissue is not given",
+          "line": 333,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2c17b0cc59d73d32febd1f9f41cebd06c7dcd1843896c7fefce212bfe09d56c2"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes only the use case's message on standard error when the re-issue is refused with $code: $message",
+          "line": 342,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "38ab7651c399e8ba1db990484798502bcdb4a8f3307483c6b933421f4237e184"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes the message and each cause's class and code, never a cause's message, when the re-issue fails",
+          "line": 370,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c60b73660df430546e3b9c2efd88fd449873aec19403e55c3846902659f6cd16"
+        },
+        {
+          "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1, closes the connection and tells the operator to run the re-issue again when the re-issue rejects",
+          "line": 393,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4cb1c0e16cb21bc9f804316665db4fa866c5dd213e3de30d0a2cc93a1757fe32"
+        },
+        {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and writes the block with the password exactly once on standard output and nothing on standard error",
-          "line": 217,
+          "line": 411,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5be98ff0da95990559d45513d5c8a459189c3d95b6fbe71f90a2f6f7fb14d89d"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::passes the e-mail as given, the --email=<address> form included",
-          "line": 230,
+          "line": 424,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9bbd6c919bc90d5f8578c16ab8e671a59a63907099e020e6c17699c224230259"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 0 and reports the failure to close on standard error when the connection does not close",
-          "line": 238,
+          "line": 432,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1168345c2d5bb27bba6486100ab4132faf301f2618a9287a59e35a32bb5585fe"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes only the use case's message on standard error when it refuses: %s",
-          "line": 258,
+          "line": 452,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b6be79c17368e922e4d6f0f3e33bb0eeda58fed2449e8ef1192386d3713cb1d"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 2 and writes the use case's message with the usage when the sign-in's rule refuses the address",
-          "line": 279,
+          "line": 473,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f886c7f2ace6d25997cc4d01cc64ba839f61fc6eeed65a3e08177d3c0769633"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 and writes the message and each cause's class and code, never a cause's message",
-          "line": 293,
+          "line": 487,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8b5ed3b6a2ab3de4a8fd6374b3181041562ff5bca4c69dc7c18c9cdb6e0d6f7"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::writes a cause's class without its code when the code is not an upper-case identifier",
-          "line": 319,
+          "line": 513,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7254f64015d8531a503d5f4ddd3b249fb6c36fddd6d9bb3d12d3d153e0654dbb"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1 with the class and code of the error, never its message, when the composition does not load",
-          "line": 337,
+          "line": 531,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "018b8f2c27b24939cff064d37270da044c72779181c3aa291a5aa28f658b33a6"
         },
         {
           "id": "apps/api/tests/unit/cli/firstAdministratorCommand.test.ts::returns 1, closes the connection and writes no message of the error when the use case rejects",
-          "line": 353,
+          "line": 547,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ff88225c830d0da5653951458a55705b084c9fa6fb50c2d683d3f42f857db85b"
+          "bodyHash": "e79d3b116adcf22f7ba375a4b18df6d505892cc61bc22e9f0aa041d346b5ce03"
         }
       ],
       "verdict": "KEEP",
@@ -55082,63 +55194,70 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::create omits ipAddress/userAgent when not provided",
-          "line": 49,
+          "line": 58,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ba5eb84eddf012ecf59baab5d2048a4033d46408f8220fb9c1ab90f892c97dd"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::create includes ipAddress/userAgent when provided (incl. empty string)",
-          "line": 57,
+          "line": 66,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "155b1ecf2b57bae5610b880b6f6dea4d260756069c093a6b936ce9cafd556867"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::create returns the persisted row",
-          "line": 70,
+          "line": 79,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2614cfea8a34d5adb922ef5351cd33fccc8ec8d61e4a04948bb030da39430380"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::updateRefreshTokenHash rotates the hash by session id",
-          "line": 76,
+          "line": 85,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e160e50cf980c5e3abbd412d694c90510ae39886ffedbbc9f302e23598a7a36"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::findByUserId lists newest first without active filter by default",
-          "line": 84,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa65cb08d8aca84f1185e5d5c2f3b14e30bf6f99f6e65e37eda231087da8c7ef"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::findByUserId applies activeOnly and limit",
-          "line": 92,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50053952c715330fd6a5f9a99927f3fe44ff706798d7a15f7a3146620c8e240a"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::revokeAllForUser deactivates active sessions and returns the count",
-          "line": 101,
+          "line": 110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f6730d4ce9c804afc1542b89c6256328812c26397cf634f3577afb9f7c5621a"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::deleteAllForUser removes the user's sessions and returns the count",
-          "line": 111,
+          "line": 120,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a9c2b3c0106c8d035a49e3b33c35488e1d47dbcf056ca486256a6549ac7cd4a"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminSessionRepository.test.ts::returns the count of the transaction's client, and writes nothing through the base client, when revokeAllForUser runs inside an open unit of work",
+          "line": 143,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8608b24b05110a6f062be6deb235cb9a8eb821d40e90179723fe9e940e6e88b6"
         }
       ],
       "verdict": "KEEP",
@@ -55159,126 +55278,154 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 21,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findById returns a public DTO with NO credential columns",
-          "line": 99,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08c24ea881970dca43e1ddadc8a0289a4221ec2c065915214907ea0e7115ca03"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findByEmail returns a public DTO with NO credential columns",
-          "line": 112,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63350768c4adedb66df8e0600fb928d70d5277275bf1a90a85720736cbf6e832"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findActiveUser strips credentials and enforces active status",
-          "line": 124,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85dc3e72acb1df6646d92b84dcfdcc7794a5a850b5a5d77cb215061ec0bbf68e"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findManyByIds and findByRoleId strip credentials",
-          "line": 138,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "33867c7bffc7272c6bdfa0866644c75bfd27feff5100ac02d29dd76583c88a7f"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findCredentialsById returns the DTO WITH credential columns",
-          "line": 151,
+          "line": 152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8282803edf778674cc14814cd1dd7cc368df2e447ad833b4f04eb4e29e7b2f50"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findCredentialsByEmail lowercases the email and returns credentials",
-          "line": 163,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5d138bc336f920ecb89baad354204d13733332c14df8a1c174289d1c03d07ea"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::findCredentialsById returns NOT_FOUND when absent",
-          "line": 173,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "497eb5c35ec48c7f6df4797c50be1ddb89e86227f167f15248cdba947fa33e2c"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::create returns a public DTO with NO credential columns",
-          "line": 180,
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70ed507660e84ba4f8ac6d8a177635d77cc12c653ec371c667943f14b6056950"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::update returns a public DTO and clears mfaSecret via null",
-          "line": 193,
+          "line": 194,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "539c51795c8dd29844fe0a1958dcd93ba86e449d56ac75c3e9a79508e0372b07"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns false when no administrator row exists, from a query that filters on nothing",
-          "line": 254,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5cb754875d18bea2258e1f8bac40a493507c47007e9e687a6b195faa1cb70bd"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns true when an administrator row exists",
-          "line": 266,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d1eb92c719c8c2bb979407f64f437e02368b3ee20947a97922f73a44151b698b"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the answer of the transaction's client when called inside an open unit of work",
-          "line": 275,
+          "line": 280,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ab516f6b5c4d5e419fa51336d0aa99608814f5e955d004078806db7907f92aa"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the answer of the base client when no unit of work is open",
-          "line": 288,
+          "line": 293,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f2478d4b1ada10225601041c050598f4969c28392ef572e702b2ee411cc9561"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails",
-          "line": 298,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "250d1ff14e1141e86e0a449322467a9bac9877d92272f9773d2edc5b7968fbd2"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the administrator created with mustChangePassword written when the input gives it",
-          "line": 326,
+          "line": 331,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0fe18b7372bb63edbb8626a717446201065b59477fc3746c39a4ba52f4fb9efc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the administrator created with no mustChangePassword key sent when the input omits it",
-          "line": 345,
+          "line": 350,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70e132a0392721518cf53bb988eaa87e3e580d9e1ddf68c5aa53413c5ef5bdbc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the administrator created by the transaction's client when called inside an open unit of work",
-          "line": 361,
+          "line": 366,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "737beee9df1f276f5bb6ef580fc1ea51213b9935920c28fdda523943b1af66e6"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns true after one update guarded by the id, the hash as read, the mark and no sign-in date, writing only the hash and the change date",
+          "line": 402,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "72d70f17c09e8f1ae3a2a1c254b9a32e7c8d3ceba6ebb51fde82a387f1dac9b2"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns false when the guard matches no row",
+          "line": 425,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "14bf6487cff2821e5f3214f4b819677f4a10f863d92cbfe06b716d2ca4b8214d"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns the answer of the transaction's client when called inside an open unit of work #2",
+          "line": 434,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "79a747054907b9ea18700b5e73fd954475e38e72910595248cfd16c0a440de0c"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts::returns a RepositoryFailureError whose cause is the client's own error when the client fails #2",
+          "line": 445,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4e310a29c1505381411e2b44f74bc3ac2b323ea6ce497cfc5cfec996642ee75c"
         }
       ],
       "verdict": "KEEP",
@@ -55348,84 +55495,91 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::create writes action/details/success and omits absent optional columns",
-          "line": 43,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a031750f74e4420e0672bf7aaa8ed286925ee5676f4bd7d3e61252d4a6669cc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::create includes optional columns when provided",
-          "line": 60,
+          "line": 69,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4fae53077b32297372e7d7df68cf9240f3f78abde9e801b0c515b1346d1c0674"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::create omits accountId when not provided (searchability is best-effort)",
-          "line": 82,
+          "line": 91,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0df4918e6666c667242ae8824581279c088ffbe7ed8133c0988b0802ee623f1f"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::create always writes actorType and maps customerUserId for a customer actor",
-          "line": 93,
+          "line": 102,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e857f76f7382c6919b2038c3fc799d71d17fa51e37e875e0599407e3ba24348"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::anonymizeCustomerUser nulls only customerUserId via updateMany and returns the count",
-          "line": 108,
+          "line": 117,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "587d02c57f75f58807700fa3de9088a00f3f43d82eb0c483633c40431519739d"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::findByUser filters by userId with default pagination, newest first",
-          "line": 118,
+          "line": 127,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "531f074a1c975fc0917e72532a48e888fd048374867932c6fc140ad7ee5086a3"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::findByUser applies action filter, date range, and limit/offset",
-          "line": 130,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7a9eb5b34533b29e52aa1fde40419d97ee4985f3a7b1ab74e7ca14decf20ba2"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::findByResource scopes the query to resource + resourceId",
-          "line": 149,
+          "line": 158,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8402755133424fca35c7dcd92bf5c6a2c7c5b7e81dd88ba0c3ae5220ad1d5dc"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::findByAccount scopes the query to accountId with default pagination",
-          "line": 156,
+          "line": 165,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c67109b659d1d0aec788a12fc3fd4081bd430fef4cb4ae51446e3d0abd5dae85"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::findByAccount applies action filter, date range, and limit/offset",
-          "line": 168,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9439176c1638265210184f91d8c1735c0036681d98f6fa0428cb377af1ad7c53"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::anonymizeUser nulls userId via updateMany and returns the count",
-          "line": 191,
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d90e222246235dd4d05f6db5eb5f34c658e46bf4fcece4f7d248bf691a4d9cd8"
+        },
+        {
+          "id": "apps/api/tests/unit/infrastructure/repositories/PrismaAuditLogRepository.test.ts::writes the entry once through the transaction's client, and never through the base client, when create runs inside an open unit of work",
+          "line": 226,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "02a12ce44615da172ca38f4615eab5a8daac7cd9c5d3d73daf4c536d90b82c42"
         }
       ],
       "verdict": "KEEP",
@@ -71741,35 +71895,42 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 5,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses with exit code 2 and the usage, opening no connection, when given no argument",
-          "line": 124,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cef0355a94750a61aa2ab4a7cc42b12dbb175ab59bcbaee09354293bc4f3bc78"
         },
         {
           "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses with exit code 2 and the usage, opening no connection, when given an unknown argument",
-          "line": 145,
+          "line": 146,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "2ddfc861e672d8b8d6bc8443c4f88a42bd6ae34acb0976d46d5f5e7df36313f5"
+          "bodyHash": "9144410cd39ac771c2e0b6a8ee8b7fa1fa28b19ec1077267c0c30eda93acfd8e"
         },
         {
           "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::returns 0 with the help on standard output, opening no connection, when given --help",
-          "line": 166,
+          "line": 167,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b8c61bbbcedc0356380d4dafd961cf18c0ffbe3bbf60e0434d3249d547cdad6f"
         },
         {
           "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses with exit code 2, opening no connection, when standard output is a pipe and not a terminal",
-          "line": 181,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "efffd87fbc3947ff6921d143f9082c57f2385714a4d30d5cd46d680479602a3e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/firstAdministratorCommandProcess.test.ts::refuses a re-issue with exit code 2, opening no connection, when standard output is a pipe and not a terminal",
+          "line": 197,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f04fcd2ad4793b41c93715fb60220d9f02fde9acfc127b24a730e0402214c009"
         }
       ],
       "verdict": "KEEP",
@@ -109364,156 +109525,275 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/auth/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 20,
+      "blockCount": 23,
       "blocks": [
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the created administrator and its single-use password when the e-mail is valid",
-          "line": 296,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "7613a33e7256b4c6d26c964c5639c75dcb6fc444a2058bb27b1200d40509ccbc"
+          "bodyHash": "1c071ef8f716c073794d56da55d653f0654f8648ab33fd52882f1120cb48a548"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after writing, inside the transaction, one system audit record of the creation that names its task and holds no secret",
+          "line": 288,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5653a27c5fe835f9a860febc7489f4eb195e155367390a80d2bab683db6f5f1d"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after writing the role with exactly the definition it was given",
-          "line": 319,
+          "line": 310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "554b2d28844752e3c016c21997a93198050c4f1ce8562682b5f31098b1260404"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns success after creating the administrator with the role's id, the hash of the generated password and mustChangePassword true",
-          "line": 330,
+          "line": 321,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "32d3bf46f213640bfb8b1cfe9c092af271ebfcb46f2981efd45b54c4f11c57d0"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the administrator named $name, after asking the rule about '$stored', when the e-mail is '$email'",
-          "line": 349,
+          "line": 340,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "510d292ef57499220b0469c285c5abaf5a433cbad0cb0ff6f03bcae8b53cad43"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT from inside the transaction when an administrator exists",
-          "line": 394,
+          "line": 385,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e38a72f60d78f8c172236eeee64c8a9928bb05ed48859869b3268ab60271815"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT and its own message when another run holds the role's id",
-          "line": 414,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab189cf1c89f4ad15820b12477653b7de93a38177aa5aed50ec0acfce61b33b9"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with CONFLICT and the message of a lasting refusal when a role of the same name holds another id",
-          "line": 434,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e922c9737b2a049e33232e5b0dd422fb99f74388e89c2be7e2027b53667c068e"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error when the role write fails",
-          "line": 455,
+          "line": 446,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea4acf81bfba8e2b092a6552e710724cd93e1d9a8dc4200b539916170de5a75a"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error when reading whether an administrator exists fails",
-          "line": 478,
+          "line": 469,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a15ac8cf0e81d46c7ec5a7f5f02fcfc370a9b79cc055c35ac34398aa5d41fa0b"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error, from inside the transaction, when creating the administrator fails",
-          "line": 501,
+          "line": 492,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f28622ef34fab212002a9deaf61cc9b93df7750dbe61e18caae4a2ff492e72f"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR whose cause names only the type when creating the administrator raises a value that is not an Error",
-          "line": 521,
+          "line": 512,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c21b6a0148c855483b4012310a423274110dbecf99837192d51a6a17238963e4"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the hasher's error, before any transaction, when hashing fails",
-          "line": 545,
+          "line": 536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fdb43ca8096cc2d35d27a000bd80eb7f3d2d04853a710c493650fa48e5ddc71d"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the generator's error, before hashing, when drawing the password fails",
-          "line": 561,
+          "line": 552,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0fcea6d2d9e03f16341936bb3470e75b997af7eacbf7ece758c8b18f633d72db"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error when the transaction itself fails",
-          "line": 576,
+          "line": 567,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "402005b9852d7af6320f2d3ac280110e4ae4768d443bb3eb6732b0b991f2428c"
+          "bodyHash": "05f6a0042d07ec08f6464bd6a90726e0a92d5904ba9103caf87f2e9563aa8bc7"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error as the outcome of the transaction's work, after the role and the administrator were written in it, when the audit write fails",
+          "line": 587,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1979479582ba32023d7d128bf716c671e1fcfbe343495171e681e393f4ce0365"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::writes no audit record when $outcome",
+          "line": 609,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3e282a7498f6beeb84d475343d5f90996c601edc87e657d15335e77118320163"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR from inside the transaction, rolled back, when $call raises instead of returning its Result",
-          "line": 595,
+          "line": 633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da5334b543a13566718e7586538828fbe0487c055cc7da39e9817770388b5adb"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns INTERNAL_ERROR from inside the transaction, rolled back, whose cause names only the type when the role write raises a value that is not an Error",
-          "line": 635,
+          "line": 673,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9feb2fd6b6ee3231fbaa82f85b1fb35bd38c6a72cc0e11c73184a9c52715c97f"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with VALIDATION_FAILED, touching no other port, when the sign-in's rule refuses the normalized address",
-          "line": 662,
+          "line": 700,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e0f3182f6bbafea00f656a460c868df700f8db7a913f21d62581c5c2075c5ca"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::refuses with VALIDATION_FAILED, touching no other port, when the rule accepts '$email', which has no local part",
-          "line": 674,
+          "line": 712,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c2aaebb3cf2a520bce91c5a59badd8cddb3b4cc8123be406c32d80c5d5be1df5"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns an error that holds the password nowhere when $outcome",
-          "line": 691,
+          "line": 729,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6aff2760c9d1a6c12ac8cb1eb70454c2fe09dc7c64d4438d8856353f0eb6c2ce"
         },
         {
           "id": "packages/core/auth/tests/unit/CreateFirstAdministratorUseCase.test.ts::returns the password under the key password and nowhere else in the output when the administrator is created",
-          "line": 740,
+          "line": 778,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4c87afc12673da1604a6b742e65f8d9ac912e7e5fb208303cc0543a3b1abe2f"
         }
       ],
-      "verdict": "KEEP",
-      "basis": "behavioural",
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
       "status": "machine",
       "sliceId": null,
       "subject": {
         "stem": "CreateFirstAdministratorUseCase",
         "module": "packages/core/auth/src/CreateFirstAdministratorUseCase.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/core/auth/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 11,
+      "blocks": [
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns the new single-use password once, after replacing the hash as read, ending every session and writing one system audit record",
+          "line": 231,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7400fd5d3c059aae3d9d62205963d63a598e742f23e2fc08fa8ed3205506806d"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns the password under the key password and nowhere else, and writes it to no port",
+          "line": 268,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "847aea9a05ea4988db5703b3bf4669663d15b34e308529ab88bb2ed9756e8f8d"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses with its own message, drawing no password and writing nothing, when $reason",
+          "line": 289,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d014173c7c9615b25acdc8ed0d1de7b36eeda7d70f4add7d11ec50f913f8d2ab"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::refuses as signed in, not as unmarked, when the administrator has signed in and is no longer marked",
+          "line": 327,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d39c92e5993f77877054e87a0bb75caf636697ef429f1d0254af432155eaa84a"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns CONFLICT, rolled back, ending no session and writing no audit record, when the guarded write matches no row",
+          "line": 340,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2bdf1fa4aaa1224fbf752e2123a6d39989bdb903ec4e0d68e1ea7038ae4215ee"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR carrying the raised error, drawing no password, when reading the administrator raises",
+          "line": 361,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d58b206e771f71767ee7e296b3f8bce2ed6f383e55fc219b92c225f069f6b253"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR before any transaction when $step fails",
+          "line": 374,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "86b51d6eda08279fabf2f4baf8c4c7e0968f630899fa9aa6b2f6c2ac3ff0db9e"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR carrying the repository's error, rolled back, when the guarded write fails",
+          "line": 408,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7695fa728f412d38cdebf57695fcc7ecba6d63d8b9b669b6dcacf4279a2c1435"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR as the failed outcome of the transaction's work, after its earlier writes in it, when $step",
+          "line": 430,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a3d7850595f28101b988f36f0876533304423039da1d2ec4a73ec406a12eb3e5"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR whose cause names only the type when the guarded write raises a value that is not an Error",
+          "line": 475,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1f5b2bd75462c6fe91d7f7708c250338baa7169f7f6beb356b2f0971a8d57ca2"
+        },
+        {
+          "id": "packages/core/auth/tests/unit/ReissueAdministratorPasswordUseCase.test.ts::returns INTERNAL_ERROR with the message of an unknown outcome when the transaction itself fails",
+          "line": 489,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "85509aecdd94452e1907c2806799bbcd0c9f8adfd49f2a0a443892ba8c76bb69"
+        }
+      ],
+      "verdict": "ADJUDICATE",
+      "basis": "opaque",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "ReissueAdministratorPasswordUseCase",
+        "module": "packages/core/auth/src/ReissueAdministratorPasswordUseCase.ts",
         "imported": true
       },
       "duplicate": null,
@@ -109602,6 +109882,22 @@
       },
       "duplicate": null,
       "importers": null
+    },
+    {
+      "path": "packages/core/auth/tests/unit/useCaseDoubles.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 2
     },
     {
       "path": "packages/core/billing/tests/unit/CreateAccountSubscriptionUseCase.test.ts",
