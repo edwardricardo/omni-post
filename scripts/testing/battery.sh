@@ -61,8 +61,9 @@
 # every gate's result, not only the first failure.
 #
 # The battery installs offline and never downloads a browser. The two stories
-# steps run in Playwright's Chromium, one browser for both portals, since they
-# pin the same playwright; a one-time prerequisite per machine:
+# steps run in Playwright's Chromium, each through the playwright its own portal
+# resolves. While both portals resolve the same playwright driver, one install
+# serves both; a one-time prerequisite per machine, through either portal:
 #   pnpm --filter @apps/client exec playwright install chromium
 # A missing browser fails that step loudly; it is never fetched mid-run.
 set -uo pipefail
@@ -224,12 +225,13 @@ battery_steps() {
   # Quoting, outside in: the step runs `bash -c "<double-quoted>"`, which expands
   # STORIES_PREFLIGHT once; node then receives the single-quoted JavaScript whole.
   # The probe's own error (an ENOENT naming the missing binary) stays on stderr,
-  # followed by the remedy, so an unrelated failure is never mislabelled. Both
-  # portals share the browser, so both remedies name the header's install command.
+  # followed by the remedy, so an unrelated failure is never mislabelled. The
+  # remedy installs through the portal the probe ran in, so it names the browser
+  # that step looked for even if the portals' playwright versions part.
   local STORIES_PREFLIGHT='require("fs").accessSync(require("playwright").chromium.executablePath())'
   # The command of one portal's stories step: $1 is its pnpm filter, $2 the step's name.
   stories_command() {
-    printf '%s' "pnpm --filter $1 exec node -e '$STORIES_PREFLIGHT' || { echo '$2: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/client exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter $1 test:stories"
+    printf '%s' "pnpm --filter $1 exec node -e '$STORIES_PREFLIGHT' || { echo '$2: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter $1 exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter $1 test:stories"
   }
   step suite stories bash -c "$(stories_command @apps/client stories)"
   step suite stories-admin bash -c "$(stories_command @apps/admin stories-admin)"
