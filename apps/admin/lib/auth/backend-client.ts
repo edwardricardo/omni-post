@@ -1,8 +1,9 @@
 /**
  * @file backend-client.ts
  * @description Server-side API client for proxying authenticated requests from the admin
- * dashboard to the Fastify backend via httpOnly session cookies. Provides login, token
- * verification, token refresh, logout, and health-check functions.
+ * dashboard to the Fastify backend via httpOnly session cookies. Provides the sign-in, the
+ * required password change, token verification and logout, and one reader of the API's error
+ * envelope that the sign-in and the change share.
  * @layer infrastructure
  */
 
@@ -11,7 +12,15 @@ import { headers } from "next/headers";
 
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
-import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
+import {
+  ADMIN_AUTH_ERROR,
+  type AdminUserProfile,
+  type ApiValidationIssue,
+  type AuthenticateAdminResult,
+  type RequiredPasswordChangeInput,
+  type RequiredPasswordChangeResult,
+  type TokenPair,
+} from "./types";
 import { env } from "../../lib/env";
 import { forwardedForHeaders } from "../http/forwardedFor";
 
@@ -41,12 +50,21 @@ export interface LoginCredentials {
 
 /**
  * Backend API response wrapper
- * The API uses `data` field (from BaseRouteHandler.sendSuccess)
+ * The API uses `data` field (from BaseRouteHandler.sendSuccess). `error` and `details` are read
+ * only through `readApiError`: a route handler's error is a code, while the route limiter and the
+ * IP allowlist answer an object with a code.
  */
 interface ApiResponse<T> {
   ok: boolean;
   data?: T;
-  error?: string;
+  error?: unknown;
+  details?: unknown;
+}
+
+/** What `readApiError` reads from an error envelope. */
+interface ApiErrorReading {
+  code: string;
+  issues?: ApiValidationIssue[];
 }
 
 /**
@@ -67,6 +85,61 @@ interface UserResponseData {
 }
 
 // ============================================================================
+// Answer reading
+// ============================================================================
+
+/** Whether `value` is a non-null object whose fields can be read. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * Reads the answer's body as the API's JSON envelope, or nothing when the body is not JSON (a
+ * proxy's error page, an empty body), which the caller reads as an answer without a code.
+ */
+async function readEnvelope<T>(response: Response): Promise<ApiResponse<T> | undefined> {
+  const text = await response.text();
+  let parsed: ApiResponse<T> | null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    log.error("The API answered with a body that is not JSON", { status: response.status });
+    return undefined;
+  }
+  return isRecord(parsed) ? parsed : undefined;
+}
+
+/** The issues of a validation failure's `details`, each with its path and text, if it has any. */
+function issuesOf(details: unknown): ApiValidationIssue[] | undefined {
+  if (!isRecord(details) || !Array.isArray(details.issues)) {
+    return undefined;
+  }
+  const issues = details.issues.flatMap((issue: unknown) =>
+    isRecord(issue) && typeof issue.path === "string" && typeof issue.message === "string"
+      ? [{ path: issue.path, message: issue.message }]
+      : []
+  );
+  return issues.length > 0 ? issues : undefined;
+}
+
+/**
+ * Reads an error answer: its code in text, whether `error` is the code itself or an object
+ * carrying one, and a validation failure's issues. An envelope that names no code, or no
+ * envelope at all, reads as the portal's `UNKNOWN_ERROR`.
+ */
+function readApiError(envelope: ApiResponse<unknown> | undefined): ApiErrorReading {
+  const error = envelope?.error;
+  let code: string = ADMIN_AUTH_ERROR.UNKNOWN_ERROR;
+  if (typeof error === "string" && error.length > 0) {
+    code = error;
+  } else if (isRecord(error) && typeof error.code === "string" && error.code.length > 0) {
+    code = error.code;
+  }
+  const issues = issuesOf(envelope?.details);
+  return { code, ...(issues !== undefined && { issues }) };
+}
+
+// ============================================================================
 // Public API Functions
 // ============================================================================
 
@@ -76,8 +149,12 @@ interface UserResponseData {
  * Returns a discriminated union that preserves the MFA signal instead of
  * collapsing both MFA-required and error cases to null.
  *
+ * @description Signs an administrator in through the API, relaying the caller's address. The
+ *   result keeps apart a success, a missing second factor, an administrator who must change the
+ *   password first, and any other error, whose code comes back as text.
  * @param credentials - User login credentials (email, password, optional MFA token)
- * @returns Promise resolving to a discriminated union with status "success" | "mfa_required" | "error"
+ * @returns A discriminated union with status "success", "mfa_required",
+ *   "password_change_required" or "error"
  *
  * @example
  * ```typescript
@@ -86,8 +163,10 @@ interface UserResponseData {
  *   // result.user, result.tokens available
  * } else if (result.status === "mfa_required") {
  *   // result.mfaSessionToken available
+ * } else if (result.status === "password_change_required") {
+ *   // no session exists; the password is changed first
  * } else {
- *   // result.error message available
+ *   // result.error code available
  * }
  * ```
  */
@@ -114,10 +193,10 @@ export async function authenticateAdmin(
       }),
     });
 
-    const data: ApiResponse<LoginResponseData> = await response.json();
+    const data = await readEnvelope<LoginResponseData>(response);
 
     // Handle MFA requirement — preserve the token so the caller can resubmit
-    if (data.data?.requiresMfa) {
+    if (data?.data?.requiresMfa) {
       return {
         status: "mfa_required",
         mfaSessionToken: data.data.mfaSessionToken ?? "",
@@ -125,11 +204,12 @@ export async function authenticateAdmin(
     }
 
     // Handle error responses
-    if (!response.ok || !data.ok) {
-      return {
-        status: "error",
-        error: data.error ?? "Authentication failed",
-      };
+    if (!response.ok || data?.ok !== true) {
+      const { code } = readApiError(data);
+      if (code === ADMIN_AUTH_ERROR.PASSWORD_CHANGE_REQUIRED) {
+        return { status: "password_change_required" };
+      }
+      return { status: "error", error: code };
     }
 
     // Validate expected shape
@@ -147,6 +227,49 @@ export async function authenticateAdmin(
       status: "error",
       error: error instanceof Error ? error.message : "Network error",
     };
+  }
+}
+
+/**
+ * @description Changes the password of an administrator who must change it, through
+ *   `POST /admin/auth/password/change-required`, relaying the caller's address. The API runs the
+ *   sign-in's checks on the e-mail, the current password and the second factor's code, and opens
+ *   no session: the administrator then signs in with the new password. Never throws.
+ * @param input - The e-mail, the current password, the new password, and the second factor's
+ *   code once the API has asked for it
+ * @returns `changed`, or an error with the API's code in text (and a validation failure's
+ *   issues); `UNKNOWN_ERROR` when the answer names no code or the request never reached the API
+ */
+export async function changeRequiredPassword(
+  input: RequiredPasswordChangeInput
+): Promise<RequiredPasswordChangeResult> {
+  try {
+    // The endpoint spends the sign-in's rate-limit bucket, which keys the caller's address.
+    const inbound = await headers();
+    const response = await fetch(`${API_URL}/admin/auth/password/change-required`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...forwardedForHeaders(inbound),
+      },
+      body: JSON.stringify({
+        email: input.email,
+        currentPassword: input.currentPassword,
+        newPassword: input.newPassword,
+        ...(input.mfaToken !== undefined && { mfaToken: input.mfaToken }),
+      }),
+    });
+
+    const envelope = await readEnvelope<unknown>(response);
+    if (response.ok && envelope?.ok === true) {
+      return { status: "changed" };
+    }
+
+    const { code, issues } = readApiError(envelope);
+    return { status: "error", error: code, ...(issues !== undefined && { issues }) };
+  } catch (error) {
+    log.error("The required password change did not reach the API", error);
+    return { status: "error", error: ADMIN_AUTH_ERROR.UNKNOWN_ERROR };
   }
 }
 
@@ -197,6 +320,8 @@ export const verifyAccessToken = cache(
  * `CSRF_MISSING` and the JWT remains valid server-side — silently breaking
  * the security guarantee of "logout invalidates the session everywhere."
  *
+ * @description Asks the API to end the current session, or every session of the user, and logs a
+ *   refusal instead of raising it, since the caller clears the portal's cookies regardless.
  * @param accessToken - JWT access token for authentication
  * @param csrfToken - CSRF token from the `admin-csrf` cookie. Required for
  *                    backend session invalidation; pass `null` only when
