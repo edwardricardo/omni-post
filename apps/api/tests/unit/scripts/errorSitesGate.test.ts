@@ -8,16 +8,18 @@
  *   held options and the plugin's own object, the plugin's package loads only its own `src`, and
  *   the list obeys its four rules), S5 (no directive turns an `errors/` rule off, nothing lets an
  *   unused entry pass, and the root `lint` script still reaches the whole tree), the birth written
- *   by `--record`, and every fail-closed path to exit 3, which wins over 1. Every case builds its
- *   own git repository in a scratch directory and passes its own `resolveRule`, so the suite needs
- *   no ESLint installation; one case runs the real wiring on this repository.
+ *   by `--record`, `--stalled` (the list is above zero and no history row is dated inside the
+ *   window, in UTC, with `--remind`'s one issue a day), and every fail-closed path to exit 3, which
+ *   wins over 1. Every case builds its own git repository in a scratch directory and passes its own
+ *   `resolveRule`, its own clock and its own `gh`, so the suite needs no ESLint installation and
+ *   reaches no GitHub; one case runs the real wiring on this repository.
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -71,6 +73,13 @@ interface History {
   rows: { file: string; row: Row; text: string }[];
   problems: string[];
 }
+type Gh = (args: readonly string[]) => string;
+interface StallInput {
+  root: string;
+  days: number;
+  now: Date;
+  gh?: Gh;
+}
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type GateModule = {
   BASELINE: string;
@@ -85,6 +94,7 @@ type GateModule = {
   }) => Promise<ResolveRule>;
   runGate: (input: GateInput) => Promise<Outcome>;
   recordRow: (input: RecordInput) => Outcome;
+  checkStall: (input: StallInput) => Outcome;
   readHistory: (root: string) => History;
   stateOf: (rows: readonly { row: Row }[]) => Map<string, number>;
 };
@@ -100,6 +110,7 @@ const {
   createEslintResolver,
   runGate,
   recordRow,
+  checkStall,
   readHistory,
   stateOf,
 } = (await import(GATE_SCRIPT)) as GateModule;
@@ -1679,4 +1690,401 @@ describe("the ESLint wiring, on this repository", () => {
       },
     ]);
   }, 60_000);
+});
+
+/** Fourteen days after the clean tree's birth, the first instant the 14-day window is over. */
+const STALLED_AT = new Date("2026-12-04T07:23:00Z");
+/** The last second of the thirteenth day after the birth. */
+const INSIDE_AT = new Date("2026-12-03T23:59:59Z");
+const STALL_LABEL = "error-sites-stalled";
+const STALL_TITLE = "Error sites stalled: the list of existing error sites stopped shrinking";
+const STALL_LINES = [
+  `${PREFIX}STALLED: no history row was added in the last 14 days: the newest, ${ROW}, is dated 2026-11-20, 14 days before today, 2026-12-04 (UTC)`,
+  `${PREFIX}5 sites in 2 contexts`,
+  `${PREFIX}api/admin: 3 sites`,
+  `${PREFIX}core/auth: 2 sites`,
+];
+const STALL_FACTS =
+  "The list of existing error sites holds 5 sites in 2 contexts (api/admin: 3, core/auth: 2), and the newest row of scripts/testing/error-sites-history/ is dated 2026-11-20: no row was added in the last 14 days (today is 2026-12-04, UTC).";
+const STALL_COMMENT = `Still stalled on 2026-12-04: ${STALL_FACTS}`;
+const ISSUES_CALL = [
+  "api",
+  `repos/{owner}/{repo}/issues?labels=${STALL_LABEL}&state=all&per_page=100`,
+];
+const COMMENTS_CALL = [
+  "api",
+  "repos/{owner}/{repo}/issues/4/comments?since=2026-12-04T00:00:00Z&per_page=100",
+];
+/** The baseline with no `errors/` entry: an empty list beside another rule's suppression. */
+const NO_ERROR_SITES = {
+  "apps/api/tests/unit/t.test.ts": { "testing/no-empty-test": { count: 1 } },
+};
+
+interface GhDouble {
+  readonly gh: Gh;
+  /** Every call, in order: `gh`'s arguments. */
+  readonly calls: string[][];
+}
+
+/** A recording `gh`: it lists the given issues and comments, and fails on the given call. */
+const ghDouble = (
+  answers: {
+    issues?: readonly Record<string, unknown>[];
+    comments?: readonly Record<string, unknown>[];
+    failsOn?: readonly string[];
+  } = {}
+): GhDouble => {
+  const calls: string[][] = [];
+  const failsOn = answers.failsOn ?? [];
+  const gh: Gh = (args) => {
+    calls.push([...args]);
+    if (failsOn.length > 0 && failsOn.every((part, index) => args[index] === part)) {
+      throw new Error("HTTP 502: Bad Gateway");
+    }
+    const endpoint = (args.find((arg) => arg.startsWith("repos/")) ?? "").split("?")[0] ?? "";
+    if (args[0] === "api" && endpoint.endsWith("/comments")) {
+      return JSON.stringify(answers.comments ?? []);
+    }
+    return args[0] === "api" ? JSON.stringify(answers.issues ?? []) : "";
+  };
+  return { gh, calls };
+};
+
+const stall = (input: Partial<StallInput> = {}): Outcome =>
+  checkStall({ root, days: 14, now: STALLED_AT, ...input });
+
+const issueOf = (state: string, created: string): Record<string, unknown> => ({
+  number: 4,
+  title: STALL_TITLE,
+  state,
+  created_at: created,
+});
+
+describe("--stalled: whether the list stopped shrinking", () => {
+  it("exits 1 when the list is above zero and the newest row is dated the window's length before today, giving the total, each context and that date", () => {
+    plantClean();
+
+    expect(stall()).toEqual({ exitCode: 1, stdout: [], stderr: STALL_LINES });
+  });
+
+  it("counts the window from the newest row, not the first, and holds a row of the thirteenth day inside it", () => {
+    plantClean();
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-25-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const inside = stall({ now: new Date("2026-12-08T23:59:59Z") });
+    const over = stall({ now: new Date("2026-12-09T00:00:00Z") });
+
+    expect(inside).toEqual({
+      exitCode: 0,
+      stdout: [
+        `${PREFIX}not stalled: the newest history row, ${HISTORY}/2026-11-25-admin.json, is dated 2026-11-25, 13 days before today, 2026-12-08 (UTC), inside the 14-day window`,
+        `${PREFIX}4 sites in 2 contexts`,
+      ],
+      stderr: [],
+    });
+    expect(over.exitCode).toBe(1);
+    expect(over.stderr[0]).toBe(
+      `${PREFIX}STALLED: no history row was added in the last 14 days: the newest, ${HISTORY}/2026-11-25-admin.json, is dated 2026-11-25, 14 days before today, 2026-12-09 (UTC)`
+    );
+  });
+
+  it("exits 0 when the list is empty, however old its history", () => {
+    plantClean();
+    writeJson(BASELINE, NO_ERROR_SITES);
+
+    expect(stall()).toEqual({
+      exitCode: 0,
+      stdout: [`${PREFIX}not stalled: the list of existing error sites is empty`],
+      stderr: [],
+    });
+  });
+
+  it("counts a list of one site as a list above zero", () => {
+    plantClean();
+    setCounts({ [A]: { [RULE]: 0 }, [X]: { [RULE]: 1 } });
+
+    const outcome = stall();
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stderr.slice(1)).toEqual([
+      `${PREFIX}1 site in 1 context`,
+      `${PREFIX}core/auth: 1 site`,
+    ]);
+  });
+
+  it.each([
+    ["does not exist", () => remove(HISTORY)],
+    ["holds no row", () => remove(ROW)],
+  ])(
+    "exits 3 when the list is above zero and its history %s, since such a list cannot be dated",
+    (what, plant) => {
+      plantClean();
+      plant();
+
+      expect(stall()).toEqual({
+        exitCode: 3,
+        stdout: [],
+        stderr: [
+          `${PREFIX}${HISTORY} ${what}, so the list of 5 sites cannot be dated: a list above zero is dated by the rows of its history`,
+        ],
+      });
+    }
+  );
+
+  it.each([
+    [
+      "the suppressions file is not JSON",
+      () => write(BASELINE, "{ broken\n"),
+      `${PREFIX}${BASELINE} is not JSON:`,
+    ],
+    [
+      "a row of the history is no row",
+      () => addRow("2026-11-21-bad.json", { version: 1, fixed: {} }),
+      `${PREFIX}${HISTORY}/2026-11-21-bad.json: is not a row of the history:`,
+    ],
+  ])("exits 3, not 1, when %s, though the window is over", (_label, plant, message) => {
+    plantClean();
+    plant();
+
+    const outcome = stall();
+
+    expect(outcome.exitCode).toBe(3);
+    expect(outcome.stdout).toEqual([]);
+    expect(outcome.stderr).toHaveLength(1);
+    expect(outcome.stderr[0]?.startsWith(message)).toBe(true);
+  });
+
+  it("exits 3 when the newest row is dated after today, a day no row was recorded on", () => {
+    plantClean();
+    addRow("2026-12-05-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    expect(stall()).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: [
+        `${PREFIX}the newest history row, ${HISTORY}/2026-12-05-admin.json, is dated 2026-12-05, after today, 2026-12-04 (UTC): a row is dated the day it is recorded, so the window cannot be read from it`,
+      ],
+    });
+  });
+
+  it("reads today as the UTC date of the instant, whatever the time zone of the process", () => {
+    plantClean();
+    /** Runs the mode in a process of the given zone; prints its exit code and the local day. */
+    const inZone = (zone: string, instant: string): string => {
+      const driver = [
+        `const { checkStall } = await import(${JSON.stringify(pathToFileURL(GATE_SCRIPT).href)});`,
+        `const now = new Date(${JSON.stringify(instant)});`,
+        `const outcome = checkStall({ root: ${JSON.stringify(root)}, days: 14, now });`,
+        "process.stdout.write(`${String(outcome.exitCode)} ${String(now.getDate())}`);",
+      ].join("\n");
+      return spawnSync(process.execPath, ["--input-type=module", "--eval", driver], {
+        encoding: "utf8",
+        env: { ...process.env, TZ: zone },
+      }).stdout;
+    };
+
+    // UTC+14: the local day is the fourteenth after the birth, the UTC day the thirteenth.
+    const east = inZone("Pacific/Kiritimati", "2026-12-03T23:30:00Z");
+    // UTC-11: the local day is the thirteenth after the birth, the UTC day the fourteenth.
+    const west = inZone("Pacific/Pago_Pago", "2026-12-04T00:30:00Z");
+
+    expect(east).toBe("0 4");
+    expect(west).toBe("1 3");
+  });
+});
+
+describe("--stalled --remind: one issue, a comment a day", () => {
+  it("opens one labelled issue that carries the facts when none exists, and still exits 1", () => {
+    plantClean();
+    const double = ghDouble();
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      stdout: [`${PREFIX}remind: open: ${STALL_TITLE}`],
+      stderr: STALL_LINES,
+    });
+    expect(double.calls).toEqual([
+      ISSUES_CALL,
+      [
+        "label",
+        "create",
+        STALL_LABEL,
+        "--color",
+        "b60205",
+        "--description",
+        "The list of existing error sites stopped shrinking",
+        "--force",
+      ],
+      [
+        "issue",
+        "create",
+        "--title",
+        STALL_TITLE,
+        "--body",
+        expect.stringContaining(STALL_FACTS),
+        "--label",
+        STALL_LABEL,
+      ],
+    ]);
+  });
+
+  it("comments on the open issue instead of opening a second one", () => {
+    plantClean();
+    const double = ghDouble({ issues: [issueOf("open", "2026-12-01T07:23:10Z")] });
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.stdout).toEqual([`${PREFIX}remind: comment #4: ${STALL_TITLE}`]);
+    expect(double.calls).toEqual([
+      ISSUES_CALL,
+      COMMENTS_CALL,
+      ["issue", "comment", "4", "--body", STALL_COMMENT],
+    ]);
+  });
+
+  it("posts no second comment on the same day", () => {
+    plantClean();
+    const double = ghDouble({
+      issues: [issueOf("open", "2026-12-01T07:23:10Z")],
+      comments: [{ body: STALL_COMMENT }],
+    });
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome.stdout).toEqual([
+      `${PREFIX}remind: skip #4: ${STALL_TITLE} (already commented on 2026-12-04)`,
+    ]);
+    expect(double.calls).toEqual([ISSUES_CALL, COMMENTS_CALL]);
+  });
+
+  it("comments nothing on the day it opened the issue, so a retry repeats nothing", () => {
+    plantClean();
+    const double = ghDouble({ issues: [issueOf("open", "2026-12-04T07:23:05Z")] });
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome.stdout).toEqual([
+      `${PREFIX}remind: skip #4: ${STALL_TITLE} (opened on 2026-12-04)`,
+    ]);
+    expect(double.calls).toEqual([ISSUES_CALL]);
+  });
+
+  it("reopens the issue when it was closed while the list still stalls", () => {
+    plantClean();
+    const double = ghDouble({ issues: [issueOf("closed", "2026-11-28T07:23:10Z")] });
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome.stdout).toEqual([`${PREFIX}remind: reopen #4: ${STALL_TITLE}`]);
+    expect(double.calls).toEqual([
+      ISSUES_CALL,
+      ["issue", "reopen", "4", "--comment", STALL_COMMENT],
+    ]);
+  });
+
+  it("makes no GitHub call while a row is dated inside the window, nor when the list is empty", () => {
+    plantClean();
+    const double = ghDouble();
+
+    const inside = stall({ now: INSIDE_AT, gh: double.gh });
+    writeJson(BASELINE, NO_ERROR_SITES);
+    const empty = stall({ gh: double.gh });
+
+    expect(inside.exitCode).toBe(0);
+    expect(empty.exitCode).toBe(0);
+    expect(double.calls).toEqual([]);
+  });
+
+  it("exits 3, not 1, when a GitHub call fails, with the stall's lines and the call's error", () => {
+    plantClean();
+    const double = ghDouble({ failsOn: ["issue", "create"] });
+
+    const outcome = stall({ gh: double.gh });
+
+    expect(outcome).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: [...STALL_LINES, `${PREFIX}GitHub: HTTP 502: Bad Gateway`],
+    });
+  });
+});
+
+describe("--stalled from the command line", () => {
+  const runCommand = (args: readonly string[], environment: NodeJS.ProcessEnv = {}) =>
+    spawnSync(process.execPath, [GATE_SCRIPT, ...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...gitEnvironment(), FITNESS_BASE_REF: "", ...environment },
+    });
+
+  it.each([
+    [
+      "--stalled with --record",
+      ["--stalled", "--days", "14", "--record", "--date", "2026-11-21", "--slug", "birth"],
+    ],
+    ["--stalled with --base", ["--stalled", "--days", "14", "--base", "main"]],
+    ["--stalled without --days", ["--stalled"]],
+    ["--days without --stalled", ["--days", "14"]],
+    ["--remind without --stalled", ["--remind"]],
+    ["--days 0", ["--stalled", "--days", "0"]],
+    ["--days that is no integer", ["--stalled", "--days", "1.5"]],
+    ["--days with a leading zero", ["--stalled", "--days", "014"]],
+    ["a negative --days", ["--stalled", "--days", "-3"]],
+    ["--stalled twice", ["--stalled", "--stalled", "--days", "14"]],
+    ["--days twice", ["--stalled", "--days", "14", "--days", "7"]],
+    ["--remind twice", ["--stalled", "--days", "14", "--remind", "--remind"]],
+  ])("exits 2 on %s", (_label, args) => {
+    const result = runCommand(args);
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/^usage: node scripts\/testing\/error-sites-gate\.mjs/);
+  });
+
+  it("reads its two inputs and nothing else: no base, no ESLint and no GitHub call while the list does not stall", () => {
+    plantClean();
+    const bin = mkdtempSync(path.join(tmpdir(), "error-sites-gate-gh-"));
+    try {
+      writeFileSync(
+        path.join(bin, "gh"),
+        [
+          `#!${process.execPath}`,
+          'const fs = require("node:fs");',
+          'fs.appendFileSync(require("node:path").join(__dirname, "calls.log"), JSON.stringify(process.argv.slice(2)) + "\\n");',
+          "process.exit(1);",
+        ].join("\n"),
+        { mode: 0o755 }
+      );
+      const environment = {
+        FITNESS_BASE_REF: "no-such-ref",
+        PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
+      };
+      remove(HISTORY);
+      const undated = runCommand(
+        ["--stalled", "--days", "14", "--remind", "--root", root],
+        environment
+      );
+      writeJson(BASELINE, NO_ERROR_SITES);
+      const empty = runCommand(
+        ["--stalled", "--days", "14", "--remind", "--root", root],
+        environment
+      );
+
+      expect(undated.status).toBe(3);
+      expect(undated.stderr).toBe(
+        `${PREFIX}${HISTORY} does not exist, so the list of 5 sites cannot be dated: a list above zero is dated by the rows of its history\n`
+      );
+      expect(empty.status).toBe(0);
+      expect(empty.stdout).toBe(
+        `${PREFIX}not stalled: the list of existing error sites is empty\n`
+      );
+      expect(existsSync(path.join(bin, "calls.log"))).toBe(false);
+    } finally {
+      rmSync(bin, { recursive: true, force: true });
+    }
+  });
 });

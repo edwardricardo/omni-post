@@ -51,6 +51,22 @@
  *   with the moves between two files given as `--moved <from>:<to>:<count>`. It refuses when
  *   nothing differs.
  *
+ *   `--stalled --days <n>`, the scheduled half (`error-sites-stall.yml`, the Maintainer's decision
+ *   of 2026-11-20): whether the list stopped shrinking. It reads the `errors/` entries of the
+ *   baseline and the rows of the history from the root's disk, which on the runner is the checkout
+ *   of tracked files, and nothing else: no git, no base (`FITNESS_BASE_REF` is not read), no ESLint,
+ *   no package at all, and none of S1 to S10, which fitness #57 holds on every pull request. A row
+ *   is any row, a birth included, and its date is the one in its name; the newest row is the one
+ *   with the latest date. Today is the UTC date of the instant the run reads as now. The list is
+ *   stalled when it is above zero and the newest row is dated `<n>` or more days before today, so
+ *   the window counts from the birth until a row follows it. Exit 0 when the list is empty, or the
+ *   newest row is inside the window; exit 1 when it stalled, writing the total, the count per
+ *   context and the newest row's date. `--remind` then keeps one issue (label
+ *   `error-sites-stalled`) through the reminder the patched-dependencies gate shares
+ *   (`lib/issue-reminder.mjs`): opened when none exists, commented on once a day while it stays
+ *   open, reopened when it is closed while the list still stalls, with no second issue and no
+ *   second comment on the same day; while the list does not stall it calls no GitHub API.
+ *
  *   FAIL-CLOSED, exit 3, which wins over 1 and prints the verdicts too: `git ls-files` failing or
  *   listing no file; `eslint-suppressions.json`, on the head or the base, that cannot be read, is
  *   not JSON or is not ESLint's shape for an `errors/` entry (a missing file is no entry, as ESLint
@@ -58,20 +74,32 @@
  *   a row; a held rule with no list or no options; a glob the scope's matcher does not read;
  *   ESLint's configuration that cannot be resolved; the plugin's manifest, a source file or a
  *   catalog that cannot be read; a base that cannot be resolved; a `git` call against the base that
- *   fails for another reason than a path absent there. A usage error exits 2.
+ *   fails for another reason than a path absent there. Under `--stalled`: the baseline or a history
+ *   entry that cannot be read as above; a list above zero whose history does not exist or holds no
+ *   row, since nothing dates it; a newest row dated after today, which is no day a row was recorded
+ *   on; and, under `--remind`, a GitHub call that fails or answers with no list. A usage error exits
+ *   2.
  *
  *   RESIDUAL LIMITS: the directive scan reads text, so a string that spells a directive is reported
  *   as one; the plugin's imports are read from its syntax, so code that loads a module with no
  *   import and no `require` call (`process.getBuiltinModule`) is not seen; a count is not a line,
  *   so a file that fixes one site and adds another keeps its count; a change of the rule that moves
- *   no count passes S9, and a later change that prunes a file it edited passes S7; the gate never
- *   reads the clock, so a row's date is what its author wrote.
+ *   no count passes S9, and a later change that prunes a file it edited passes S7; S1 to S10 and
+ *   `--record` never read the clock, so a row's date is what its author wrote, and `--stalled`
+ *   trusts it: a row dated later than the day it was recorded, but not after today, holds the
+ *   window open; the day's comment is found by its text, which holds the counts, so two runs of one
+ *   day that read different counts both comment, which takes a change of the list with no row dated
+ *   inside the window (a back-dated row, or a push with no pull request); `--stalled` says the list
+ *   moved inside the window, not that its pace is enough, and it blocks no merge.
  *
- *   Usage: `node scripts/testing/error-sites-gate.mjs [--base <ref>] [--root <dir>]`, and
+ *   Usage: `node scripts/testing/error-sites-gate.mjs [--base <ref>] [--root <dir>]`,
  *   `node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug>
- *   [--base <ref>] [--moved <from>:<to>:<count>]... [--root <dir>]`. The base is `--base`, else the
- *   variable `FITNESS_BASE_REF`. Exit 0 clean, 1 a verdict, 2 a usage error, 3 an input that could
- *   not be read.
+ *   [--base <ref>] [--moved <from>:<to>:<count>]... [--root <dir>]`, and
+ *   `node scripts/testing/error-sites-gate.mjs --stalled --days <n> [--remind] [--root <dir>]`. The
+ *   base is `--base`, else the variable `FITNESS_BASE_REF`; `--stalled` takes neither `--base` nor
+ *   `--record`, `--days` is a positive integer and belongs to it, and so does `--remind`. Exit 0
+ *   clean (under `--stalled`, not stalled), 1 a verdict (stalled), 2 a usage error, 3 an input that
+ *   could not be read.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -98,6 +126,7 @@ import {
   isUnderSource,
   matchesGlob,
 } from "./lib/error-scope.mjs";
+import { createGh, remindIssues } from "./lib/issue-reminder.mjs";
 
 /** ESLint's suppressions file, relative to the root. */
 export const BASELINE = "eslint-suppressions.json";
@@ -125,7 +154,19 @@ const DEFAULT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const USAGE = [
   "usage: node scripts/testing/error-sites-gate.mjs [--base <ref>] [--root <dir>]",
   "       node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug> [--base <ref>] [--moved <from>:<to>:<count>]... [--root <dir>]",
+  "       node scripts/testing/error-sites-gate.mjs --stalled --days <n> [--remind] [--root <dir>]",
 ].join("\n");
+/** The issue `--stalled --remind` keeps while the list stalls, and the label that finds it. */
+const STALL_ISSUE = Object.freeze({
+  title: "Error sites stalled: the list of existing error sites stopped shrinking",
+  label: Object.freeze({
+    name: "error-sites-stalled",
+    color: "b60205",
+    description: "The list of existing error sites stopped shrinking",
+  }),
+});
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAYS = /^[1-9]\d*$/;
 const PRUNE = "pnpm exec eslint . --prune-suppressions";
 const RECORD =
   "node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug>";
@@ -163,6 +204,7 @@ const SEVERITY_VALUES = new Map([
 /** @typedef {{ exitCode: number, stdout: string[], stderr: string[] }} Outcome */
 /** @typedef {{ status: number, stdout: string, stderr: string }} GitResult */
 /** @typedef {(args: readonly string[]) => GitResult} Git */
+/** @typedef {import("./lib/issue-reminder.mjs").Gh} Gh */
 /** @typedef {{ severity: number, options: unknown[] }} RuleState */
 /**
  * @typedef {object} Resolution What ESLint resolves for one path.
@@ -2015,12 +2057,106 @@ function describeRow(row) {
 }
 
 /**
+ * @description The `--stalled` mode: whether the list of existing error sites stopped shrinking. It
+ *   reads the baseline and the history from the root's disk and nothing else. The list stalls when
+ *   it is above zero and its newest row, by the date in the row's name, is dated `days` or more days
+ *   before today, the UTC date of `now`; a stalled list is then reminded through `gh`, when given.
+ * @param {object} input
+ * @param {string} input.root The repository root.
+ * @param {number} input.days The window, in whole days.
+ * @param {Date} input.now The instant the run reads as now.
+ * @param {Gh} [input.gh] Runs GitHub's CLI. Given (`--remind`), a stalled list keeps its issue
+ *   through it; absent, the mode calls no GitHub API.
+ * @returns {Outcome} 0 not stalled, 1 stalled, 3 an input that could not be read.
+ */
+export function checkStall({ root, days, now, gh }) {
+  const read = readBaseline(root);
+  if ("error" in read) return unreadOutcome([read.error]);
+  const history = readHistory(root);
+  if (history.problems.length > 0) return unreadOutcome(history.problems);
+  const contexts = [...baselineContexts(read.baseline)].sort(([left], [right]) =>
+    byText(left, right)
+  );
+  const total = contexts.reduce((sum, [, count]) => sum + count, 0);
+  if (total === 0) {
+    return {
+      exitCode: EXIT.CLEAN,
+      stdout: [`${PREFIX}not stalled: the list of existing error sites is empty`],
+      stderr: [],
+    };
+  }
+  const summary = `${counted(total, "site")} in ${counted(contexts.length, "context")}`;
+  // The rows are sorted by file, and a row's name starts with its date: the last is the newest.
+  const newest = history.rows.at(-1);
+  if (newest === undefined) {
+    return unreadOutcome([
+      `${HISTORY} ${history.exists ? "holds no row" : "does not exist"}, so the list of ${counted(total, "site")} cannot be dated: a list above zero is dated by the rows of its history`,
+    ]);
+  }
+  const date = path.posix.basename(newest.file).slice(0, "YYYY-MM-DD".length);
+  const today = now.toISOString().slice(0, "YYYY-MM-DD".length);
+  const elapsed = (Date.parse(today) - Date.parse(date)) / DAY_MS;
+  if (elapsed < 0) {
+    return unreadOutcome([
+      `the newest history row, ${newest.file}, is dated ${date}, after today, ${today} (UTC): a row is dated the day it is recorded, so the window cannot be read from it`,
+    ]);
+  }
+  if (elapsed < days) {
+    return {
+      exitCode: EXIT.CLEAN,
+      stdout: [
+        `${PREFIX}not stalled: the newest history row, ${newest.file}, is dated ${date}, ${counted(elapsed, "day")} before today, ${today} (UTC), inside the ${String(days)}-day window`,
+        `${PREFIX}${summary}`,
+      ],
+      stderr: [],
+    };
+  }
+  const verdicts = [
+    `STALLED: no history row was added in the last ${counted(days, "day")}: the newest, ${newest.file}, is dated ${date}, ${counted(elapsed, "day")} before today, ${today} (UTC)`,
+    summary,
+    ...contexts.map(([context, count]) => `${context}: ${counted(count, "site")}`),
+  ];
+  /** @type {string[]} */
+  const log = [];
+  /** @type {string[]} */
+  const unread = [];
+  if (gh !== undefined) {
+    const counts = contexts.map(([context, count]) => `${context}: ${String(count)}`).join(", ");
+    const facts = `The list of existing error sites holds ${summary} (${counts}), and the newest row of ${HISTORY}/ is dated ${date}: no row was added in the last ${counted(days, "day")} (today is ${today}, UTC).`;
+    const body =
+      `${facts}\n\nSweep the next context: convert its sites to the registry, prune ` +
+      `\`${BASELINE}\` with \`${PRUNE}\` and record the change with \`${RECORD}\`; or record the ` +
+      `Maintainer's decision on the pace in this issue.\n\nOpened by ` +
+      `scripts/testing/error-sites-gate.mjs --stalled (workflow error-sites-stall.yml, daily). It ` +
+      `comments here once a day while the list stalls, and reopens this issue if it is closed ` +
+      `while the list still stalls. The decision: \`docs/technical/ADR-0047-central-error-system.md\`.`;
+    const reminder = {
+      title: STALL_ISSUE.title,
+      body,
+      comment: `Still stalled on ${today}: ${facts}`,
+    };
+    try {
+      remindIssues({ gh, label: STALL_ISSUE.label, reminders: [reminder], today, log });
+    } catch (error) {
+      unread.push(`GitHub: ${messageOf(error)}`);
+    }
+  }
+  return {
+    exitCode: unread.length > 0 ? EXIT.UNREAD : EXIT.VERDICT,
+    stdout: log.map((entry) => `${PREFIX}remind: ${entry}`),
+    stderr: [...verdicts, ...unread].map((line) => PREFIX + line),
+  };
+}
+
+/**
  * @typedef {object} Arguments
  * @property {boolean} record
+ * @property {boolean} remind
  * @property {string} [root]
  * @property {string} [base]
  * @property {string} [date]
  * @property {string} [slug]
+ * @property {number} [days] The window of `--stalled`, present exactly when it is given.
  * @property {Move[]} moves
  */
 
@@ -2030,7 +2166,8 @@ function describeRow(row) {
  */
 function parseArguments(argv) {
   /** @type {Arguments} */
-  const options = { record: false, moves: [] };
+  const options = { record: false, remind: false, moves: [] };
+  let stalled = false;
   /** @type {Record<string, "root" | "base" | "date" | "slug">} */
   const valued = { "--root": "root", "--base": "base", "--date": "date", "--slug": "slug" };
   for (let index = 0; index < argv.length; index += 1) {
@@ -2041,8 +2178,16 @@ function parseArguments(argv) {
       options.record = true;
       continue;
     }
+    if (argument === "--stalled" && !stalled) {
+      stalled = true;
+      continue;
+    }
+    if (argument === "--remind" && !options.remind) {
+      options.remind = true;
+      continue;
+    }
     if (
-      (key === undefined && argument !== "--moved") ||
+      (key === undefined && argument !== "--moved" && argument !== "--days") ||
       value === undefined ||
       value === "" ||
       value.startsWith("--")
@@ -2054,6 +2199,11 @@ function parseArguments(argv) {
       const move = MOVE_ARGUMENT.exec(value);
       if (move === null || move[1] === move[2]) return null;
       options.moves.push({ from: move[1] ?? "", to: move[2] ?? "", count: Number(move[3]) });
+    } else if (argument === "--days") {
+      if (options.days !== undefined || !DAYS.test(value) || !isPositiveInteger(Number(value))) {
+        return null;
+      }
+      options.days = Number(value);
     } else if (key !== undefined && options[key] === undefined) {
       options[key] = key === "root" ? path.resolve(value) : value;
     } else {
@@ -2070,6 +2220,9 @@ function parseArguments(argv) {
   }
   if (options.date !== undefined && !isCalendarDate(options.date)) return null;
   if (options.slug !== undefined && !SLUG.test(options.slug)) return null;
+  // `--stalled` reads no base and writes no row; `--days` and `--remind` mean nothing without it.
+  if (stalled !== (options.days !== undefined) || (options.remind && !stalled)) return null;
+  if (stalled && (options.record || options.base !== undefined)) return null;
   return options;
 }
 
@@ -2082,6 +2235,10 @@ async function main(argv, environment) {
   const options = parseArguments(argv);
   if (options === null) return { exitCode: EXIT.USAGE, stdout: [], stderr: [USAGE] };
   const root = options.root ?? DEFAULT_ROOT;
+  if (options.days !== undefined) {
+    const remind = options.remind ? { gh: createGh() } : {};
+    return checkStall({ root, days: options.days, now: new Date(), ...remind });
+  }
   const fromEnvironment = environment["FITNESS_BASE_REF"];
   const base =
     options.base ??
