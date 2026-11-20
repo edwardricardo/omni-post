@@ -140,8 +140,9 @@ export interface MigratedScratchDatabase {
   assertMigrated(): void;
   /**
    * Removes every row of every table of the database but Prisma's record of the migrations it
-   * applied. No migration inserts a row of the application, so the database then holds what the
-   * migration left, whatever a case wrote before. It runs on a connection of this database only.
+   * applied, and starts again the sequences those tables' columns own. No migration inserts a
+   * row of the application, so the database then holds what the migration left, whatever a case
+   * wrote before. It runs on a connection of this database only.
    */
   empty(): Promise<void>;
   /** Drops the database, closing its open connections, and disconnects both clients. */
@@ -157,7 +158,8 @@ function urlOfDatabase(ownerUrl: string, database: string): string {
 
 /**
  * The one statement that empties `database`: every table of the public schema but
- * `_prisma_migrations`, in one `TRUNCATE`, so the foreign keys among them hold. It raises, and
+ * `_prisma_migrations`, in one `TRUNCATE`, so the foreign keys among them hold, with the sequences
+ * their columns own started again, so a generated number does not depend on what ran before. It raises, and
  * removes nothing, when the database of the connection that runs it is not `database`: a client
  * of the owner channel's own database that ran it would otherwise empty that database.
  */
@@ -172,7 +174,7 @@ function emptyingStatement(database: string): string {
         INTO tables
         FROM pg_tables
        WHERE schemaname = 'public' AND tablename <> '_prisma_migrations';
-      EXECUTE 'TRUNCATE TABLE ' || tables;
+      EXECUTE 'TRUNCATE TABLE ' || tables || ' RESTART IDENTITY';
     END $$`;
 }
 

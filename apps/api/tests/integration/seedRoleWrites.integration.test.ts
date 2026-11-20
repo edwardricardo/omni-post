@@ -336,7 +336,11 @@ describe("The development seed's role writes on a migrated database", { concurre
         permissions: await adminRolePermissions(client, "role-support"),
         description: await adminRoleDescription(client, "role-support"),
       };
-      assert.ok(written.permissions !== null, "the first run wrote the role");
+      // The description must differ from the one the case writes next, or its restoring proves nothing.
+      assert.ok(
+        written.permissions !== null && written.description !== CHANGED_DESCRIPTION,
+        "the first run wrote the role from its definition"
+      );
       await client.rolePermission.create({
         data: { roleId: "role-support", permission: STALE_PERMISSION },
       });
