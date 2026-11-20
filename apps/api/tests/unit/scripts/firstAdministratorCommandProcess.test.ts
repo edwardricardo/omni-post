@@ -4,8 +4,8 @@
  *   script runs it from a checkout (`node --conditions development --import tsx
  *   src/cli/createFirstAdministrator.ts` in `apps/api`), and pins what it does before it loads its
  *   composition: with no argument, with an unknown argument, with `--help`, and with a valid
- *   argument but a standard output that is a pipe and not a terminal, it ends with the right exit
- *   code and text and opens no connection.
+ *   argument, in either mode, but a standard output that is a pipe and not a terminal, it ends
+ *   with the right exit code and text and opens no connection.
  *
  *   The child's environment holds none of the API's secrets: only `PATH`, a `DATABASE_URL` that
  *   names the sensor below, and `PORT=not-a-port`, a value the API's env module refuses to boot
@@ -32,7 +32,8 @@ import { runFirstAdministratorCommand } from "../../../src/cli/firstAdministrato
 const API_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const ENTRY = "src/cli/createFirstAdministrator.ts";
 
-const USAGE = "Usage: create-first-admin --email <address>\nRun it with --help for what it does.\n";
+const USAGE =
+  "Usage: create-first-admin --email <address> [--reissue]\nRun it with --help for what it does.\n";
 
 const TERMINAL_REFUSAL =
   "This command prints a single-use password, so it runs only in an interactive terminal: its standard output is not a terminal, and the password would be kept wherever that output goes. Run it again with its output on a terminal.\n";
@@ -155,7 +156,7 @@ describe("the first-administrator command as a process, before it loads its comp
           code: 2,
           killed: false,
           stdout: "",
-          stderr: `This command takes only --email <address> and --help.\n${USAGE}`,
+          stderr: `This command takes only --email <address>, --reissue and --help.\n${USAGE}`,
           connections: 0,
         }
       );
@@ -184,6 +185,24 @@ describe("the first-administrator command as a process, before it loads its comp
       const database = await openDatabaseSensor();
 
       const run = await runCommand(["--email", "first.admin@example.com"], database.url);
+
+      assert.deepStrictEqual(
+        { ...run, connections: database.connections() },
+        { code: 2, killed: false, stdout: "", stderr: TERMINAL_REFUSAL, connections: 0 }
+      );
+    },
+    CASE_TIMEOUT_MS
+  );
+
+  it(
+    "refuses a re-issue with exit code 2, opening no connection, when standard output is a pipe and not a terminal",
+    async () => {
+      const database = await openDatabaseSensor();
+
+      const run = await runCommand(
+        ["--reissue", "--email", "first.admin@example.com"],
+        database.url
+      );
 
       assert.deepStrictEqual(
         { ...run, connections: database.connections() },
