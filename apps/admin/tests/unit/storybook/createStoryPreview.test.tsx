@@ -18,11 +18,11 @@ import {
   type StoryMessages,
 } from "@packages/ui/storybook";
 
-const LOCALES = ["en", "es", "fr"] as const;
+const LOCALES = ["en", "de", "fr"] as const;
 type Locale = (typeof LOCALES)[number];
 
 const EN_MESSAGES: StoryMessages = { greeting: "Hello" };
-const ES_MESSAGES: StoryMessages = { greeting: "Hola" };
+const DE_MESSAGES: StoryMessages = { greeting: "Hallo" };
 const KEN_MESSAGES: StoryMessages = { greeting: "Not the English catalog" };
 
 /** What the decorator rendered around a story, read back from the DOM. */
@@ -49,13 +49,13 @@ function RecordingIntlProvider({ locale, messages, children }: StoryIntlProvider
 const makePreview = () =>
   createStoryPreview<Locale>({
     IntlProvider: RecordingIntlProvider,
-    routing: { locales: LOCALES, defaultLocale: "es" },
+    routing: { locales: LOCALES, defaultLocale: "de" },
     // `ken.json` comes first and its name ends in "en.json": only a match on "/en.json" skips it.
     // `fr` has no catalog on purpose.
     catalogs: {
       "/apps/portal/messages/ken.json": KEN_MESSAGES,
       "/apps/portal/messages/en.json": EN_MESSAGES,
-      "/apps/portal/messages/es.json": ES_MESSAGES,
+      "/apps/portal/messages/de.json": DE_MESSAGES,
     },
     defaultTheme: "dark",
   });
@@ -81,14 +81,14 @@ const renderStory = (globals: Record<string, unknown>): RenderedFrame => {
 describe("createStoryPreview", () => {
   describe("the decorator's theme", () => {
     it("wraps the story in the light theme's class when the theme global is light", () => {
-      const frame = renderStory({ theme: "light", locale: "es" });
+      const frame = renderStory({ theme: "light", locale: "de" });
 
       expect(frame.themeClass).toBe("light");
       expect(frame.theme).toBe("light");
     });
 
     it("wraps the story in the portal's default theme when the theme global is not a theme", () => {
-      const frame = renderStory({ theme: "sepia", locale: "es" });
+      const frame = renderStory({ theme: "sepia", locale: "de" });
 
       expect(frame.themeClass).toBe("dark");
       expect(frame.theme).toBe("dark");
@@ -104,10 +104,10 @@ describe("createStoryPreview", () => {
     });
 
     it("hands the provider the routing's default locale and its catalog when the locale is not declared", () => {
-      const frame = renderStory({ theme: "dark", locale: "de" });
+      const frame = renderStory({ theme: "dark", locale: "it" });
 
-      expect(frame.locale).toBe("es");
-      expect(frame.messages).toEqual(ES_MESSAGES);
+      expect(frame.locale).toBe("de");
+      expect(frame.messages).toEqual(DE_MESSAGES);
     });
 
     it("hands the provider an empty catalog when the declared locale has none", () => {
@@ -119,14 +119,14 @@ describe("createStoryPreview", () => {
   });
 
   it("starts every story in the portal's default theme and the routing's default locale", () => {
-    expect(makePreview().initialGlobals).toEqual({ theme: "dark", locale: "es" });
+    expect(makePreview().initialGlobals).toEqual({ theme: "dark", locale: "de" });
   });
 
   describe("the toolbars", () => {
     it("offers every locale of the routing, each named in its own language", () => {
       expect(makePreview().globalTypes.locale?.toolbar?.items).toEqual([
         { value: "en", title: "English" },
-        { value: "es", title: "Español" },
+        { value: "de", title: "Deutsch" },
         { value: "fr", title: "Français" },
       ]);
     });
@@ -139,7 +139,7 @@ describe("createStoryPreview", () => {
         { value: "light", title: "Light", icon: "sun" },
         { value: "dark", title: "Dark", icon: "moon" },
       ]);
-      expect(offered.map((theme) => renderStory({ theme, locale: "es" }).theme)).toEqual(offered);
+      expect(offered.map((theme) => renderStory({ theme, locale: "de" }).theme)).toEqual(offered);
     });
   });
 });
