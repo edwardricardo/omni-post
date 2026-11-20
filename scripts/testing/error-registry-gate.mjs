@@ -40,9 +40,11 @@
  *   is not; in every catalog of an enrolled portal, `errorCodes` is an object that holds a string for
  *   each code whose `fronts` name the portal and for nothing else, and each such text reads only the
  *   code's declared parameters, a number or a plural only a `number` one, a select only a `string`
- *   or `boolean` one, no date or time, and holds no rich-text tag. What fitness #51 holds already, the
- *   same keys and argument names in every locale and every message valid ICU, R7 does not repeat: a
- *   text it cannot parse is an input it could not read. R8: every code is read in code, as
+ *   or `boolean` one, no date or time, and holds no rich-text tag. R7 holds every locale to the
+ *   registry, so a locale that lacks a text the default locale holds is named by R7 and by fitness
+ *   #51's key parity both, on purpose: that is the one point they share, and R7 does not repeat
+ *   #51's argument names or its ICU validity, so a text it cannot parse is an input it could not
+ *   read. R8: every code is read in code, as
  *   `<TABLE>.<CODE>` (or through a namespace, `ns.<TABLE>.<CODE>`), in a file of the rule's scope
  *   outside the registry directory; a comment, a string and a computed member are not a reference.
  *   R9: `docs/api/ERROR_CODES.md` is byte for byte what `lib/error-reference-page.mjs` renders from
@@ -77,7 +79,10 @@
  *   (`ns["define" + "Errors"]`) passes it; the lint rule's `registryDefinition` reads the import that
  *   such a read needs. R11 reads calls by their syntax: an `of` reached through an alias is the lint
  *   rule's `classReference`. R7 holds a text to the code it is keyed by, not to the meaning of the
- *   code: a translation that says something else passes it.
+ *   code: a translation that says something else passes it. R9 compares bytes, so it names a stale
+ *   page without saying which line differs; and the check command the page names in its own header
+ *   is this gate's, `CHECK_COMMAND` of `lib/error-reference-page.mjs`, the one place the change that
+ *   adds `pnpm check:errors` rewrites so the page names that script.
  *
  *   Usage: `node scripts/testing/error-registry-gate.mjs [--write] [--root <dir>]`. The root
  *   defaults to the repository this file lives in, found from the script's own URL. Pinned by
@@ -116,6 +121,7 @@ import {
   isInErrorScope,
   matchesGlob,
 } from "./lib/error-scope.mjs";
+import { gitEnvironment } from "./lib/git-environment.mjs";
 
 /** The registry's directory, relative to the root. */
 export const REGISTRY_DIRECTORY = "packages/shared/src/error-registry";
@@ -182,9 +188,6 @@ const NAMESPACE = "errorCodes";
 /** The routing's `defaultLocale` line, read as fitness #51 reads it: one line, one literal. */
 const DEFAULT_LOCALE_LINE =
   /^[ \t]*defaultLocale:[ \t]*(["'])([A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*)\1[ \t]*,?[ \t]*$/gm;
-
-/** Git variables that would point the listing at a repository other than the root's. */
-const FOREIGN_GIT_VARIABLES = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"];
 
 const nodeRequire = createRequire(import.meta.url);
 
@@ -1060,17 +1063,6 @@ function judgeUniqueness(domains, r3) {
       );
     }
   }
-}
-
-/**
- * @description The environment for git, without the variables that would point it elsewhere: the
- *   listing is always of the root's own repository, also when a git hook runs the gate.
- * @returns {NodeJS.ProcessEnv} The environment.
- */
-function gitEnvironment() {
-  return Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !FOREIGN_GIT_VARIABLES.includes(key))
-  );
 }
 
 /**

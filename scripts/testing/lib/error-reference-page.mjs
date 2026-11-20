@@ -70,12 +70,13 @@ const NONE = "None.";
 
 /**
  * @description Writes text as one table cell: a line break becomes a space, and every character
- *   Markdown would read as syntax is escaped, so a message shows as written.
+ *   Markdown would read as syntax is escaped, so a message shows as written: `&` would start an
+ *   entity (`&amp;` renders as `&`) and `~` a strikethrough.
  * @param {string} text The text.
  * @returns {string} The cell.
  */
 function cell(text) {
-  return text.replace(/\r\n|\r|\n/g, " ").replace(/[\\`*_[\]<>|]/g, "\\$&");
+  return text.replace(/\r\n|\r|\n/g, " ").replace(/[\\`*_[\]<>|&~]/g, "\\$&");
 }
 
 /**

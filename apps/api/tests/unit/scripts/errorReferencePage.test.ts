@@ -271,6 +271,27 @@ describe("the codes", () => {
     );
   });
 
+  it.each([
+    ["an entity", "Tom &amp; Jerry", "Tom \\&amp; Jerry"],
+    ["a strikethrough", "It is ~~gone~~ now", "It is \\~\\~gone\\~\\~ now"],
+  ])(
+    "escapes %s in a message, so it shows as written and Prettier keeps it",
+    async (_what, message, escaped) => {
+      const page = await renderReferencePage({
+        domains: [{ name: "common", codes: [code("NOT_FOUND", { message })] }],
+        sites: null,
+      });
+      const config = await prettier.resolveConfig(path.join(REPO_ROOT, PAGE), {
+        editorconfig: true,
+      });
+
+      const formatted = await prettier.format(page, { ...config, parser: "markdown" });
+
+      expect(sectionOf(page, "## Domain `common`")[0]?.[1]?.[3]).toBe(escaped);
+      expect(formatted).toBe(page);
+    }
+  );
+
   it("is the same page whatever order the domains and their codes come in", async () => {
     const reversed = [...DOMAINS]
       .reverse()
