@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 // API Types for OmniPost Client
-import type { ContentLocale, ErrorParams } from "@shared/types";
+import type { ContentLocale, Problem } from "@shared/types";
 
 export interface Project {
   id: string;
@@ -204,40 +204,10 @@ export interface ValidationError {
   code: string;
 }
 
-/** One part of a request the route's schema refused, as the API's problem body reports it. */
-export interface ProblemIssue {
-  readonly part: "body" | "querystring" | "params" | "headers";
-  /** RFC 6901 pointer into that part; "" is the part itself. */
-  readonly pointer: string;
-  /** The validator's issue code; "unknown" when it names none. */
-  readonly code: string;
-  /** The validator's English text. */
-  readonly detail: string;
-}
-
-/**
- * The API's error body (`application/problem+json`, ADR-0047). `title` and `detail` are the
- * registry's English for developers; a screen words the failure by `code`.
- */
-export interface Problem {
-  /** "https://omnipost.app/problems/" followed by the code. */
-  readonly type: string;
-  readonly title: string;
-  readonly status: number;
-  /** The registry's message with this occurrence's parameters. */
-  readonly detail: string;
-  readonly code: string;
-  readonly correlationId: string;
-  /** ISO 8601, UTC. */
-  readonly timestamp: string;
-  /** Absent when the code's definition declares no parameter. */
-  readonly params?: ErrorParams;
-  /** Present only with `VALIDATION_FAILED`. */
-  readonly issues?: readonly ProblemIssue[];
-}
+export type { Problem } from "@shared/types";
 
 /** The error body of a route that answers through a legacy reply helper. */
-export interface LegacyErrorResponse {
+interface LegacyErrorResponse {
   ok: false;
   error: string;
   message?: string;

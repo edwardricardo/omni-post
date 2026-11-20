@@ -17,11 +17,15 @@ import {
   ERROR_CODE_MAX_LENGTH,
   ERROR_CODE_PATTERN,
   HTTP_ERRORS,
+  PROBLEM_ISSUE_PART,
   formatErrorMessage,
   isCodedError,
   resolveError,
   titleOf,
   type ErrorParams,
+  type Problem,
+  type ProblemIssue,
+  type ProblemIssuePart,
   type RegisteredDefinition,
 } from "@shared/types";
 
@@ -30,53 +34,14 @@ export const PROBLEM_MEDIA_TYPE = "application/problem+json; charset=utf-8";
 /** The origin of every problem type: a deployment-independent identifier, not a page to fetch. */
 const PROBLEM_TYPE_BASE = "https://omnipost.app/problems/";
 
-/** The parts of a request a route's schema validates, as Fastify names them. */
-const REQUEST_PART = {
-  BODY: "body",
-  QUERYSTRING: "querystring",
-  PARAMS: "params",
-  HEADERS: "headers",
-} as const;
-type RequestPart = (typeof REQUEST_PART)[keyof typeof REQUEST_PART];
-
-/** One reason a route's schema refused the request. */
-export interface ProblemIssue {
-  readonly part: RequestPart;
-  /** An RFC 6901 pointer into that part; "" is the part itself. */
-  readonly pointer: string;
-  /** The validator's issue code; "unknown" when it names none. */
-  readonly code: string;
-  /** The validator's English text. */
-  readonly detail: string;
-}
-
-/** The body of every failure the API answers. */
-export interface Problem {
-  /** `PROBLEM_TYPE_BASE` and the code. */
-  readonly type: string;
-  /** The code in words. */
-  readonly title: string;
-  readonly status: number;
-  /** The registry's message, worded with this occurrence's parameters. */
-  readonly detail: string;
-  readonly code: string;
-  readonly correlationId: string;
-  /** ISO 8601, UTC. */
-  readonly timestamp: string;
-  /** Absent when the definition declares none. */
-  readonly params?: ErrorParams;
-  /** Only with `VALIDATION_FAILED`. */
-  readonly issues?: readonly ProblemIssue[];
-}
-
 const paramValueSchema = z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]);
 
 const problemIssueSchema = z.object({
   part: z.enum([
-    REQUEST_PART.BODY,
-    REQUEST_PART.QUERYSTRING,
-    REQUEST_PART.PARAMS,
-    REQUEST_PART.HEADERS,
+    PROBLEM_ISSUE_PART.BODY,
+    PROBLEM_ISSUE_PART.QUERYSTRING,
+    PROBLEM_ISSUE_PART.PARAMS,
+    PROBLEM_ISSUE_PART.HEADERS,
   ]),
   pointer: z.string(),
   code: z.string().min(1),
@@ -178,8 +143,8 @@ function isStatusBetween(value: unknown, lowest: number, highest: number): value
 }
 
 /** Whether a value names a part of the request Fastify validates. */
-function isRequestPart(value: unknown): value is RequestPart {
-  return Object.values(REQUEST_PART).some((part) => part === value);
+function isRequestPart(value: unknown): value is ProblemIssuePart {
+  return Object.values(PROBLEM_ISSUE_PART).some((part) => part === value);
 }
 
 /** The code a value carries, which the log keeps whatever code reaches the wire. */
@@ -259,7 +224,7 @@ function registeredAnswer(error: unknown, context: ProblemContext): ProblemAnswe
  * One item of Fastify's `validation` list. The Zod type provider writes the issue's path as
  * `instancePath`, "/" for an issue about the whole part, and the issue's code as `keyword`.
  */
-function issueOf(part: RequestPart, item: unknown): ProblemIssue {
+function issueOf(part: ProblemIssuePart, item: unknown): ProblemIssue {
   const fields: Readonly<Record<string, unknown>> = isRecord(item) ? item : {};
   const { instancePath, keyword, message } = fields;
   return {

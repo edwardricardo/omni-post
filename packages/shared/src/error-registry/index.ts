@@ -28,6 +28,8 @@ export type {
   ParamValueByKind,
   ParamsOf,
 } from "./definition.js";
+export { PROBLEM_ISSUE_PART } from "./problem.js";
+export type { Problem, ProblemIssue, ProblemIssuePart } from "./problem.js";
 export { ERROR_TABLES, findErrorDefinition, listErrorDefinitions } from "./tables.js";
 export type { RegisteredDefinition, RegisteredErrorCode } from "./tables.js";
 export {
