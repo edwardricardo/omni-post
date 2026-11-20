@@ -387,6 +387,12 @@ for an unrelated advisory. It does two things:
 the whole of their coverage — the step says so in its own output rather than
 letting a silent pass read as more than it is.
 
+**And the Node the images run is held to its own release line.** Trivy never
+reads the `node` executable, so the `Node runtime advisory` step runs
+`node --version` in each image and `scripts/testing/node-runtime-advisory-gate.mjs`
+fails when `nodejs.org/dist/index.json` lists a later release of that major line
+with `security: true`, naming the release to raise both stages to.
+
 ---
 
 ## When CI runs the images

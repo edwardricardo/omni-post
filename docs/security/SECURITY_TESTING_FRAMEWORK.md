@@ -64,7 +64,8 @@ under `.github/workflows/`.
 | Semgrep                             | `audit.yml:86`, Semgrep CE (SAST) › Run Semgrep                                                                                                                      | PR, main                  | the step's `semgrep scan` command                                            |
 | CodeQL                              | `security-testing.yml:77`, CodeQL (typescript, javascript) › Perform CodeQL analysis                                                                                 | PR, main, nightly         | —                                                                            |
 | Dependency advisories               | `ci.yml:687`, Security Audit › Run security audit; `production-ci.yml:38`, Security Audit › Audit dependencies                                                       | PR, main                  | `pnpm audit --audit-level moderate --json`                                   |
-| Container images (Trivy)            | `production-ci.yml:453`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
+| Container images (Trivy)            | `production-ci.yml:479`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
+| Node runtime in the images          | `production-ci.yml:461`, Container Security › Node runtime advisory, for api, workers, admin and client                                                              | PR, main                  | [Container images](#container-images)                                        |
 | Security headers                    | `ci.yml:174`, Test Suite (shard N) › Run API tests (shard, blob reporter), which collects `tests/unit/securityHeaders.test.ts`; on a running API, the ZAP scan below | PR, main                  | `pnpm --filter @apps/api exec vitest run tests/unit/securityHeaders.test.ts` |
 | SQL injection and XSS               | `ci.yml:560`, Integration Tests › Run integration tests (live tier): the cases of `tests/security.live.test.ts`                                                      | PR, main                  | [The security suites](#the-security-suites)                                  |
 | OWASP ZAP baseline                  | `security-testing.yml:166`, OWASP ZAP DAST › Run OWASP ZAP baseline scan                                                                                             | nightly 03:00 UTC, manual | —                                                                            |
@@ -115,6 +116,17 @@ root and fails on a CRITICAL or HIGH finding that `.trivyignore` does not list:
 ```bash
 docker build -f apps/api/Dockerfile -t local/api:scan .
 trivy image --severity CRITICAL,HIGH --exit-code 1 --ignorefile .trivyignore local/api:scan
+```
+
+Trivy reads the image's Debian packages and each module's `package.json`, never
+the `node` executable the distroless base ships without a package record. The
+step before it holds that executable: it runs `node --version` in each image and
+fails when Node's release index lists a later release of the same major line
+marked as a security release, or when the index cannot be read:
+
+```bash
+NODE_VERSION="$(docker run --rm --entrypoint /nodejs/bin/node local/api:scan --version)"
+node scripts/testing/node-runtime-advisory-gate.mjs --version "$NODE_VERSION"
 ```
 
 #### Not covered by a gate
