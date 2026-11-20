@@ -392,6 +392,9 @@
             "apps/api/tests/unit/lib/apiReference.test.ts"
           ]
         },
+        "type-only": {
+          "production": ["apps/api/src/lib/errors/errorHandler.ts"]
+        },
         "config-string": {
           "production": ["apps/api/src/lib/apiReference.ts"]
         }
@@ -3061,7 +3064,10 @@
             "apps/api/tests/unit/auditRoutes.test.ts",
             "apps/api/tests/unit/authRoutes.test.ts",
             "apps/api/tests/unit/dashboardRoutes.test.ts",
+            "apps/api/tests/unit/errorHandler.inject.test.ts",
             "apps/api/tests/unit/healthRoutes.test.ts",
+            "apps/api/tests/unit/lib/errors/problem.test.ts",
+            "apps/api/tests/unit/lib/errors/sendProblem.test.ts",
             "apps/api/tests/unit/mfaRoutes.test.ts",
             "apps/api/tests/unit/postRoutes.test.ts",
             "apps/api/tests/unit/rbacRoutes.test.ts",
@@ -3506,6 +3512,8 @@
             "apps/api/tests/unit/auth/providerOAuthX.pilot.test.ts",
             "apps/client/tests/integration/ListeningPage.test.tsx",
             "apps/client/tests/integration/TrendsPage.test.tsx",
+            "apps/client/tests/integration/authApiErrorBody.test.ts",
+            "apps/client/tests/integration/requestErrorBody.test.ts",
             "apps/client/tests/integration/useABTests.test.ts",
             "apps/client/tests/integration/useBulkScheduleParse.test.tsx",
             "apps/client/tests/integration/useNotifications.test.tsx",
