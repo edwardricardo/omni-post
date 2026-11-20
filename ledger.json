@@ -2570,14 +2570,14 @@
           "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "cb8a160e86761254433ae4431cbd2a7824d96e18c507fb1309ff7f1ac75622ae"
+          "bodyHash": "101826971a289b896ada2659980cf7fa584d5360c1839b9b1294f57c59ad1551"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::wraps the story in the portal's default theme when the theme global is not a theme",
           "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0bc5d537ee5bb1d9346c217163de238937ee5d7e60c10c905d8c61a351c64ad1"
+          "bodyHash": "29a2e7f953f3d2ff8bfafe2f9cd01d9b77c6fd40f7100fa670ce66431083ede9"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider the locale and the catalog whose file name ends in it when the locale is declared",
@@ -2591,7 +2591,7 @@
           "line": 106,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "b9cf4c7773114d432a53322a3a447fc2dc10faf93891645fc6121f98974a5cbd"
+          "bodyHash": "750099b3007509500e5e766002e35c34167cc2e8e07ab9d9b636db2ab2a8f8b7"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::hands the provider an empty catalog when the declared locale has none",
@@ -2605,21 +2605,21 @@
           "line": 121,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "e63144135f23de35fc0669d7c5b9a800dc4bc319e02b941a55aa2234c5b3bcf7"
+          "bodyHash": "3cf169b8a2dec7d1110e378aa9bfc452ce41b01502d3e1da031c2768b44980cd"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::offers every locale of the routing, each named in its own language",
           "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fed01f966917478a39481adbcbdbc25b133bc1d4c84acc9fb42c23cd365a7966"
+          "bodyHash": "033d4a850f7622749356e4d26066443dfb99c70a398eeacfc3d834ea73f3d7f3"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::offers exactly the themes the decorator renders in, each with its label and icon",
           "line": 134,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d1a77f7d9253d5f276938195d7f3b604a3cfb38b5f2df3b32dc3d34ec7df2370"
+          "bodyHash": "5407e4c8351770a21c113e85d48052b5fd64d16b6b81792f6c4b61818b9c7bd7"
         },
         {
           "id": "apps/admin/tests/unit/storybook/createStoryPreview.test.tsx::returns the colour a token resolves to where the element renders, not the element's own",
