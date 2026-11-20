@@ -288,10 +288,9 @@ The lockfile does not move.
 **What no gate saw.** Trivy reports an image's Debian packages and its `node_modules` manifests,
 never the `node` executable, so the `Container Security` gate stayed green from 2026-10-21 over
 images that ran v26.12.0 (SMELL-207, the plan row DEF-160 in `docs/product/plan/chain.md`: no gate saw a Node.js runtime
-advisory in the four images until #955 added the `Node runtime advisory` step to `Container Security`).
-The check now runs in the `Node Runtime Advisory` job of `.github/workflows/production-ci.yml`, on
-the version each leg of `Container Security` reports, and it is not a required check: its red
-blocks no merge, no image scan and no push.
+advisory in the four images until #963 added the `Node Runtime Advisory` job to
+`.github/workflows/production-ci.yml`). That job judges the version each leg of `Container Security`
+reports, and it is not a required check: its red blocks no merge, no image scan and no push.
 
 **The re-check.** The watchlist's date entry `contract-0.16-node-26`, still due 2026-10-28,
 carries a dated reference to this amendment: that review also confirms that 26.12.1 is mature,
