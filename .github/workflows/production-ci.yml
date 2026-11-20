@@ -449,6 +449,23 @@ jobs:
             [ "$bytes" -gt 2000 ] || { echo "::error::${{ matrix.service }} rendered only $bytes bytes for / — too small to be a page, so this is an error shell or a redirect loop, not a render"; exit 1; }
           fi
 
+      # The scanner below reads the image's OS packages and its lockfiles. The
+      # Node binary the base image ships is neither, so an advisory of the
+      # runtime itself reaches no scanner (DEF-160). This step asks the image
+      # which Node it runs and hands that version to the gate, which reads
+      # Node's own release index and fails when a later release of the same
+      # major line is marked as a security release. The rule, its bounded
+      # retries and its fail-closed paths live in the script, pinned by its own
+      # suite; the script imports Node's own modules only, so it runs on the
+      # runner's Node with nothing installed.
+      - name: Node runtime advisory — no later security release of the image's Node line
+        run: |
+          set -euo pipefail
+          IMAGE="local/${{ matrix.service }}:scan"
+          NODE_VERSION="$(docker run --rm --entrypoint /nodejs/bin/node "$IMAGE" --version)"
+          echo "  $IMAGE runs Node $NODE_VERSION"
+          node scripts/testing/node-runtime-advisory-gate.mjs --version "$NODE_VERSION"
+
       # THE GATE, and it is `table` on purpose. With `format: sarif` the action
       # documents that it "enforces output of all vulnerabilities regardless of
       # configured severities" unless `limit-severities-for-sarif` is set — so
