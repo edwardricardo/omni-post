@@ -72,6 +72,7 @@ const STATIC_STEPS = [
 /** The steps only the full battery runs, in the script's order. */
 const SUITE_STEPS = [
   "stories",
+  "stories-admin",
   "scripts",
   "api-common",
   "workers",
@@ -263,11 +264,11 @@ describe("battery.sh --list", () => {
     expect(lines(result.stdout)).toEqual(declaredSteps().map((step) => step.name));
   });
 
-  it("prints as many names as PLANNED_STEPS, which is 35, when --list is given alone", () => {
+  it("prints as many names as PLANNED_STEPS, which is 36, when --list is given alone", () => {
     const result = runBattery(["--list"]);
 
     expect(lines(result.stdout)).toHaveLength(plannedSteps());
-    expect(plannedSteps()).toBe(35);
+    expect(plannedSteps()).toBe(36);
   });
 
   it("prints the static steps in the script's order when --static --list is given", () => {

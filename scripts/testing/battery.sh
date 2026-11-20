@@ -60,8 +60,9 @@
 # No `set -e`: a failing step must not stop the run, because the verdict needs
 # every gate's result, not only the first failure.
 #
-# The battery installs offline and never downloads a browser. The stories step
-# runs in Playwright's Chromium, a one-time prerequisite per machine:
+# The battery installs offline and never downloads a browser. The two stories
+# steps run in Playwright's Chromium, one browser for both portals, since they
+# pin the same playwright; a one-time prerequisite per machine:
 #   pnpm --filter @apps/client exec playwright install chromium
 # A missing browser fails that step loudly; it is never fetched mid-run.
 set -uo pipefail
@@ -69,7 +70,7 @@ set -uo pipefail
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly. A full
 # run hands it to battery-state.mjs as --expected-steps, at the end of this file.
-PLANNED_STEPS=35
+PLANNED_STEPS=36
 
 USAGE="usage: scripts/testing/battery.sh [--static] [--list] [<worktree>]"
 usage() {
@@ -226,6 +227,8 @@ battery_steps() {
   # followed by the remedy, so an unrelated failure is never mislabelled.
   local STORIES_PREFLIGHT='require("fs").accessSync(require("playwright").chromium.executablePath())'
   step suite stories bash -c "pnpm --filter @apps/client exec node -e '$STORIES_PREFLIGHT' || { echo 'stories: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/client exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter @apps/client test:stories"
+  # Every admin story, under the same runner, criterion and preflight.
+  step suite stories-admin bash -c "pnpm --filter @apps/admin exec node -e '$STORIES_PREFLIGHT' || { echo 'stories-admin: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/admin exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter @apps/admin test:stories"
   step suite scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
   step suite api-common pnpm --filter @packages/api-common test
   step suite workers pnpm --filter @apps/workers test
