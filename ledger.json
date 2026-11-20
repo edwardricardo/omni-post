@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1235,
+      "total": 1239,
       "byShape": {
-        "test": 992,
+        "test": 996,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1067,
+        "KEEP": 1071,
         "ADJUDICATE": 95,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1225,
+      "machine": 1229,
       "confirmed": 10,
-      "total": 1235
+      "total": 1239
     },
     "blocks": {
-      "total": 15424,
+      "total": 15446,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15113
+        "BEHAVIOURAL": 15135
       }
     },
     "deleted": {
@@ -50310,6 +50310,124 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/health/databaseHealthChecker.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::pings the database once and never lists its accounts",
+          "line": 37,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7f2f7caf95dfcd6d0ca96a16496c713228b145a7ac0f23ef0f31f6222cb3a97"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports unhealthy when the database does not answer the ping",
+          "line": 49,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0ef537990224c65e758ec80e263b51969a0c16e019b5b4b47a18fe4bc1017ea5"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::reports degraded above one second and healthy at exactly one second",
+          "line": 60,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c35e465a29c5db516baa378e92275ee541974dcc85a71353b1b9a64d21b69175"
+        },
+        {
+          "id": "apps/api/tests/unit/health/databaseHealthChecker.test.ts::keeps the report's fields: latency, message and the four details",
+          "line": 70,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e62746ed92f0051afac91faaf18faa9037f3eb4b9629e4992e3cc53bf5b01738"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/health/healthCheckManager.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 8,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::starts refreshing every 30 s, the first refresh run at once",
+          "line": 50,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "51a29cf38f33018ccd46b0656fb7df7573ec0132e613aa9fb6eec6b0b2a242cb"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::refreshes every 5 s once a report is unhealthy",
+          "line": 61,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a86cba84af40854fb3b81f186d61546b7f553519c51f7edcfa14a2098d934ad1"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::returns to every 30 s once a report is healthy again",
+          "line": 69,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "501b9c91171616f154211e6fe0341c631bcf396bc46872aead626b11f7a6664a"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::keeps refreshing every 30 s after a degraded report",
+          "line": 84,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9f6506da1bc2e49e379cc69b1665e96cbc85749fc4596b5f4d873f8b8c67c4f8"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::does not re-arm a refresh that completes after the manager stopped",
+          "line": 92,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "168e799ce1eb890c8b37a803f75b72968ded3fd8696cc8d1d33c56cef4b303d9"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::makes exactly one attempt when a check fails",
+          "line": 121,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5437d0e4bae9bdcb609354b304adccff95ea1349319b83a26b48b80b8c95f236"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::gives up on a check that never answers at the 5 s timeout, once",
+          "line": 141,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6ba8e0eecfb3dbf4130bc5ac55422ab0f6945ad5dd910ec3c2f6f192c3338ba3"
+        },
+        {
+          "id": "apps/api/tests/unit/health/healthCheckManager.test.ts::reports a passing check's own status, message and details under its dependency",
+          "line": 170,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "73a98b16db1ca8a5d37d58e69b2d0a578a84dffaef170a7fcabe6cd7a5eeb31f"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/health/queueHealthChecker.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -77886,7 +78004,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 145,
+      "blockCount": 152,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
@@ -78902,6 +79020,55 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07f645a8ba9fcd6f3e7db4d06c0b724ec3b13a91ac70708bb40109e48e9dd56b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services, waits until each answers, and stops there: nothing migrated, no app",
+          "line": 3941,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "36b1f09ec1f74c8cd087f4ac76231d8fd04a4c72ea1a56b92cc5c30c7fc93c31"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, as the start does, and starts nothing else",
+          "line": 3967,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "045e9b7fbd90a061979edebf8a2a5204d6a601c10a21c92a0ebd99362c790254"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not read the apps' ports: a PORT that is not a port refuses only the full start",
+          "line": 3989,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "105d3afcf05c07909551ac6785102100a100c8c528b9d35ce30de535da5d04d3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Redis when it never answers PING, after saying Postgres answered",
+          "line": 4001,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7564933136c12bb1b5d638c6b71a7200d38291e8fc8dfb1ae69f21817b614dca"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Postgres when it never answers, before Redis is asked",
+          "line": 4023,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "95efda6df7df3b3833fa07a3d00ee23e49e497ca15d7907c0ed82db2c63f9dea"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that --services-only starts the two services and stops once they answer",
+          "line": 4043,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "716b9017d5b0022c530218bb4d22aeb091fe46111e1b66bbf99a55bf26cca528"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is what pnpm db:up runs, from the repository's root",
+          "line": 4054,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b0563564201b9299cf7c6df6af98833195f4016267f85a21ad709ee11387e6a9"
         }
       ],
       "verdict": "KEEP",
@@ -79731,6 +79898,37 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "183fac0d2d9d551e0363b6b1fef19b5be58cd2c4eef90ec1090141cadca0289e"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/workersDevScript.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/workersDevScript.test.ts::starts as the API's dev does, naming the checkout's environment file, with its own entry",
+          "line": 48,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "03555028cd9650d2112cd57a642b9994cce3a9d88aaded1b74e802d4d8558475"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/workersDevScript.test.ts::hands the shared logger a LOG_LEVEL set only in the environment file",
+          "line": 62,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ebbd25b29dfe30ed03c6f6915386f73d4d02ff3d51583215f3d7a83b6bf9d921"
         }
       ],
       "verdict": "KEEP",
@@ -105609,6 +105807,30 @@
         "module": "packages/adapters/crm-salesforce/src/SalesforceAdapter.ts",
         "imported": true
       },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/adapters/db-prisma/tests/cachedRepositoryAdapter.unit.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "packages/adapters/db-prisma/tests/cachedRepositoryAdapter.unit.test.ts::asks the wrapped repository on every ping, so a later failure is seen",
+          "line": 30,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "df5d64c33a11a5e36352e5ec3873bead6c1084ca013ac0f5dd836b4b4760b67a"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
       "duplicate": null,
       "importers": null
     },
