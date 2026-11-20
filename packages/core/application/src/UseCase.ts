@@ -4,7 +4,16 @@
  * @layer application
  */
 
-import { type Result } from "@shared/types";
+import {
+  COMMON_ERRORS,
+  resolveOccurrence,
+  type CodedError,
+  type ErrorParams,
+  type OfArgs,
+  type RegisteredDefinition,
+  type RegisteredOccurrence,
+  type Result,
+} from "@shared/types";
 
 /**
  * Base Use Case interface
@@ -13,9 +22,9 @@ import { type Result } from "@shared/types";
  * They orchestrate domain objects and external services to fulfill
  * a specific user intention.
  *
- * @typeParam TInput - The input DTO type
- * @typeParam TOutput - The output type (success case)
- * @typeParam TError - The error type (failure case)
+ * @template TInput - The input DTO type
+ * @template TOutput - The output type (success case)
+ * @template TError - The error type (failure case)
  *
  * @example
  * class CreatePostUseCase implements UseCase<CreatePostInput, PostDTO, CreatePostError> {
@@ -46,44 +55,87 @@ export interface CommandUseCase<TInput, TError extends Error = Error> {
 }
 
 /**
- * Application error types for use cases
+ * The registry's fields of an error `UseCaseError.of` built. Its private field makes the type
+ * nominal and the class is not exported, so no other module can hand the constructor these fields.
  */
-export class UseCaseError extends Error {
-  public readonly code: string;
-  public readonly originalError: Error | undefined;
+class RegistryFields {
+  readonly #occurrence: RegisteredOccurrence;
 
-  constructor(message: string, code: string, originalError?: Error) {
-    super(message, originalError ? { cause: originalError } : undefined);
-    this.name = "UseCaseError";
-    this.code = code;
-    this.originalError = originalError ?? undefined;
+  constructor(occurrence: RegisteredOccurrence) {
+    this.#occurrence = occurrence;
+  }
+
+  get occurrence(): RegisteredOccurrence {
+    return this.#occurrence;
   }
 }
 
 /**
- * Common use case error codes
+ * Application error types for use cases. `UseCaseError.of` builds one from a registered
+ * definition; the constructor takes a message of its own and leaves `definition` and `params`
+ * undefined.
+ */
+export class UseCaseError extends Error implements CodedError {
+  public readonly code: string;
+  public readonly originalError: Error | undefined;
+  public readonly definition: RegisteredDefinition | undefined;
+  public readonly params: ErrorParams | undefined;
+
+  constructor(message: string, code: string, originalError?: Error, registered?: RegistryFields) {
+    super(message, originalError ? { cause: originalError } : undefined);
+    this.name = "UseCaseError";
+    this.code = code;
+    this.originalError = originalError ?? undefined;
+    this.definition = registered?.occurrence.definition;
+    this.params = registered?.occurrence.params;
+  }
+
+  /**
+   * @method of
+   * @description Builds the error of a registered definition, worded by the registry's entry for
+   *   its code; a code the registry does not hold answers `INTERNAL_ERROR`. It returns the error
+   *   and raises nothing.
+   * @param definition - A member of a registry table, `<TABLE>.<CODE>`.
+   * @param args - The definition's declared parameters first when it declares any, then the
+   *   options, whose `cause` becomes `originalError`.
+   * @returns The use case's error.
+   */
+  static of<D extends RegisteredDefinition>(definition: D, ...args: OfArgs<D>): UseCaseError {
+    const occurrence = resolveOccurrence(definition, ...args);
+    return new UseCaseError(
+      occurrence.message,
+      occurrence.definition.code,
+      occurrence.cause,
+      new RegistryFields(occurrence)
+    );
+  }
+}
+
+/**
+ * Common use case error codes: the short names of the `common` domain's codes, read from the
+ * registry.
  */
 export const USE_CASE_ERRORS = {
-  NOT_FOUND: "NOT_FOUND",
-  VALIDATION_FAILED: "VALIDATION_FAILED",
-  UNAUTHORIZED: "UNAUTHORIZED",
-  FORBIDDEN: "FORBIDDEN",
-  CONFLICT: "CONFLICT",
-  INTERNAL_ERROR: "INTERNAL_ERROR",
+  NOT_FOUND: COMMON_ERRORS.NOT_FOUND.code,
+  VALIDATION_FAILED: COMMON_ERRORS.VALIDATION_FAILED.code,
+  UNAUTHORIZED: COMMON_ERRORS.UNAUTHORIZED.code,
+  FORBIDDEN: COMMON_ERRORS.FORBIDDEN.code,
+  CONFLICT: COMMON_ERRORS.CONFLICT.code,
+  INTERNAL_ERROR: COMMON_ERRORS.INTERNAL_ERROR.code,
   /**
    * Request was valid but the requested operation isn't wired yet — distinct
    * from `INTERNAL_ERROR` (unknown failure) and `VALIDATION_FAILED` (caller
    * input wrong). Caller should surface this as a "feature not available"
    * UX, not a generic 500.
    */
-  NOT_IMPLEMENTED: "NOT_IMPLEMENTED",
+  NOT_IMPLEMENTED: COMMON_ERRORS.NOT_IMPLEMENTED.code,
   /**
    * A content/policy guardrail rejected the action. Distinct from
    * `VALIDATION_FAILED` (schema/shape) — the input was well-formed but
    * violated a runtime policy. Caller should surface the guardrail name
    * and reason so the user can retry with corrected content.
    */
-  GUARDRAIL_REJECTED: "GUARDRAIL_REJECTED",
+  GUARDRAIL_REJECTED: COMMON_ERRORS.GUARDRAIL_REJECTED.code,
   /**
    * The operation is well-formed and authorized but its blast radius exceeds a
    * bound the system will attempt atomically (e.g. a hard delete whose cascade
@@ -92,7 +144,7 @@ export const USE_CASE_ERRORS = {
    * error message names the measured size and the ceiling. Caller should surface
    * it as an actionable "too large" response, not a generic 500.
    */
-  OPERATION_TOO_LARGE: "OPERATION_TOO_LARGE",
+  OPERATION_TOO_LARGE: COMMON_ERRORS.OPERATION_TOO_LARGE.code,
   /**
    * A persistence failure that may succeed on retry: a transaction timeout, or a
    * write conflict / serialization failure under a Serializable transaction.
@@ -100,7 +152,7 @@ export const USE_CASE_ERRORS = {
    * (a durable interlock that will keep failing). Caller should surface it as a
    * retryable "temporarily unavailable" response.
    */
-  TRANSIENT_FAILURE: "TRANSIENT_FAILURE",
+  TRANSIENT_FAILURE: COMMON_ERRORS.TRANSIENT_FAILURE.code,
 } as const;
 
 export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ERRORS];
