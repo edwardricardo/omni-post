@@ -27,7 +27,7 @@
       "total": 1240
     },
     "blocks": {
-      "total": 15452,
+      "total": 15455,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15141
+        "BEHAVIOURAL": 15144
       }
     },
     "deleted": {
@@ -78063,7 +78063,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 152,
+      "blockCount": 154,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
@@ -79128,6 +79128,20 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0563564201b9299cf7c6df6af98833195f4016267f85a21ad709ee11387e6a9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names each app that answers degraded, with every dependency its report gives as not healthy",
+          "line": 4116,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1f3e27f60ccd337dab64b9da5100072520a290a4d850c2b916f05f423fac377a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints no such line when the apps' reports are healthy",
+          "line": 4136,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7ac7beb4c68cf2d38bf4b8fd54682cc8d2aaa443c91c55aa43fb3ef1d6217675"
         }
       ],
       "verdict": "KEEP",
@@ -103913,56 +103927,63 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/workers/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is ready when every critical dependency, including the publish consumer, is healthy",
-          "line": 34,
+          "line": 38,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd0bff40cdddab9890b6b99b98efc2a970d7120f403fc5007e9cd204096add02"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when nothing is consuming the publish queue",
-          "line": 42,
+          "line": 46,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0de3a7b0b8f0c578156d4a6698282c080f1f6e362995eb536730afdb730494c3"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a critical dependency has no registered checker",
-          "line": 50,
+          "line": 54,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4210225a7b27be4a136a9ce36b368b494f346f9d5ce102c19a22b8c454a3009b"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a dependency check fails outright",
-          "line": 62,
+          "line": 66,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5fe09d7ef2116ba32851851fc83087ba363912dd3ae411bfbc19332e6cdc5413"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::treats a degraded critical dependency as ready, since it still answers",
-          "line": 74,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "93727576026317a3fb3d501a2d0f2beb1d9343603deee93d56c9ce068885735c"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::is NOT ready when a dependency reports a status other than healthy or degraded",
-          "line": 83,
+          "line": 87,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66b6df08416265a3a395ac8438b4c91df2df12bfd56d161edc38a28017c37090"
         },
         {
           "id": "apps/workers/tests/unit/readiness.unit.test.ts::names the consumer dependency after the queue it watches",
-          "line": 94,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4adafbe40e2aa5eb13d3c98161a92ff0d99317a8b8b2f9551ea12bef373317ba"
+        },
+        {
+          "id": "apps/workers/tests/unit/readiness.unit.test.ts::is 200 for a healthy or degraded report and 503 for an unhealthy one",
+          "line": 106,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ead2e1a070c665a355415dbac856d770e53735df671a6d46eae5dd2817e262ff"
         }
       ],
       "verdict": "KEEP",

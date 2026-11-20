@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1230  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15452 |
+| Blocks                  | 15455 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -988,7 +988,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 152    | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 154    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -1192,7 +1192,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/workers/tests/unit/env.unit.test.ts`                                                            | test             | 10     | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/workers/tests/unit/publishWorker.drain-order.test.ts`                                           | test             | 1      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/workers/tests/unit/publishWorker.unit.test.ts`                                                  | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/workers/tests/unit/readiness.unit.test.ts`                                                      | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/workers/tests/unit/readiness.unit.test.ts`                                                      | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/worker.smoke.ts`                                                                  | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `packages/adapters/cache-redis/tests/access-patterns.test.ts`                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/cache-manager.test.ts`                                           | test             | 48     | 0          | KEEP       | machine                     | behavioural          |

@@ -89,6 +89,11 @@
  *   they receive the API's environment without `NODE_ENV`, so they read the `.env` the run
  *   generated and checked and nothing else. The API still receives it.
  *
+ *   DEGRADED. A degraded app answers 200, so its stage passes. Once the API, and then the
+ *   workers, answer, each is asked once for its detailed report (`/health/detailed`), and when
+ *   the report says `degraded`, one line names the app and each dependency the report gives as
+ *   not healthy, with its status. A healthy report adds no line.
+ *
  *   ADMINISTRATION PORTAL. Once the workers answer, `pnpm --filter @apps/admin dev` starts the
  *   administration portal from source, detached, in the same stage again. Its port is the one its
  *   package fixes on that script (`next dev -p 3100` in `apps/admin/package.json`, read from the
@@ -274,6 +279,10 @@ They receive the API's environment without NODE_ENV, so that they read the check
 line of their own: each stop line ends one app's session, so stopping the API leaves the workers
 running. A run whose start of the workers fails ends their session alone; the API stays up.
 
+A degraded app answers 200 and its stage passes. Once the API, and then the workers, answer, each
+is asked once for /health/detailed; when it says degraded, a line names the app and each
+dependency that is not healthy, with its status.
+
 The administration portal is started next, once the workers answer, the same way, with
 \`pnpm --filter @apps/admin dev\`, and left running, on the port its dev script fixes in
 apps/admin/package.json (next dev -p 3100). It must answer /api/health with 200, then /en/login
@@ -315,6 +324,12 @@ const COMPOSE = ["compose", "-f", "docker-compose.yml", "--env-file", ENVIRONMEN
 
 /** How long one attempt waits for a peer that says nothing; a loopback round trip takes far less. */
 const PROBE_TIMEOUT_MS = 2000;
+
+/**
+ * How long the read of an app's detailed report may take: the report runs every check once, each
+ * bounded at 5 s, so a slow dependency still gets its answer read.
+ */
+const REPORT_TIMEOUT_MS = 10_000;
 
 /** The pause between two attempts: short beside the default wait, long beside one Compose call. */
 const POLL_INTERVAL_MS = 500;
@@ -431,6 +446,8 @@ const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
  * @property {string} probe - The path that answers 200 on the app's port once the app is up.
  * @property {readonly string[]} [pages] - Paths that must answer exactly 200 too, each asked once
  *   the probe and the pages before it do: what the app is held to beyond the probe.
+ * @property {string} [report] - The path of the app's detailed health report, asked once the app
+ *   answers, so the run can say when the app answers degraded (`reportDegraded`).
  * @property {number} port - The loopback port the app takes.
  */
 
@@ -454,6 +471,7 @@ const API = /** @type {const} */ ({
   record: ".tmp/api.pid",
   log: ".tmp/api.log",
   probe: "/health",
+  report: "/health/detailed",
 });
 
 /**
@@ -481,6 +499,7 @@ const WORKERS = /** @type {const} */ ({
   record: ".tmp/workers.pid",
   log: ".tmp/workers.log",
   probe: "/health/ready",
+  report: "/health/detailed",
 });
 
 /**
@@ -1104,6 +1123,70 @@ function accepts(port) {
     });
     socket.once("error", () => resolve(false));
   });
+}
+
+/**
+ * @function bodyOf
+ * @description What a path of a loopback port answers with 200, read whole.
+ * @param {number} port - The port.
+ * @param {string} asked - The path asked for.
+ * @param {number} ms - How long the request may take.
+ * @returns {Promise<string | null>} The body, or `null` for another status, a refused connection
+ *   or a peer that did not answer in time.
+ */
+function bodyOf(port, asked, ms) {
+  return new Promise((resolve) => {
+    const request = get({ host: LOOPBACK, port, path: asked, timeout: ms }, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume();
+        resolve(null);
+        return;
+      }
+      /** @type {Buffer[]} */
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.once("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      response.once("error", () => resolve(null));
+    });
+    request.once("timeout", () => {
+      request.destroy();
+      resolve(null);
+    });
+    request.once("error", () => resolve(null));
+  });
+}
+
+/**
+ * @function reportDegraded
+ * @description Once an app answers, asks it for its detailed health report and, when the report
+ *   says `degraded`, prints one line that names the app and each dependency the report gives as
+ *   not healthy, with its status. The answer the run waited for does not say this: `/health` does
+ *   not name dependencies and the workers' `/health/ready` never says degraded. A healthy report,
+ *   an app with no report and a report that cannot be read print nothing, since the app answered.
+ * @param {App} app - The app, by its descriptor: its name, its words, its port and its report.
+ * @returns {Promise<void>}
+ */
+async function reportDegraded(app) {
+  if (app.report === undefined) return;
+  const text = await bodyOf(app.port, app.report, REPORT_TIMEOUT_MS);
+  /** @type {unknown} */
+  let report = null;
+  try {
+    report = text === null ? null : JSON.parse(text);
+  } catch {
+    return;
+  }
+  if (typeof report !== "object" || report === null) return;
+  const { status, dependencies } = /** @type {{ status?: unknown, dependencies?: unknown }} */ (
+    report
+  );
+  if (status !== "degraded") return;
+  const named = (Array.isArray(dependencies) ? dependencies : [])
+    .filter((dependency) => dependency?.status !== "healthy")
+    .map((dependency) => `${dependency?.name} ${dependency?.status}`);
+  process.stdout.write(
+    `${NAME}: the ${app.name} answer${app.words.s} degraded: ${named.join(", ") || "no dependency named"}\n`
+  );
 }
 
 /**
@@ -1801,8 +1884,13 @@ async function main(argv) {
         `accept connections\n`
     );
     migrateDatabase(options.root, file, answered, options.waitSeconds);
-    await startApp(options.root, { ...API, port: api }, options.waitSeconds);
-    await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);
+    for (const app of [
+      { ...API, port: api },
+      { ...WORKERS, port: workers },
+    ]) {
+      await startApp(options.root, app, options.waitSeconds);
+      await reportDegraded(app);
+    }
     // Each portal forwards /api/backend/* to API_URL (its proxy and its server actions read that
     // key), so it is pointed at the API this run started, unless the calling shell names another,
     // which wins as a shell's PORT does for the API. An empty one is unset: a portal's schema reads
