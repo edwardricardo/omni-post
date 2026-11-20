@@ -3,7 +3,7 @@ feature: first-administrator
 owner: Maintainer
 status: live
 verified:
-  sha: 36681eaf5c96944ae47ba3ed702d4b324464f042
+  sha: a830ad06b6140f8ad68f0dcfb5438ef798a0343e
   date: 2026-11-20
   by: Maintainer
 paths:
@@ -247,7 +247,6 @@ An administrator with `mustChangePassword` true and `lastLoginAt` empty has not 
 These are open items of F-02 in [chain.md](../product/plan/chain.md), named by id:
 
 - **FIRST-ADMIN-COMMAND-FAILURES-NAME-NO-REASON**: a failed run says that it failed, not why.
-- **FIRST-ADMINISTRATOR-JOURNEY-HAS-NO-PROOF-ACROSS-THE-APPLICATIONS**: no test drives the command, the API and the portal together.
 
 These behaviors are accepted by decision of the Product Owner, so a support person meets them as they are:
 
@@ -280,4 +279,4 @@ An administrator who has signed in and lost the password is not served by this c
 
 ## Verification
 
-Last verified against main 36681eaf5c96944ae47ba3ed702d4b324464f042 on 2026-11-20 by Maintainer
+Last verified against main a830ad06b6140f8ad68f0dcfb5438ef798a0343e on 2026-11-20 by Maintainer

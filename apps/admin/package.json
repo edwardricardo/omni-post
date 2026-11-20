@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage",
     "test:stories": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --disable-warning=DEP0205\" vitest run --config vitest.stories.config.ts",
+    "test:first-administrator": "playwright test --config e2e/first-administrator/playwright.config.ts",
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6007"
   },
