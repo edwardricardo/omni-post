@@ -34,6 +34,7 @@ import type {
 import { AuditResources, type AuditService } from "../../audit/auditService.js";
 import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 import { authLogger } from "../../lib/logger.js";
+import { DEFAULT_LOCKOUT_DURATION_MINUTES } from "./bruteForceDefaults.js";
 
 /**
  * Tunable thresholds. Defaults align with NIST SP 800-63B-4 (rate-limit
@@ -59,7 +60,7 @@ export interface RedisBruteForceConfig {
 
   /** Per-identifier failure count that triggers account lockout. Default 10. */
   readonly lockoutThreshold: number;
-  /** Lockout TTL in minutes (auto-expiry, DoS-conscious). Default 30. */
+  /** Lockout TTL in minutes (auto-expiry, DoS-conscious). Default `DEFAULT_LOCKOUT_DURATION_MINUTES`. */
   readonly lockoutDurationMinutes: number;
 
   /** IP-based block threshold (very high — supplementary). Default 200. */
@@ -83,7 +84,7 @@ const DEFAULT_CONFIG: RedisBruteForceConfig = {
   maxDelaySeconds: 300,
   exponentialBase: 2,
   lockoutThreshold: 10,
-  lockoutDurationMinutes: 30,
+  lockoutDurationMinutes: DEFAULT_LOCKOUT_DURATION_MINUTES,
   ipBlockThreshold: 200,
   ipBlockDurationMinutes: 60,
   captchaThreshold: 3,

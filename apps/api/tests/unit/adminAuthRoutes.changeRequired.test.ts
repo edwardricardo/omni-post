@@ -37,6 +37,9 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 const Fastify = (await import("fastify")).default;
+const fastifySwagger = (await import("@fastify/swagger")).default;
+const { jsonSchemaTransform, serializerCompiler, validatorCompiler } =
+  await import("fastify-type-provider-zod");
 const { adminAuthRoutes } = await import("../../src/admin/auth/adminAuthRoutes.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
@@ -66,9 +69,14 @@ const limiterStub = {
   ),
 };
 
-/** The routes over the stubs, registered under `prefix` when one is given. */
+/**
+ * The routes over the stubs, registered under `prefix` when one is given, on an app with the Zod
+ * compilers `createApp()` sets.
+ */
 function buildApp(options: { prefix?: string } = {}) {
   const app = Fastify({ logger: false });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
   const container = new Container();
   container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
   container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);
@@ -238,6 +246,17 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(changeCall).toEqual(signInCall);
   });
 
+  it("spends the sign-in's rate-limit bucket on a body the schema refuses, before the handler answers it", async () => {
+    const res = await post({ ...VALID_BODY, email: "not-an-address" });
+
+    expect(res.statusCode).toBe(400);
+    expect(limiterStub.tryConsume).toHaveBeenCalledTimes(1);
+    expect(limiterStub.tryConsume).toHaveBeenCalledWith(
+      "admin:127.0.0.1:/admin/auth/login",
+      expect.anything()
+    );
+  });
+
   it("answers 429 and does not run the service when the rate limit refuses", async () => {
     limiterAllows = false;
 
@@ -262,6 +281,68 @@ describe("POST /admin/auth/password/change-required", () => {
     expect(logged.length).toBeGreaterThan(0);
     expect(written.includes(CURRENT_PASSWORD)).toBe(false);
     expect(written.includes(NEW_PASSWORD)).toBe(false);
+  });
+});
+
+describe("POST /admin/auth/password/change-required in the published contract", () => {
+  it("declares its body in the OpenAPI document the generated API types are made from: the e-mail and both passwords required, the second factor's code optional", async () => {
+    const app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+    await app.register(fastifySwagger, {
+      transform: jsonSchemaTransform,
+      openapi: { info: { title: "Contract test API", version: "1.0.0" } },
+    });
+    const container = new Container();
+    container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
+    container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);
+    container.registerInstance(TOKENS.EmailPort, emailStub);
+    container.registerInstance(TOKENS.HttpRateLimiter, limiterStub);
+    app.decorate("container", container);
+    await app.register(adminAuthRoutes);
+    await app.ready();
+
+    // The document is OpenAPI 3, the only version whose operations carry `requestBody`.
+    const operation = app.swagger().paths?.[ROUTE]?.post ?? {};
+    const body = "requestBody" in operation ? operation.requestBody : undefined;
+    await app.close();
+
+    expect(body).toMatchObject({
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              email: { type: "string" },
+              currentPassword: { type: "string", minLength: 1 },
+              newPassword: { type: "string", minLength: 1, maxLength: 128 },
+              mfaToken: { type: "string" },
+            },
+            required: ["email", "currentPassword", "newPassword"],
+          },
+        },
+      },
+    });
+  });
+});
+
+describe("POST /admin/auth/password/change-required on a host without the Zod validator", () => {
+  it("refuses to start, naming the route, rather than serving it unvalidated", async () => {
+    const app = Fastify({ logger: false });
+    const container = new Container();
+    container.registerInstance(TOKENS.AdminAuthService, adminAuthStub);
+    container.registerInstance(TOKENS.PlatformCredentialService, credentialStub);
+    container.registerInstance(TOKENS.EmailPort, emailStub);
+    container.registerInstance(TOKENS.HttpRateLimiter, limiterStub);
+    app.decorate("container", container);
+    app.register(adminAuthRoutes);
+
+    try {
+      await expect(app.ready()).rejects.toThrow(ROUTE);
+    } finally {
+      await app.close();
+    }
   });
 });
 

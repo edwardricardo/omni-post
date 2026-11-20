@@ -19,6 +19,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RedisBruteForceAdapter } from "../../../../src/infrastructure/adapters/RedisBruteForceAdapter.js";
+import { DEFAULT_LOCKOUT_DURATION_MINUTES } from "../../../../src/infrastructure/adapters/bruteForceDefaults.js";
 import type { CreateAuditLogParams } from "../../../../src/audit/auditService.js";
 import type { Redis } from "ioredis";
 
@@ -280,6 +281,21 @@ describe("RedisBruteForceAdapter", () => {
       }
       const calls = audit.log.mock.calls.map((c) => c[0]?.action);
       expect(calls).toContain("ACCOUNT_LOCKED");
+    });
+
+    it("locks for the default lockout duration when built with no configuration, as the composition root builds it", async () => {
+      const { adapter, audit } = makeAdapter();
+      for (let i = 0; i < 10; i++) {
+        await adapter.recordFailedAttempt({
+          identifier: IDENTIFIER,
+          ip: IP,
+          userAgent: UA,
+        });
+      }
+      const locked = audit.log.mock.calls
+        .map((c) => c[0])
+        .find((p) => p?.action === "ACCOUNT_LOCKED");
+      expect(locked?.details).toMatchObject({ lockoutMinutes: DEFAULT_LOCKOUT_DURATION_MINUTES });
     });
   });
 
