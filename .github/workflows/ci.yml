@@ -629,15 +629,22 @@ jobs:
       - name: Setup Turborepo cache
         # The ONLY turbo cache step in this file with save enabled: every entry
         # that reaches the cache is minted by this job, under the no-output
-        # gate below. Key + restore-key rationale: see the canonical comment on
-        # the Lint job's restore step (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md
-        # AC-1).
+        # gate below.
+        #
+        # No restore-keys on purpose: this job restores only on an exact match
+        # of its key, which is a rerun of the same commit. On a new commit it
+        # builds every package from source, so the entry it saves holds nothing
+        # replayed from an earlier entry. With the prefix restore-key it had,
+        # this job built against a restored `dist` nothing verified, and it
+        # failed on main when that `dist` was partial. The restore-only jobs
+        # keep the prefix key and read what this job built from source.
+        #
+        # Key rationale: see the canonical comment on the Lint job's restore
+        # step (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md AC-1).
         uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
 
       - name: Build all packages
         # Turbo 2.9.16 has no --fail-on-warning flag, so a task that declares
