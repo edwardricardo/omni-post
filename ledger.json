@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1225,
+      "total": 1232,
       "byShape": {
-        "test": 984,
+        "test": 990,
         "integration-test": 89,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
         "runner": 0,
-        "helper": 120,
+        "helper": 121,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1059,
+        "KEEP": 1066,
         "ADJUDICATE": 93,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1215,
+      "machine": 1222,
       "confirmed": 10,
-      "total": 1225
+      "total": 1232
     },
     "blocks": {
-      "total": 15303,
+      "total": 15365,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14992
+        "BEHAVIOURAL": 15054
       }
     },
     "deleted": {
@@ -1305,6 +1305,537 @@
       "importers": null
     },
     {
+      "path": "apps/admin/tests/unit/auth/adminAuthErrorMessageKey.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/auth/adminAuthErrorMessageKey.test.ts::names the message %s → %s",
+          "line": 36,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "45773898e8a387eb7139850c7c6ab2697717255bb7477bc10df950ab1595dba2"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/adminAuthErrorMessageKey.test.ts::names the general message for %s",
+          "line": 40,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "456732ffcccdce54a91899db27f0c7fa5d9e6c3ae70408f3c134f560bc097a5b"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/admin/tests/unit/auth/apiStandIns.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 2
+    },
+    {
+      "path": "apps/admin/tests/unit/auth/authActions.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 13,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::sends an administrator who must change the password to the change page, with nothing in the URL and no session",
+          "line": 83,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "72283bbaf7cb5eb2d61323d17be131928ebc61dde53819e3c889d89719e16dd5"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::still opens the session and goes to the dashboard after a sign-in",
+          "line": 94,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4343b676f4e695d37d3913347ef6cbc9c9fc0f588d76a24ebc46aa6df8c27b15"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::still returns the API's code for wrong credentials, with no redirect",
+          "line": 109,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b6eced8cbb8e579bcdbad8b6fc4a13e2cb0cd0f5b1877eb308e74966a311c780"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::sends the form's e-mail, current password and new password, never the confirmation",
+          "line": 121,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b473189d564adcb98b6f1a19b11dc83aee93f9dd7e0508837d479900964a3127"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::sends the second factor's code once the form holds it",
+          "line": 135,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "80004a6d0b042499895ef3128a26a45d25890464f3c019389a8867d18a4ff17d"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::redirects to the sign-in of the locale with the changed flag after a change",
+          "line": 150,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "378d9a864ece8f3ba822eccff18884f7d0629a2a8a3b23f6d17deec5b04f85e7"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::returns the API's code when the change is refused, with no redirect",
+          "line": 161,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "93d2305742b0ca349310dd4a624fc91ab1aa0f5a527667c0aabf3de3d792aceb"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::asks for the second factor's code when the API requires it",
+          "line": 170,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e7283d01528086f8f92d43630e8b3e60e4c98d00bfe6c80431324e449c321f16"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::keeps asking for the code once the form holds it, whatever the API refuses",
+          "line": 178,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e95cc6a0bd9b7fa4e517954116ef4ca825856f01e5ab7d8444ead67269e93613"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::returns the fields a validation failure names",
+          "line": 189,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5a950fe08868e472ca328af5c34cc7a6fd7ab29ccb3462a001db4389c874a8b1"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::refuses a new password that differs from its confirmation, and posts nothing",
+          "line": 211,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f6fe7ca294292d0be09017c14398c63157138db966aee242750f1283e62a7e0a"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::refuses a form without the confirmation, and posts nothing",
+          "line": 224,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7114db79df52351e3cbd0e3240dadaeb5705c280313a1b2a1bee76b6da33bd4a"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authActions.test.ts::keeps asking for the code when the confirmation it refuses came with one",
+          "line": 234,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "59c855be77f2fa46d44bfbd540e2a2a646028c1e2126e0bce2a260cfae82cfff"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/admin/tests/unit/auth/authPages.test.tsx",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/auth/authPages.test.tsx::says the password was changed when the URL carries the changed flag",
+          "line": 53,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0b1ac637bc246a90c1f000c594ae2f3b6bc4cf33c9fbbb63201946fd9ce224ec"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authPages.test.tsx::says nothing of a change without the flag",
+          "line": 59,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d7a15776aa0b78e273d1e1dc8c57148dd04eeecb54e6aafe0a12eaf36696c77b"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authPages.test.tsx::says nothing of a change when the flag carries another value",
+          "line": 66,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "48c4b455c0aa59710913099fbc6a10d19517c6150cd4bcb5fade4d0508ef4586"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/authPages.test.tsx::explains why, holds the change form and links back to the sign-in",
+          "line": 75,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9ce43040bdeabb1dbda9a90935843eda4cebc5b0870ea255a716aab56d589505"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/admin/tests/unit/auth/backendClient.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 20,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::reports an administrator who must change the password as its own result",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "40a21c5c0877cb97b2cc6c246f516e37ddef74f8bae4c4f28bacdd9502bb6030"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers the route limiter's 429, whose error is an object, with its code as text",
+          "line": 60,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8383f03f1ff9981fb813c3f367fd87a4e128d512867c430d82d618f8499c65a5"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers a body that is not JSON with the portal's own code",
+          "line": 76,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b63496dab511a262b981375c013d5264409609cf9f61f15309e4469cb02aacc6"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers a validation failure with the portal's code, whatever sentence the API words it with",
+          "line": 84,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2f3f7c4644549aee0b47ab3ee68f2216540fdce7446ea6bdddba0210b4743c66"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::still answers wrong credentials with the API's code",
+          "line": 98,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7e4213c183dce3c243a402f899b93f2ff60046acd71674833f3e4de61ee25497"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::still signs in with the user and the tokens, relaying the caller's address",
+          "line": 106,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4387e0f895c0764bd96d449e4bf43815d6ffe9fca7b9dcccf50387206cd3d394"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::still asks for the second factor when the API answers that it is required",
+          "line": 122,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5c6874a39ff83d3d5ef2fb7320b271046fc9c20cdf8cef45bd1a3f6309b21f64"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::posts exactly the four fields to the endpoint, relaying the caller's address",
+          "line": 132,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c8f3f785bf54a0bdbefcd6cf95befc747aab6cac3a17b85c72444f0460a884bf"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::leaves the second factor's code out of the body when none was given",
+          "line": 152,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3d43378318578eeead016fd37dc2bd007ff1d853598d2d8a4e25e1a15c655307"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers the API's success as a changed password",
+          "line": 162,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "13e1e085611cda35fabd9112b600d1cd003aa2658498f93e46919af1b25d5a4c"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::does not count a 200 whose body is not the API's envelope as a change",
+          "line": 170,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "28d0982bd488016f6a8cdb8f58e5d1db88140bac1a2e096e01186d78a9a219d1"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::does not count a 200 whose envelope is not ok as a change",
+          "line": 183,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8f68ff9474cb8dc328bc566951e943bdba8e04423b7a64464a3c859798be9ea4"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers a %i with the code %s as an error",
+          "line": 191,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7b820bc5210baf43ef595037c9d73bde3c152fb1238860fdf15384d9655e0175"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers the route limiter's 429, whose error is an object, with its code as text #2",
+          "line": 210,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a70fbd271ed486fe89e77b9e1a8db32d5e8e30a6330aff65eaadd6b564ce531e"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers the IP allowlist's 403, whose error is an object, with its code as text",
+          "line": 226,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2efa2c98a75e4c71b3726736114e6c9f8198097cc568cce79d1cd9d78e8d33f1"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::keeps the issues of a validation failure",
+          "line": 239,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6cda8a64a0fd998aa984c5fb57d650b9f0fc35cab46ae065bed2845976222c55"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::reads a validation failure by its issues, whatever sentence the API words it with",
+          "line": 265,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5982486afa0904d788bc7e6270810f9a11ffff187f45a957283e7dd12c1b8c95"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers a body that is not JSON with the portal's own code #2",
+          "line": 283,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cc8674074fd2f6a3890a0f98e5c5d65f39b069b9d02d922cfd426e00ec3ebb18"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers an error envelope that names no code with the portal's own code",
+          "line": 291,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f77bfbec3376c29dd8e967a806ed72bdc1fb3d720c39c0cd84d9e5ae565862dd"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/backendClient.test.ts::answers a request that never reached the API with the portal's own code",
+          "line": 299,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a9c80dbbdaee1bd5a0affcbd1ba6638f9f23eb765a3803a8c3e99e66bf56410f"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/admin/tests/unit/auth/loginForm.test.tsx",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/auth/loginForm.test.tsx::shows the translated message for %s, never the code",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bffe72b99ef025ed2684bf4e20fb11aeb314745b116db28ad7b442a7a22cd40e"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/loginForm.test.tsx::shows the general message for %s, never the text itself",
+          "line": 73,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d63bb45ea5399459f4e8ab419d5eb35de06a547875abdb230fc2152f955a9134"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/loginForm.test.tsx::never lets a native submission carry the credentials to a URL before the page is interactive",
+          "line": 87,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6b6a702fb2cdd45eeae1e5c88186bac9580f305ba2eca34e0cd6ae4c7fdd19a1"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/loginForm.test.tsx::still asks for the second factor's code when the action requires it",
+          "line": 97,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ae2f8025e36f29dacd3881cd636d0a31ea9a10d9e18b413ef6f9d00f1af59c1c"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/admin/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 16,
+      "blocks": [
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::shows the four labelled fields, the policy and an enabled button, and no code field or error",
+          "line": 84,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "021f7cde2e89dccdbea29dce109ea876741fc45e2863eeb4e2b0c3ed0ff794d9"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::states the policy with the API's numbers",
+          "line": 108,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3ed6fca63fe1f69cfb3ca4836b3a4630854681e226c1ef2cf1fb5fb558e4303a"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::describes the new password by the policy it must meet",
+          "line": 119,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6cb8801c7bae14f84dff47d8339c71b50575cc39c82afa135a75d361e093414f"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::stops the submission and says so when the confirmation does not match",
+          "line": 127,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "96d46411d13c265266f0a33aa229584aa2b9328c9a3adb005ff5ca143d2db173"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::sends the four fields to the action, the confirmation included, for the action's own check",
+          "line": 137,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d27c7b45d8f79c4f12e086fcc9b893963d90a71a77c0f9e812ff44283ff85c48"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::shows the translated message for %s, never the code",
+          "line": 153,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3d866994d21294b7764d0c8cc9eccba0e5fc8c576b8ad8ef6f5867922eba4502"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::shows a validation failure's message and one per field it names, never the API's text",
+          "line": 178,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "feb0c8966da5a5be1bda8818660e33a2ce5d53217493eefd4fe1c05810c60d91"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::describes each field a validation failure marks by its own message, keeping the policy on the new password",
+          "line": 201,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "aec35533260813e2b6a2b560390d0813a37144227cb1922e92361f4a1d84466b"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::describes the code field by its own message when a validation failure marks it",
+          "line": 225,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9d57d51c9b8e0a7422c58ab3c32098b8b254984a5cd9f82c08e6aae495e9d74c"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::gives the focus back to the code field after an answer that still asks for it",
+          "line": 243,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e1b19721233e5cd3423e1f781bcced270958808f351e246afe6c66da069fcb32"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::moves the focus to the second factor's field when it appears",
+          "line": 258,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fbc6fd3819aec2b323b527c45b0f79a21b1e1c41fa7c4e094976e69b2937f5db"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::never lets a native submission carry the fields to a URL before the page is interactive",
+          "line": 271,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "da85bf8270651502741fe192c3aef19362b27ac0aff98ed768658f74280b668e"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::asks for the second factor's code when the API requires it, keeping what was typed",
+          "line": 281,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "26a67ef17984ade5fba8389b30c35278fe0ef8d4ec9d555a23146033b4089403"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::sends the second factor's code with the typed fields on the next submission",
+          "line": 301,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "eab78101f61b08906ec8f1900863eec974cfb866c7595ac7b00c923b4e573c68"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::keeps the code field when the confirmation stops a later submission",
+          "line": 323,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3db0da3d59c34711c6b660200a6edbf3ac59924617e71aae4b0edcb0a64b4c15"
+        },
+        {
+          "id": "apps/admin/tests/unit/auth/requiredPasswordChangeForm.test.tsx::disables the button while the change is pending",
+          "line": 342,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "55195827ed33b920487f1657e0e9396b17a216f37267a9b7b0be2e0048afd25e"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/admin/tests/unit/billing/gatewaySwitchesDates.test.tsx",
       "shape": "test",
       "framework": "vitest",
@@ -2232,67 +2763,88 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/admin/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::lets an anonymous visitor reach /es/login",
-          "line": 59,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d52e08ac910ebf2add3490296c037a679730cd771eef0aa752e0331b36fd812c"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::lets an anonymous visitor reach /en/login",
-          "line": 69,
+          "line": 70,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d723ff8b89f150fa3c240ba80881fb67c4f2294ae5116d1bc55e2de4f6515179"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::redirects an anonymous visitor on /es/dashboard to /es/login",
-          "line": 79,
+          "line": 80,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b3705c0c6355a2d860993d490fafa1c72b7e7dfe9ad3b20510224d784234fa7b"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::redirects a signed-in user on /en/login to /en",
-          "line": 88,
+          "line": 89,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "140b8802e69672b8973cb690f6c4dc57813921c815b01bba37cbdc2b1e1a0151"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::redirects an anonymous visitor on the bare /es root to /es/login",
-          "line": 97,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4119750b63ed20d64286312ea00d6811a26d0888cee03a131c247282c20d5f1b"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::falls back to the default locale's login for a path without a locale prefix",
-          "line": 106,
+          "line": 107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "923280f919cbcbddb8e30ddfba8c6d96c8f7131d029d19322f98620e6d586714"
         },
         {
+          "id": "apps/admin/tests/unit/proxy.test.ts::lets an anonymous visitor reach the required password change at /es/login/change-password",
+          "line": 116,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "961282860c8a9a58d5d887ab3b4819f37fe8d2d3ea452dd9452bd51276f09977"
+        },
+        {
+          "id": "apps/admin/tests/unit/proxy.test.ts::lets an anonymous visitor reach the required password change without a locale prefix",
+          "line": 126,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0d37d405a9d2f602d508b54e3020530d9c051add469907b09ddeef30af267a9e"
+        },
+        {
+          "id": "apps/admin/tests/unit/proxy.test.ts::redirects a signed-in user on /en/login/change-password to /en",
+          "line": 136,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7beb80a91f686d04dfca8c60fd6c9ae83f6c9b18cc72b96d7e9b180ea7c952dd"
+        },
+        {
           "id": "apps/admin/tests/unit/proxy.test.ts::does not strip a first segment that only begins with a locale",
-          "line": 115,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "02c274bb4bc2cb7f7c01434ff3ddff702eb2746229538f22df16c95e0437490a"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::lets an anonymous visitor reach /fr/login",
-          "line": 126,
+          "line": 156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b8dfd01aef4649ac42d8c85a7470ea169cc43d9b168cdf95a3fc2c74672b5569"
         },
         {
           "id": "apps/admin/tests/unit/proxy.test.ts::redirects an anonymous visitor on /fr/dashboard to /fr/login",
-          "line": 136,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a249b4dec7495def5d0be57f2eff728bd6ffb25af584e2d4c928db8b1f04fcf"
