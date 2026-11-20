@@ -8,7 +8,8 @@
  *
  *   HERMETIC: the rule is pinned through the pure `evaluate` on fixture indexes, and the reading of
  *   the index through `main` with an injected `fetch`, wait and per-attempt timeout, so no case
- *   reaches nodejs.org and none waits on real time. Two cases run the script as a process: the
+ *   reaches the network and none waits on a clock beyond the gate's own per-attempt bound, which
+ *   the cases that need it to fire set to 1 ms. Two cases run the script as a process: the
  *   usage error, which reads no index, and a failure of the gate itself, made by a preload whose
  *   fetch rejects at once and whose timer throws, so it reaches no network and waits on no time;
  *   one case reads the four Dockerfiles, so the remedy the verdict states cannot drift from the
@@ -17,7 +18,6 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
@@ -114,6 +114,26 @@ const unreadableBody = (): Response =>
     new ReadableStream({
       start(controller) {
         controller.error(new TypeError("terminated"));
+      },
+    }),
+    { status: 200 }
+  );
+
+/**
+ * A 200 whose body sends its first byte and then nothing more until `signal` aborts, which errors
+ * the body with the signal's reason, as Node's fetch errors the body of a request whose signal
+ * aborts. With no signal the body fails at once, naming that, rather than never ending.
+ */
+const bodyUntilAborted = (signal: AbortSignal | null | undefined): Response =>
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("["));
+        if (signal === null || signal === undefined) {
+          controller.error(new Error("the attempt carried no signal"));
+          return;
+        }
+        signal.addEventListener("abort", () => controller.error(signal.reason), { once: true });
       },
     }),
     { status: 200 }
@@ -361,42 +381,30 @@ describe("main: reading the index and the command line", () => {
     expect(wait.mock.calls).toEqual([[RETRY_DELAY_MS], [2 * RETRY_DELAY_MS]]);
   });
 
-  it("returns exit 3 after three attempts when each 200's body never ends, because each attempt's timeout aborts Node's own fetch in the middle of the body", async () => {
-    const server = createServer((_request, response) => {
-      response.writeHead(200, { "content-type": "application/json" });
-      response.write("[");
-    });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const address = server.address();
-    if (address === null || typeof address === "string") throw new Error("the server has no port");
-    let headersReceived = 0;
-    const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
-      const response = await fetch(`http://127.0.0.1:${String(address.port)}/`, init);
-      headersReceived += 1;
-      return response;
-    });
+  it("returns exit 3 after three attempts when each 200's body never ends, because each attempt's own bound aborts the read in the middle of the body", async () => {
+    // Each answer arrives at once and its body ends only when that attempt's signal aborts, so the
+    // order is fixed whatever the machine's speed: the response is in hand before the bound fires.
+    const fetchImpl = vi.fn<typeof fetch>((_url, init) =>
+      Promise.resolve(bodyUntilAborted(init?.signal))
+    );
 
-    try {
-      const run = await main(["--version", "v26.12.0"], { fetchImpl, wait, timeoutMs: 300 });
+    const run = await main(["--version", "v26.12.0"], { fetchImpl, wait, timeoutMs: 1 });
 
-      expect(run.code).toBe(3);
-      expect(run.stdout).toBe("");
-      expect(run.stderr).toBe(
+    expect(run).toEqual({
+      code: 3,
+      stdout: "",
+      stderr:
         `${GATE}: ` +
-          notJudged(
-            IMAGE_BEHIND,
-            `${INDEX_URL} did not answer after 3 attempts (attempt 1: The operation was aborted ` +
-              "due to timeout; attempt 2: The operation was aborted due to timeout; attempt 3: The " +
-              "operation was aborted due to timeout)"
-          ) +
-          "\n"
-      );
-      expect(headersReceived).toBe(3);
-      expect(wait.mock.calls).toEqual([[RETRY_DELAY_MS], [2 * RETRY_DELAY_MS]]);
-    } finally {
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
-    }
+        notJudged(
+          IMAGE_BEHIND,
+          `${INDEX_URL} did not answer after 3 attempts (attempt 1: The operation was aborted ` +
+            "due to timeout; attempt 2: The operation was aborted due to timeout; attempt 3: The " +
+            "operation was aborted due to timeout)"
+        ) +
+        "\n",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls).toEqual([[RETRY_DELAY_MS], [2 * RETRY_DELAY_MS]]);
   });
 
   it("returns exit 3 without a second attempt when the body is not JSON", async () => {
