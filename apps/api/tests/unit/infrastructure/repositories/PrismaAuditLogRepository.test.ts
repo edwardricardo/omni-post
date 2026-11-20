@@ -3,12 +3,21 @@
  * @description Unit tests for the Prisma adapter of the AuditLogRepository port.
  *              The Prisma client is stubbed with vi-mocked auditLog methods to
  *              assert the create payload (conditional inclusion of optional
- *              columns), query filters/pagination defaults, and user anonymization.
+ *              columns), query filters/pagination defaults, and user anonymization,
+ *              and that create writes through the Unit of Work's transaction
+ *              client when one is open.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 
 vi.mock("@infra/prisma", () => ({ Prisma: {} }));
+
+/** A tenant provider that reports no context, so the Unit of Work binds no GUC. */
+const NO_TENANT: ConstructorParameters<typeof PrismaUnitOfWork>[1] = {
+  getTenantContext: () => undefined,
+  getSystemContext: () => undefined,
+};
 
 const { PrismaAuditLogRepository } =
   await import("../../../../src/infrastructure/repositories/PrismaAuditLogRepository.js");
@@ -196,5 +205,44 @@ describe("PrismaAuditLogRepository", () => {
       data: { userId: null },
     });
     expect(count).toBe(4);
+  });
+});
+
+describe("PrismaAuditLogRepository inside a unit of work", () => {
+  let base: MockPrisma & { $transaction: ReturnType<typeof vi.fn> };
+  let tx: MockPrisma;
+  let repo: InstanceType<typeof PrismaAuditLogRepository>;
+
+  beforeEach(() => {
+    tx = makePrisma();
+    // Prisma hands an interactive transaction its own client: a call on `tx` ran inside it.
+    base = {
+      ...makePrisma(),
+      $transaction: vi.fn(async (work: (client: MockPrisma) => Promise<unknown>) => work(tx)),
+    };
+    repo = new PrismaAuditLogRepository(base as never);
+  });
+
+  it("writes the entry once through the transaction's client, and never through the base client, when create runs inside an open unit of work", async () => {
+    const uow = new PrismaUnitOfWork(base as never, NO_TENANT);
+
+    await uow.executeInTransaction(() =>
+      repo.create({
+        action: "FIRST_ADMINISTRATOR_CREATED",
+        actorType: "SYSTEM",
+        resource: "AdminUser",
+        resourceId: "u-1",
+        details: { task: "create-first-admin" },
+        success: true,
+      })
+    );
+
+    expect(base.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+    expect(tx.auditLog.create.mock.calls[0]?.[0]?.data).toMatchObject({
+      action: "FIRST_ADMINISTRATOR_CREATED",
+      resourceId: "u-1",
+    });
+    expect(base.auditLog.create).not.toHaveBeenCalled();
   });
 });
