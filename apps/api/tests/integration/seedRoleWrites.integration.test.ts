@@ -15,9 +15,10 @@
  *
  *              The seed runs as `pnpm db:seed` runs it (`tsx --conditions development seed.ts` in
  *              `infra/prisma`), under `NODE_ENV=test`, with a fake administrator password and a
- *              key of zeros, on the owner channel's connection to the scratch database. The cases
- *              run in order and build on each other's rows: the first two find their role
- *              unwritten, and the third and the fourth write everything before they rerun.
+ *              key of zeros, on the owner channel's connection to the scratch database. Each case
+ *              first empties that database back to the state the migration left, with no row of
+ *              the application, so it passes in any order: the first two run the seed once on it,
+ *              and the third and the fourth run it to completion before they rerun.
  * @layer infrastructure
  */
 
@@ -207,11 +208,16 @@ describe("The development seed's role writes on a migrated database", { concurre
     await database?.drop();
   }, HOOK_TIMING);
 
-  /** The scratch database's URL and client, after asserting the migration ran. */
-  function migrated(): { url: string; client: PrismaClient } {
+  /**
+   * The scratch database's URL and client, after asserting the migration ran and emptying the
+   * database back to the state the migration left, whatever an earlier case wrote. The emptying
+   * runs here and not in `beforeEach`, so a migration that failed is reported with its own output.
+   */
+  async function freshlyMigrated(): Promise<{ url: string; client: PrismaClient }> {
     assert.ok(database, "the scratch database was created");
     database.assertMigrated();
     assert.ok(scratch, "a client of the scratch database was built");
+    await database.empty();
     return { url: database.url, client: scratch };
   }
 
@@ -219,7 +225,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "leaves no row of an administration role whose permissions fail partway on a first run",
     caseTiming(1),
     async () => {
-      const { url, client } = migrated();
+      const { url, client } = await freshlyMigrated();
       await failPermissionRow(client, "RolePermission", "role-admin", "audit:read");
       try {
         const run = await runSeed(url);
@@ -246,7 +252,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "leaves no row of a customer role whose permissions fail partway on a first run",
     caseTiming(1),
     async () => {
-      const { url, client } = migrated();
+      const { url, client } = await freshlyMigrated();
       await failPermissionRow(client, "CustomerRolePermission", "role-manager", "approval:review");
       try {
         const run = await runSeed(url);
@@ -274,7 +280,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "keeps every row and the description a role held when a rerun fails partway through it",
     caseTiming(2),
     async () => {
-      const { url, client } = migrated();
+      const { url, client } = await freshlyMigrated();
       const complete = await runSeed(url);
       assert.deepStrictEqual(
         { code: complete.code, killed: complete.killed },
@@ -319,7 +325,7 @@ describe("The development seed's role writes on a migrated database", { concurre
     "removes a stale permission and restores the description when a rerun completes",
     caseTiming(2),
     async () => {
-      const { url, client } = migrated();
+      const { url, client } = await freshlyMigrated();
       const first = await runSeed(url);
       assert.deepStrictEqual(
         { code: first.code, killed: first.killed },
@@ -330,13 +336,9 @@ describe("The development seed's role writes on a migrated database", { concurre
         permissions: await adminRolePermissions(client, "role-support"),
         description: await adminRoleDescription(client, "role-support"),
       };
-      assert.ok(
-        written.permissions !== null && written.description !== CHANGED_DESCRIPTION,
-        "the first run wrote the role from its definition"
-      );
-      await client.rolePermission.createMany({
-        data: [{ roleId: "role-support", permission: STALE_PERMISSION }],
-        skipDuplicates: true,
+      assert.ok(written.permissions !== null, "the first run wrote the role");
+      await client.rolePermission.create({
+        data: { roleId: "role-support", permission: STALE_PERMISSION },
       });
       await client.role.update({
         where: { id: "role-support" },
@@ -355,10 +357,7 @@ describe("The development seed's role writes on a migrated database", { concurre
           permissions: await adminRolePermissions(client, "role-support"),
           description: await adminRoleDescription(client, "role-support"),
         },
-        {
-          permissions: written.permissions.filter((permission) => permission !== STALE_PERMISSION),
-          description: written.description,
-        }
+        { permissions: written.permissions, description: written.description }
       );
     }
   );
