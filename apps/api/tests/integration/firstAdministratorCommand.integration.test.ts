@@ -4,9 +4,9 @@
  *              owner channel and migrated from empty with the script CI and the start command
  *              run. Most cases call the command's function in this process, with the composition
  *              root built on a client of that database and a standard output that says it is a
- *              terminal; each case starts from the tables the command writes (`Role`,
- *              `RolePermission`, `AdminUser`, `AdminSession`, `AuditLog`) emptied. The cases of
- *              `--reissue` create the administrator with the command first.
+ *              terminal; each case starts from the database emptied back to the state the
+ *              migration left, every table but the migrations' own. The cases of `--reissue`
+ *              create the administrator with the command first.
  *
  *              The cases of runs at once do not leave the interleaving to chance: a third
  *              connection holds what both runs need (an uncommitted `Role` row on the empty
@@ -177,19 +177,16 @@ describe("The first-administrator command on a migrated database", { concurrency
   let scratchUrl = "";
 
   /**
-   * The migrated database with the command's three tables emptied, or a failed assertion that
-   * carries the migration's own output. The verdict is asserted here and not in `before`,
-   * because node:test reports a failing hook by cancelling every case instead of failing one
-   * with the reason.
+   * The migrated database emptied back to the state the migration left, every table but the
+   * migrations' own, or a failed assertion that carries the migration's own output. The verdict
+   * is asserted here and not in `before`, because node:test reports a failing hook by cancelling
+   * every case instead of failing one with the reason.
    */
   async function emptyDatabase(): Promise<PrismaClient> {
     assert.ok(database, "the scratch database was created");
     database.assertMigrated();
     assert.ok(scratch, `a client of ${database.name} was built`);
-    await scratch.auditLog.deleteMany({});
-    await scratch.adminSession.deleteMany({});
-    await scratch.adminUser.deleteMany({});
-    await scratch.role.deleteMany({});
+    await database.empty();
     return scratch;
   }
 
