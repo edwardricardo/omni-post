@@ -2360,9 +2360,11 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # request FITNESS_BASE_REF is the event's base sha, fetched in up to three attempts, and a base
 # that does not resolve fails the step; on a push the variable is empty, the sites gate prints
 # `base: none (S6 to S10 skipped)`, and every other rule runs. The battery runs the same command as
-# its static step `errors`, with FITNESS_BASE_REF, else origin/main, as the base: the one its step
-# for #37 reads. The scheduled half is no verdict of this check: error-sites-stall.yml runs the
-# sites gate with `--stalled --days 14 --remind` every day, and keeps one issue, labelled
+# its static step `errors`, with FITNESS_BASE_REF as the base when it is set, else the merge base
+# of HEAD and origin/main, the local counterpart of the pull request's comparison; when git finds
+# no merge base the step passes origin/main itself, never an empty base, and a name that does not
+# resolve fails it closed. The scheduled half is no verdict of this check: error-sites-stall.yml
+# runs the sites gate with `--stalled --days 14 --remind` every day, and keeps one issue, labelled
 # error-sites-stalled, while the list is above zero and no row is dated in the last 14 days.
 # WHAT FAILS, exit 1: a verdict of either gate, each on stderr, as `error-registry-gate: <code or
 # path>: <problem> (R<n>)` or `error-sites-gate: <path or context>: <problem>`; a rise names the
@@ -2375,9 +2377,12 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # locale with no catalog, or a text of an enrolled portal that is not valid ICU; domains/ missing
 # or holding no <name>.ts; the barrel or a domain file that cannot be loaded; ERROR_TABLES
 # missing, not an array or empty; a history its reader cannot read, or a row it reports that is not
-# the format of its rows; the page unreadable for a reason other than its absence; `git ls-files`
-# failing or listing no source file of the scope, or a file of the scope that cannot be read; and
-# the command that cannot load the sites gate's reader. The sites gate: `git ls-files` failing or
+# the format of its rows; the page unreadable for a reason other than its absence, unrenderable,
+# or, under `--write`, unwritable; `git ls-files` failing or listing no source file of the scope,
+# or a file of the scope that cannot be read; the command that cannot load the sites gate's
+# reader; and any other failure of the command's run, printed as `error-registry-gate: the run
+# failed before reaching a verdict: <reason>` rather than left to Node's exit 1, the code of a
+# verdict. The sites gate: `git ls-files` failing or
 # listing nothing; eslint-suppressions.json, on the head or the base, that cannot be read, is not
 # JSON or is not ESLint's shape for an `errors/` entry (a missing file is no entry, as ESLint reads
 # it), or a history entry, on either side, that is no row file, is not JSON or is not a row; a held rule with no list or no options; a glob the matcher does not
@@ -2410,9 +2415,12 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # nothing refuses a backend import of such a package; a push with no pull request has no base,
 # and branch protection is what stops it. A base other than the merge base of what is compared
 # reads the main branch's changes after the merge base as the change's own. In the battery the
-# head is the branch and the base can be an origin/main ahead of its merge base: S6 can then name
-# a count the main branch lowered since as a rise, S10 a row it added since as deleted, and S9 any
-# count that differs once it changed the rule's files since, all false reds. In CI the base is the
+# head is the branch and the base its merge base with origin/main, so a base ahead of it comes only
+# from a FITNESS_BASE_REF that names one, or from origin/main's tip when git finds no merge base
+# and that name resolves: S6 can then name a count the main branch lowered since as a rise, S10 a
+# row it added since as deleted, and S9 any count that differs once it changed the rule's files
+# since, all false reds. A change that appears only once the main branch is merged is seen by CI,
+# and in the battery only once the branch takes the main branch. In CI the base is the
 # pull request's base sha, as for #37, and the head the merge ref: when that base lags the merge
 # ref's first parent, S9 can name a false red the same way, and S10 one when the main branch's
 # later row sits beside the pull request's or beside a count it does not cover. Either way S7 can
