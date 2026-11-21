@@ -79,13 +79,25 @@ async function loadParseApiEnv(): Promise<ParseApiEnv> {
   }
 }
 
-/** Assert that a crafted env refuses to boot with `expected` in the message. */
+/**
+ * Assert that a crafted env refuses to boot with `expected` in the schema's text the refusal
+ * carries as its cause, which the API's own start shows: the refusal's own message names the
+ * variables only, never a constraint or a value.
+ */
 async function assertRefusesToBoot(
   overrides: Record<string, string | undefined>,
   expected: RegExp
 ): Promise<void> {
   const parseApiEnv = await loadParseApiEnv();
-  expect(() => parseApiEnv({ ...BASE_ENV, ...overrides })).toThrow(expected);
+  let refusal: unknown;
+  try {
+    parseApiEnv({ ...BASE_ENV, ...overrides });
+  } catch (error: unknown) {
+    refusal = error;
+  }
+  expect(refusal).toMatchObject({ code: "ENV_VARIABLES_REFUSED" });
+  const cause = refusal instanceof Error ? refusal.cause : undefined;
+  expect(cause instanceof Error ? cause.message : "").toMatch(expected);
 }
 
 describe("parseNameDigestKeyRing", () => {

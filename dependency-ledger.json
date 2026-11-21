@@ -8,8 +8,8 @@
     "types": 9,
     "aboveFloor": 49,
     "underFloor": 110,
-    "atZero": 14,
-    "underFloorWithSites": 96,
+    "atZero": 13,
+    "underFloorWithSites": 97,
     "kept": 104,
     "remove": 6,
     "pending": 1
@@ -374,6 +374,9 @@
             "apps/api/tests/unit/lib/apiReference.test.ts"
           ]
         },
+        "type-only": {
+          "production": ["apps/api/src/lib/errors/errorHandler.ts"]
+        },
         "config-string": {
           "production": ["apps/api/src/lib/apiReference.ts"]
         }
@@ -392,11 +395,11 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "config": ["scripts/testing/i18n-lint.mjs"]
+          "config": ["scripts/testing/error-registry-gate.mjs", "scripts/testing/i18n-lint.mjs"]
         }
       }
     },
@@ -2029,6 +2032,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -2382,6 +2390,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -2512,6 +2525,9 @@
       "sites": {
         "runtime-import": {
           "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/scripts/errorSitesGate.test.ts"]
         }
       }
     },
@@ -2830,6 +2846,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -3025,8 +3046,12 @@
             "apps/api/tests/unit/auditRoutes.test.ts",
             "apps/api/tests/unit/authRoutes.test.ts",
             "apps/api/tests/unit/dashboardRoutes.test.ts",
+            "apps/api/tests/unit/errorHandler.inject.test.ts",
             "apps/api/tests/unit/health/healthRoutesReadiness.test.ts",
             "apps/api/tests/unit/healthRoutes.test.ts",
+            "apps/api/tests/unit/lib/errors/problem.test.ts",
+            "apps/api/tests/unit/lib/errors/sendProblem.test.ts",
+            "apps/api/tests/unit/lib/errors/sendProblemRealLogger.test.ts",
             "apps/api/tests/unit/mfaRoutes.test.ts",
             "apps/api/tests/unit/postRoutes.test.ts",
             "apps/api/tests/unit/rbacRoutes.test.ts",
@@ -3282,9 +3307,13 @@
       ],
       "bins": ["jiti"],
       "verdict": "under-floor",
-      "real": 0,
+      "real": 1,
       "decision": "kept",
-      "sites": {}
+      "sites": {
+        "runtime-import": {
+          "config": ["scripts/testing/error-registry-gate.mjs"]
+        }
+      }
     },
     {
       "name": "jscpd",
@@ -3468,6 +3497,8 @@
             "apps/api/tests/unit/auth/providerOAuthX.pilot.test.ts",
             "apps/client/tests/integration/ListeningPage.test.tsx",
             "apps/client/tests/integration/TrendsPage.test.tsx",
+            "apps/client/tests/integration/authApiErrorBody.test.ts",
+            "apps/client/tests/integration/requestErrorBody.test.ts",
             "apps/client/tests/integration/useABTests.test.ts",
             "apps/client/tests/integration/useBulkScheduleParse.test.tsx",
             "apps/client/tests/integration/useNotifications.test.tsx",
@@ -4752,6 +4783,11 @@
           "specifier": "catalog"
         },
         {
+          "manifest": "packages/eslint-plugin-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
           "manifest": "packages/eslint-plugin-testing/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
@@ -5329,6 +5365,11 @@
         },
         {
           "manifest": "packages/core/webhooks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-errors/package.json",
           "block": "devDependencies",
           "specifier": "catalog"
         },

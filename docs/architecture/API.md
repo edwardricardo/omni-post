@@ -25,13 +25,13 @@ The API is built with **Fastify** and **TypeScript**, featuring a comprehensive 
 
 The API answers in three shapes, depending on who sends the response.
 
-| Sent by                                                                         | Success body                 | Error body                                                      | `details`                                               |
-| ------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
-| A handler built on `BaseRouteHandler` (`lib/route-handler/BaseRouteHandler.ts`) | `{ ok: true, data }`         | `{ ok: false, error: "<message>" }`                             | next to `error`, only when the handler passes an object |
-| Fastify's error handler (`lib/errors/errorHandler.ts`)                          | none, it answers errors only | `{ ok: false, error: { code, message, requestId, timestamp } }` | inside `error`, only when `NODE_ENV` is `development`   |
-| The saga routes (`/sagas/...`, `saga/SagaIntegration.ts`)                       | `{ success: true, data }`    | the error handler's body, as its refusals go through it         | as for the error handler                                |
+| Sent by                                                                         | Success body                 | Error body                                              | `details`                                               |
+| ------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| A handler built on `BaseRouteHandler` (`lib/route-handler/BaseRouteHandler.ts`) | `{ ok: true, data }`         | `{ ok: false, error: "<message>" }`                     | next to `error`, only when the handler passes an object |
+| Fastify's error handler (`lib/errors/errorHandler.ts`)                          | none, it answers errors only | the problem body of [Error Handling](#error-handling)   | never                                                   |
+| The saga routes (`/sagas/...`, `saga/SagaIntegration.ts`)                       | `{ success: true, data }`    | the error handler's body, as its refusals go through it | as for the error handler                                |
 
-An error reaches Fastify's error handler when it is a schema or framework error, an `AppError` thrown by a service, or an unexpected failure.
+An error reaches Fastify's error handler when it is a schema or framework error, an `AppError` thrown by a service, or an unexpected failure. A path no route matches answers the same body, through the not-found handler.
 
 ```json
 { "ok": true, "data": { "message": "Logged out successfully" } }
@@ -47,17 +47,17 @@ An error reaches Fastify's error handler when it is a schema or framework error,
 
 ```json
 {
-  "ok": false,
-  "error": {
-    "code": "RESOURCE_NOT_FOUND",
-    "message": "Resource not found",
-    "requestId": "<request-id>",
-    "timestamp": "2026-11-14T10:30:00.000Z"
-  }
+  "type": "https://omnipost.app/problems/ROUTE_NOT_FOUND",
+  "title": "Route not found",
+  "status": 404,
+  "detail": "No route matches this method and path",
+  "code": "ROUTE_NOT_FOUND",
+  "correlationId": "<correlation-id>",
+  "timestamp": "2026-11-20T10:30:00.000Z"
 }
 ```
 
-An error that reaches Fastify's error handler, here a not-found.
+`GET /nowhere`, a path no route matches, 404, as `application/problem+json`.
 
 A few routes send a body of their own: `GET /health` and its siblings, `GET /metrics` and the 429 of the rate limiter. Each is described with its route.
 
@@ -863,33 +863,60 @@ Content-Type: application/json
 
 ## Error Handling
 
-### Standard Error Response
+### The error body
 
-The shape depends on who answers; see [Response Patterns](#response-patterns). An error that reaches Fastify's error handler answers:
+A failure the error handler answers, a request a route's schema refuses and a path no route matches all answer one body: an RFC 9457 problem, served as `application/problem+json; charset=utf-8` ([ADR-0047](../technical/ADR-0047-central-error-system.md)).
 
 ```json
 {
-  "ok": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Validation failed",
-    "requestId": "<request-id>",
-    "timestamp": "2026-11-14T10:30:00.000Z"
-  }
+  "type": "https://omnipost.app/problems/VALIDATION_FAILED",
+  "title": "Validation failed",
+  "status": 400,
+  "detail": "The request is not valid",
+  "code": "VALIDATION_FAILED",
+  "correlationId": "<correlation-id>",
+  "timestamp": "2026-11-20T10:30:00.000Z",
+  "issues": [
+    {
+      "part": "body",
+      "pointer": "/email",
+      "code": "invalid_format",
+      "detail": "Invalid email address"
+    }
+  ]
 }
 ```
 
-### Common Error Codes
+| Member          | What it holds                                                                                                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`          | `https://omnipost.app/problems/` and the code: an identifier, not a page to fetch                                                                                                                         |
+| `title`         | The code in words                                                                                                                                                                                         |
+| `status`        | The HTTP status                                                                                                                                                                                           |
+| `detail`        | The registry's message for the code answered, worded with this occurrence's parameters; for an `AppError` whose code is not registered and that is an expected failure below 500, the error's own message |
+| `code`          | The code; a front takes its user-facing text from its catalogs by this code                                                                                                                               |
+| `correlationId` | The request's correlation id, or else its request id, a UUID the server generates for every request; for a connection whose request could not be read, an id generated the same way for the answer        |
+| `timestamp`     | When the failure was answered, ISO 8601, UTC                                                                                                                                                              |
+| `params`        | Only when the code declares parameters                                                                                                                                                                    |
+| `issues`        | Only with `VALIDATION_FAILED`: one per refusal, its request `part`, a JSON `pointer` into it, the validator's `code` and `detail`                                                                         |
 
-The `code` of that error is a value of `ErrorCode` (`packages/shared/src/errors.ts`):
+What decides the answer:
 
-- Authentication: `AUTH_INVALID_CREDENTIALS`, `AUTH_USER_NOT_FOUND`, `AUTH_TOKEN_EXPIRED`, `AUTH_TOKEN_INVALID`, `AUTH_INSUFFICIENT_PERMISSIONS`, `AUTH_MFA_REQUIRED`, `AUTH_MFA_INVALID`
-- Validation: `VALIDATION_ERROR`, `VALIDATION_MISSING_FIELD`, `VALIDATION_INVALID_FORMAT`
-- Resources: `RESOURCE_NOT_FOUND`, `RESOURCE_ALREADY_EXISTS`, `RESOURCE_CONFLICT`
-- Rate limiting: `RATE_LIMIT_EXCEEDED`
-- Database: `DATABASE_ERROR`, `DATABASE_CONNECTION_FAILED`
-- External services: `EXTERNAL_SERVICE_ERROR`, `PROVIDER_ERROR`
-- Other: `CONFIGURATION_ERROR`, `INTERNAL_SERVER_ERROR`, `BAD_REQUEST`, `FORBIDDEN`, `NOT_IMPLEMENTED`
+- A code in the `internal` or `configuration` category reaches the client as `INTERNAL_ERROR` at 500; its own code goes to the log.
+- A refusal of the framework answers the `http` code of its own cause: `PATH_NOT_DECODABLE` for a path whose percent-encoding does not decode, `ROUTE_PARAMETER_TOO_LONG` for a route parameter over the router's limit, `PAYLOAD_TOO_LARGE` for a body over the route's limit, `UNSUPPORTED_MEDIA_TYPE` for a content type the route does not accept, `JSON_BODY_EMPTY` for an empty JSON body, `JSON_BODY_NOT_PARSABLE` for JSON that does not parse, `BODY_LENGTH_MISMATCH` when a hook's stream delivers a body of another length than its `Content-Length` (over HTTP/1.1 the connection's framing refuses such a body first), `CONTENT_TYPE_MISSING` for a `QUERY` request with no content type, and `REQUEST_BODY_ABORTED` when the connection closes before the body arrived whole, an answer no client receives. A refusal whose cause no `http` code names answers `REQUEST_REFUSED` at its status below 500, and `INTERNAL_ERROR` at 500 or above.
+- A connection whose parser fails is answered on its socket, in the same body, and closed: `REQUEST_TIMEOUT` at 408 for a client too slow to send its request, `REQUEST_HEADERS_TOO_LARGE` at 431 for headers over the server's limit, and at 400 `TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH` when the parser reports a request that sends both (a `Transfer-Encoding` value the parser refuses on its own, such as `chunked, gzip`, is refused first, as a header), `CONTENT_LENGTH_REPEATED` for a `Content-Length` sent more than once, `REQUEST_INCOMPLETE` for a request its client cut by ending its side of the connection before the request was whole, wherever the cut falls, or the code of the part of the message the parser refuses: `REQUEST_LINE_NOT_PARSABLE`, `REQUEST_HEADERS_NOT_PARSABLE`, `REQUEST_BODY_FRAMING_NOT_PARSABLE` or `DATA_AFTER_REQUEST_UNEXPECTED`. When the failure is in the message of a request in flight on the connection, its body for one, the answer is that request's, under its own `correlationId`, written after the answers of the requests that arrived before it on the connection. When it is in a message that follows a complete request, that request is answered first, as if nothing followed it, and the failure is answered after it under its own `correlationId`, then the connection is closed.
+- A `CONNECT` request answers `CONNECT_NOT_IMPLEMENTED` at 501 and the connection closes: the server is not a proxy and opens no tunnel.
+- A request that reaches the server while it closes answers `SERVER_CLOSING` at 503 with `Connection: close`: send it again on a new connection. A request whose `Expect` header asks for something other than `100-continue` answers `EXPECTATION_UNSUPPORTED` at 417.
+- A failure that carries no registered code keeps its status: an `AppError` answers its own code, and its message only when it is an expected failure below 500; any other value answers `REQUEST_REFUSED`'s code and text at a failure status below 500 it carries, `INTERNAL_ERROR`'s at one of 500 or above, and `INTERNAL_ERROR`'s at 500 when it carries none.
+- A route answers its own failures through `sendProblem` (`apps/api/src/lib/errors/index.ts`), the one function that writes the body; a route never raises to the error handler ([ADR-0006](../technical/ADR-0006-result-type-over-throws.md)).
+- The OpenAPI document publishes the body as `components.schemas.Problem`.
+
+### Routes not yet converted
+
+A route that answers a failure itself, by hand or through a helper such as `BaseRouteHandler`, still answers the body [Response Patterns](#response-patterns) gives for it, until the sweep of its context moves it to `sendProblem`.
+
+### Error codes
+
+Every code, with its status, its category and its message: [docs/api/ERROR_CODES.md](../api/ERROR_CODES.md), generated from the registry in `packages/shared/src/error-registry/`.
 
 ## Rate Limiting
 

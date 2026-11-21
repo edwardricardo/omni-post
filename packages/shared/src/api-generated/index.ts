@@ -958,6 +958,7 @@ export type {
   PostZapierKeysResponses,
   PostZapierSubscribeData,
   PostZapierSubscribeResponses,
+  Problem,
   PutAccountsByAccountIdData,
   PutAccountsByAccountIdResponses,
   PutAdminAccountsByAccountIdData,

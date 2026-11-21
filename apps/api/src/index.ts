@@ -58,7 +58,19 @@ import {
   EXPENSIVE_ENDPOINT_RULES,
 } from "./security/httpRateLimitPreHandler.js";
 import type { RateLimiterPort } from "@ports/core";
-import { createErrorHandler } from "./lib/errors/errorHandler.js";
+import {
+  answerFrameworkRefusal,
+  answerUnsupportedExpectations,
+  createClientErrorHandler,
+  createErrorHandler,
+  createNotFoundHandler,
+  PROBLEM_OPENAPI_SCHEMA,
+  refuseRequestsWhileClosing,
+  refuseTunnels,
+  trackRequestsInFlight,
+  type RequestsInFlight,
+} from "./lib/errors/errorHandler.js";
+import { createCorrelationId } from "./lib/errors/correlationId.js";
 import { registerApiReference } from "./lib/apiReference.js";
 import { getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
@@ -195,11 +207,22 @@ import aiRoutes from "./ai/routes.js";
 // Cache middleware
 import { autoCachePlugin } from "./middleware/autoCacheMiddleware.js";
 
-// Fastify v5.6.1 Application Creation
-async function createApp(): Promise<FastifyInstance> {
-  // Fastify v5.6.1 constructor syntax
-  const app = Fastify({
+/**
+ * @function createServer
+ * @description Builds the API's Fastify instance with the options it runs with and the hooks of
+ *   its error path, which run before any other: the one that tells a connection's failure which
+ *   request it belongs to, and the ones that refuse a request once the server closes or when its
+ *   expectation is not met. Nothing else is registered on it yet.
+ * @returns The instance `createApp` registers the plugins, hooks, handlers and routes on.
+ */
+function createServer(): FastifyInstance {
+  const requestsInFlight: RequestsInFlight = new WeakMap();
+  const server = Fastify({
     logger: true,
+    // Every request's id, which its lines and its failure's body carry as its correlation id: a
+    // UUID unique across boots and instances, where Fastify's own counter restarts at every boot.
+    // No header a client sends is read for it (`requestIdHeader` stays off).
+    genReqId: createCorrelationId,
     // `false` (socket-only) or the trusted proxy IP/CIDR allowlist — never
     // `true`, which trusts the leftmost, client-controlled X-Forwarded-For entry
     // (ERR_ERL_PERMISSIVE_TRUST_PROXY), and never a number, which fastify
@@ -215,7 +238,26 @@ async function createApp(): Promise<FastifyInstance> {
     // Together they prevent socket hoarding and indefinite request hangs.
     keepAliveTimeout: 5_000,
     requestTimeout: 30_000,
+    // Without it Fastify writes its own body for the requests it refuses before routing, past
+    // every hook and handler, so their answer and their log line would leave the one error path.
+    frameworkErrors: answerFrameworkRefusal,
+    // Without it Fastify writes its own body to the socket of a connection whose parser fails
+    // (408, 431, 400) and logs it at trace only.
+    clientErrorHandler: createClientErrorHandler(requestsInFlight),
+    // Fastify's own 503 for a request that reaches a closing server is written past every hook;
+    // `refuseRequestsWhileClosing` answers it instead.
+    return503OnClosing: false,
   });
+  trackRequestsInFlight(server, requestsInFlight);
+  refuseRequestsWhileClosing(server);
+  answerUnsupportedExpectations(server);
+  refuseTunnels(server, requestsInFlight);
+  return server;
+}
+
+// Fastify v5.6.1 Application Creation
+async function createApp(): Promise<FastifyInstance> {
+  const app = createServer();
 
   // Apply ZodTypeProvider for type safety
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
@@ -243,6 +285,8 @@ async function createApp(): Promise<FastifyInstance> {
       },
       servers: [{ url: "/", description: "The origin that served this document" }],
       components: {
+        // The body of every failure the error handler answers, for the generated client.
+        schemas: { Problem: PROBLEM_OPENAPI_SCHEMA },
         securitySchemes: {
           bearerAuth: {
             type: "http",
@@ -461,6 +505,7 @@ async function createApp(): Promise<FastifyInstance> {
   // Never exposes stack traces, database schema, or internal paths in production
   const errorHandler = createErrorHandler(typedApp.log);
   typedApp.setErrorHandler(errorHandler);
+  typedApp.setNotFoundHandler(createNotFoundHandler(typedApp.log));
   typedApp.log.info("Centralized error handler enabled - all errors sanitized");
 
   // Rate limiting setup. The token-bucket limiter is resolved from the
@@ -1345,4 +1390,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   start();
 }
 
-export { createApp };
+export { createApp, createServer };

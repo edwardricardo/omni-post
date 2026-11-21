@@ -2283,6 +2283,185 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # decision of the Product Owner lets a feature close with an open item.
 node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 #   plan-closure-gate: <N> features in the chain table, <C> closed; <I> items under the records of the closed features, every one closed
+
+# 57. The error registry is whole, and the list of existing error sites only shrinks.
+# Threat: an error's code, status and text are written where it is raised or answered, so no
+# place holds them and no front can look a code up. Measured on main at 55fecbe5c on 2026-11-20:
+# about 12 vocabularies held about 200 codes, the API answered a failure in 6 body shapes, about
+# 100 places turned a code into a status, and core and API held about 500 inline English
+# sentences (ADR-0047, Context). The lint rule errors/no-inline-error refuses a new one. The sites
+# the tree held when it was turned on, 3,492 in 522 files and 129 contexts on 2026-11-20, are a
+# list that could stand still, rise, or fall with no conversion while every other check stays
+# green. This check holds the registry whole and that list to falling only.
+# WHAT IT RUNS: `pnpm check:errors`, which is `node scripts/testing/error-registry-gate.mjs &&
+# node scripts/testing/error-sites-gate.mjs`, so a failure of the first skips the second; pinned
+# by errorRegistryGate.test.ts, errorReferencePage.test.ts, errorSitesGate.test.ts and
+# errorScope.test.ts under apps/api/tests/unit/scripts/. Each script's header states its rules in
+# full, and this block summarises them. The rule's scope has one home,
+# scripts/testing/lib/error-scope.mjs: every tracked .ts, .tsx, .mts and .cts file that its named
+# list of exclusions for errors/no-inline-error does not exclude. Both gates read it, and
+# eslint.config.ts builds the rule's block from the same list and options.
+# THE REGISTRY GATE reads the registry's barrel and every domains/<name>.ts under
+# packages/shared/src/error-registry/, loaded with jiti; the portals as #51 discovers them (a
+# directory under apps/ with i18n/routing.ts and messages/), with their default locale and their
+# catalogs; the history, through the sites gate's own reader; and the tracked files of the
+# rule's scope. R1 every domains/<name>.ts has a name of the grammar
+# `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and exports one table, <NAME>_ERRORS, whose entries are of that
+# domain, domains/ holds nothing but such files, and ERROR_TABLES holds every domain file's table
+# once; R2 every key matches
+# `^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, is at most 63 characters and is its entry's code; R3 no code is
+# in two tables; R4 the category is one of the thirteen and the status one of its statuses; R5 the
+# message is one line that is not blank and holds a letter outside its placeholders, and its
+# `{name}` placeholders are exactly the declared parameters; R6 parameter names match
+# `^[a-z][A-Za-z0-9]*$`, kinds are string, number, boolean or string[], and `fronts` is a list
+# that names each portal at most once and only portals the tree holds; R7 a portal whose default
+# locale's catalog holds `errorCodes` is enrolled, and every catalog of it holds a text for each
+# code that names it and for nothing else, reading only that code's declared parameters, a number
+# or a plural only a number one, a select only a string or boolean one, no date or time, and no
+# tag; R8 every code is read in code as `<TABLE>.<CODE>`, or through a namespace as
+# `ns.<TABLE>.<CODE>`, in a file of the scope outside the registry directory, a comment, a string
+# and a computed member being no reference; R9
+# docs/api/ERROR_CODES.md is byte for byte what scripts/testing/lib/error-reference-page.mjs
+# renders from the registry and the history (`--write` rewrites it); R10 the word `defineErrors`
+# occurs in no file of the scope outside the registry directory, in code, a string or a comment;
+# R11 every name ending in `_ERRORS` that an `of` call reads as its first argument is a table of
+# ERROR_TABLES.
+# THE SITES GATE reads the `errors/` entries of eslint-suppressions.json, which ESLint writes and
+# holds in both directions for every file it lints; the rows of scripts/testing/error-sites-history/;
+# git's listing; ESLint's resolved configuration of every tracked TypeScript file
+# (`ESLint#isPathIgnored`, `ESLint#calculateConfigForFile`); the rule package's manifest and
+# sources; and the portals' catalogs. Always: S1 every path of the baseline is a regular file git
+# tracks; S2 it is in its rule's scope; S3 the history exists exactly while the baseline holds an
+# `errors/` entry, every row is a birth or a row of fixed and moved sites, every rule born is one
+# the gate holds and is born once, every rule with entries is born, and the births minus
+# everything fixed equal, per context, what the baseline yields; S4 the list of exclusions names only what exists, an entry of kind outside-src takes no
+# file under a `src` directory and every entry carries what its kind claims, no JavaScript file
+# lies under a `src` directory outside an excluded root, the plugin's package exports its `src`
+# and its `src` imports nothing outside itself but the allowed built-ins, the rule's `bodyWriter`
+# option names a tracked file, and on every tracked file of the scope ESLint does not ignore it,
+# the rule is at `error` with exactly the held options, the plugin is the package's own object, no
+# processor reads the file, and its parser and language are the ones the gate holds; S5 no file of
+# the scope holds an `eslint-disable` directive that names an `errors/` rule or names no rule, nor
+# an `eslint` configuration comment that names an `errors/` rule, no tracked package.json, hook
+# under .husky/ or workflow holds `pass-on-unpruned-suppressions`, and the root `lint` script is
+# the one the gate holds. Against a base, the head being HEAD, every path of the base read through
+# the renames git reports (S6a): S6 no count of a rule the base's history bore rises, and no path
+# gains an entry, but by the birth of a rule or a recorded move into it; S7 a count falls only
+# where git reports a change of the file's content, or its deletion; S8 a renamed file of the
+# base's baseline stays in its rule's scope, and a portal whose catalogs hold `errorCodes` on the
+# base holds it in every catalog on the head; S9 when the rule's package, the sites gate or the
+# scope module differs from the base, no count of a rule the base's history bore differs; S10
+# every row of the base is on the head unchanged, the head adds the one row the difference yields
+# when a count, a context's total or a birth differs and none otherwise, and no row it adds is
+# dated after today in UTC.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside #45 to #48, #50
+# and #51, because the registry is loaded from source with jiti and the sites gate asks the
+# installed ESLint for each file's configuration. It runs on push and on pull_request. On a pull
+# request FITNESS_BASE_REF is the event's base sha, fetched in up to three attempts, and a base
+# that does not resolve fails the step; on a push the variable is empty, the sites gate prints
+# `base: none (S6 to S10 skipped)`, and every other rule runs. The battery runs the same command as
+# its static step `errors`, with FITNESS_BASE_REF as the base when it is set and not empty, else
+# the merge base of HEAD and origin/main, the local counterpart of the pull request's comparison;
+# with no merge base the step passes origin/main, never an empty base, and a name that does not
+# resolve fails it closed. The scheduled half is no verdict of this check: error-sites-stall.yml
+# runs the sites gate with `--stalled --days 14 --remind` every day, and keeps one issue, labelled
+# error-sites-stalled, while the list is above zero and no row is dated in the last 14 days.
+# WHAT FAILS, exit 1: a verdict of either gate, each on stderr, as `error-registry-gate: <code or
+# path>: <problem> (R<n>)` or `error-sites-gate: <path or context>: <problem>`; a rise names the
+# base's count, the head's and the command that lowers it, and a missing row the `--record`
+# command that writes it.
+# FAIL-CLOSED, exit 3, which wins over 1 and prints the verdicts too. The registry gate: a root
+# that is not a directory; an exclusion list that is not a non-empty list of entries, each with a
+# glob the matcher reads and a known kind; fewer than two portals; a routing file that cannot be
+# read or holds no one `defaultLocale` line; a catalog that is not JSON or not an object, a default
+# locale with no catalog, or a text of an enrolled portal that is not valid ICU; domains/ missing
+# or holding no <name>.ts; the barrel or a domain file that cannot be loaded; ERROR_TABLES
+# missing, not an array or empty; a history its reader cannot read, or a row it reports that is not
+# the format of its rows; the page unreadable for a reason other than its absence, unrenderable
+# while R4 to R6 pass (while they have findings, a page that cannot be rendered is an R9 line beside
+# their verdicts, and the run exits 1), or, under `--write`, unwritable; `git ls-files` failing or
+# listing no source file of the scope, or a file of the scope that cannot be read; the command that
+# cannot load the sites gate's reader; and any other failure of the command's run, printed as
+# `error-registry-gate: the run failed before reaching a verdict: <reason>` followed by the error's
+# stack, rather than left to Node's exit 1, the code of a verdict. A failure to load the gate's own
+# imports comes before the command runs, and Node exits 1 with its own stack. The sites gate: `git
+# ls-files` failing or
+# listing nothing; eslint-suppressions.json, on the head or the base, that cannot be read, is not
+# JSON or is not ESLint's shape for an `errors/` entry (a missing file is no entry, as ESLint reads
+# it), or a history entry, on either side, that is no row file, is not JSON or is not a row; a held rule with no list or no options; a glob the matcher does not
+# read; ESLint's configuration that cannot be resolved; the plugin's manifest, a source file or a
+# catalog that cannot be read; a base that cannot be resolved; a git call against the base that
+# fails for a reason other than a path absent there; `git status` failing on the file of a count S7
+# refuses, read to tell whether that file holds a change that is not committed. A check that needs
+# an input that was not read is skipped, never run on part of it. A usage error exits 2.
+# RESIDUAL LIMITS, stated rather than implied. Of the rule, whose header lists what it does not
+# see: (1) a class that extends an error class under a name that does not end in `Error`, built
+# with `new`; (2) a construction through the prototype (`Object.create(X.prototype)`); (3) a
+# wrapper of a reply helper under a name the rule's options do not list; (4) a failure answered by
+# hand in a shape the rule does not follow: a body in a variable sent with the default status, a
+# status set apart from its `send`, a reply under another name, the raw response, or a value that
+# carries a `statusCode` and is answered at that status; on the registry path none of them reaches
+# a front with a text of its own (ADR-0047, decision 2.3). Of the registry gate: R8 proves a
+# reference, not an emission; R1 cannot see a domain file's type-only export; R10 reads text, so a
+# name assembled from parts passes it, and the rule's `registryDefinition` reads the import that
+# such a read needs; R11 reads calls by their syntax; R7 holds a text to its code, not to the
+# code's meaning; R9 names a stale page and not the line that differs; an entry that omits a portal
+# that does receive its code passes, and that portal shows its generic text. Of the sites gate: a
+# count is not a line, so a change that fixes one site of a file and adds another keeps its count;
+# a change of the rule that moves no count passes S9, and a later change that prunes a file it
+# edited passes S7, which is why the rule package, the scope module and the sites gate are guarded
+# paths of the hooks (ADR-0047, decision 4.5), in force once that change reaches main; S7, S9 and
+# `--record` read the changes from HEAD, so a change not committed is not seen by them; the
+# directive scan reads text, so a string that spells a directive is reported as one; the plugin's
+# imports are read from its syntax, so a module it loads with no import and no `require` call
+# (`process.getBuiltinModule`) is not seen; a file deleted and added again under a root the scope
+# excludes whole (the fronts and the tooling packages) leaves the list with no conversion, and
+# nothing refuses a backend import of such a package; a push with no pull request has no base,
+# and branch protection is what stops it. A base other than the merge base of what is compared
+# reads the main branch's changes after the merge base as the change's own. In the battery the
+# head is the branch and the base its merge base with origin/main, so a base ahead of it comes only
+# from a FITNESS_BASE_REF that names one, or from origin/main's tip when git finds no merge base
+# and that name resolves: S6 can then name a count the main branch lowered since as a rise, S10 a
+# row it added since as deleted, and S9 any count that differs once it changed the rule's files
+# since, all false reds. A change that appears only once the main branch is merged is seen by CI,
+# and in the battery only once the branch takes the main branch. In CI the base is the
+# pull request's base sha, as for #37, and the head the merge ref: when that base lags the merge
+# ref's first parent, S9 can name a false red the same way, and S10 one when the main branch's
+# later row sits beside the pull request's or beside a count it does not cover. Either way S7 can
+# pass: a count the change lowered in a file it did not edit reads as a fall with changed content
+# when the main branch edited that file since, so a count lowered by something S4 and S9 do not
+# watch (a parser's version in the lockfile, for one) is not refused. The import rule that keeps
+# production from importing test code, `production-imports-no-test-code` of
+# .dependency-cruiser.cjs, takes as origins only the modules under a `src` directory of the roots
+# it cruises and the infrastructure modules reached from them: the files of the scope outside a
+# `src` directory (infra/prisma/seed.ts, infra/prisma/prisma.config.ts, infra/prisma/scripts/*,
+# apps/api/vitest.coverage-thresholds.ts) are no origins, and an import through a variable or
+# through `createRequire` is not seen. The parser block of eslint.config.ts names `.ts` and `.tsx`
+# only, so the first `.mts` or `.cts` file of the scope turns S4 red, its parser not the one the
+# gate holds, until that block names the extension: it fails closed. The exclusion
+# `packages/*/*/tests/**` of the scope list, and `TESTS_BESIDE_SOURCE` of .dependency-cruiser.cjs,
+# match a grouped package's `tests` directory and also `packages/<package>/src/tests/`, which the
+# list means to leave in scope; no such directory exists, and once one does S4 turns red on its
+# files and the import rule refuses an import of them (the plan item
+# TESTS-BESIDE-SOURCE-GLOBS-MATCH-A-PACKAGE-SRC-TESTS-DIRECTORY). Of the stall: a row's date is what its author wrote, the
+# clock read only to refuse a date after today, and `--stalled` trusts it; two runs of one day
+# that read different counts both comment; it says the list moved inside the window, not that its
+# pace is enough, and it blocks no merge. scripts/testing/lib/issue-reminder.mjs, which it calls
+# to keep the issue and which the patched-dependencies gate shares, is a guarded path as the gate
+# is, so a change to either gate's reminder waits for a window of the Maintainer.
+# RETIRES WHEN, part by part (ADR-0047, decision 4): the baseline, its history, S3 and S6 to S10
+# once every count is zero, when the history is deleted and the sites gate keeps only "no entry of
+# an `errors/` rule", S4 and S5; S4 and the guard with the rule; the stall alarm when the history
+# is deleted; the per-portal start of R7 when both portals hold `errorCodes`; the registry gate and
+# the reference page never while the registry exists.
+pnpm check:errors   # expect exit 0 and, on stdout:
+#   error-registry-gate: PASS
+#   <n> codes in <m> domains
+#   admin: enrolled, <k> codes   (or: admin: not enrolled)
+#   client: enrolled, <k> codes   (or: client: not enrolled)
+#   error-sites-gate: PASS
+#   error-sites-gate: <N> sites in <C> contexts
+#   error-sites-gate: base: <ref>   (or: base: none (S6 to S10 skipped))
 ````
 
 ## Not a numbered check

@@ -1,9 +1,10 @@
 /**
  * @file .dependency-cruiser.cjs
  * @description The architecture gate for the omni-post monorepo: the hexagonal layer rules,
- *   dependency cycles and orphan modules, checked over the resolved import graph of
- *   apps/api/src, apps/workers/src and every workspace package. `pnpm check:architecture` runs
- *   it, both in the local battery and in the dependency-cruiser job of audit.yml.
+ *   dependency cycles, orphan modules and test code reached from production, checked over the
+ *   resolved import graph of apps/api/src, apps/workers/src and every workspace package.
+ *   `pnpm check:architecture` runs it, both in the local battery and in the dependency-cruiser
+ *   job of audit.yml.
  *
  *   Layers, by resolved path (docs/architecture/ARCHITECTURE_CANON.md: Cockburn's ports and
  *   adapters, Martin's Dependency Rule, Seemann's Composition Root):
@@ -85,6 +86,16 @@ const ROUTE_MODULES = {
   path: "^apps/api/src/.*([Rr]outes|Handlers)\\.ts$",
   pathNot: "\\.test\\.ts$",
 };
+
+// A test file, by the suffix a collector reads, in any JavaScript or TypeScript extension.
+const TEST_FILE = "\\.(test|spec)\\.[cm]?[jt]sx?$";
+
+// A tests directory beside a source tree, at the three depths the workspace has: an app
+// (`apps/api/tests/`), a package (`packages/shared/tests/`) and a grouped package
+// (`packages/core/auth/tests/`). The grouped package's depth is also that of a package's source
+// tree, so `packages/<package>/src/tests/` matches too, although a tests directory inside a source
+// tree is meant to stay source; no such directory exists, and an import of one would be refused.
+const TESTS_BESIDE_SOURCE = "^(apps/[^/]+|packages/[^/]+|packages/[^/]+/[^/]+)/tests/";
 
 module.exports = {
   forbidden: [
@@ -383,6 +394,24 @@ module.exports = {
       },
       to: {
         path: "^apps/workers/",
+      },
+    },
+    // Its origins are the modules under a `src` directory of the roots `check:architecture`
+    // cruises and the infrastructure modules reached from them. A file of the errors/ scope outside
+    // a `src` directory is no origin (infra/prisma/seed.ts, infra/prisma/prisma.config.ts,
+    // infra/prisma/scripts/*, apps/api/vitest.coverage-thresholds.ts), and an import through a
+    // variable or through `createRequire` is not seen.
+    {
+      name: "production-imports-no-test-code",
+      severity: "error",
+      comment:
+        "A module of a source tree imports a test file or a module of a tests directory beside a source tree. The errors/ lint rules leave test code out of their scope by exactly those two names (scripts/testing/lib/error-scope.mjs), which holds only while production never runs test code: production code kept in a file named as a test, or under such a directory, and imported from a source tree would run unread by them. A test file inside a source tree is test code too, so it is no origin of this rule.",
+      from: {
+        path: "(^|/)src/",
+        pathNot: TEST_FILE,
+      },
+      to: {
+        path: [TEST_FILE, TESTS_BESIDE_SOURCE],
       },
     },
   ],

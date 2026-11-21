@@ -60,6 +60,7 @@ const STATIC_STEPS = [
   "support",
   "deps-ledger",
   "i18n",
+  "errors",
   "architecture",
   "floors",
   "record-coverage",
@@ -208,6 +209,16 @@ const plannedSteps = (): number => {
 const git = (cwd: string, args: readonly string[]): string =>
   execFileSync("git", [...args], { cwd, env: childEnv(), encoding: "utf8" }).trim();
 
+/** The author a scratch commit carries, with signing off, so no machine setting can refuse it. */
+const IDENTITY = [
+  "-c",
+  "user.name=battery",
+  "-c",
+  "user.email=battery@example.invalid",
+  "-c",
+  "commit.gpgsign=false",
+] as const;
+
 /**
  * A committed scratch repository holding the real verdict and static-result modules, which a
  * static run reads its logs with, and a marker in place of the verdict writer.
@@ -220,20 +231,29 @@ const createRepository = (): string => {
   copyFileSync(STATIC_MODULE, path.join(repo, "scripts", "testing", "battery-static.mjs"));
   git(repo, ["init", "--quiet"]);
   git(repo, ["add", "."]);
-  git(repo, [
-    "-c",
-    "user.name=battery",
-    "-c",
-    "user.email=battery@example.invalid",
-    "-c",
-    "commit.gpgsign=false",
-    "commit",
-    "--quiet",
-    "--no-verify",
-    "-m",
-    "fixture",
-  ]);
+  git(repo, [...IDENTITY, "commit", "--quiet", "--no-verify", "-m", "fixture"]);
   return repo;
+};
+
+/**
+ * Makes the scratch repository a branch that lags the main branch: `origin/main` gains a commit
+ * the branch does not hold, and the branch a commit of its own, both on the fixture commit.
+ * @returns The fixture commit, the merge base of `HEAD` and `origin/main`.
+ */
+const divergeFromMain = (repo: string): string => {
+  const mergeBase = git(repo, ["rev-parse", "HEAD"]);
+  const mainLater = git(repo, [
+    ...IDENTITY,
+    "commit-tree",
+    "HEAD^{tree}",
+    "-p",
+    "HEAD",
+    "-m",
+    "main",
+  ]);
+  git(repo, ["update-ref", "refs/remotes/origin/main", mainLater]);
+  git(repo, [...IDENTITY, "commit", "--quiet", "--no-verify", "--allow-empty", "-m", "branch"]);
+  return mergeBase;
 };
 
 const makeDirty = (repo: string): void => {
@@ -265,11 +285,11 @@ describe("battery.sh --list", () => {
     expect(lines(result.stdout)).toEqual(declaredSteps().map((step) => step.name));
   });
 
-  it("prints as many names as PLANNED_STEPS, which is 37, when --list is given alone", () => {
+  it("prints as many names as PLANNED_STEPS, which is 38, when --list is given alone", () => {
     const result = runBattery(["--list"]);
 
     expect(lines(result.stdout)).toHaveLength(plannedSteps());
-    expect(plannedSteps()).toBe(37);
+    expect(plannedSteps()).toBe(38);
   });
 
   it("prints the static steps in the script's order when --static --list is given", () => {
@@ -381,6 +401,42 @@ describe("battery.sh --static run", () => {
     expect(lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"))).toHaveLength(
       STATIC_STEPS.length
     );
+  });
+
+  it("hands the errors step the merge base of HEAD and origin/main when FITNESS_BASE_REF is empty and origin/main is ahead of it", () => {
+    const repo = createRepository();
+    const mergeBase = divergeFromMain(repo);
+
+    runStatic(repo, { FITNESS_BASE_REF: "" });
+
+    const calls = lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"));
+    expect(git(repo, ["rev-parse", "origin/main"])).not.toBe(mergeBase);
+    expect(calls.filter((call) => call.includes("pnpm check:errors"))).toEqual([
+      `--kill-after=30 3600 env FITNESS_BASE_REF=${mergeBase} pnpm check:errors`,
+    ]);
+  });
+
+  it("hands the errors step origin/main, which the sites gate refuses when it does not resolve, when FITNESS_BASE_REF is empty and git finds no merge base", () => {
+    const repo = createRepository();
+
+    runStatic(repo, { FITNESS_BASE_REF: "" });
+
+    const calls = lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"));
+    expect(calls.filter((call) => call.includes("pnpm check:errors"))).toEqual([
+      "--kill-after=30 3600 env FITNESS_BASE_REF=origin/main pnpm check:errors",
+    ]);
+  });
+
+  it("hands the errors step the FITNESS_BASE_REF the floors step reads when it is set, over the merge base", () => {
+    const repo = createRepository();
+    divergeFromMain(repo);
+
+    runStatic(repo, { FITNESS_BASE_REF: "feature-base" });
+
+    const calls = lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"));
+    expect(calls.filter((call) => call.includes("pnpm check:errors"))).toEqual([
+      "--kill-after=30 3600 env FITNESS_BASE_REF=feature-base pnpm check:errors",
+    ]);
   });
 
   it("prints STATIC RED naming the failing step and exits 1 when one static step fails", () => {

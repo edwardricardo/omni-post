@@ -15,6 +15,7 @@ export * from "./csv.js";
 
 // Error handling
 export * from "./errors.js";
+export * from "./error-registry/index.js";
 
 // Event system
 export * from "./events.js";

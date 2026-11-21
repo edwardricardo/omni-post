@@ -100,7 +100,7 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 - Domain errors extend `DomainError` — never raw `Error` for business failures
 - Infrastructure errors wrapped into domain/application errors before crossing layers
 - Single global error handler in Fastify translates domain errors → HTTP status codes
-- Every error response includes: `statusCode`, `message`, `correlationId`, `timestamp`
+- An error response is ADR-0047's body; codes in `packages/shared/src/error-registry/`
 - Empty catch blocks: **zero tolerance** — log at minimum, rethrow if unrecoverable
 
 ---

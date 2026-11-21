@@ -7,6 +7,1016 @@
       "count": 2
     }
   },
+  "apps/api/src/accounts/accountRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 26
+    }
+  },
+  "apps/api/src/admin/AccountSessionService.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/admin/AdminUserAdminService.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/admin/AnalyticsAccountHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/admin/AnalyticsComplianceHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/admin/AnalyticsDashboardHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/admin/CustomerAccountBillingService.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/admin/PricingAdminService.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/admin/SchedulingPostHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "apps/api/src/admin/SchedulingSlotHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "apps/api/src/admin/accountLifecycleQueryService.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/admin/accountLifecycleRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 35
+    }
+  },
+  "apps/api/src/admin/accountLifecycleService.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "apps/api/src/admin/adminUserRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 32
+    }
+  },
+  "apps/api/src/admin/apiKeyAdminRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/admin/auth/AdminAuthService.ts": {
+    "errors/no-inline-error": {
+      "count": 32
+    }
+  },
+  "apps/api/src/admin/auth/MfaService.ts": {
+    "errors/no-inline-error": {
+      "count": 24
+    }
+  },
+  "apps/api/src/admin/auth/PasswordService.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/admin/auth/SessionManager.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/admin/auth/TokenService.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "apps/api/src/admin/auth/adminAuthMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "apps/api/src/admin/auth/adminAuthRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 37
+    }
+  },
+  "apps/api/src/admin/channelReauthRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/admin/dashboardRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/admin/massReauthRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/admin/oidcAdminRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/admin/pricingRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 34
+    }
+  },
+  "apps/api/src/admin/queueRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "apps/api/src/admin/secretsRotationRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/admin/webhookAdminRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/ai-image/aiImageRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "apps/api/src/ai/agent/LangGraphAgentOrchestrationAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/ai/aiLocalizedRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "apps/api/src/ai/aiService.ts": {
+    "errors/no-inline-error": {
+      "count": 14
+    }
+  },
+  "apps/api/src/ai/orchestrator.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/ai/promptTemplateRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/ai/providers/AIProviderError.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/ai/providers/anthropic.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/ai/routes.ts": {
+    "errors/no-inline-error": {
+      "count": 19
+    }
+  },
+  "apps/api/src/analytics/analyticsRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 46
+    }
+  },
+  "apps/api/src/announcements/announcementRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/approvals/approvalRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "apps/api/src/approvals/approvalWorkflowRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "apps/api/src/assets/assetRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 35
+    }
+  },
+  "apps/api/src/audit/activityFeedRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/audit/auditRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "apps/api/src/auth/apiKeyRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "apps/api/src/auth/authRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/auth/authServiceCore.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "apps/api/src/auth/authServiceSession.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "apps/api/src/auth/customerAuthMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/auth/customerAuthRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "apps/api/src/auth/customerOrAdminAuth.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/auth/customerRbacMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/auth/integrationAuthMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/auth/mfaRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "apps/api/src/auth/oauth/OAuthTokenRefresher.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/auth/oauth/oauthFlow.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/auth/oidcRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 19
+    }
+  },
+  "apps/api/src/auth/providerOAuthConfigs.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/auth/providerOAuthFlow.ts": {
+    "errors/no-inline-error": {
+      "count": 25
+    }
+  },
+  "apps/api/src/auth/rbacMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 14
+    }
+  },
+  "apps/api/src/auth/rbacRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 22
+    }
+  },
+  "apps/api/src/auth/rbacService.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "apps/api/src/auth/requireCallerOwnsAccountParam.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/auth/samlRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 18
+    }
+  },
+  "apps/api/src/billing/adminBillingRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/billing/billingWebhookRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/billing/clientBillingRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/billing/handlers/SubscriptionAccountHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "apps/api/src/billing/handlers/SubscriptionAnalyticsHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/billing/handlers/SubscriptionPlanHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/billing/handlers/SubscriptionTrialHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "apps/api/src/brand-kit/brandKitRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/brand-voice/brandVoiceRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "apps/api/src/bulk-scheduling/bulkScheduleRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/campaigns/campaignRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 26
+    }
+  },
+  "apps/api/src/channels/channelRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 32
+    }
+  },
+  "apps/api/src/comments/commentRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "apps/api/src/compliance/complianceRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "apps/api/src/content/ContentHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 31
+    }
+  },
+  "apps/api/src/content/PlatformContentAdapterStrategy.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/content/SyncEngineImpl.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/crm/crmRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "apps/api/src/custom-reports/customReportRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 22
+    }
+  },
+  "apps/api/src/external-notifications/externalNotificationRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/first-comment/firstCommentRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "apps/api/src/health/healthRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/inbox/conversationNoteRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/inbox/inboxRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 40
+    }
+  },
+  "apps/api/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/adapters/AiServiceImageGenerationAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/adapters/CustomerTokenServiceAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/adapters/ExternalNotificationDispatcher.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/adapters/FetchHttpClient.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/adapters/PrismaAdminMfaUserRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/infrastructure/adapters/PrismaCustomerMfaUserRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/infrastructure/adapters/RedisMfaChallengeStoreAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/adapters/SlackNotifierAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/adapters/TeamsNotifierAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAccountBillingRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAccountNotificationRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAccountQueryRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAccountRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAccountSubscriptionBillingRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAdminUserRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAiTokenUsageRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaApiKeyRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaApprovalRequestRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaApprovalWorkflowRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaAuditLogRetentionRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaBillingEventRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaCampaignRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaChannelRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaCrisisProjectRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaCustomReportRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaCustomerRoleRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaDataBreachReportRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaDsarRequestRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaExternalNotificationConfigRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaFirstCommentRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaGatewaySwitchEventRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaGdprSettingsRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaGlossaryRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaInvoiceRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaNotificationRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaPlatformCredentialRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaPlatformEncryptionKeyRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaPostCommentRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaProjectRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaProviderBundleRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaRecurringPostRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaRoleManagementRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaScheduledReportRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaSecuritySettingsRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaSocialConversationRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaSocialMessageRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaStyleGuideRuleRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaSystemRoleRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaTrackedLinkRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/infrastructure/repositories/PrismaWebhookDeadLetterArchivalRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infrastructure/saga/RedisSemanticLockStore.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/integrations/makeRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "apps/api/src/integrations/zapierRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "apps/api/src/lib/errors/errorHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "apps/api/src/lib/route-handler/BaseRouteHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/lib/withTimeout.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/links/linkRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "apps/api/src/listening/listeningRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "apps/api/src/middleware/autoCacheMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/monitoring/cacheStatsRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "apps/api/src/monitoring/rateLimitingDashboard.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/notifications/notificationRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "apps/api/src/onboarding/onboardingRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/orchestration/sync/VersionManager.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/outbox/outboxAdminRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/posts/optimizedPostsRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/posts/postRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 20
+    }
+  },
+  "apps/api/src/projects/crisisRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/projects/projectRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 42
+    }
+  },
+  "apps/api/src/providers/providerRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/recurring/recurringPostRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "apps/api/src/reports/reportRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 20
+    }
+  },
+  "apps/api/src/repurpose/repurposeRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "apps/api/src/saga/SagaIntegration.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "apps/api/src/saga/SagaManagerExecution.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/saga/SagaManagerLifecycle.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "apps/api/src/security/csrfMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/security/httpRateLimitPreHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/security/ipAllowlistMiddleware.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/security/securityHeaders.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/security/tenantContext.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/security/tenantParamPreHandler.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/settings/settingsRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 23
+    }
+  },
+  "apps/api/src/tasks/taskRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "apps/api/src/team/teamRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "apps/api/src/templates/TemplateABTestHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "apps/api/src/templates/TemplateABTestService.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/templates/TemplateCrudHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 25
+    }
+  },
+  "apps/api/src/templates/TemplateVersionHandlers.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "apps/api/src/templates/TemplateVersionService.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/templates/templateAnalytics.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/templates/templateService.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "apps/api/src/trends/trendAnalysisService.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/trends/trendRadarRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/trends/trendRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "apps/api/src/usage/usageRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "apps/api/src/utm/utmRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "apps/api/src/webhooks/processors/facebookWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/webhooks/processors/instagramWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/webhooks/processors/linkedinWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/webhooks/processors/snapchatWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/webhooks/processors/telegramWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/webhooks/processors/tiktokWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/webhooks/processors/xWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "apps/api/src/webhooks/processors/youtubeWebhookProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "apps/api/src/webhooks/webhookDashboardRoutes.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "apps/api/src/webhooks/webhookDashboardService.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/webhooks/webhookHandlerCore.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "apps/api/src/webhooks/webhookManager.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
   "apps/api/tests/eval/localizedGeneration.eval.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 2
@@ -865,6 +1875,11 @@
       "count": 1
     }
   },
+  "apps/workers/src/services/CredentialResolver.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
   "apps/workers/tests/CredentialResolver.tenantScope.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 2
@@ -880,9 +1895,84 @@
       "count": 4
     }
   },
+  "infra/prisma/src/extensions/tenantGuard.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/adapters/cache-redis/src/cache-manager.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "packages/adapters/cache-redis/src/invalidation.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/adapters/db-prisma/src/AccountRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/adapters/db-prisma/src/AnalyticsRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/adapters/db-prisma/src/ChannelRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/adapters/db-prisma/src/PostRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "packages/adapters/db-prisma/src/ProjectRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/adapters/db-prisma/src/PublishLogRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/adapters/db-prisma/src/ThreadRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "packages/adapters/db-prisma/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/adapters/db-prisma/src/post/PrismaPostRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/adapters/dead-letter-queue/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
   "packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 4
+    }
+  },
+  "packages/adapters/fallback-strategies/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 10
     }
   },
   "packages/adapters/fallback-strategies/tests/fallbackTenantIsolation.test.ts": {
@@ -895,6 +1985,16 @@
       "count": 22
     }
   },
+  "packages/adapters/queue-bullmq/src/dead-letter-queue-adapter.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/adapters/queue-bullmq/src/queue-adapter.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
   "packages/adapters/queue-bullmq/tests/dead-letter-queue-adapter.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 4
@@ -905,9 +2005,29 @@
       "count": 8
     }
   },
+  "packages/adapters/storage-azure/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/adapters/storage-cloudinary/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
   "packages/adapters/storage-cloudinary/tests/index.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 7
+    }
+  },
+  "packages/adapters/storage-gcs/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/adapters/storage-s3/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 6
     }
   },
   "packages/adapters/storage-s3/tests/index.test.ts": {
@@ -918,8 +2038,1303 @@
       "count": 11
     }
   },
+  "packages/core/accounts/src/DeleteAccountUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/accounts/src/HardDeleteAccountUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/accounts/src/RestoreAccountUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/ai-image/src/GenerateImageUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/ai-image/src/ListGeneratedImagesQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ai/src/AiRequestService.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/ai/src/ApproveRepurposeVariantUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/ai/src/DetectRepurposeCandidatesUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ai/src/DispatchDetectRepurposeUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/ai/src/GenerateContentCalendarUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ai/src/GenerateLocalizedContentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/ai/src/GeneratePlatformVariantsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ai/src/GenerateRepurposeVariantsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/ai/src/GetTopPerformersContextUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ai/src/ListRepurposeProposalsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ai/src/RejectRepurposeVariantUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/aiPromptTemplates/src/CreateAIPromptTemplateUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/aiPromptTemplates/src/DeleteAIPromptTemplateUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/aiPromptTemplates/src/UpdateAIPromptTemplateUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/analytics/src/CalculateROIUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/analytics/src/ComparePerformanceUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/analytics/src/DispatchAnalyticsIngestionUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/analytics/src/GetCrossPlatformAnalyticsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/analytics/src/IngestChannelAnalyticsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/apiKeys/src/ApiKeyUseCases.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
   "packages/core/application/tests/unit/UseCase.test.ts": {
     "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/approvals/src/ApprovePostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/approvals/src/CreateApprovalWorkflowUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/approvals/src/DeleteApprovalWorkflowUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/approvals/src/GetApprovalHistoryQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/approvals/src/GetPendingApprovalsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/approvals/src/ListApprovalWorkflowsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/approvals/src/RejectPostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/approvals/src/SubmitForReviewUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/approvals/src/UpdateApprovalWorkflowUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/assets/src/CreateAssetFolderUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/assets/src/CreateAssetTagUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/assets/src/CreateMediaAssetUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/assets/src/DeleteMediaAssetUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/assets/src/GetMediaAssetsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/assets/src/ImportFromGoogleDriveUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/assets/src/ListAssetTagsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/assets/src/TagMediaAssetUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/assets/src/UpdateMediaAssetUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/auth/src/ConfigureOidcUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/auth/src/ConfigureSamlUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/auth/src/DisableOidcSsoUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/auth/src/DisableSsoUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/auth/src/EnableOidcSsoUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/auth/src/EnableSsoUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/auth/src/GetOidcConfigurationQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/auth/src/GetSamlConfigurationQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/auth/src/ReplaceOidcClientSecretUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/auth/src/RoleManagementService.ts": {
+    "errors/no-inline-error": {
+      "count": 27
+    }
+  },
+  "packages/core/billing/src/ChangeAccountSubscriptionUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/billing/src/CreateAccountSubscriptionUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/billing/src/GatewayBillingService.ts": {
+    "errors/no-inline-error": {
+      "count": 64
+    }
+  },
+  "packages/core/billing/src/SubscriptionManagementService.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/billing/src/SubscriptionStatsService.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/billing/src/TrialManagementService.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "packages/core/billing/src/UpdatePricingConfigUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/brand-kit/src/DeleteBrandKitUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/brand-kit/src/GetBrandKitQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/brand-kit/src/UpsertBrandKitUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/brand-voice/src/DeleteBrandVoiceUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/brand-voice/src/GetBrandVoiceQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/brand-voice/src/UpsertBrandVoiceUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/core/bulk-scheduling/src/ConfirmBulkScheduleUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/bulk-scheduling/src/FailBulkScheduleRowUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/bulk-scheduling/src/GetBulkScheduleBatchQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/bulk-scheduling/src/ProcessBulkScheduleRowUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/campaigns/src/ArchiveCampaignUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/campaigns/src/CreateCampaignUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/campaigns/src/GetCampaignAnalyticsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/campaigns/src/GetCampaignQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/campaigns/src/ListCampaignsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/campaigns/src/TagPostWithCampaignUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/campaigns/src/UntagPostFromCampaignUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/campaigns/src/UpdateCampaignUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/channels/src/SetPrimaryChannelUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/channels/src/UpdateChannelAuthStateUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/comments/src/CreateCommentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/comments/src/DeleteCommentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/comments/src/EditCommentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/comments/src/GetPostCommentsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/compliance/src/ComplianceService.ts": {
+    "errors/no-inline-error": {
+      "count": 34
+    }
+  },
+  "packages/core/crisis/src/EnterCrisisModeUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/crisis/src/ExitCrisisModeUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/crisis/src/GetCrisisStatusUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/crm/src/ConnectCrmUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/crm/src/DisconnectCrmUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/crm/src/GetCrmConnectionsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/crm/src/GetCrmSyncLogsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/crm/src/LogCrmActivityUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/crm/src/SyncCrmContactsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/custom-reports/src/CreateCustomReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/custom-reports/src/DeleteCustomReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/custom-reports/src/DisableReportSharingUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/custom-reports/src/EnableReportSharingUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/custom-reports/src/GetCustomReportQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/custom-reports/src/ListCustomReportsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/custom-reports/src/RunCustomReportQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/custom-reports/src/ScheduleCustomReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/core/custom-reports/src/UpdateCustomReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "packages/core/customer-auth/src/LoginCustomerUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/core/customer-auth/src/LogoutCustomerUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/customer-auth/src/RefreshCustomerTokenUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/customer-auth/src/RegisterCustomerUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "packages/core/customer-auth/src/RequestPasswordResetUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/customer-auth/src/ResetPasswordUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/domain/src/aggregates/ApprovalRequestAggregate.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/domain/src/aggregates/MentionAggregate.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/domain/src/aggregates/PostAggregate.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "packages/core/domain/src/aggregates/PostCommentAggregate.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/core/domain/src/aggregates/SocialMessageAggregate.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/domain/src/billing/PricingCalculator.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/entities/Account.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "packages/core/domain/src/entities/ApprovalWorkflow.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/core/domain/src/entities/BrandKit.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/domain/src/entities/Campaign.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/domain/src/entities/Channel.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/domain/src/entities/CrmConnection.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/domain/src/entities/CustomReport.ts": {
+    "errors/no-inline-error": {
+      "count": 20
+    }
+  },
+  "packages/core/domain/src/entities/CustomerUser.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "packages/core/domain/src/entities/MediaAsset.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/domain/src/entities/Notification.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/domain/src/entities/OidcConfiguration.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/domain/src/entities/Project.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/domain/src/entities/RecurringPost.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/core/domain/src/entities/SamlConfiguration.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/domain/src/entities/ScheduledReport.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/domain/src/entities/SocialConversation.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/domain/src/entities/TrackedLink.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/repositories/ApiKeyRepository.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/src/value-objects/AdminActorId.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/src/value-objects/ApprovalRequestId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/ApprovalStatus.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/CampaignStatus.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/CommentId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/Content.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/domain/src/value-objects/CustomerUserId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/EntityId.ts": {
+    "errors/no-inline-error": {
+      "count": 22
+    }
+  },
+  "packages/core/domain/src/value-objects/MediaAttachment.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/core/domain/src/value-objects/MentionId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/NotificationId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/NotificationType.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/src/value-objects/Provider.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/src/value-objects/PublishStatus.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/ReviewDecision.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/src/value-objects/ScheduledTime.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "packages/core/domain/src/value-objects/ShortCode.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/domain/src/value-objects/SocialConversationId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/SocialMessageId.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/SocialMessageStatus.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/domain/src/value-objects/SocialMessageType.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/src/value-objects/UTMParameters.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/embeddings/src/EmbeddingService.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/external-notifications/src/ConfigureExternalNotificationUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/external-notifications/src/DeleteExternalNotificationUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/external-notifications/src/ListExternalNotificationsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/external-notifications/src/TestExternalNotificationUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/first-comment/src/GetFirstCommentQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/first-comment/src/PublishFirstCommentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/first-comment/src/RemoveFirstCommentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/first-comment/src/SetFirstCommentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/glossary/src/DeleteGlossaryTermUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/glossary/src/ListGlossaryByLocaleQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/glossary/src/UpsertGlossaryTermUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/inbox/src/AddConversationNoteUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/inbox/src/AssignMessageUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/inbox/src/DeleteConversationNoteUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/inbox/src/DispatchInboxSyncUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/inbox/src/GetConversationQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/inbox/src/GetInboxQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/inbox/src/IngestSocialMessageUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/core/inbox/src/ListConversationNotesQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/inbox/src/MarkMessageArchivedUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/inbox/src/MarkMessageReadUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/inbox/src/ReopenConversationUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/inbox/src/ResolveConversationUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/inbox/src/SendReplyUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 14
+    }
+  },
+  "packages/core/inbox/src/SyncProviderCommentsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/inbox/src/TriageInboxMessageUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/integrations/src/GenerateIntegrationApiKeyUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/integrations/src/ListIntegrationApiKeysQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/integrations/src/RevokeIntegrationApiKeyUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/integrations/src/SubscribeIntegrationTriggerUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/integrations/src/UnsubscribeIntegrationTriggerUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/links/src/CreateTrackedLinkUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/links/src/DeleteTrackedLinkUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/links/src/GetLinkStatsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/links/src/GetTrackedLinkUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/links/src/RedirectAndTrackClickUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/listening/src/DispatchMentionSearchUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/listening/src/GetShareOfVoiceQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/listening/src/IngestMentionUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/listening/src/ListMentionsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/ml/src/OptimizeContentUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/ml/src/PredictOptimalTimingUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/notifications/src/CreateNotificationUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/notifications/src/MarkNotificationReadUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/posts/src/ArchivePostsBatchUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/posts/src/CompletePostPublishingUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 12
+    }
+  },
+  "packages/core/posts/src/CreatePostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/posts/src/DeletePostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/posts/src/DuplicatePostsBatchUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/posts/src/GetPostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/posts/src/GetPostWithThreadQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/posts/src/HardDeletePostsBatchUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/posts/src/ListPostsGlobalQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/posts/src/ListPostsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/posts/src/SchedulePostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/core/posts/src/UpdatePostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/projects/src/DeleteProjectUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/projects/src/HardDeleteProjectUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "packages/core/projects/src/RestoreProjectUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/providers/src/MassForceReauthByProviderUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/recurring/src/CreatePostFromRecurrenceUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "packages/core/recurring/src/CreateRecurringPostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "packages/core/recurring/src/DeactivateRecurringPostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/recurring/src/ListRecurringPostsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/recurring/src/ProcessRecurrenceUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/recurring/src/UpdateRecurringPostUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/core/referral/src/ConvertReferralUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/referral/src/GetOrCreateReferralCodeUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/referral/src/GrantReferralRewardUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/referral/src/TrackReferralSignupUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/reports/src/CreateScheduledReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/reports/src/DeleteScheduledReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/reports/src/GenerateReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/reports/src/ListScheduledReportsQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/reports/src/UpdateScheduledReportUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/core/security/src/GetSecretRotationStatusQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/security/src/PlatformCredentialService.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/settings/src/SettingsService.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "packages/core/src/planPublication.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/style-guide/src/DeleteStyleGuideRuleUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/style-guide/src/ListStyleGuideRulesByLocaleQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/style-guide/src/UpsertStyleGuideRuleUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/tasks/src/CancelTaskUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/tasks/src/CompleteTaskUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/tasks/src/CreateTaskUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/tasks/src/GetTaskQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/tasks/src/UpdateTaskUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/team/src/InviteTeamMemberUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/core/team/src/RemoveTeamMemberUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/team/src/SearchTeamMembersQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/team/src/UpdateTeamMemberRoleUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/core/threading/src/threadPlanner.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/trends/src/DetectTrendsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/trends/src/DispatchDetectTrendsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/trends/src/FetchTrendingTopicsUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/trends/src/GetTrendRadarQuery.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/trends/src/ScoreTrendRelevanceUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/core/usage/src/GetUsageUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/core/usage/src/IncrementUsageUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/core/utm/src/GenerateUTMLinksUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/core/webhooks/src/RotateWebhookSecretKeyUseCase.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/monitoring/circuit-breaker/src/index.ts": {
+    "errors/no-inline-error": {
       "count": 1
     }
   },
@@ -928,9 +3343,204 @@
       "count": 18
     }
   },
+  "packages/monitoring/health-checks/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 2
+    }
+  },
+  "packages/monitoring/health-checks/src/tenantHealth.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/providers/_template/src/index.ts": {
+    "errors/no-inline-error": {
+      "count": 20
+    }
+  },
+  "packages/providers/bluesky/src/BlueskyAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 14
+    }
+  },
+  "packages/providers/bluesky/src/BlueskyClient.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/providers/facebook/src/FacebookAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 22
+    }
+  },
+  "packages/providers/facebook/src/apiClient.ts": {
+    "errors/no-inline-error": {
+      "count": 11
+    }
+  },
+  "packages/providers/facebook/src/features/shop.catalog.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/providers/facebook/src/media/videoProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/providers/instagram/src/InstagramAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 31
+    }
+  },
+  "packages/providers/instagram/src/apiClient.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/providers/instagram/src/contentHelpers.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/providers/instagram/src/mediaProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 9
+    }
+  },
+  "packages/providers/instagram/src/schedulingService.ts": {
+    "errors/no-inline-error": {
+      "count": 20
+    }
+  },
+  "packages/providers/linkedin/src/LinkedInAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 16
+    }
+  },
+  "packages/providers/pinterest/src/PinterestAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "packages/providers/shared/src/ProviderError.ts": {
+    "errors/no-inline-error": {
+      "count": 7
+    }
+  },
+  "packages/providers/shared/src/helpers.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
   "packages/providers/shared/tests/helpers.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 9
+    }
+  },
+  "packages/providers/snapchat/src/SnapchatAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 15
+    }
+  },
+  "packages/providers/telegram/src/TelegramAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "packages/providers/threads/src/ThreadsAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "packages/providers/tiktok/src/TikTokAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 17
+    }
+  },
+  "packages/providers/tiktok/src/apiClient.ts": {
+    "errors/no-inline-error": {
+      "count": 8
+    }
+  },
+  "packages/providers/tiktok/src/authService.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/providers/tiktok/src/contentAnalyticsClient.ts": {
+    "errors/no-inline-error": {
+      "count": 4
+    }
+  },
+  "packages/providers/tiktok/src/hashtagManager.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/providers/tiktok/src/marketingApiClient.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/providers/tiktok/src/researchApiClient.ts": {
+    "errors/no-inline-error": {
+      "count": 6
+    }
+  },
+  "packages/providers/tiktok/src/videoProcessor.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/providers/x/src/XAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "packages/providers/youtube/src/YouTubeAdapter.ts": {
+    "errors/no-inline-error": {
+      "count": 24
+    }
+  },
+  "packages/providers/youtube/src/analytics.ts": {
+    "errors/no-inline-error": {
+      "count": 1
+    }
+  },
+  "packages/providers/youtube/src/apiClient.ts": {
+    "errors/no-inline-error": {
+      "count": 21
+    }
+  },
+  "packages/providers/youtube/src/communityFeatures.ts": {
+    "errors/no-inline-error": {
+      "count": 3
+    }
+  },
+  "packages/providers/youtube/src/liveStreaming.ts": {
+    "errors/no-inline-error": {
+      "count": 14
+    }
+  },
+  "packages/providers/youtube/src/playlistManager.ts": {
+    "errors/no-inline-error": {
+      "count": 10
+    }
+  },
+  "packages/providers/youtube/src/shorts.ts": {
+    "errors/no-inline-error": {
+      "count": 5
+    }
+  },
+  "packages/shared/src/errors.ts": {
+    "errors/no-inline-error": {
+      "count": 13
+    }
+  },
+  "packages/shared/src/saga.ts": {
+    "errors/no-inline-error": {
+      "count": 6
     }
   }
 }

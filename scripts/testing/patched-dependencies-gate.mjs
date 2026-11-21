@@ -25,6 +25,8 @@
  *     comments on it once a day while it stays open (never on the day it opened it), and reopens it
  *     when it was closed while the patch still stands. A second run on the same day therefore opens
  *     no second issue and posts no second comment, which is what makes the workflow's retry safe.
+ *     The issue half is the reminder the sites gate's `--stalled` mode shares
+ *     (`lib/issue-reminder.mjs`).
  *     This half runs on a schedule (`patched-dependencies.yml`, every 6 hours), never in
  *     pull-request CI, so an upstream release never blocks unrelated work.
  *
@@ -73,14 +75,19 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { createGh, fieldsOf, remindIssues } from "./lib/issue-reminder.mjs";
 import { readTopLevelBlock } from "./workspace-block-reader.mjs";
 
 const GATE = "patched-dependencies-gate";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const KEY = "patchedDependencies";
 const PATCHES_DIR = "patches";
-const LABEL = "patched-dependency";
-const LABEL_COLOR = "d93f0b";
+/** The label of the issues `--remind` keeps, one per resolvable patch. */
+const REMINDER_LABEL = Object.freeze({
+  name: "patched-dependency",
+  color: "d93f0b",
+  description: "A patched dependency whose resolving release is published",
+});
 const UNKNOWN = "—";
 /** The exit codes, one per outcome; the scheduled workflow retries only `EXIT_UNREAD`. */
 const EXIT_CLEAN = 0;
@@ -127,7 +134,6 @@ const ADR_PATH = /^docs\/technical\/ADR-\d{4}-[^/]+\.md$/;
  *   `violations` are the verdict (exit 1); `unread` names every input that could not be read
  *   (exit 3), kept apart so the two never share an exit code.
  * @typedef {{ parsed: Parsed, version: string, published: string }} Resolvable
- * @typedef {{ number: number, title: string, state: string, created: string }} Issue
  * @typedef {{ mode: "check" | "resolution", remind: boolean, workspace: string, records: string,
  *   root: string, registry: string | null, instant: number }} Options
  */
@@ -138,16 +144,6 @@ const ADR_PATH = /^docs\/technical\/ADR-\d{4}-[^/]+\.md$/;
  */
 function text(value) {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-/**
- * @param {unknown} value
- * @returns {Record<string, unknown>} The value when it is a plain object, otherwise an empty one.
- */
-function fieldsOf(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? /** @type {Record<string, unknown>} */ (value)
-    : {};
 }
 
 /**
@@ -608,60 +604,9 @@ function resolution(options) {
 }
 
 /**
- * Runs `gh` and returns its standard output; a failing call throws with its standard error.
- *
- * @param {string[]} args
- * @returns {string}
- */
-function gh(args) {
-  return execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-}
-
-/**
- * The issues carrying the label, open and closed. A full page is refused: an issue past it could
- * be duplicated.
- *
- * @returns {Issue[]}
- */
-function listIssues() {
-  const page = JSON.parse(
-    gh(["api", `repos/{owner}/{repo}/issues?labels=${LABEL}&state=all&per_page=100`])
-  );
-  if (!Array.isArray(page) || page.length === 100) {
-    throw new Error(`listing the ${LABEL} issues returned no list, or a full page`);
-  }
-  return page
-    .map((issue) => fieldsOf(issue))
-    .filter((issue) => issue.pull_request === undefined)
-    .map((issue) => ({
-      number: Number(issue.number),
-      title: String(issue.title),
-      state: String(issue.state),
-      created: typeof issue.created_at === "string" ? issue.created_at : "",
-    }));
-}
-
-/**
- * The comment bodies an issue received on or after the start of `today`. An answer that is not a
- * list is refused rather than read as no comment, which would post a second one the same day.
- *
- * @param {number} number
- * @param {string} today
- * @returns {string[]}
- */
-function commentsSince(number, today) {
-  const endpoint = `repos/{owner}/{repo}/issues/${String(number)}/comments`;
-  const page = JSON.parse(gh(["api", `${endpoint}?since=${today}T00:00:00Z&per_page=100`]));
-  if (!Array.isArray(page)) {
-    throw new Error(`listing the comments of #${String(number)} returned no list`);
-  }
-  return page.map((comment) => String(fieldsOf(comment).body));
-}
-
-/**
- * Opens one issue per resolvable patch, comments on it once a day while it stays open, and reopens
- * it when it was closed while the patch still stands. An issue opened on `today` gets no comment
- * that day, so a re-run after a failure midway repeats nothing it already did.
+ * Keeps one issue per resolvable patch through the reminder the sites gate shares: opened when none
+ * exists, commented on once a day while it stays open (never on the day it opened), reopened when it
+ * was closed while the patch still stands.
  *
  * @param {Resolvable[]} resolvable
  * @param {string} today `YYYY-MM-DD`, the day of the instant.
@@ -670,54 +615,24 @@ function commentsSince(number, today) {
  * @returns {void}
  */
 function remind(resolvable, today, log) {
-  const issues = listIssues();
-  let labelled = false;
-  for (const { parsed, version, published } of resolvable) {
+  const reminders = resolvable.map(({ parsed, version, published }) => {
     const { record, id } = parsed;
-    const title = `Patched dependency resolvable: ${id} → ${version}`;
     const facts =
       `${id} is patched (\`${record.patch}\`) until ${record.resolvedBy.package} publishes a ` +
       `version in \`${record.resolvedBy.range}\`; ${version} was published ${published}.`;
-    const issue = issues.find((candidate) => candidate.title === title);
-    if (issue === undefined) {
-      if (!labelled) {
-        const description = "A patched dependency whose resolving release is published";
-        gh([
-          "label",
-          "create",
-          LABEL,
-          "--color",
-          LABEL_COLOR,
-          "--description",
-          description,
-          "--force",
-        ]);
-        labelled = true;
-      }
-      const body =
+    return {
+      title: `Patched dependency resolvable: ${id} → ${version}`,
+      body:
         `${facts}\n\nRemove-when: ${record.removeWhen}\n\nADR: \`${record.adr}\`. Upstream: ` +
         `${record.upstream.pr} (merge commit \`${record.upstream.commit}\`), release ` +
         `${record.upstream.release}. Record: \`scripts/testing/patched-dependencies.json\`.\n\n` +
         `Opened by scripts/testing/patched-dependencies-gate.mjs (workflow patched-dependencies.yml, ` +
         `every 6 hours). It comments here once a day while the patch stands, and reopens this issue ` +
-        `if it is closed before the change that removes the patch lands.`;
-      gh(["issue", "create", "--title", title, "--body", body, "--label", LABEL]);
-      log.push(`open: ${title}`);
-      continue;
-    }
-    const body = `Still resolvable on ${today}: ${facts}`;
-    if (issue.state !== "open") {
-      gh(["issue", "reopen", String(issue.number), "--comment", body]);
-      log.push(`reopen #${String(issue.number)}: ${title}`);
-    } else if (issue.created.slice(0, 10) === today) {
-      log.push(`skip #${String(issue.number)}: ${title} (opened on ${today})`);
-    } else if (commentsSince(issue.number, today).includes(body)) {
-      log.push(`skip #${String(issue.number)}: ${title} (already commented on ${today})`);
-    } else {
-      gh(["issue", "comment", String(issue.number), "--body", body]);
-      log.push(`comment #${String(issue.number)}: ${title}`);
-    }
-  }
+        `if it is closed before the change that removes the patch lands.`,
+      comment: `Still resolvable on ${today}: ${facts}`,
+    };
+  });
+  remindIssues({ gh: createGh(), label: REMINDER_LABEL, reminders, today, log });
 }
 
 /**

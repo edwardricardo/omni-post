@@ -9,8 +9,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { inspect } from "node:util";
-import { err, ok, type Result } from "@shared/types";
-import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { ERROR_CATEGORY, err, ok, type Result } from "@shared/types";
+import type { UseCaseError } from "@core/application/UseCase.js";
 import { RepositoryFailureError } from "@core/domain/errors/RepositoryFailureError.js";
 import type { AdminSessionRevokeReason } from "@core/domain/repositories/AdminSessionRepository.js";
 import type { SingleUsePasswordReplacement } from "@core/domain/repositories/AdminUserRepository.js";
@@ -39,25 +39,104 @@ const NEW_HASH = "$argon2id$v=19$m=65536,t=3,p=4$cmVpc3N1ZWQ$cmVpc3N1ZWQtaGFzaA"
 const PENDING_RESET_TOKEN = "fixture-hash-of-a-pending-reset-token";
 const FIXED_DATE = new Date("2024-01-01T00:00:00Z");
 
-const MESSAGES = {
-  notFound: "No administrator has this e-mail: there is no single-use password to re-issue",
-  hasSignedIn:
-    "This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued",
-  notMarked:
-    "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
-  deactivated:
-    "This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued",
-  readFailed: "Reading the administrator failed",
-  generateFailed: "Generating the single-use password failed",
-  hashFailed: "Hashing the single-use password failed",
-  replaceFailed: "Replacing the single-use password failed",
-  changedSinceRead:
-    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now",
-  revokeFailed: "Ending the administrator's sessions failed",
-  auditFailed: "Writing the audit record of the re-issue failed",
-  transactionFailed:
-    "The transaction that re-issues the single-use password failed and its outcome is unknown: the password may have been replaced without the new one being shown, so run the re-issue again",
+/** What each refusal and failure reports: the registry's code, category and status, and its text. */
+const FAILURES = {
+  notFound: {
+    code: "ADMINISTRATOR_NOT_FOUND",
+    category: ERROR_CATEGORY.NOT_FOUND,
+    status: 404,
+    message: "No administrator has this e-mail: there is no single-use password to re-issue",
+  },
+  hasSignedIn: {
+    code: "PASSWORD_REISSUE_REFUSED_SIGNED_IN",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued",
+  },
+  notMarked: {
+    code: "PASSWORD_REISSUE_REFUSED_NOT_MARKED",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
+  },
+  deactivated: {
+    code: "PASSWORD_REISSUE_REFUSED_DEACTIVATED",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued",
+  },
+  readFailed: {
+    code: "ADMINISTRATOR_READ_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Reading the administrator failed",
+  },
+  generateFailed: {
+    code: "SINGLE_USE_PASSWORD_GENERATE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Generating the single-use password failed",
+  },
+  hashFailed: {
+    code: "SINGLE_USE_PASSWORD_HASH_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Hashing the single-use password failed",
+  },
+  replaceFailed: {
+    code: "SINGLE_USE_PASSWORD_REPLACE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Replacing the single-use password failed",
+  },
+  changedSinceRead: {
+    code: "PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ",
+    category: ERROR_CATEGORY.CONFLICT,
+    status: 409,
+    message:
+      "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now",
+  },
+  revokeFailed: {
+    code: "ADMINISTRATOR_SESSIONS_REVOKE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Ending the administrator's sessions failed",
+  },
+  auditFailed: {
+    code: "PASSWORD_REISSUE_AUDIT_WRITE_FAILED",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message: "Writing the audit record of the re-issue failed",
+  },
+  transactionFailed: {
+    code: "PASSWORD_REISSUE_OUTCOME_UNKNOWN",
+    category: ERROR_CATEGORY.INTERNAL,
+    status: 500,
+    message:
+      "The transaction that re-issues the single-use password failed and its outcome is unknown: the password may have been replaced without the new one being shown, so run the re-issue again",
+  },
 } as const;
+
+/** How an error reads against the registry: its definition's code, category and status, and its text. */
+interface FailureReading {
+  readonly code: string;
+  readonly category: string | undefined;
+  readonly status: number | undefined;
+  readonly message: string;
+}
+
+/** Reads an error as the registry words it, so one comparison pins the code, category, status and text. */
+function readingOf(error: UseCaseError): FailureReading {
+  return {
+    code: error.code,
+    category: error.definition?.category,
+    status: error.definition?.status,
+    message: error.message,
+  };
+}
 
 const JOURNAL = {
   read: "administrators.findCredentialsByEmail",
@@ -327,37 +406,32 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       {
         reason: "no administrator has the e-mail",
         administrator: null,
-        code: USE_CASE_ERRORS.NOT_FOUND,
-        message: MESSAGES.notFound,
+        failure: FAILURES.notFound,
       },
       {
         reason: "the administrator has signed in",
         administrator: makeAdministrator({ lastLoginAt: FIXED_DATE }),
-        code: USE_CASE_ERRORS.CONFLICT,
-        message: MESSAGES.hasSignedIn,
+        failure: FAILURES.hasSignedIn,
       },
       {
         reason: "the administrator is not marked to change the password",
         administrator: makeAdministrator({ mustChangePassword: false }),
-        code: USE_CASE_ERRORS.CONFLICT,
-        message: MESSAGES.notMarked,
+        failure: FAILURES.notMarked,
       },
       {
         reason: "the administrator is deactivated",
         administrator: makeAdministrator({ isActive: false }),
-        code: USE_CASE_ERRORS.CONFLICT,
-        message: MESSAGES.deactivated,
+        failure: FAILURES.deactivated,
       },
     ])(
-      "refuses with its own message, drawing no password and writing nothing, when $reason",
-      async ({ administrator, code, message }) => {
+      "refuses with $failure.code, $failure.category, and its own message, drawing no password and writing nothing, when $reason",
+      async ({ administrator, failure }) => {
         const harness = makeHarness({ administrator });
 
         const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
         const error = expectFailure(result);
-        expect(error.code).toBe(code);
-        expect(error.message).toBe(message);
+        expect(readingOf(error)).toEqual(failure);
         expect(error.cause).toBeUndefined();
         expect(harness.lookedUp).toEqual([STORED_EMAIL]);
         expect(harness.journal).toEqual([JOURNAL.read]);
@@ -374,7 +448,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
 
       const result = await harness.useCase.execute({ email: STORED_EMAIL });
 
-      expect(expectFailure(result).message).toBe(MESSAGES.hasSignedIn);
+      expect(readingOf(expectFailure(result))).toEqual(FAILURES.hasSignedIn);
       expect(harness.journal).toEqual([JOURNAL.read]);
     });
 
@@ -385,20 +459,20 @@ describe("ReissueAdministratorPasswordUseCase", () => {
 
       const result = await harness.useCase.execute({ email: STORED_EMAIL });
 
-      expect(expectFailure(result).message).toBe(MESSAGES.notMarked);
+      expect(readingOf(expectFailure(result))).toEqual(FAILURES.notMarked);
       expect(harness.journal).toEqual([JOURNAL.read]);
     });
   });
 
   describe("when the row moved since it was read", () => {
-    it("returns CONFLICT, rolled back, ending no session and writing no audit record, when the guarded write matches no row", async () => {
+    it("returns PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ, a conflict, rolled back, ending no session and writing no audit record, when the guarded write matches no row", async () => {
       const harness = makeHarness({ replaceAnswer: ok(false) });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.changedSinceRead);
+      expect(readingOf(error)).toEqual(FAILURES.changedSinceRead);
+      expect(error.cause).toBeUndefined();
       expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
       expect(harness.journal).toEqual([
         ...BEFORE_THE_TRANSACTION,
@@ -410,7 +484,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       expect(inspect(error, { depth: null, showHidden: true })).not.toContain(NEW_PASSWORD);
     });
 
-    it("returns CONFLICT, leaving the stored hash and reset token as they are, ending no session and writing no audit record, when a password reset was requested between the read and the write", async () => {
+    it("returns PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ, leaving the stored hash and reset token as they are, ending no session and writing no audit record, when a password reset was requested between the read and the write", async () => {
       const resetRequestedSince = "fixture-hash-of-a-reset-token-requested-since";
       const harness = makeHarness({
         changedBeforeWrite: { passwordResetToken: resetRequestedSince },
@@ -419,8 +493,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.changedSinceRead);
+      expect(readingOf(error)).toEqual(FAILURES.changedSinceRead);
       expect(harness.replacements).toEqual([
         expect.objectContaining({ currentPasswordResetToken: PENDING_RESET_TOKEN }),
       ]);
@@ -436,14 +509,13 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       expect(harness.auditEntries).toEqual([]);
     });
 
-    it("returns CONFLICT, leaving the stored hash as it is, ending no session and writing no audit record, when the administrator was deactivated between the read and the write", async () => {
+    it("returns PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ, leaving the stored hash as it is, ending no session and writing no audit record, when the administrator was deactivated between the read and the write", async () => {
       const harness = makeHarness({ changedBeforeWrite: { isActive: false } });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.CONFLICT);
-      expect(error.message).toBe(MESSAGES.changedSinceRead);
+      expect(readingOf(error)).toEqual(FAILURES.changedSinceRead);
       expect(harness.storedRow()).toEqual(makeAdministrator({ isActive: false }));
       expect(harness.journal).toEqual([
         ...BEFORE_THE_TRANSACTION,
@@ -456,15 +528,14 @@ describe("ReissueAdministratorPasswordUseCase", () => {
   });
 
   describe("failures", () => {
-    it("returns INTERNAL_ERROR carrying the raised error, drawing no password, when reading the administrator raises", async () => {
+    it("returns ADMINISTRATOR_READ_FAILED, an internal failure carrying the raised error, drawing no password, when reading the administrator raises", async () => {
       const failure = new Error("connection reset");
       const harness = makeHarness({ readRaise: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.readFailed);
+      expect(readingOf(error)).toEqual(FAILURES.readFailed);
       expect(error.cause).toBe(failure);
       expect(harness.journal).toEqual([JOURNAL.read]);
     });
@@ -473,37 +544,36 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       {
         step: "drawing the password",
         options: { generateFailure: new Error("no random source") },
-        message: MESSAGES.generateFailed,
+        failure: FAILURES.generateFailed,
         journal: [JOURNAL.read, JOURNAL.generate],
       },
       {
         step: "hashing the password",
         options: { hashFailure: new Error("argon2 out of memory") },
-        message: MESSAGES.hashFailed,
+        failure: FAILURES.hashFailed,
         journal: [JOURNAL.read, JOURNAL.generate, JOURNAL.hash],
       },
     ] satisfies ReadonlyArray<{
       step: string;
       options: HarnessOptions;
-      message: string;
+      failure: FailureReading;
       journal: readonly string[];
     }>)(
-      "returns INTERNAL_ERROR before any transaction when $step fails",
-      async ({ options, message, journal }) => {
+      "returns $failure.code, an internal failure, before any transaction when $step fails",
+      async ({ options, failure, journal }) => {
         const harness = makeHarness(options);
 
         const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
         const error = expectFailure(result);
-        expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-        expect(error.message).toBe(message);
+        expect(readingOf(error)).toEqual(failure);
         expect(error.cause).toBe(options.generateFailure ?? options.hashFailure);
         expect(harness.journal).toEqual(journal);
         expect(harness.transactionOutcomes).toEqual([]);
       }
     );
 
-    it("returns INTERNAL_ERROR carrying the repository's error, rolled back, when the guarded write fails", async () => {
+    it("returns SINGLE_USE_PASSWORD_REPLACE_FAILED, an internal failure carrying the repository's error, rolled back, when the guarded write fails", async () => {
       const failure = new RepositoryFailureError(
         "Replacing an admin user's single-use password failed",
         new Error("socket closed")
@@ -513,8 +583,7 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.replaceFailed);
+      expect(readingOf(error)).toEqual(FAILURES.replaceFailed);
       expect(error.cause).toBe(failure);
       expect(harness.journal).toEqual([
         ...BEFORE_THE_TRANSACTION,
@@ -529,36 +598,35 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       {
         step: "the guarded write raises",
         options: { replaceRaise: new Error("driver crashed") },
-        message: MESSAGES.replaceFailed,
+        failure: FAILURES.replaceFailed,
         afterOpen: [JOURNAL.replace],
       },
       {
         step: "ending the sessions raises",
         options: { revokeRaise: new Error("driver crashed") },
-        message: MESSAGES.revokeFailed,
+        failure: FAILURES.revokeFailed,
         afterOpen: [JOURNAL.replace, JOURNAL.revoke],
       },
       {
         step: "writing the audit record raises",
         options: { auditRaise: new Error("driver crashed") },
-        message: MESSAGES.auditFailed,
+        failure: FAILURES.auditFailed,
         afterOpen: [JOURNAL.replace, JOURNAL.revoke, JOURNAL.audit],
       },
     ] satisfies ReadonlyArray<{
       step: string;
       options: HarnessOptions;
-      message: string;
+      failure: FailureReading;
       afterOpen: readonly string[];
     }>)(
-      "returns INTERNAL_ERROR as the failed outcome of the transaction's work, after its earlier writes in it, when $step",
-      async ({ options, message, afterOpen }) => {
+      "returns $failure.code, an internal failure, as the failed outcome of the transaction's work, after its earlier writes in it, when $step",
+      async ({ options, failure, afterOpen }) => {
         const harness = makeHarness(options);
 
         const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
         const error = expectFailure(result);
-        expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-        expect(error.message).toBe(message);
+        expect(readingOf(error)).toEqual(failure);
         expect(error.cause).toBe(options.replaceRaise ?? options.revokeRaise ?? options.auditRaise);
         expect(harness.transactionOutcomes).toEqual([{ ok: false, error }]);
         expect(harness.journal).toEqual([
@@ -570,29 +638,28 @@ describe("ReissueAdministratorPasswordUseCase", () => {
       }
     );
 
-    it("returns INTERNAL_ERROR whose cause names only the type when the guarded write raises a value that is not an Error", async () => {
+    it("returns SINGLE_USE_PASSWORD_REPLACE_FAILED whose cause names only the type when the guarded write raises a value that is not an Error", async () => {
       const raised = "connection lost to the primary";
       const harness = makeHarness({ replaceRaise: raised });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.message).toBe(MESSAGES.replaceFailed);
+      expect(readingOf(error)).toEqual(FAILURES.replaceFailed);
       expect(error.originalError?.message).toBe(
         "A value that is not an Error was raised, of type string"
       );
       expect(inspect(error, { depth: null, showHidden: true })).not.toContain(raised);
     });
 
-    it("returns INTERNAL_ERROR with the message of an unknown outcome when the transaction itself fails", async () => {
+    it("returns PASSWORD_REISSUE_OUTCOME_UNKNOWN, an internal failure with the message of an unknown outcome, when the transaction itself fails", async () => {
       const failure = new Error("could not commit");
       const harness = makeHarness({ commitFailure: failure });
 
       const result = await harness.useCase.execute({ email: OPERATOR_EMAIL });
 
       const error = expectFailure(result);
-      expect(error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(error.message).toBe(MESSAGES.transactionFailed);
+      expect(readingOf(error)).toEqual(FAILURES.transactionFailed);
       expect(error.cause).toBe(failure);
       expect(harness.journal).toEqual([
         ...BEFORE_THE_TRANSACTION,

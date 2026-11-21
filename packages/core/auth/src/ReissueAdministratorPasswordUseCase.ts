@@ -12,8 +12,8 @@
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { AUTH_ERRORS, type Result, ok, err } from "@shared/types";
+import { type UseCase, UseCaseError } from "@core/application/UseCase.js";
 import {
   ADMIN_SESSION_REVOKE_REASONS,
   type AdminSessionRepository,
@@ -32,24 +32,6 @@ import {
   type SingleUsePasswordHasher,
   type SystemAuditLog,
 } from "./singleUsePassword.js";
-
-const MESSAGES = {
-  notFound: "No administrator has this e-mail: there is no single-use password to re-issue",
-  hasSignedIn:
-    "This administrator has signed in, so its password is no longer a single-use password nobody saw: it is not re-issued",
-  notMarked:
-    "This administrator is not marked to change its password, so its password is its own and not a single-use password: it is not re-issued",
-  deactivated:
-    "This administrator is deactivated, so no password lets it sign in: it must be reactivated first, and its password is not re-issued",
-  readFailed: "Reading the administrator failed",
-  replaceFailed: "Replacing the single-use password failed",
-  changedSinceRead:
-    "The administrator changed between the read and the write (another re-issue, a password change, a requested password reset, a sign-in or a deactivation), so nothing was replaced: run the re-issue again to see what is true now",
-  revokeFailed: "Ending the administrator's sessions failed",
-  auditFailed: "Writing the audit record of the re-issue failed",
-  transactionFailed:
-    "The transaction that re-issues the single-use password failed and its outcome is unknown: the password may have been replaced without the new one being shown, so run the re-issue again",
-} as const;
 
 /** The audit record of a re-issue: what was done and the task that did it. */
 const AUDIT = {
@@ -118,10 +100,12 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
    *   re-issue as the reason and writes the system audit record of the re-issue.
    * @param input - The e-mail of the administrator
    * @returns The administrator's id and stored e-mail with the new single-use password on success;
-   *   NOT_FOUND when no administrator has the e-mail; CONFLICT when the administrator has signed
-   *   in, is not marked to change the password, is deactivated, or changed between the read and
-   *   the write;
-   *   INTERNAL_ERROR carrying the original error when the read, the generator, the hasher, a
+   *   ADMINISTRATOR_NOT_FOUND, of the not-found category, when no administrator has the e-mail;
+   *   PASSWORD_REISSUE_REFUSED_SIGNED_IN, PASSWORD_REISSUE_REFUSED_NOT_MARKED,
+   *   PASSWORD_REISSUE_REFUSED_DEACTIVATED or PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ, of the
+   *   conflict category, when the administrator has signed in, is not marked to change the
+   *   password, is deactivated, or changed between the read and the write; an error of the
+   *   internal category carrying the original error when the read, the generator, the hasher, a
    *   repository, the audit log or the transaction fails
    */
   async execute(
@@ -140,12 +124,12 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     return runInTransaction(
       this.unitOfWork,
       () => this.reissueWithinTransaction(administrator.value, credential.value),
-      MESSAGES.transactionFailed
+      (cause) => UseCaseError.of(AUTH_ERRORS.PASSWORD_REISSUE_OUTCOME_UNKNOWN, { cause })
     );
   }
 
   /**
-   * Reads the administrator and refuses, with one message per reason, unless it exists, has never
+   * Reads the administrator and refuses, with one code per reason, unless it exists, has never
    * signed in, must still change the password and is active. The deactivation is checked last:
    * its message tells the operator to reactivate the administrator first, which is true only of an
    * administrator the re-issue would otherwise serve.
@@ -157,21 +141,19 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     try {
       found = await this.administrators.findCredentialsByEmail(email);
     } catch (error: unknown) {
-      return err(
-        new UseCaseError(MESSAGES.readFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
-      );
+      return err(UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_READ_FAILED, { cause: asCause(error) }));
     }
     if (!found.ok) {
-      return err(new UseCaseError(MESSAGES.notFound, USE_CASE_ERRORS.NOT_FOUND));
+      return err(UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_NOT_FOUND));
     }
     if (found.value.lastLoginAt !== null) {
-      return err(new UseCaseError(MESSAGES.hasSignedIn, USE_CASE_ERRORS.CONFLICT));
+      return err(UseCaseError.of(AUTH_ERRORS.PASSWORD_REISSUE_REFUSED_SIGNED_IN));
     }
     if (!found.value.mustChangePassword) {
-      return err(new UseCaseError(MESSAGES.notMarked, USE_CASE_ERRORS.CONFLICT));
+      return err(UseCaseError.of(AUTH_ERRORS.PASSWORD_REISSUE_REFUSED_NOT_MARKED));
     }
     if (!found.value.isActive) {
-      return err(new UseCaseError(MESSAGES.deactivated, USE_CASE_ERRORS.CONFLICT));
+      return err(UseCaseError.of(AUTH_ERRORS.PASSWORD_REISSUE_REFUSED_DEACTIVATED));
     }
     return found;
   }
@@ -198,11 +180,11 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
     }
     if (!replaced.ok) {
       return err(
-        new UseCaseError(MESSAGES.replaceFailed, USE_CASE_ERRORS.INTERNAL_ERROR, replaced.error)
+        UseCaseError.of(AUTH_ERRORS.SINGLE_USE_PASSWORD_REPLACE_FAILED, { cause: replaced.error })
       );
     }
     if (!replaced.value) {
-      return err(new UseCaseError(MESSAGES.changedSinceRead, USE_CASE_ERRORS.CONFLICT));
+      return err(UseCaseError.of(AUTH_ERRORS.PASSWORD_REISSUE_REFUSED_CHANGED_SINCE_READ));
     }
 
     // A session can exist while the sign-in date is still empty, and it must not outlive the
@@ -214,14 +196,14 @@ export class ReissueAdministratorPasswordUseCase implements UseCase<
       );
     } catch (error: unknown) {
       return err(
-        new UseCaseError(MESSAGES.revokeFailed, USE_CASE_ERRORS.INTERNAL_ERROR, asCause(error))
+        UseCaseError.of(AUTH_ERRORS.ADMINISTRATOR_SESSIONS_REVOKE_FAILED, { cause: asCause(error) })
       );
     }
 
     const audited = await recordSystemAction(
       this.auditLog,
       { ...AUDIT, administratorId: administrator.id },
-      MESSAGES.auditFailed
+      (cause) => UseCaseError.of(AUTH_ERRORS.PASSWORD_REISSUE_AUDIT_WRITE_FAILED, { cause })
     );
     if (!audited.ok) {
       return err(audited.error);

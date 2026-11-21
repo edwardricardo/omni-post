@@ -5,9 +5,52 @@
  * @layer infrastructure
  */
 
-import { describe, it } from "vitest";
+import { afterEach, describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
+import {
+  COMMON_ERRORS,
+  ERROR_CATEGORY,
+  PARAM_KIND,
+  type ErrorDefinition,
+  type RegisteredErrorCode,
+} from "@shared/types";
+import { defineErrors } from "@shared/types/error-registry/definition.js";
 import { UseCaseError, USE_CASE_ERRORS, classifyPersistenceFailure } from "../../src/UseCase.js";
+
+/** The ten codes as every importer has read them: name and string, in this order. */
+const USE_CASE_ERRORS_AS_READ = [
+  ["NOT_FOUND", "NOT_FOUND"],
+  ["VALIDATION_FAILED", "VALIDATION_FAILED"],
+  ["UNAUTHORIZED", "UNAUTHORIZED"],
+  ["FORBIDDEN", "FORBIDDEN"],
+  ["CONFLICT", "CONFLICT"],
+  ["INTERNAL_ERROR", "INTERNAL_ERROR"],
+  ["NOT_IMPLEMENTED", "NOT_IMPLEMENTED"],
+  ["GUARDRAIL_REJECTED", "GUARDRAIL_REJECTED"],
+  ["OPERATION_TOO_LARGE", "OPERATION_TOO_LARGE"],
+  ["TRANSIENT_FAILURE", "TRANSIENT_FAILURE"],
+];
+
+const PARAMS_TABLE = "@shared/types/error-registry/domains/platform.js";
+
+/** A table that declares parameters, put in the registry's place for one case. */
+const FIXTURE_ERRORS = defineErrors("platform", {
+  FIXTURE_LIMIT_EXCEEDED: {
+    category: ERROR_CATEGORY.TOO_LARGE,
+    status: 413,
+    message: "The operation touches {count} rows of {tables}",
+    params: { count: PARAM_KIND.NUMBER, tables: PARAM_KIND.STRING_LIST },
+    fronts: [],
+  },
+});
+
+/** The fixture's definition, typed as the registry types its own: the loaded registry holds it. */
+// canon-exception: test-fixture
+const LIMIT_EXCEEDED = FIXTURE_ERRORS.FIXTURE_LIMIT_EXCEEDED as unknown as ErrorDefinition<
+  RegisteredErrorCode,
+  "too_large",
+  (typeof FIXTURE_ERRORS)["FIXTURE_LIMIT_EXCEEDED"]["params"]
+>;
 
 describe("USE_CASE_ERRORS constants", () => {
   it("defines NOT_FOUND with the correct literal string", () => {
@@ -129,5 +172,116 @@ describe("UseCaseError", () => {
         assert.strictEqual(e.code, code, `Expected code ${code}`);
       }
     });
+  });
+});
+
+describe("USE_CASE_ERRORS read from the registry", () => {
+  it("holds exactly the names and strings every importer has read, key by key", () => {
+    assert.deepStrictEqual(Object.entries(USE_CASE_ERRORS), USE_CASE_ERRORS_AS_READ);
+  });
+
+  it("names each code of the common domain by its own name", () => {
+    assert.deepStrictEqual(
+      Object.entries(USE_CASE_ERRORS),
+      Object.entries(COMMON_ERRORS).map(([name, definition]) => [name, definition.code])
+    );
+  });
+});
+
+describe("UseCaseError built by its constructor", () => {
+  it("keeps the shape every caller and the API's handler read: cause, class and no registry fields", () => {
+    const cause = new Error("root cause");
+
+    const e = new UseCaseError("wrapper", "SOME_CODE", cause);
+
+    assert.ok(e instanceof UseCaseError);
+    assert.strictEqual(e.constructor.name, "UseCaseError");
+    assert.strictEqual(e.message, "wrapper");
+    assert.strictEqual(e.cause, cause);
+    assert.strictEqual(e.definition, undefined);
+    assert.strictEqual(e.params, undefined);
+    assert.strictEqual("statusCode" in e, false);
+  });
+
+  it("sets no cause when none is given", () => {
+    assert.strictEqual(Object.hasOwn(new UseCaseError("msg", "SOME_CODE"), "cause"), false);
+  });
+});
+
+describe("UseCaseError.of", () => {
+  afterEach(() => {
+    vi.doUnmock(PARAMS_TABLE);
+    vi.resetModules();
+  });
+
+  it("builds a UseCaseError from the registry's entry, the option's cause as its original error", () => {
+    const cause = new Error("transaction timed out");
+
+    const e = UseCaseError.of(COMMON_ERRORS.TRANSIENT_FAILURE, { cause });
+
+    assert.ok(e instanceof UseCaseError);
+    assert.ok(e instanceof Error);
+    assert.strictEqual(e.name, "UseCaseError");
+    assert.strictEqual(e.code, USE_CASE_ERRORS.TRANSIENT_FAILURE);
+    assert.strictEqual(e.definition, COMMON_ERRORS.TRANSIENT_FAILURE);
+    assert.strictEqual(e.params, undefined);
+    assert.strictEqual(e.message, "The operation failed for a reason that may pass: try it again");
+    assert.strictEqual(e.originalError, cause);
+    assert.strictEqual(e.cause, cause);
+  });
+
+  it("takes the text of the registry's entry, never a text the object passed carries", () => {
+    const e = UseCaseError.of({ ...COMMON_ERRORS.NOT_FOUND, message: "an inline text" });
+
+    assert.strictEqual(e.definition, COMMON_ERRORS.NOT_FOUND);
+    assert.strictEqual(e.message, "The requested resource was not found");
+  });
+
+  it("answers INTERNAL_ERROR, and raises nothing, for a code the registry does not hold", () => {
+    // canon-exception: test-fixture
+    const unregistered = {
+      ...COMMON_ERRORS.NOT_FOUND,
+      code: "NOT_A_REGISTERED_CODE",
+    } as unknown as typeof COMMON_ERRORS.NOT_FOUND;
+
+    const e = UseCaseError.of(unregistered);
+
+    assert.strictEqual(e.code, USE_CASE_ERRORS.INTERNAL_ERROR);
+    assert.strictEqual(e.definition, COMMON_ERRORS.INTERNAL_ERROR);
+    assert.strictEqual(e.message, "The server could not complete the request");
+    assert.strictEqual(e.originalError, undefined);
+  });
+
+  it("carries the declared parameters and words its text with them", async () => {
+    vi.resetModules();
+    vi.doMock(PARAMS_TABLE, () => ({ PLATFORM_ERRORS: FIXTURE_ERRORS }));
+    const fresh = await import("../../src/UseCase.js");
+
+    const e = fresh.UseCaseError.of(LIMIT_EXCEEDED, { count: 12, tables: ["Post", "Media"] });
+
+    assert.ok(e instanceof fresh.UseCaseError);
+    assert.strictEqual(e.code, "FIXTURE_LIMIT_EXCEEDED");
+    assert.deepStrictEqual(e.params, { count: 12, tables: ["Post", "Media"] });
+    assert.strictEqual(e.message, "The operation touches 12 rows of Post, Media");
+  });
+
+  it("keeps its registry fields readable and read-only but out of every enumeration a logger reads", async () => {
+    vi.resetModules();
+    vi.doMock(PARAMS_TABLE, () => ({ PLATFORM_ERRORS: FIXTURE_ERRORS }));
+    const fresh = await import("../../src/UseCase.js");
+    const e = fresh.UseCaseError.of(LIMIT_EXCEEDED, { count: 12, tables: ["Post", "Media"] });
+    const enumerated: string[] = [];
+
+    for (const key in e) enumerated.push(key);
+
+    assert.strictEqual(e.definition, FIXTURE_ERRORS.FIXTURE_LIMIT_EXCEEDED);
+    assert.deepStrictEqual(e.params, { count: 12, tables: ["Post", "Media"] });
+    assert.deepStrictEqual(enumerated.sort(), ["code", "name", "originalError"]);
+    assert.deepStrictEqual(Object.keys({ ...e }).sort(), ["code", "name", "originalError"]);
+    for (const field of ["definition", "params"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(e, field);
+      assert.strictEqual(descriptor?.enumerable, false, field);
+      assert.strictEqual(descriptor?.writable, false, field);
+    }
   });
 });

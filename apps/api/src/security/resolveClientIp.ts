@@ -126,10 +126,26 @@ export function normalizeIp(raw: string | undefined | null): string | undefined 
   return ipaddr.process(candidate).toString();
 }
 
+/** Where a client address comes from: the connection's peer, or a trusted proxy's report. */
+const CLIENT_ADDRESS_SOURCE = { PEER: "peer", FORWARDED: "forwarded" } as const;
+type ClientAddressSource = (typeof CLIENT_ADDRESS_SOURCE)[keyof typeof CLIENT_ADDRESS_SOURCE];
+
+/** A client address and where it comes from, decided together. */
+export interface ClientAddress {
+  /** The normalized client IP, or the socket peer, or `"unknown"`. */
+  readonly ip: string;
+  /**
+   * `forwarded` when a trusted proxy reported an address other than its own; `peer` when the
+   * address is the connection's peer, the `"unknown"` of an absent peer included, since that is
+   * the peer the resolver tried to read.
+   */
+  readonly source: ClientAddressSource;
+}
+
 /**
- * @function resolveClientIp
- * @description Resolve the trusted client IP for a request as a stable bucket
- *   key.
+ * @function resolveClientAddress
+ * @description Resolve the trusted client IP for a request as a stable bucket key, and name where it
+ *   comes from. The branches are the ones `resolveClientIp` answers by; each also names its source.
  *
  *   Under `socket-only` the socket peer is the only trustworthy source and every
  *   forwarding header is ignored — spoof-safe, at the cost of one shared bucket
@@ -138,9 +154,41 @@ export function normalizeIp(raw: string | undefined | null): string | undefined 
  *   Under `trusted-ranges` the forwarded identity is believed ONLY when the
  *   IMMEDIATE PEER is itself a configured proxy; otherwise a directly-connected
  *   client could assert any identity it liked. On that path `request.ip` is
- *   proxy-addr's trusted-peer walk, normalized here. Anything unexpected — an
- *   untrusted peer, an unparseable token, an absent socket — fails CLOSED to the
- *   socket peer, never to a claimed one.
+ *   proxy-addr's trusted-peer walk, normalized here, and it is `forwarded` unless
+ *   the walk ended on the peer itself, as it does when the proxy forwarded nobody.
+ *   Anything unexpected — an untrusted peer, an unparseable token, an absent
+ *   socket — fails CLOSED to the socket peer, never to a claimed one.
+ * @param request - The (Fastify) request to derive the IP from.
+ * @param policy - Trust model to apply. Defaults to the deployment's configured
+ *   policy; an explicit value is for tests.
+ * @returns The address and its source.
+ */
+export function resolveClientAddress(
+  request: ClientIpRequest,
+  policy: TrustedProxyPolicy = trustedProxyPolicy
+): ClientAddress {
+  const socket = normalizeIp(request.socket?.remoteAddress) ?? UNKNOWN_IP;
+  const peer: ClientAddress = { ip: socket, source: CLIENT_ADDRESS_SOURCE.PEER };
+
+  // No trusted proxy in front: the socket peer is the only trustworthy source.
+  if (policy.mode === "socket-only") return peer;
+
+  // Fail-closed: a peer that is not one of our proxies has no standing to speak
+  // for anyone else, so nothing it forwarded may be believed. `socket` is
+  // UNKNOWN_IP when there is no peer at all, which is not a trusted range
+  // either — so an absent socket also fails closed here.
+  if (!isTrustedPeer(socket, policy.ranges)) return peer;
+
+  const forwarded = normalizeIp(request.ip);
+  if (forwarded === undefined || forwarded === socket) return peer;
+  return { ip: forwarded, source: CLIENT_ADDRESS_SOURCE.FORWARDED };
+}
+
+/**
+ * @function resolveClientIp
+ * @description Resolve the trusted client IP for a request as a stable bucket
+ *   key: `resolveClientAddress`'s address, for every caller that keys on the
+ *   address alone.
  * @param request - The (Fastify) request to derive the IP from.
  * @param policy - Trust model to apply. Defaults to the deployment's configured
  *   policy; an explicit value is for tests.
@@ -150,16 +198,5 @@ export function resolveClientIp(
   request: ClientIpRequest,
   policy: TrustedProxyPolicy = trustedProxyPolicy
 ): string {
-  const socket = normalizeIp(request.socket?.remoteAddress) ?? UNKNOWN_IP;
-
-  // No trusted proxy in front: the socket peer is the only trustworthy source.
-  if (policy.mode === "socket-only") return socket;
-
-  // Fail-closed: a peer that is not one of our proxies has no standing to speak
-  // for anyone else, so nothing it forwarded may be believed. `socket` is
-  // UNKNOWN_IP when there is no peer at all, which is not a trusted range
-  // either — so an absent socket also fails closed here.
-  if (!isTrustedPeer(socket, policy.ranges)) return socket;
-
-  return normalizeIp(request.ip) ?? socket;
+  return resolveClientAddress(request, policy).ip;
 }

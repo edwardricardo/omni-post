@@ -36,7 +36,7 @@ const USAGE =
   "Usage: create-first-admin --email <address> [--reissue]\nRun it with --help for what it does.\n";
 
 const TERMINAL_REFUSAL =
-  "This command prints a single-use password, so it runs only in an interactive terminal: its standard output is not a terminal, and the password would be kept wherever that output goes. Run it again with its output on a terminal.\n";
+  "This command prints a single-use password, so it runs only in an interactive terminal: its standard output is not a terminal, and the password would be kept wherever that output goes. Run it again with its output on a terminal.\nCode: FIRST_ADMIN_COMMAND_OUTPUT_NOT_A_TERMINAL\n";
 
 /** How long one run may take before the runner ends it; below the case's own limit. */
 const RUN_LIMIT_MS = 45_000;
@@ -135,7 +135,7 @@ describe("the first-administrator command as a process, before it loads its comp
           code: 2,
           killed: false,
           stdout: "",
-          stderr: `The e-mail of the administrator to create is required.\n${USAGE}`,
+          stderr: `The e-mail of the administrator to create is required.\n${USAGE}Code: FIRST_ADMIN_COMMAND_EMAIL_MISSING\n`,
           connections: 0,
         }
       );
@@ -156,7 +156,7 @@ describe("the first-administrator command as a process, before it loads its comp
           code: 2,
           killed: false,
           stdout: "",
-          stderr: `This command takes only --email <address>, --reissue and --help.\n${USAGE}`,
+          stderr: `This command takes only --email <address>, --reissue and --help.\n${USAGE}Code: FIRST_ADMIN_COMMAND_OPTION_UNKNOWN\n`,
           connections: 0,
         }
       );

@@ -14,6 +14,33 @@ import type { ErrorResponse } from "../types";
 export const PROXY_BASE = "/api/backend";
 
 /**
+ * A failed response's body when it is a JSON object; any other body, unparsable or not an object,
+ * an array included, gives the body this helper builds, whose message names the status.
+ */
+async function readErrorBody(response: Response, unreadable: string): Promise<ErrorResponse> {
+  const body: unknown = await response.json().catch(() => null);
+  if (typeof body === "object" && body !== null && !Array.isArray(body)) {
+    return body as ErrorResponse;
+  }
+  return {
+    ok: false,
+    error: unreadable,
+    message: `HTTP ${response.status}: ${response.statusText}`,
+  };
+}
+
+/**
+ * The `ApiError` a failed response's body stands for: a problem body gives its code and its
+ * `detail`; a legacy route's body gives its `message`, else its `error`, with its code and details.
+ */
+function apiErrorOf(status: number, body: ErrorResponse): ApiError {
+  if ("detail" in body) {
+    return new ApiError(status, body.code, body.detail);
+  }
+  return new ApiError(status, body.code ?? null, body.message || body.error, body.details);
+}
+
+/**
  * @function request
  * @description Performs a JSON HTTP request through the Next.js proxy and
  *              returns the typed response. Throws `ApiError` when the response
@@ -40,18 +67,7 @@ export async function request<T>(
   });
 
   if (!response.ok) {
-    const errorData: ErrorResponse = await response.json().catch(() => ({
-      ok: false as const,
-      error: "Unknown error occurred",
-      message: `HTTP ${response.status}: ${response.statusText}`,
-    }));
-
-    throw new ApiError(
-      response.status,
-      errorData.code ?? null,
-      errorData.message || errorData.error,
-      errorData.details
-    );
+    throw apiErrorOf(response.status, await readErrorBody(response, "Unknown error occurred"));
   }
 
   return response.json();
@@ -80,18 +96,7 @@ export async function uploadRequest<T>(
   });
 
   if (!response.ok) {
-    const errorData: ErrorResponse = await response.json().catch(() => ({
-      ok: false as const,
-      error: "Upload failed",
-      message: `HTTP ${response.status}: ${response.statusText}`,
-    }));
-
-    throw new ApiError(
-      response.status,
-      errorData.code ?? null,
-      errorData.message || errorData.error,
-      errorData.details
-    );
+    throw apiErrorOf(response.status, await readErrorBody(response, "Upload failed"));
   }
 
   return response.json();

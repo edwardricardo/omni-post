@@ -3,8 +3,10 @@
  * @description Single source of truth for environment configuration. Validates
  *              `process.env` against a Zod schema at module load time via
  *              `@t3-oss/env-core` and exports a typed `env` constant. Fails
- *              fast with a precise error if any required variable is missing
- *              or malformed.
+ *              fast if any required variable is missing or malformed, with the
+ *              registry's `ENV_VARIABLES_REFUSED`, which names every refused
+ *              variable and never a value, and the precise per-key text as its
+ *              cause.
  * @layer infrastructure
  */
 
@@ -25,6 +27,7 @@ if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+import { PLATFORM_ERRORS, RegisteredError } from "@shared/types";
 import { platformEncryptionKeyEnvFields } from "@shared/types/platformEncryptionKeyEnv.js";
 import { firstMissingRingVersion, parseNameDigestKeyRing } from "../security/nameDigest/keyRing.js";
 import { TRUSTED_PROXY_MODES, parseTrustedProxyRanges } from "../security/trustedProxy.js";
@@ -34,7 +37,7 @@ import { TRUSTED_PROXY_MODES, parseTrustedProxyRanges } from "../security/truste
  * spec — t3-env's API is schema-library-agnostic, so the issue type is the
  * neutral StandardSchemaV1.Issue, not Zod's `ZodIssue`).
  */
-interface SchemaIssue {
+export interface SchemaIssue {
   readonly message: string;
   readonly path?: ReadonlyArray<PropertyKey | { readonly key: PropertyKey }> | undefined;
 }
@@ -369,27 +372,60 @@ const serverSchema = {
   DELETION_RECORD_RETENTION_YEARS: z.coerce.number().int().min(1).max(7).default(7),
 } as const;
 
+/** The segments of an issue's path as text; a segment may be a key object of Standard Schema. */
+function pathSegments(issue: SchemaIssue): string[] {
+  return (issue.path ?? []).map((seg) =>
+    typeof seg === "object" && "key" in seg ? String(seg.key) : String(seg)
+  );
+}
+
 /**
- * Shared `onValidationError` handler: throw a single multi-line message listing
- * every offending key + its constraint. Preserves the precise error format so
- * the boot-failure message points at the Zod schema rule, not just
- * "validation failed". Shared between the module-level `env` and `parseApiEnv`.
+ * The variables an environment's issues name: the first segment of each issue's path, once
+ * each and in name order. A path is a key of the schema, never a value, and an issue with no path
+ * names none; a refusal that would name none names `(unnamed)`, so it never reads as an empty list.
  */
-const onValidationError = (issues: readonly SchemaIssue[]): never => {
+function refusedVariables(issues: readonly SchemaIssue[]): string[] {
+  const names = new Set<string>();
+  for (const issue of issues) {
+    const [variable] = pathSegments(issue);
+    if (variable !== undefined) names.add(variable);
+  }
+  return names.size === 0 ? ["(unnamed)"] : [...names].sort();
+}
+
+/**
+ * @function environmentRefusal
+ * @description Builds the refusal of an environment the schema rejects: the registry's
+ *   `ENV_VARIABLES_REFUSED`, which names the refused variables and never a value, so the
+ *   first-administrator command can print it. Its cause holds the schema's own text, every
+ *   offending key with its constraint, which the API's own start shows and which the command
+ *   never prints: a constraint can quote the value it refused.
+ * @param issues - The issues the schema reported.
+ * @returns The refusal, which the validation handler raises.
+ */
+export function environmentRefusal(issues: readonly SchemaIssue[]): RegisteredError {
   const formatted = issues
-    .map((i) => {
-      const segments = (i.path ?? []).map((seg) =>
-        typeof seg === "object" && "key" in seg ? String(seg.key) : String(seg)
-      );
-      const path = segments.join(".") || "(root)";
-      return `  - ${path}: ${i.message}`;
-    })
+    .map((issue) => `  - ${pathSegments(issue).join(".") || "(root)"}: ${issue.message}`)
     .join("\n");
-  throw new Error(
+  const cause = new Error(
     `Environment validation failed. Refusing to boot.\n\n` +
       `${formatted}\n\n` +
       `Reference: docs/architecture/secrets-and-env.md for the complete schema and rotation runbook.`
   );
+  return RegisteredError.of(
+    PLATFORM_ERRORS.ENV_VARIABLES_REFUSED,
+    { variables: refusedVariables(issues) },
+    { cause }
+  );
+}
+
+/**
+ * Shared `onValidationError` handler, between the module-level `env` and `parseApiEnv`: it
+ * raises the environment's refusal, whose cause keeps the precise per-key text so the boot
+ * failure points at the schema rule, not just "validation failed".
+ */
+const onValidationError = (issues: readonly SchemaIssue[]): never => {
+  throw environmentRefusal(issues);
 };
 
 /**
@@ -527,8 +563,9 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
  * `parseApiEnv` at module load. Provides:
  *   - `emptyStringAsUndefined: true` — `KEY=` becomes `undefined` so
  *     `.default()`/`.optional()` work as authored.
- *   - `onValidationError` — throws a single precise error listing every
- *     offending key with its constraint.
+ *   - `onValidationError` — raises `ENV_VARIABLES_REFUSED`, naming every
+ *     refused variable, with every offending key and its constraint in its
+ *     cause.
  *   - Forward-compatible with the Next.js wrapper (`@t3-oss/env-nextjs`) used
  *     by `apps/admin/lib/env.ts` and `apps/client/lib/env.ts`.
  */

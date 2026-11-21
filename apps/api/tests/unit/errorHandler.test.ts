@@ -1,32 +1,28 @@
-#!/usr/bin/env tsx
 /**
- * Comprehensive Unit Tests for Error Handler
- * Target Coverage: 95%+
- *
- * Testing:
- * - createErrorHandler functionality
- * - Error sanitization and safe messages
- * - Prisma error conversion
- * - Zod error conversion
- * - Global error handling
- * - Process termination decisions
- *
- * Converted to node:test standard
- *
  * @file errorHandler.test.ts
- * @description Tests for Error Handler - createErrorHandler
+ * @description The error handler and the not-found handler answer through `sendProblem` with the
+ *   logger they were built with, the not-found one with ROUTE_NOT_FOUND; the body's OpenAPI
+ *   component is the problem's schema at the OpenAPI 3.0 target, with a code held to its pattern;
+ *   and the helpers beside them: `asyncHandler`, the Prisma and Zod converters, `handleAnyError`
+ *   and `shouldTerminateProcess`. The bodies the handlers send are proved through inject in
+ *   `errorHandler.inject.test.ts`.
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import pino from "pino";
+import { ERROR_CODE_PATTERN, HTTP_ERRORS, RegisteredError } from "@shared/types";
 import {
   createErrorHandler,
+  createNotFoundHandler,
+  PROBLEM_OPENAPI_SCHEMA,
   asyncHandler,
   convertPrismaError,
   convertZodError,
   handleAnyError,
   shouldTerminateProcess,
 } from "../../src/lib/errors/errorHandler.js";
+import { sendProblem } from "../../src/lib/errors/sendProblem.js";
 import { AppError, ErrorCode, AuthenticationError } from "../../src/lib/errors/AppError.js";
 import {
   foreignKeyViolationOnIndex,
@@ -34,6 +30,9 @@ import {
   uniqueViolationOnIndex,
 } from "./helpers/prismaKnownRequestErrors.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
+
+const { SENT_REPLY } = vi.hoisted(() => ({ SENT_REPLY: { sent: true } }));
+vi.mock("../../src/lib/errors/sendProblem.js", () => ({ sendProblem: vi.fn(() => SENT_REPLY) }));
 
 // Mock logger
 class MockLogger {
@@ -83,156 +82,70 @@ function createMockReply(): FastifyReply {
   } as any;
 }
 
-describe("Error Handler - createErrorHandler", () => {
-  let mockLogger: MockLogger;
+describe("Error Handler - createErrorHandler and createNotFoundHandler", () => {
+  const logger = pino({ enabled: false });
 
   beforeEach(() => {
-    mockLogger = new MockLogger();
+    vi.clearAllMocks();
   });
 
-  it("should handle AppError and return safe response", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
+  it("answers whatever is raised through sendProblem, with the logger it was built with", () => {
     const request = createMockRequest();
     const reply = createMockReply();
-
-    const error = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed", true, {
-      field: "email",
-    });
-
-    await errorHandler(error, request, reply);
-
-    const payload = (reply as any).getSentPayload();
-    expect((reply as any).getStatusCode()).toBe(400);
-    expect(payload.ok).toBe(false);
-    expect(payload.error.code).toBe(ErrorCode.VALIDATION_ERROR);
-    expect(payload.error.message).toBe("Validation failed");
-    expect(payload.error.requestId).toBe("req-123");
-    expect(payload.error.timestamp).toBeTruthy();
-  });
-
-  it("should log operational errors as warnings", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
-    const error = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed", true);
-
-    await errorHandler(error, request, reply);
-
-    expect(mockLogger.logs.length).toBe(1);
-    expect(mockLogger.logs[0].level).toBe("warn");
-    expect(mockLogger.logs[0].message).toBe("Operational error occurred");
-  });
-
-  it("should log non-operational errors as errors", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
-    const error = new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, "Internal error", false);
-
-    await errorHandler(error, request, reply);
-
-    expect(mockLogger.logs.length).toBe(1);
-    expect(mockLogger.logs[0].level).toBe("error");
-    expect(mockLogger.logs[0].message).toBe("Unexpected error occurred");
-  });
-
-  it("should log standard errors as errors", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
-    const error = new Error("Standard error");
-
-    await errorHandler(error, request, reply);
-
-    expect(mockLogger.logs.length).toBe(1);
-    expect(mockLogger.logs[0].level).toBe("error");
-  });
-
-  it("should include request context in logs", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest({
-      id: "req-456",
-      method: "POST",
-      url: "/api/posts",
-      ip: "192.168.1.1",
-    });
-    const reply = createMockReply();
-
-    const error = new Error("Test error");
-
-    await errorHandler(error, request, reply);
-
-    const logContext = mockLogger.logs[0].context;
-    expect(logContext.requestId).toBe("req-456");
-    expect(logContext.method).toBe("POST");
-    expect(logContext.url).toBe("/api/posts");
-    expect(logContext.ip).toBe("192.168.1.1");
-  });
-
-  it("should include error details in development", async () => {
-    process.env.NODE_ENV = "development";
-
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
-    const error = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed", true, {
-      field: "email",
-    });
-
-    await errorHandler(error, request, reply);
-
-    const payload = (reply as any).getSentPayload();
-    expect(payload.error.details).toStrictEqual({ field: "email" });
-
-    process.env.NODE_ENV = "test";
-  });
-
-  it("should not include error details in production", async () => {
-    process.env.NODE_ENV = "production";
-
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
-    const error = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed", true, {
-      field: "email",
-    });
-
-    await errorHandler(error, request, reply);
-
-    const payload = (reply as any).getSentPayload();
-    expect(payload.error.details).toBe(undefined);
-
-    process.env.NODE_ENV = "test";
-  });
-
-  it("should return 500 for unknown errors", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
-    const error = new Error("Unknown error");
-
-    await errorHandler(error, request, reply);
-
-    expect((reply as any).getStatusCode()).toBe(500);
-  });
-
-  it("should sanitize error messages", async () => {
-    const errorHandler = createErrorHandler(mockLogger);
-    const request = createMockRequest();
-    const reply = createMockReply();
-
     const error = new Error("Database connection failed at /internal/path");
 
-    await errorHandler(error, request, reply);
+    const answered = createErrorHandler(logger)(error, request, reply);
 
-    const payload = (reply as any).getSentPayload();
-    expect(payload.error.message).toBe("An unexpected error occurred");
+    expect(vi.mocked(sendProblem).mock.calls).toEqual([[request, reply, error, logger]]);
+    expect(answered).toBe(SENT_REPLY);
+  });
+
+  it("answers a path no route matches with ROUTE_NOT_FOUND through sendProblem, with the logger it was built with", () => {
+    const request = createMockRequest();
+    const reply = createMockReply();
+
+    const answered = createNotFoundHandler(logger)(request, reply);
+
+    expect(vi.mocked(sendProblem).mock.calls).toEqual([
+      [request, reply, RegisteredError.of(HTTP_ERRORS.ROUTE_NOT_FOUND), logger],
+    ]);
+    expect(vi.mocked(sendProblem).mock.calls[0]?.[2]).toBeInstanceOf(RegisteredError);
+    expect(answered).toBe(SENT_REPLY);
+  });
+});
+
+describe("Error Handler - PROBLEM_OPENAPI_SCHEMA", () => {
+  it("publishes every member of the body at the OpenAPI 3.0 target, requires the ones every problem carries, and holds code to a pattern rather than a list", () => {
+    const { properties, required, additionalProperties, type } = PROBLEM_OPENAPI_SCHEMA;
+
+    expect([type, additionalProperties]).toEqual(["object", false]);
+    expect(PROBLEM_OPENAPI_SCHEMA).not.toHaveProperty("$schema");
+    expect(Object.keys(properties ?? {})).toEqual([
+      "type",
+      "title",
+      "status",
+      "detail",
+      "code",
+      "correlationId",
+      "timestamp",
+      "params",
+      "issues",
+    ]);
+    expect(required).toEqual([
+      "type",
+      "title",
+      "status",
+      "detail",
+      "code",
+      "correlationId",
+      "timestamp",
+    ]);
+    expect(properties?.["code"]).toEqual({
+      type: "string",
+      maxLength: 63,
+      pattern: ERROR_CODE_PATTERN.source,
+    });
+    expect(properties?.["status"]).toEqual({ type: "integer", minimum: 400, maximum: 599 });
   });
 });
 

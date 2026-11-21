@@ -57,6 +57,20 @@ async function loadEnvWith(overrides: Record<string, string | undefined> = {}): 
   }
 }
 
+/**
+ * The schema's text the refusal of an environment carries as its cause, each refused variable
+ * with its constraint, which the API's own start shows; empty when the environment is accepted.
+ * The refusal's own message names the variables only, never a value or a constraint.
+ */
+async function constraintsWith(overrides: Record<string, string | undefined>): Promise<string> {
+  try {
+    await loadEnvWith(overrides);
+    return "";
+  } catch (error: unknown) {
+    return error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
+  }
+}
+
 describe("env schema (apps/api/src/config/env.ts)", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -214,7 +228,7 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
       "-ams3.digitaloceanspaces.com",
       "ams3-.digitaloceanspaces.com",
     ])("rejects %j, naming the bare-host shape it expects", async (value) => {
-      await expect(loadEnvWith({ DO_SPACES_ENDPOINT: value })).rejects.toThrow(
+      await expect(constraintsWith({ DO_SPACES_ENDPOINT: value })).resolves.toMatch(
         /DO_SPACES_ENDPOINT.*bare host.*fra1\.digitaloceanspaces\.com/
       );
     });
@@ -259,17 +273,20 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
 
     it("REFUSES to boot on a malformed CIDR and names the offending entry", async () => {
       await expect(
-        loadEnvWith({
+        constraintsWith({
           TRUSTED_PROXY_MODE: "trusted-ranges",
           TRUSTED_PROXY_RANGES: "10.0.0.0/8, 10.0.0.0/99",
         })
-      ).rejects.toThrow(/10\.0\.0\.0\/99/);
+      ).resolves.toMatch(/10\.0\.0\.0\/99/);
     });
 
     it("REFUSES to boot on a hostname — proxy trust is by address, never by name", async () => {
       await expect(
-        loadEnvWith({ TRUSTED_PROXY_MODE: "trusted-ranges", TRUSTED_PROXY_RANGES: "edge.internal" })
-      ).rejects.toThrow(/edge\.internal/);
+        constraintsWith({
+          TRUSTED_PROXY_MODE: "trusted-ranges",
+          TRUSTED_PROXY_RANGES: "edge.internal",
+        })
+      ).resolves.toMatch(/edge\.internal/);
     });
 
     it("REFUSES to boot on socket-only paired with ranges that would never be consulted", async () => {
@@ -302,13 +319,13 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
 
   describe("error message format", () => {
     it("includes 'Refusing to boot' phrase to flag intentional fail-fast", async () => {
-      await expect(loadEnvWith({ JWT_ACCESS_SECRET: undefined })).rejects.toThrow(
+      await expect(constraintsWith({ JWT_ACCESS_SECRET: undefined })).resolves.toMatch(
         /Refusing to boot/
       );
     });
 
     it("references the architecture doc for guidance", async () => {
-      await expect(loadEnvWith({ DATABASE_URL: undefined })).rejects.toThrow(
+      await expect(constraintsWith({ DATABASE_URL: undefined })).resolves.toMatch(
         /docs\/architecture\/secrets-and-env\.md/
       );
     });

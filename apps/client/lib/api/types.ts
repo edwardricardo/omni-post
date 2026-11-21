@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 // API Types for OmniPost Client
-import type { ContentLocale } from "@shared/types";
+import type { ContentLocale, Problem } from "@shared/types";
 
 export interface Project {
   id: string;
@@ -204,10 +204,16 @@ export interface ValidationError {
   code: string;
 }
 
-export interface ErrorResponse {
+export type { Problem } from "@shared/types";
+
+/** The error body of a route that answers through a legacy reply helper. */
+interface LegacyErrorResponse {
   ok: false;
   error: string;
   message?: string;
   details?: ValidationError[];
   code?: string;
 }
+
+/** A failed response's body: the API's problem body, or a legacy route's body. */
+export type ErrorResponse = Problem | LegacyErrorResponse;

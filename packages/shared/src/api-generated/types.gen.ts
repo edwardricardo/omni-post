@@ -9,6 +9,25 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type Problem = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code: string;
+  correlationId: string;
+  timestamp: string;
+  params?: {
+    [key: string]: string | number | boolean | Array<string>;
+  };
+  issues?: Array<{
+    part: "body" | "querystring" | "params" | "headers";
+    pointer: string;
+    code: string;
+    detail: string;
+  }>;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
