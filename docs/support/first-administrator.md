@@ -3,7 +3,7 @@ feature: first-administrator
 owner: Maintainer
 status: live
 verified:
-  sha: <VERIFIED-SHA>
+  sha: 010c0d669823dfea4f4d487f79d85d68f9cf68dd
   date: 2026-11-20
   by: Maintainer
 paths:
@@ -281,4 +281,4 @@ An administrator who has signed in and lost the password is not served by this c
 
 ## Verification
 
-Last verified against main <VERIFIED-SHA> on 2026-11-20 by Maintainer
+Last verified against main 010c0d669823dfea4f4d487f79d85d68f9cf68dd on 2026-11-20 by Maintainer
