@@ -194,15 +194,15 @@ battery_steps() {
   # string that parses as ICU, and every locale carries the default locale's keys and argument names.
   step static i18n pnpm check:i18n
   # Fitness #57: the error registry is whole and the list of existing error sites only shrinks.
-  # The sites gate compares HEAD with a base: FITNESS_BASE_REF when it is set, else the merge base
-  # of HEAD and origin/main, the local counterpart of CI, which compares the merge of the pull
-  # request with its base. The tip of origin/main would not do: on a branch that lags it, the gate
-  # would read the main branch's later rows as deleted and its later falls as rises. When git finds
-  # no merge base (no origin/main, unrelated histories, a history too shallow to hold it), the step
-  # hands the gate origin/main itself, never an empty base: a name that does not resolve fails the
-  # gate closed with exit 3, and one that resolves is compared as its tip. A change that appears
-  # only once the main branch is merged, its later changes meeting this branch's, is seen by CI,
-  # and here only once the branch takes the main branch.
+  # The sites gate compares HEAD with a base: FITNESS_BASE_REF when it is set and not empty, else
+  # the merge base of HEAD and origin/main, the local counterpart of CI, which compares the merge
+  # of the pull request with its base. The tip of origin/main would not do: on a branch that lags
+  # it, the gate would read the main branch's later rows as deleted and its later falls as rises.
+  # When git finds no merge base (no origin/main, unrelated histories, a history too shallow to
+  # hold it), the step hands the gate origin/main itself, never an empty base: a name that does
+  # not resolve fails the gate closed with exit 3, and one that resolves is compared as its tip. A
+  # change that appears only once the main branch is merged, its later changes meeting this
+  # branch's, is seen by CI, and here only once the branch takes the main branch.
   errors_base() { git merge-base HEAD origin/main 2>/dev/null || echo origin/main; }
   step static errors env FITNESS_BASE_REF="${FITNESS_BASE_REF:-$(errors_base)}" pnpm check:errors
   # The architecture gate of audit.yml: dependency-cruiser's layer rules and its
@@ -276,9 +276,14 @@ battery_steps() {
 
 # Every mode first walks the declarations as a listing: --list prints that walk,
 # and a run starts only once every declaration has named its kind, so a
-# malformed one refuses the run before any gate has run. The walk expands each
-# declaration's arguments without running them, and one names a file in the log
-# directory, which no run has chosen yet.
+# malformed one refuses the run before any gate has run. The walk runs no gate,
+# but it expands each declaration's arguments as the shell does: one names a file
+# in the log directory, which no run has chosen yet, and the errors step's base
+# is a command substitution, so the walk runs `git merge-base HEAD origin/main`
+# in the directory the battery was started from, before it changes to the
+# worktree's root, whichever repository that directory belongs to. Its result is
+# discarded; outside a repository git fails, silently, and the substitution
+# yields origin/main.
 OUT=
 PLAN=$(
   LIST=1
