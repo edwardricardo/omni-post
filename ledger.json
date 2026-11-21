@@ -60659,7 +60659,7 @@
       "blockCount": 53,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_LINE_NOT_PARSABLE at 400 to a request line the parser refuses, in one response that closes the connection, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_LINE_NOT_PARSABLE at 400 to a request line the parser refuses, in one response that closes the connection, with one line below the error level",
           "line": 458,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -60680,7 +60680,7 @@
           "bodyHash": "3b8cecfa78de7527094ce6ddc7a953fbb1cfe8aebfaf5d6370370ad538f55003"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers CONTENT_TYPE_MISSING at 400 to a QUERY request with no content type, read once routed, with one warn line under Fastify's code",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers CONTENT_TYPE_MISSING at 400 to a QUERY request with no content type, read once routed, with one line below the error level under Fastify's code",
           "line": 568,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -60694,14 +60694,14 @@
           "bodyHash": "3ac1562933c5976caf3cdb1af07eeada3712a6dbf88ac85f9a684deccbf438e4"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_HEADERS_NOT_PARSABLE at 400 to a header the parser refuses, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_HEADERS_NOT_PARSABLE at 400 to a header the parser refuses, with one line below the error level",
           "line": 621,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c887e070c22c71f4cd4a123fed7f6d364f47b18f29b6c0e02c33129c56c1db0f"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH at 400 to a request that sends both, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH at 400 to a request that sends both, with one line below the error level",
           "line": 646,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -60967,7 +60967,7 @@
           "bodyHash": "1202fa39fd32764bfc0d2b6af39d334b8835c55dd48a893a517300f47d32e55c"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers EXPECTATION_UNSUPPORTED at 417 to an Expect header other than 100-continue, with one warn line under the request's id",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers EXPECTATION_UNSUPPORTED at 417 to an Expect header other than 100-continue, with one line below the error level under the request's id",
           "line": 2129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -60988,14 +60988,14 @@
           "bodyHash": "66b6bee68ba4f5cf3b45094283c677dccddd631d6464ee27e9ca1ce7d3ae56b9"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::logs REQUEST_BODY_ABORTED at warn under the request's id, saying nothing could be sent, when the client resets its upload",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::logs REQUEST_BODY_ABORTED below the error level under the request's id, saying nothing could be sent, when the client resets its upload",
           "line": 2254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f255de19c49aa14bd86d4aa7a8fe58f86a8d7fcdee113bda9009a651297c99cb"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_TIMEOUT at 408, in one response that closes the connection, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/clientErrors.test.ts::answers REQUEST_TIMEOUT at 408, in one response that closes the connection, with one line below the error level",
           "line": 2310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -61151,21 +61151,21 @@
           "bodyHash": "237ef3cd55f39fec03f97eb3b4a94f95d5d9d4c4fd20737d4ecb3cd46a4dca4a"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_PARAMETER_TOO_LONG at 414 when a route parameter is over the router's limit, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_PARAMETER_TOO_LONG at 414 when a route parameter is over the router's limit, with one line below the error level",
           "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9dded17f5057481b0d93852642ce17a5a299458e5285999104a02fa6186bf88e"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers PATH_NOT_DECODABLE at 400 when the path's percent-encoding does not decode, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers PATH_NOT_DECODABLE at 400 when the path's percent-encoding does not decode, with one line below the error level",
           "line": 146,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15bb4f419f137b4dda49a67ee95780d30c5b0c82d55b97ebb264206ffc538e40"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_NOT_FOUND at 404 when no route matches the path, with one warn line",
+          "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_NOT_FOUND at 404 when no route matches the path, with one line below the error level",
           "line": 189,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -61238,7 +61238,7 @@
           "bodyHash": "f7a2370409f3663c16a440f2e3fd07d1b8890f92f80fc8a57dd492de83486425"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::logs a registered failure of the server or of a service it depends on at error, by its status, and a client's at warn",
+          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::logs a registered failure of the server or of a service it depends on at error, by its status, and a client's below it",
           "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -61280,7 +61280,7 @@
           "bodyHash": "042692b1ecbc3f53881fe74269c862a5bd26823cab4838e19ff79eaa78ac0399"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code at warn",
+          "id": "apps/api/tests/unit/lib/errors/problem.test.ts::answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code below the error level",
           "line": 460,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
@@ -61434,7 +61434,7 @@
           "bodyHash": "6024e2b2ed52cb7ae1f34d74b407da9b2f1bb571406a4bcd7d5a90af0be5f809"
         },
         {
-          "id": "apps/api/tests/unit/lib/errors/sendProblem.test.ts::writes one line at warn for a client's failure, with its codes, status, source and request, and reports nothing",
+          "id": "apps/api/tests/unit/lib/errors/sendProblem.test.ts::writes one line below the error level for a client's failure, with its codes, status, source and request, and reports nothing",
           "line": 186,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],

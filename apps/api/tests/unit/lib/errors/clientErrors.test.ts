@@ -455,7 +455,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     await app.close();
   });
 
-  it("answers REQUEST_LINE_NOT_PARSABLE at 400 to a request line the parser refuses, in one response that closes the connection, with one warn line", async () => {
+  it("answers REQUEST_LINE_NOT_PARSABLE at 400 to a request line the parser refuses, in one response that closes the connection, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(
@@ -565,7 +565,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect(lines.error.mock.calls).toEqual([]);
   });
 
-  it("answers CONTENT_TYPE_MISSING at 400 to a QUERY request with no content type, read once routed, with one warn line under Fastify's code", async () => {
+  it("answers CONTENT_TYPE_MISSING at 400 to a QUERY request with no content type, read once routed, with one line below the error level under Fastify's code", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(
@@ -618,7 +618,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect([lines.warn.mock.calls, lines.error.mock.calls]).toEqual([[], []]);
   });
 
-  it("answers REQUEST_HEADERS_NOT_PARSABLE at 400 to a header the parser refuses, with one warn line", async () => {
+  it("answers REQUEST_HEADERS_NOT_PARSABLE at 400 to a header the parser refuses, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(
@@ -643,7 +643,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect([lines.error.mock.calls, routed]).toEqual([[], []]);
   });
 
-  it("answers TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH at 400 to a request that sends both, with one warn line", async () => {
+  it("answers TRANSFER_ENCODING_CONFLICTS_WITH_CONTENT_LENGTH at 400 to a request that sends both, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(
@@ -2126,7 +2126,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     }
   );
 
-  it("answers EXPECTATION_UNSUPPORTED at 417 to an Expect header other than 100-continue, with one warn line under the request's id", async () => {
+  it("answers EXPECTATION_UNSUPPORTED at 417 to an Expect header other than 100-continue, with one line below the error level under the request's id", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(
@@ -2251,7 +2251,7 @@ describe("a connection whose request cannot be read, on the server createServer 
     expect([lines.warn.mock.calls, lines.error.mock.calls]).toEqual([[], []]);
   });
 
-  it("logs REQUEST_BODY_ABORTED at warn under the request's id, saying nothing could be sent, when the client resets its upload", async () => {
+  it("logs REQUEST_BODY_ABORTED below the error level under the request's id, saying nothing could be sent, when the client resets its upload", async () => {
     const lines = recordFailureLines(app);
     const socket = connect({ host: HOST, port });
     await once(socket, "connect");
@@ -2307,7 +2307,7 @@ describe("a client too slow to send its request, on the server createServer buil
     await app.close();
   });
 
-  it("answers REQUEST_TIMEOUT at 408, in one response that closes the connection, with one warn line", async () => {
+  it("answers REQUEST_TIMEOUT at 408, in one response that closes the connection, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = responseOf(await exchange(port, "GET /things HTTP/1.1\r\nHost: local"));

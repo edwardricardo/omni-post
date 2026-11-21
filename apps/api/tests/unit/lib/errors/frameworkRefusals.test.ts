@@ -100,7 +100,7 @@ describe("the framework's refusals on the server createServer builds", () => {
     expect([lines.warn.mock.calls, lines.error.mock.calls]).toEqual([[], []]);
   });
 
-  it("answers ROUTE_PARAMETER_TOO_LONG at 414 when a route parameter is over the router's limit, with one warn line", async () => {
+  it("answers ROUTE_PARAMETER_TOO_LONG at 414 when a route parameter is over the router's limit, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = await app.inject({ method: "GET", url: `/things/${OVER_LIMIT}?draft=1` });
@@ -143,7 +143,7 @@ describe("the framework's refusals on the server createServer builds", () => {
     expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
   });
 
-  it("answers PATH_NOT_DECODABLE at 400 when the path's percent-encoding does not decode, with one warn line", async () => {
+  it("answers PATH_NOT_DECODABLE at 400 when the path's percent-encoding does not decode, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = await app.inject({ method: "GET", url: `/things/${UNDECODABLE}?draft=1` });
@@ -186,7 +186,7 @@ describe("the framework's refusals on the server createServer builds", () => {
     expect([lines.error.mock.calls, vi.mocked(captureError).mock.calls]).toEqual([[], []]);
   });
 
-  it("answers ROUTE_NOT_FOUND at 404 when no route matches the path, with one warn line", async () => {
+  it("answers ROUTE_NOT_FOUND at 404 when no route matches the path, with one line below the error level", async () => {
     const lines = recordFailureLines(app);
 
     const response = await app.inject({ method: "GET", url: "/nowhere/7" });

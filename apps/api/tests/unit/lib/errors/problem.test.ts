@@ -222,7 +222,7 @@ describe("toProblem", () => {
       expect(answer.severity).toBe("warn");
     });
 
-    it("logs a registered failure of the server or of a service it depends on at error, by its status, and a client's at warn", () => {
+    it("logs a registered failure of the server or of a service it depends on at error, by its status, and a client's below it", () => {
       const errors = [
         RegisteredError.of(COMMON_ERRORS.TRANSIENT_FAILURE),
         RegisteredError.of(COMMON_ERRORS.NOT_IMPLEMENTED),
@@ -457,7 +457,7 @@ describe("toProblem", () => {
       );
     });
 
-    it("answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code at warn", () => {
+    it("answers the failure of the request's own body stream, which Fastify hands on at 400, with the code of its cause, and logs Node's code below the error level", () => {
       const aborted = Object.assign(new Error("aborted"), { code: "ECONNRESET", statusCode: 400 });
 
       const answer = toProblem(aborted, { ...CONTEXT, bodyStreamError: aborted });

@@ -183,7 +183,7 @@ describe("sendProblem", () => {
     expect(uncorrelated.json()).toEqual(CONFLICT_PROBLEM);
   });
 
-  it("writes one line at warn for a client's failure, with its codes, status, source and request, and reports nothing", async () => {
+  it("writes one line below the error level for a client's failure, with its codes, status, source and request, and reports nothing", async () => {
     await app.inject({ method: "POST", url: "/posts/7?draft=1" });
 
     expect(lines).toEqual([
