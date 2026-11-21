@@ -62,3 +62,10 @@
 # the images took that package from Debian's archive until 2026-11-14, the day
 # they moved to a distroless digest that holds the fixed version; the first such
 # digest was uploaded on 2026-11-08 (docs/deployment/base-images.md).
+
+# libssl3t64 in the distroless base: OpenSSL's QUIC server, which nothing in the
+# image reaches (Node links its own OpenSSL and has no QUIC without
+# --experimental-quic), with no Debian fix for trixie on 2026-11-21. Record:
+# docs/security/DEPENDENCY_AUDIT_RECORD.md, "Ignored image CVEs", which says how
+# the entry is reviewed and removed.
+CVE-2026-124709 exp:2026-12-15
