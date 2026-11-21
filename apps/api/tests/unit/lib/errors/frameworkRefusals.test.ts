@@ -83,7 +83,9 @@ describe("the framework's refusals on the server createServer builds", () => {
 
   beforeAll(async () => {
     app = serverAsTheAppBuildsIt();
-    app.get("/things/:id", async (request) => request.params);
+    app.get<{ Params: { id: string } }>("/things/:id", async (request) => ({
+      idLength: request.params.id.length,
+    }));
     await app.ready();
   });
 
@@ -96,7 +98,7 @@ describe("the framework's refusals on the server createServer builds", () => {
 
     const response = await app.inject({ method: "GET", url: `/things/${AT_LIMIT}` });
 
-    expect([response.statusCode, response.json()]).toEqual([200, { id: AT_LIMIT }]);
+    expect([response.statusCode, response.json()]).toEqual([200, { idLength: AT_LIMIT.length }]);
     expect([lines.warn.mock.calls, lines.error.mock.calls]).toEqual([[], []]);
   });
 

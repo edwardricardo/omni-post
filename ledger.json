@@ -61145,42 +61145,42 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers the route when a route parameter is at the router's limit, and writes no failure line",
-          "line": 94,
+          "line": 96,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "237ef3cd55f39fec03f97eb3b4a94f95d5d9d4c4fd20737d4ecb3cd46a4dca4a"
+          "bodyHash": "ac6dfdc00a7cf7510d8e5a8202dec8421e79f1509dac5c1f20ddb143125181f2"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_PARAMETER_TOO_LONG at 414 when a route parameter is over the router's limit, with one line below the error level",
-          "line": 103,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9dded17f5057481b0d93852642ce17a5a299458e5285999104a02fa6186bf88e"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers PATH_NOT_DECODABLE at 400 when the path's percent-encoding does not decode, with one line below the error level",
-          "line": 146,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15bb4f419f137b4dda49a67ee95780d30c5b0c82d55b97ebb264206ffc538e40"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers ROUTE_NOT_FOUND at 404 when no route matches the path, with one line below the error level",
-          "line": 189,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e00bbe09fc4a22e5e2150402911acb8bc6aeaf41e5a2bc7b45f01257642c619"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers INTERNAL_ERROR at 500, writes one error line under Fastify's code and reports it to Sentry",
-          "line": 264,
+          "line": 266,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1e09917c2e20329473659ff4a0044bed2a2cc0a66549a6d52913f196a221ba1"
         },
         {
           "id": "apps/api/tests/unit/lib/errors/frameworkRefusals.test.ts::answers %s with the code of its own cause and one warn line under Fastify's code",
-          "line": 336,
+          "line": 338,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49a865bf3fd89f6b46a633ecdc2c88abcf410ff93e2fa866c19df425960e3dee"

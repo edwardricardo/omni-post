@@ -178,7 +178,7 @@ const gitIn = (...args: string[]): string =>
 const plantClean = (): void => {
   write("package.json", `${JSON.stringify({ scripts: { lint: LINT_SCRIPT } }, null, 2)}\n`);
   write("apps/api/src/admin/a.ts", "export const a = 1;\n");
-  write("apps/api/src/admin/b.ts", "// eslint-disable-next-line no-console -- a reason\n");
+  write("apps/api/src/admin/b.ts", "// eslint-disable-next-line no-debugger -- a reason\n");
   write("apps/api/src/index.ts", "/* eslint-disable @typescript-eslint/no-explicit-any */\n");
   write("packages/core/auth/src/x.ts", "export const x = 1;\n");
   write("apps/api/src/admin/a.test.ts", "/* eslint-disable */\n");
@@ -787,7 +787,7 @@ describe("S5: nothing turns the rule off", () => {
     ],
     [
       "names it among others",
-      "/* eslint-disable no-console, errors/no-inline-error */\n",
+      "/* eslint-disable no-debugger, errors/no-inline-error */\n",
       "names errors/no-inline-error",
     ],
     ["names no rule, as a block", "const a = 1; /* eslint-disable */\n", "names no rule"],
