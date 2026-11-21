@@ -124,6 +124,10 @@ const {
   readHistory,
   stateOf,
 } = (await import(GATE_SCRIPT)) as GateModule;
+/** The function the gate's own git calls run through, which drops the variables of another repository. */
+const { gitEnvironment: withoutForeignGit } = (await import(
+  path.join(REPO_ROOT, "scripts/testing/lib/git-environment.mjs")
+)) as { gitEnvironment: (environment?: NodeJS.ProcessEnv) => NodeJS.ProcessEnv };
 
 const RULE = "errors/no-inline-error";
 const BODY_WRITER = "apps/api/src/lib/errors/sendProblem.ts";
@@ -157,8 +161,13 @@ const writeJson = (file: string, value: unknown): void =>
   write(file, `${JSON.stringify(value, null, 2)}\n`);
 const remove = (file: string): void => rmSync(path.join(root, file), { recursive: true });
 
+/**
+ * The environment of every git call the suite makes or hands the gate: the one the gate builds,
+ * so a `GIT_DIR`, `GIT_WORK_TREE` or `GIT_INDEX_FILE` of the host reaches neither, and no global or
+ * system configuration of the host.
+ */
 const gitEnvironment = (): NodeJS.ProcessEnv => ({
-  ...process.env,
+  ...withoutForeignGit(process.env),
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_CONFIG_NOSYSTEM: "1",
 });
@@ -1012,10 +1021,23 @@ const riseLine = (file: string, head: number, base: number): string =>
   `${PREFIX}${file}: ${RULE} counts ${String(head)} ${head === 1 ? "site" : "sites"}, and the base counts ${String(base)}: a count never rises against the base; ` +
   `fix the sites the change added and run "pnpm exec eslint . --prune-suppressions", or, when they moved from another file of its context, record the move with --moved <from>:${file}:<count>; ` +
   "a renamed file needs no move: the gate reads renames from HEAD, so commit the rename and run again";
-/** S7's verdict on a count that fell where git reports its file unchanged, as `how` says. */
-const fallLine = (file: string, base: number, head: number, how: string): string =>
-  `${PREFIX}${file}: ${RULE} fell from ${String(base)} to ${String(head)} against the base, and ${how}: a count falls only when its file changes; ` +
-  "the gate reads changes from HEAD, so commit the edit that fixed its sites and run again";
+/**
+ * S7's verdict on a count that fell where git reports its file unchanged, as `how` says; with
+ * `uncommitted`, the hint the gate adds when the file holds a change that is not committed.
+ */
+const fallLine = (
+  file: string,
+  base: number,
+  head: number,
+  how: string,
+  uncommitted = false
+): string =>
+  `${PREFIX}${file}: ${RULE} fell from ${String(base)} to ${String(head)} against the base, and ${how}: a count falls only when its file changes` +
+  (uncommitted
+    ? "; the file holds a change that is not committed, and the gate reads changes from HEAD: commit it and run again"
+    : "");
+const UNCHANGED = "git reports no change of its content";
+const C = "apps/api/src/admin/c.ts";
 const MISSING_ROW = `${PREFIX}${HISTORY}: the counts differ from the base and the head adds no row: record it with "node scripts/testing/error-sites-gate.mjs --record --date <YYYY-MM-DD> --slug <slug> --base base"`;
 const TWO_RULES: Exclusions = { [RULE]: LIST, [SECOND]: LIST };
 const TWO_OPTIONS: Options = { [RULE]: OPTIONS[RULE] ?? [], [SECOND]: [] };
@@ -1088,7 +1110,7 @@ describe("S6a to S10: against a base", () => {
     expect(outcome.exitCode).toBe(0);
   });
 
-  it("S7 refuses a count that falls while git reports no change of its file, and passes once the file changed", async () => {
+  it("S7 refuses a count that falls while git reports no change of its file, with no hint when all is committed, and passes once the file changed", async () => {
     plantClean();
     commitBase();
     setCounts({ [A]: { [RULE]: 2 } });
@@ -1101,7 +1123,7 @@ describe("S6a to S10: against a base", () => {
     expect(unchanged).toEqual({
       exitCode: 1,
       stdout: [],
-      stderr: [fallLine(A, 3, 2, "git reports no change of its content")],
+      stderr: [fallLine(A, 3, 2, UNCHANGED)],
     });
     expect(changed.exitCode).toBe(0);
   });
@@ -1119,12 +1141,72 @@ describe("S6a to S10: against a base", () => {
     expect(uncommitted).toEqual({
       exitCode: 1,
       stdout: [],
-      stderr: [fallLine(A, 3, 2, "git reports no change of its content")],
+      stderr: [fallLine(A, 3, 2, UNCHANGED, true)],
     });
     expect(committed).toEqual({
       exitCode: 0,
       stdout: [`${PREFIX}PASS`, `${PREFIX}4 sites in 2 contexts`, `${PREFIX}base: base`],
       stderr: [],
+    });
+  });
+
+  it("S7 gives no hint for a count lowered by hand in the list while its file is untouched, though the list's edit is not committed", async () => {
+    plantClean();
+    commitBase();
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const outcome = await scan({ base: "base" });
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [fallLine(A, 3, 2, UNCHANGED)],
+    });
+  });
+
+  it("S7 tells a count lowered in an edit not yet committed of a file renamed by HEAD to commit the edit, reading the file at its new path", async () => {
+    plantClean();
+    commitBase();
+    move(A, C);
+    setCounts({ [A]: { [RULE]: 0 }, [C]: { [RULE]: 3 } });
+    commit("rename");
+    touch(C);
+    setCounts({ [A]: { [RULE]: 0 }, [C]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+
+    const outcome = await scan({ base: "base" });
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: [
+        fallLine(C, 3, 2, `git reports ${A} renamed to it with its content unchanged`, true),
+      ],
+    });
+  });
+
+  it("S7 exits 3, keeping its verdict, when git cannot tell whether the file holds a change that is not committed", async () => {
+    plantClean();
+    commitBase();
+    touch(A);
+    setCounts({ [A]: { [RULE]: 2 } });
+    addRow("2026-11-21-admin.json", { version: 1, fixed: { "api/admin": 1 } });
+    const real = createGit(root, gitEnvironment());
+    const git: Git = (args) =>
+      args.includes("status")
+        ? { status: 128, stdout: "", stderr: "fatal: index file corrupt" }
+        : real(args);
+
+    const outcome = await scan({ base: "base", git });
+
+    expect(outcome).toEqual({
+      exitCode: 3,
+      stdout: [],
+      stderr: [
+        `${PREFIX}${A}: whether it holds a change that is not committed could not be read, so S7 gives no hint: git --no-optional-locks --literal-pathspecs status --porcelain=v1 -z --untracked-files=all -- ${A} failed: fatal: index file corrupt`,
+        fallLine(A, 3, 2, UNCHANGED),
+      ],
     });
   });
 
@@ -1140,7 +1222,7 @@ describe("S6a to S10: against a base", () => {
     expect(outcome.stderr).toEqual([]);
   });
 
-  it("S8 and S7 refuse a file renamed into an excluded path with its content unchanged", async () => {
+  it("S8 and S7 refuse a file renamed into an excluded path with its content unchanged, with no hint when all is committed", async () => {
     plantClean();
     commitBase();
     move(A, "apps/api/tests/unit/a.ts");

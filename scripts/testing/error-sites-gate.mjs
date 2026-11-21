@@ -38,7 +38,9 @@
  *     baseline to its new path.
  *   - S6: no count of a rule the base's history bore rises, and no path the mapped base does not
  *     hold gains an entry, but by the birth of a rule or by a recorded move into it.
- *   - S7: a count falls only where git reports a change of the file's content, or its deletion.
+ *   - S7: a count falls only where git reports a change of the file's content, or its deletion. Its
+ *     verdict adds that the file holds a change that is not committed, to commit it, exactly when
+ *     `git status` reports one at the path the list names now.
  *   - S8: a file of the base's baseline renamed by the head stays in its rule's scope, and a portal
  *     whose catalogs hold `errorCodes` on the base holds it in every catalog on the head. This is
  *     stricter than the registry gate's R7, which enrols a portal by its default locale's catalog,
@@ -104,7 +106,8 @@
  *   a row; a held rule with no list or no options; a glob the scope's matcher does not read;
  *   ESLint's configuration that cannot be resolved; the plugin's manifest, a source file or a
  *   catalog that cannot be read; a base that cannot be resolved; a `git` call against the base that
- *   fails for another reason than a path absent there. Under `--stalled`: the baseline or a history
+ *   fails for another reason than a path absent there; `git status` failing on the file of a count
+ *   S7 refuses, whose verdict is then printed with no hint. Under `--stalled`: the baseline or a history
  *   entry that cannot be read as above; a list above zero whose history does not exist or holds no
  *   row, since nothing dates it; a newest row dated after today, which is no day a row was recorded
  *   on; and, under `--remind`, a GitHub call that fails or answers with no list. A usage error exits
@@ -1736,9 +1739,10 @@ function riseLine({ file, rule, base, head }) {
  * @param {BaseState} input.baseState
  * @param {Exclusions} input.exclusions
  * @param {string} input.today The UTC date of the instant the run reads as now.
+ * @param {Git} input.git Reads whether the file of a fallen count holds a change not committed.
  * @returns {{ verdicts: string[], unread: string[] }}
  */
-function checkAgainstBase({ root, tracked, baseline, history, baseState, exclusions, today }) {
+function checkAgainstBase({ root, tracked, baseline, history, baseState, exclusions, today, git }) {
   /** @type {string[]} */
   const verdicts = [];
   /** @type {string[]} */
@@ -1775,9 +1779,30 @@ function checkAgainstBase({ root, tracked, baseline, history, baseState, exclusi
       source === fall.file
         ? "git reports no change of its content"
         : `git reports ${source} renamed to it with its content unchanged`;
+    // The changes are read from HEAD, so an edit of the file that is not committed is no change
+    // yet. It is read at the path the list names now: the source of a rename HEAD holds is no
+    // longer in the tree.
+    const pending = run(git, [
+      "--no-optional-locks",
+      "--literal-pathspecs",
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+      "--",
+      fall.file,
+    ]);
+    if ("error" in pending) {
+      unread.push(
+        `${fall.file}: whether it holds a change that is not committed could not be read, so S7 gives no hint: ${pending.error}`
+      );
+    }
+    const hint =
+      "stdout" in pending && pending.stdout !== ""
+        ? "; the file holds a change that is not committed, and the gate reads changes from HEAD: commit it and run again"
+        : "";
     verdicts.push(
-      `${fall.file}: ${fall.rule} fell from ${String(fall.base)} to ${String(fall.head)} against the base, and ${how}: a count falls only when its file changes; ` +
-        "the gate reads changes from HEAD, so commit the edit that fixed its sites and run again"
+      `${fall.file}: ${fall.rule} fell from ${String(fall.base)} to ${String(fall.head)} against the base, and ${how}: a count falls only when its file changes${hint}`
     );
   }
 
@@ -2081,6 +2106,7 @@ export async function runGate({
         baseState,
         exclusions,
         today: utcDay(now),
+        git,
       })
     );
   }
