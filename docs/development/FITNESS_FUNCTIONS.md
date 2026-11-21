@@ -2360,9 +2360,9 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # request FITNESS_BASE_REF is the event's base sha, fetched in up to three attempts, and a base
 # that does not resolve fails the step; on a push the variable is empty, the sites gate prints
 # `base: none (S6 to S10 skipped)`, and every other rule runs. The battery runs the same command as
-# its static step `errors`, with FITNESS_BASE_REF as the base when it is set, else the merge base
-# of HEAD and origin/main, the local counterpart of the pull request's comparison; when git finds
-# no merge base the step passes origin/main itself, never an empty base, and a name that does not
+# its static step `errors`, with FITNESS_BASE_REF as the base when it is set and not empty, else
+# the merge base of HEAD and origin/main, the local counterpart of the pull request's comparison;
+# with no merge base the step passes origin/main, never an empty base, and a name that does not
 # resolve fails it closed. The scheduled half is no verdict of this check: error-sites-stall.yml
 # runs the sites gate with `--stalled --days 14 --remind` every day, and keeps one issue, labelled
 # error-sites-stalled, while the list is above zero and no row is dated in the last 14 days.
@@ -2377,19 +2377,23 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # locale with no catalog, or a text of an enrolled portal that is not valid ICU; domains/ missing
 # or holding no <name>.ts; the barrel or a domain file that cannot be loaded; ERROR_TABLES
 # missing, not an array or empty; a history its reader cannot read, or a row it reports that is not
-# the format of its rows; the page unreadable for a reason other than its absence, unrenderable,
-# or, under `--write`, unwritable; `git ls-files` failing or listing no source file of the scope,
-# or a file of the scope that cannot be read; the command that cannot load the sites gate's
-# reader; and any other failure of the command's run, printed as `error-registry-gate: the run
-# failed before reaching a verdict: <reason>` rather than left to Node's exit 1, the code of a
-# verdict. The sites gate: `git ls-files` failing or
+# the format of its rows; the page unreadable for a reason other than its absence, unrenderable
+# while R4 to R6 pass (while they have findings, a page that cannot be rendered is an R9 line beside
+# their verdicts, and the run exits 1), or, under `--write`, unwritable; `git ls-files` failing or
+# listing no source file of the scope, or a file of the scope that cannot be read; the command that
+# cannot load the sites gate's reader; and any other failure of the command's run, printed as
+# `error-registry-gate: the run failed before reaching a verdict: <reason>` followed by the error's
+# stack, rather than left to Node's exit 1, the code of a verdict. A failure to load the gate's own
+# imports comes before the command runs, and Node exits 1 with its own stack. The sites gate: `git
+# ls-files` failing or
 # listing nothing; eslint-suppressions.json, on the head or the base, that cannot be read, is not
 # JSON or is not ESLint's shape for an `errors/` entry (a missing file is no entry, as ESLint reads
 # it), or a history entry, on either side, that is no row file, is not JSON or is not a row; a held rule with no list or no options; a glob the matcher does not
 # read; ESLint's configuration that cannot be resolved; the plugin's manifest, a source file or a
 # catalog that cannot be read; a base that cannot be resolved; a git call against the base that
-# fails for a reason other than a path absent there. A check that needs an input that was not read
-# is skipped, never run on part of it. A usage error exits 2.
+# fails for a reason other than a path absent there; `git status` failing on the file of a count S7
+# refuses, read to tell whether that file holds a change that is not committed. A check that needs
+# an input that was not read is skipped, never run on part of it. A usage error exits 2.
 # RESIDUAL LIMITS, stated rather than implied. Of the rule, whose header lists what it does not
 # see: (1) a class that extends an error class under a name that does not end in `Error`, built
 # with `new`; (2) a construction through the prototype (`Object.create(X.prototype)`); (3) a
