@@ -21,15 +21,10 @@ interface LegacyAuthErrorBody {
 /** A failed response's body: the API's problem body, or a legacy route's body. */
 type ApiErrorBody = Problem | LegacyAuthErrorBody;
 
-/**
- * A failed response's body when it is a JSON object; any other body, an array included, reads as
- * an empty one.
- */
+/** A failed response's body when it is a JSON object; any other body reads as an empty one. */
 async function readErrorBody(response: Response): Promise<ApiErrorBody> {
   const body: unknown = await response.json().catch(() => null);
-  return typeof body === "object" && body !== null && !Array.isArray(body)
-    ? (body as ApiErrorBody)
-    : {};
+  return typeof body === "object" && body !== null ? (body as ApiErrorBody) : {};
 }
 
 /**
