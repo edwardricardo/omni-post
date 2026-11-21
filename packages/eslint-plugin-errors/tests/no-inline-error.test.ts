@@ -25,8 +25,9 @@
  *              `@shared/types` (a relative import inside the registry), and nothing else: not an
  *              object, a variable, a cast, a computed key, a spread, a call, a renamed, type-only,
  *              namespace or subpath import, nor a shadowed name. `defineErrors` is used only inside
- *              the registry's directory; its declaration, as an overload or `declare` signature
- *              included, is not a use in any file. `err` from the
+ *              the registry's directory; its declaration as a function, an overload or `declare`
+ *              signature included, is not a use in any file, while a method of that name, of a
+ *              class, an object or an interface, is. `err` from the
  *              shared kernel is never given a string, a template or a `+` with a string in it, is
  *              never renamed and never used as a value; `err` from another module, and `err`
  *              given a value, a registered error or a number, are not reported.
@@ -34,11 +35,11 @@
  *              A failure answered by hand closes the list. Any use of a legacy reply helper is
  *              reported, called, bound, destructured, passed on or read under a static key, and only
  *              the name the helper declares for itself is not: a function declaration, an overload
- *              or `declare` signature, a method of a class (abstract and overload signatures
- *              included) or of an object literal, and a method signature of an interface or a
- *              type; a call beside each is still reported, and so is every other binding of the
- *              name, a class field holding a function included. `replyHelpers` replaces its
- *              default. A `send`
+ *              or `declare` signature, a method, a getter or a setter of a class (abstract and
+ *              overload signatures included) or of an object literal, and a method signature of an
+ *              interface or a type; a call or a read beside each is still reported, and so is every
+ *              other binding of the name, a class field holding a function and a parameter of a
+ *              signature included. `replyHelpers` replaces its default. A `send`
  *              on a reply (the identifier `reply`, or a chain that reads a member `reply`) is
  *              reported when its chain sets a status that is not a numeric literal below 400, or
  *              when it sends an object literal with an `error` key or `ok: false`, through type
@@ -694,6 +695,15 @@ ruleTester.run("no-inline-error: registryDefinition", rule, {
       errors: [registryDefinition()],
     },
     {
+      code: lines(
+        "class LocalRegistry { defineErrors() {} }",
+        "const localRegistry = { defineErrors() {} };",
+        "interface LocalRegistryShape { defineErrors(): void }"
+      ),
+      filename: FEATURE,
+      errors: [registryDefinition(1), registryDefinition(2), registryDefinition(3)],
+    },
+    {
       code: 'export { defineErrors } from "./error-registry/definition.js";',
       filename: at("packages/shared/src/index.ts"),
       errors: [registryDefinition()],
@@ -749,6 +759,16 @@ ruleTester.run("no-inline-error: replyHelper", rule, {
       "  sendError(ctx: unknown) {}",
       "}",
       "const handlers = { handleUnexpectedError(error: unknown) { return error; } };"
+    ),
+    lines(
+      "class ReplyAccessors {",
+      "  get sendMappedError() { return 1; }",
+      "  set sendValidationError(value: unknown) {}",
+      "}",
+      "const accessors = {",
+      "  get sendError() { return 1; },",
+      "  set handleOAuthError(value: unknown) {},",
+      "};"
     ),
   ],
   invalid: [
@@ -842,6 +862,22 @@ ruleTester.run("no-inline-error: replyHelper", rule, {
         replyHelper("sendMappedError", 11),
         replyHelper("sendValidationError", 12),
       ],
+    },
+    {
+      code: lines(
+        "interface Relay { run(sendError: () => void): void }",
+        "declare function relayTo(handleOAuthError: () => void): void;"
+      ),
+      errors: [replyHelper("sendError", 1), replyHelper("handleOAuthError", 2)],
+    },
+    {
+      code: lines(
+        "class ReplyAccessors { get sendMappedError() { return 1; } }",
+        "const accessors = { get sendError() { return 1; } };",
+        "new ReplyAccessors().sendMappedError;",
+        "accessors.sendError;"
+      ),
+      errors: [replyHelper("sendMappedError", 3), replyHelper("sendError", 4)],
     },
   ],
 });

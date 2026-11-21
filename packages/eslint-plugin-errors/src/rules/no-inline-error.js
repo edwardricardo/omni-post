@@ -45,13 +45,14 @@
  *     value, an export included, since an alias would call it unseen.
  *   - `replyHelper`: any use of a name of the `replyHelpers` option, called or not (bound,
  *     destructured, passed on, read under a static key), except the name the helper declares for
- *     itself as a function or a method: a function declaration, its overload signatures and a
- *     `declare` form; a method, not computed, of a class (with a body, as an overload signature,
- *     or abstract) or of an object literal; and a method signature of an interface or a type
- *     literal. Every other binding of the name is a use, since its value may be an alias of a
- *     helper: a class field or an abstract property, even one that holds a function, a property
- *     signature, a variable, a parameter, an object's property not written as a method, and the
- *     name of a function expression.
+ *     itself as a function, a method or an accessor: a function declaration, its overload
+ *     signatures and a `declare` form; a method, a getter or a setter, under an identifier key not
+ *     computed, of a class (with a body, as an overload signature, or abstract) or of an object
+ *     literal; and a method, getter or setter signature of an interface or a type literal. Every
+ *     other binding of the name under an identifier is a use, since its value may be an alias of a
+ *     helper: a class field (an `accessor` field included) or an abstract property, even one that
+ *     holds a function, a property signature, a variable, a parameter, an object's property
+ *     written as neither a method nor an accessor, and the name of a function expression.
  *   - `inlineReply`: a call of `send` on a reply, the chain whose root is the identifier `reply`
  *     or that reads a member `reply`, when a `status` or `code` call of the chain is given
  *     anything but a numeric literal below 400, or when `send` is given an object literal with a
@@ -91,11 +92,14 @@
  *   Matched by name, and so wider or narrower than the intent: `baseClasses` is a list of names,
  *   so a feature file may declare a class of one of those names that extends `Error`; a `new`
  *   inside the `static of` of the class it builds is exempt in any file, not only the registry's
- *   bases; a function or a method declared under a reply helper's name is exempt whether or not
- *   it is that helper; and a helper declared as a class field or a variable holding a function is
- *   reported on its declaration, where the same helper declared as a function or a method is not.
- *   A private name (`#sendError`) is not the option's name, so a private method of that name and
- *   its calls are not seen.
+ *   bases; a function, a method or an accessor declared under a reply helper's name is exempt
+ *   whether or not it is that helper; and a helper declared as a class field or a variable holding
+ *   a function is reported on its declaration, where the same helper declared as a function or a
+ *   method is not. A private name (`#sendError`) is not the option's name, so a private method of
+ *   that name and its calls are not seen. A helper's name written as a string is seen only as the
+ *   key of a member read (`this["sendError"]`): as a key written as a string, quoted or in
+ *   brackets, of an object's property or method, of a destructured property, of a class member or
+ *   of a signature (`{ "sendError": fn }`), it is not seen.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -154,8 +158,9 @@ const FIRST_FAILURE_STATUS = 400;
 const FUNCTION_DECLARATIONS = new Set(["FunctionDeclaration", "TSDeclareFunction"]);
 
 /**
- * The members that give a method its name: of a class, with a body or as an overload signature,
- * abstract, and a method signature of an interface or a type literal.
+ * The members that give a method or an accessor its name: of a class, with a body or as an
+ * overload signature, abstract, and a method or accessor signature of an interface or a type
+ * literal.
  */
 const METHOD_DECLARATIONS = new Set([
   "MethodDefinition",
@@ -345,13 +350,16 @@ function isInsideOwnOf(ancestors, name) {
 /**
  * @param {AstNode} identifier An identifier.
  * @param {AstNode} parent Its parent.
- * @returns {boolean} Whether it is the name, not computed, that a method declares: one of
- *   `METHOD_DECLARATIONS`, or a method of an object literal.
+ * @returns {boolean} Whether it is the name, not computed, that a method or an accessor declares:
+ *   one of `METHOD_DECLARATIONS`, a class's getters and setters and a type's accessor signatures
+ *   included, or a method, a getter or a setter of an object literal.
  */
 function isDeclaredMethodName(identifier, parent) {
   if (parent.key !== identifier || parent.computed === true) return false;
+  if (METHOD_DECLARATIONS.has(parent.type)) return true;
   return (
-    METHOD_DECLARATIONS.has(parent.type) || (parent.type === "Property" && parent.method === true)
+    parent.type === "Property" &&
+    (parent.method === true || parent.kind === "get" || parent.kind === "set")
   );
 }
 
@@ -889,8 +897,8 @@ const rule = {
       },
       Identifier(node) {
         const parent = asNode(node.parent);
-        // The name a function or a helper's method declares for itself is not a use of it; every
-        // other binding of the name may hold an alias, so it is.
+        // The name a function, or a helper's method or accessor, declares for itself is not a use
+        // of it; every other binding of the name may hold an alias, so it is.
         if (FUNCTION_DECLARATIONS.has(parent.type) && parent.id === node) return;
         if (replyHelpers.has(node.name) && isDeclaredMethodName(asNode(node), parent)) return;
         checkName(asNode(node), node.name);
