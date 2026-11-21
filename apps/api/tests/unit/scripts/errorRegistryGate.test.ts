@@ -1337,36 +1337,145 @@ describe("R9: the reference page is what the registry and the history yield", ()
     }
   );
 
-  it("exits 3 when the page cannot be rendered, writes nothing, and still prints the verdict", async () => {
-    plant({
-      domains: [
-        COMMON,
+  /**
+   * `auth` whose one entry holds the given fields, written as TypeScript, so a field holds a value
+   * JSON cannot write: the rule over that field names it, and the page's cell for it cannot be
+   * rendered.
+   */
+  const authEntry = (fields: string): DomainFixture => ({
+    ...AUTH,
+    source: [
+      'import { defineErrors } from "../definition.js";',
+      "",
+      'export const AUTH_ERRORS = defineErrors("auth", {',
+      `  ADMINISTRATOR_ALREADY_EXISTS: { ${fields} },`,
+      "});",
+      "",
+    ].join("\n"),
+  });
+  const BIGINT_MESSAGE = authEntry(
+    'category: "conflict", status: 409, message: 409n, params: {}, fronts: []'
+  );
+  const BIGINT_VERDICT = "ADMINISTRATOR_ALREADY_EXISTS: its message is a bigint, not a string (R5)";
+  const unrendered = (verb: string): string =>
+    `${PAGE}: could not be rendered while R4 to R6 have findings, so R9 did not ${verb} it and judges it once they pass: Do not know how to serialize a BigInt (R9)`;
+  /** A history whose one row's count cannot be read, so the page cannot be rendered from it. */
+  const UNRENDERABLE_HISTORY: HistoryReader = {
+    read: () => ({
+      exists: true,
+      rows: [
         {
-          ...AUTH,
-          // A message JSON cannot write: R5 names it, and the page's cell for it cannot be rendered.
-          source: [
-            'import { defineErrors } from "../definition.js";',
-            "",
-            'export const AUTH_ERRORS = defineErrors("auth", {',
-            '  ADMINISTRATOR_ALREADY_EXISTS: { category: "conflict", status: 409, message: 409n, params: {}, fronts: [] },',
-            "});",
-            "",
-          ].join("\n"),
+          file: "scripts/testing/error-sites-history/2026-11-21-fix.json",
+          row: {
+            fixed: {
+              get "packages/core"(): number {
+                throw new Error("the row's count cannot be read");
+              },
+            },
+          },
         },
       ],
-    });
+      problems: [],
+    }),
+    stateOf: () => new Map<string, number>(),
+  };
 
-    const outcome = await runGate({ root, exclusions: EXCLUSIONS, history, write: true });
+  it.each([
+    [
+      "R4 refuses: a status",
+      'category: "conflict", status: 409n, message: "An administrator already exists", params: {}, fronts: []',
+      'ADMINISTRATOR_ALREADY_EXISTS: has status a bigint; category "conflict" takes 409 (R4)',
+    ],
+    [
+      "R5 refuses: a message",
+      'category: "conflict", status: 409, message: 409n, params: {}, fronts: []',
+      BIGINT_VERDICT,
+    ],
+    [
+      "R6 refuses: a portal",
+      'category: "conflict", status: 409, message: "An administrator already exists", params: {}, fronts: [1n]',
+      "ADMINISTRATOR_ALREADY_EXISTS: its fronts name a bigint, which is no portal of the tree (admin, client) (R6)",
+    ],
+  ])(
+    "exits 1 on the verdict, writing nothing, when the page cannot be rendered from an entry %s that is a bigint",
+    async (_what, fields, verdict) => {
+      plant({ domains: [COMMON, authEntry(fields)] });
+
+      const outcome = await runGate({ root, exclusions: EXCLUSIONS, history, write: true });
+
+      expect(outcome).toEqual({
+        exitCode: 1,
+        stdout: [],
+        stderr: lines(verdict, unrendered("write")),
+      });
+      expect(existsSync(path.join(root, PAGE))).toBe(false);
+    }
+  );
+
+  it.each([
+    [
+      "R1",
+      { files: { [`${DOMAINS}/notes.md`]: "# Notes\n" } },
+      `${DOMAINS}/notes.md: is not a <name>.ts domain file, and domains/ holds nothing else (R1)`,
+    ],
+    [
+      "R2",
+      { domains: [commonWith("NOT__FOUND", {}), AUTH] },
+      `NOT__FOUND: does not match ${CODE_GRAMMAR} (R2)`,
+    ],
+    [
+      "R3",
+      { domains: [COMMON, AUTH, { name: "billing", entries: { NOT_FOUND: entry() } }] },
+      "NOT_FOUND: is in the tables of billing and common; a code is in one table (R3)",
+    ],
+  ])(
+    "exits 3 when the page cannot be rendered beside a finding of %s, which no field of the page explains",
+    async (_rule, tree: TreeFixture, finding) => {
+      plant(tree);
+      history = UNRENDERABLE_HISTORY;
+
+      const outcome = await check();
+
+      expect(outcome).toEqual({
+        exitCode: 3,
+        stdout: [],
+        stderr: lines(
+          `${PAGE}: could not be rendered, so R9 did not compare it: the row's count cannot be read`,
+          finding
+        ),
+      });
+    }
+  );
+
+  it("exits 3 when the page cannot be rendered from a registry with no finding", async () => {
+    plant();
+    history = UNRENDERABLE_HISTORY;
+
+    const outcome = await check();
 
     expect(outcome).toEqual({
       exitCode: 3,
       stdout: [],
       stderr: lines(
-        `${PAGE}: could not be rendered, so R9 did not write it: Do not know how to serialize a BigInt`,
-        "ADMINISTRATOR_ALREADY_EXISTS: its message is a bigint, not a string (R5)"
+        `${PAGE}: could not be rendered, so R9 did not compare it: the row's count cannot be read`
       ),
     });
-    expect(existsSync(path.join(root, PAGE))).toBe(false);
+  });
+
+  it("exits 1 on a registry verdict beside a stale page, and names the stale page once the registry is fixed", async () => {
+    plant({ domains: [COMMON, BIGINT_MESSAGE] });
+    write(PAGE, "# A page written by hand\n");
+
+    const wrong = await check();
+    write(`${DOMAINS}/auth.ts`, domainSource(AUTH));
+    const fixed = await check();
+
+    expect(wrong).toEqual({
+      exitCode: 1,
+      stdout: [],
+      stderr: lines(BIGINT_VERDICT, unrendered("compare")),
+    });
+    expect(fixed).toEqual({ exitCode: 1, stdout: [], stderr: lines(STALE) });
   });
 });
 
@@ -1688,13 +1797,20 @@ describe("fail-closed", () => {
   });
 
   it("exits 3 when a portal's routing file cannot be read", async () => {
+    // The case needs a file that stat reports as regular and that no read can return. Linux has
+    // one: /proc/self/mem, the reading process's own memory, whose first page is never mapped, so
+    // a read from its start fails with EIO, deterministically and without reading anything. A file
+    // mode cannot stand in for it: the suite may run as the root user, whom no mode stops. On a
+    // host without /proc the case fails on that precondition, before the gate runs.
+    const unreadable = "/proc/self/mem";
+    expect(
+      existsSync(unreadable),
+      `${unreadable} does not exist: this case needs Linux's /proc`
+    ).toBe(true);
     plant();
     const routing = path.join(root, "apps/admin/i18n/routing.ts");
     unlinkSync(routing);
-    // A regular file no read can return: the reading process's own memory, whose first page is
-    // never mapped, so a read from its start fails with EIO. A file mode would not stop a suite
-    // that runs as the root user.
-    symlinkSync("/proc/self/mem", routing);
+    symlinkSync(unreadable, routing);
 
     const outcome = await scan();
 
@@ -1905,25 +2021,28 @@ describe("the process", () => {
     });
   });
 
-  it("exits 3, not as a verdict, when the run fails on an input no rule names", () => {
+  it("exits 3, not as a verdict, when the run fails on an input no rule names, with the error's stack", () => {
     plant({
       domains: [
         COMMON,
         {
           ...AUTH,
           source:
-            'export const AUTH_ERRORS = { get ADMINISTRATOR_ALREADY_EXISTS() { throw new Error("unreadable entry"); } };\n',
+            "export const AUTH_ERRORS = { get ADMINISTRATOR_ALREADY_EXISTS() { return (null as unknown as { code: string }).code; } };\n",
         },
       ],
     });
 
     const result = run(["--root", root]);
+    const [line, ...stack] = result.stderr.split("\n");
 
-    expect(result).toEqual({
-      status: 3,
-      stdout: "",
-      stderr: "error-registry-gate: the run failed before reaching a verdict: unreadable entry\n",
-    });
+    expect(result.status).toBe(3);
+    expect(result.stdout).toBe("");
+    expect(line).toBe(
+      "error-registry-gate: the run failed before reaching a verdict: Cannot read properties of null (reading 'code')"
+    );
+    expect(stack[0]).toBe("TypeError: Cannot read properties of null (reading 'code')");
+    expect(stack.join("\n")).toContain(`${path.join(root, DOMAINS, "auth.ts")}:`);
   });
 
   it.each([

@@ -49,7 +49,10 @@
  *   outside the registry directory; a comment, a string and a computed member are not a reference.
  *   R9: `docs/api/ERROR_CODES.md` is byte for byte what `lib/error-reference-page.mjs` renders from
  *   the registry and the history; `--write` rewrites it instead, once the registry and the history
- *   were read. R10: the word `defineErrors` occurs in no file of the rule's scope outside the
+ *   were read. While R4 to R6, the rules over the fields of an entry the page writes, have findings,
+ *   a page that cannot be rendered is an R9 line beside their verdicts, since a field they refuse
+ *   can hold a value the page cannot write: the run exits 1 on them, and R9 judges the page once
+ *   they pass. R10: the word `defineErrors` occurs in no file of the rule's scope outside the
  *   registry directory, in code, a string or a comment; a test file is outside the scope, so a suite
  *   that builds a table to prove the kernel is no finding. R11: every name ending in `_ERRORS` that
  *   an `of` call reads as its first argument, through parentheses and casts, is the export name of a
@@ -69,14 +72,16 @@
  *   is missing or holds no `<name>.ts`; the barrel or a domain file cannot be loaded;
  *   `ERROR_TABLES` is missing, not an array or empty; the history's reader fails or reports a row
  *   that is not the format of its rows; the page cannot be read for a reason other than its
- *   absence, cannot be rendered, or, under `--write`, cannot be written; `git ls-files` fails or
- *   lists no source file of the scope; a tracked file of the scope cannot be read; the command
- *   cannot load the sites gate's reader; and any other failure of the command's run, which it
- *   prints as `error-registry-gate: the run failed before reaching a verdict: <reason>` rather than
- *   exit 1, the code Node gives a rejection. A check that needs an input that was not read is
+ *   absence, cannot be rendered while R4 to R6 pass, or, under `--write`, cannot be written; `git
+ *   ls-files` fails or lists no source file of the scope; a tracked file of the scope cannot be
+ *   read; the command cannot load the sites gate's reader; and any other failure of the command's
+ *   run, which it prints as `error-registry-gate: the run failed before reaching a verdict:
+ *   <reason>`, the reason being the failure's first line, followed by the error as Node shows it,
+ *   its stack included, rather than exit 1, the code Node gives a rejection. A failure to load this
+ *   file's own imports is not one of them: it happens before the command runs, so Node exits 1 with
+ *   its own stack and no line of the gate. A check that needs an input that was not read is
  *   skipped, never run on part of it, and the page is never written from one. Every path the gate
- *   names is relative to the root; the reason of a failure the run does not name is that failure's
- *   own first line.
+ *   names is relative to the root, but for the stack of a failure the run does not name.
  *
  *   RESIDUAL LIMITS. R8 proves a reference, not an emission. A domain file's type-only export
  *   leaves nothing at run time, so R1 cannot see it. R10 reads text, so a name assembled from parts
@@ -106,6 +111,7 @@ import {
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import {
   isArgumentElement,
   isDateElement,
@@ -195,6 +201,14 @@ const TABLE_NAME = /_ERRORS$/;
 /** The word as an identifier would end it, so `redefineErrorsOnce` is another word. */
 const DEFINE_ERRORS = /(?<![\w$])defineErrors(?![\w$])/;
 
+/**
+ * The rules over the fields of an entry the page writes as text: R4 its category and status, R5
+ * its message, R6 its parameters and portals. A field one of them refuses can hold a value the page
+ * cannot write; R1 to R3 refuse files, keys and tables, which the page skips or writes as they are.
+ *
+ * @type {readonly ("R4" | "R5" | "R6")[]}
+ */
+const FIELD_RULES = ["R4", "R5", "R6"];
 /** A portal's namespace of error texts, keyed by code, in each of its catalogs. */
 const NAMESPACE = "errorCodes";
 /** The routing's `defaultLocale` line, read as fitness #51 reads it: one line, one literal. */
@@ -274,7 +288,14 @@ function describe(value) {
  * @returns {string} The text.
  */
 function shown(value) {
-  const text = JSON.stringify(value);
+  /** @type {string | undefined} */
+  let text;
+  try {
+    text = JSON.stringify(value);
+  } catch {
+    // A bigint, or a value that holds itself, has no JSON text, as a function has none.
+    text = undefined;
+  }
   return text === undefined ? describe(value) : text;
 }
 
@@ -658,17 +679,21 @@ function readSites(root, history, unread) {
 
 /**
  * @description R9: renders the reference page from what was read and, with `write`, writes it, or
- *   else holds the committed page to it byte for byte. A page that cannot be rendered, or written,
- *   is an input the gate could not handle, never a verdict.
+ *   else holds the committed page to it byte for byte. A page that cannot be written, or rendered
+ *   while R4 to R6 pass, is an input the gate could not handle. A page that cannot be rendered
+ *   while R4 to R6 have findings is an R9 line beside their verdicts: a field they refuse can hold
+ *   a value the page cannot write, and R9 judges the page once they pass.
  * @param {string} root The tree's root.
  * @param {Domain[]} domains The domains read.
  * @param {PageSites | null} sites The history's state, or null when there is no history.
  * @param {boolean} write Whether to write the page instead of checking it.
+ * @param {boolean} fieldsPass Whether R4 to R6, the rules over the fields the page writes, have no
+ *   finding.
  * @param {{ r9: string[], unread: string[], stdout: string[] }} out Where the findings, what could
  *   not be read, rendered or written, and the line that reports a write go.
  * @returns {Promise<void>}
  */
-async function judgePage(root, domains, sites, write, out) {
+async function judgePage(root, domains, sites, write, fieldsPass, out) {
   /** @type {string} */
   let page;
   try {
@@ -699,10 +724,17 @@ async function judgePage(root, domains, sites, write, out) {
       sites,
     });
   } catch (error) {
-    out.unread.push(
-      `${PAGE}: could not be rendered, so R9 did not ${write ? "write" : "compare"} it: ` +
-        reasonOf(error)
-    );
+    const verb = write ? "write" : "compare";
+    if (fieldsPass) {
+      out.unread.push(
+        `${PAGE}: could not be rendered, so R9 did not ${verb} it: ${reasonOf(error)}`
+      );
+    } else {
+      out.r9.push(
+        `${PAGE}: could not be rendered while R4 to R6 have findings, so R9 did not ${verb} it ` +
+          `and judges it once they pass: ${reasonOf(error)} (R9)`
+      );
+    }
     return;
   }
   const target = path.join(root, PAGE);
@@ -1402,7 +1434,12 @@ export async function runGate({ root, exclusions, history, write = false }) {
   const registryRead = listing.problem === null && registry.unread.length === 0;
   const sites = readSites(root, history, unread);
   if (registryRead && sites.read) {
-    await judgePage(root, domains, sites.sites, write, { r9: findings.R9, unread, stdout });
+    const fieldsPass = FIELD_RULES.every((rule) => findings[rule].length === 0);
+    await judgePage(root, domains, sites.sites, write, fieldsPass, {
+      r9: findings.R9,
+      unread,
+      stdout,
+    });
   }
 
   const verdict = Object.values(findings).flat();
@@ -1524,7 +1561,10 @@ if (invokedAsScript()) {
   try {
     process.exitCode = await main(process.argv.slice(2));
   } catch (error) {
+    // The error follows its line as Node shows it, stack included, so a fault of the gate and an
+    // input it cannot read are told apart by where they were thrown.
     process.stderr.write(`${PREFIX}the run failed before reaching a verdict: ${reasonOf(error)}\n`);
+    process.stderr.write(`${inspect(error)}\n`);
     process.exitCode = EXIT_UNREAD;
   }
 }
