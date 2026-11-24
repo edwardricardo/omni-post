@@ -455,8 +455,8 @@ importers:
         specifier: workspace:*
         version: link:packages/eslint-plugin-testing
       '@secretlint/secretlint-rule-preset-recommend':
-        specifier: 13.0.7
-        version: 13.0.7
+        specifier: 13.1.0
+        version: 13.1.0
       '@size-limit/preset-small-lib':
         specifier: 14.3.0
         version: 14.3.0(size-limit@14.3.0)
@@ -7392,8 +7392,8 @@ packages:
   '@secretlint/resolver@13.0.7':
     resolution: {integrity: sha512-Ru3qBQqfi9s/uazHiVcyAvlQuq3X8q/8eXNqacZ0r/DvWtjb2JBBhIjzx/RrbfJhlsd5yjsrE6C1/Q710Em1Hw==}
 
-  '@secretlint/secretlint-rule-preset-recommend@13.0.7':
-    resolution: {integrity: sha512-hfdYra+ZB6RmviEApxeL/YCx4ovBtpj0d9c+uhlCZaCikObjb8Sb8yqBN6g8/9tt7qD7LXGE3k9RtVvGK1fNVw==}
+  '@secretlint/secretlint-rule-preset-recommend@13.1.0':
+    resolution: {integrity: sha512-dPnplMyjJYpVCJDNTjpUA8c/AfoHbWANJJJWKroK50DGGhAB4Oumzk+XinBMyMMAwgOsjU9CB9lUHXDvObMVCg==}
     engines: {node: '>=22.0.0'}
     deprecated: Built into secretlint v14 and later. Remove this package; the rule id still works. https://github.com/secretlint/secretlint/blob/HEAD/docs/rules/preset-recommend.md
 
@@ -16233,7 +16233,7 @@ snapshots:
 
   '@secretlint/resolver@13.0.7': {}
 
-  '@secretlint/secretlint-rule-preset-recommend@13.0.7': {}
+  '@secretlint/secretlint-rule-preset-recommend@13.1.0': {}
 
   '@secretlint/source-creator@13.0.7':
     dependencies:
