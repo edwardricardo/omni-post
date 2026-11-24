@@ -104,4 +104,37 @@ Ordered by severity. `Direction` corrected after the adversarial verification (s
 
 ---
 
+## 6. Which step saves, and when (2026-11-24)
+
+The `file:line` citations of sections 1 to 5 point at the tree of 2026-08-17. This section gives the state of 2026-11-24.
+
+**The rule: every cache a step of this repository writes is saved by `main` only. Every other ref, every pull request included, only restores.** Each such cache is a pair of steps with the same inputs. On `main`, `actions/cache` runs under `if: github.ref == 'refs/heads/main'`, and its post step saves at the end of a job that passed, after every later step that writes into the cached path, exactly as before the rule. Every other ref runs `actions/cache/restore` under `if: github.ref != 'refs/heads/main'`, which never saves. A pull request therefore restores what `main` saved: a workflow run can read only the caches of its own branch, its base branch and the default branch. The inputs of a pair are written once. In `ci.yml` the first step's `with:` mapping carries a YAML anchor and its twin takes the alias. In the composite action a step computes the key and prefix once into `$GITHUB_OUTPUT`, and both steps read them.
+
+| Cache                 | On `main`: `actions/cache` (restore, and save at the end of a passed job)               | Elsewhere: `actions/cache/restore` (read-only)                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.turbo`              | `ci.yml:643-661` (Build Check, the one turbo saver)                                     | `ci.yml:663-666`; the Lint and Package Tests jobs restore only, on every ref                                                                  |
+| pnpm store            | `.github/actions/setup-node-pnpm-cache/action.yml:80-87`, key from the step at `:66-72` | `action.yml:89-96`                                                                                                                            |
+| Playwright browsers   | `ci.yml:949-964` (Storybook Stories), `ci.yml:1088-1099` (Platform Start)               | `ci.yml:966-969`, `ci.yml:1101-1104`                                                                                                          |
+| Docker layers (`gha`) | `production-ci.yml:328`, `:614`: `cache-to: type=gha,mode=max,scope=<service>`          | the same lines: `cache-to` is empty, so no `--cache-to` is passed; `cache-from: type=gha,scope=<service>` (`:327`, `:613`) reads on every ref |
+
+**What breaks without it, measured on 2026-11-24.** The repository's Actions caches held 10.61 GB against GitHub's 10 GB limit:
+
+- Docker layers saved by pull requests: 6.63 GB in 110 entries.
+- pnpm stores saved by pull requests: 2.86 GB in 6 entries, one per lockfile hash.
+- Everything `main` saved: 1.07 GB.
+
+Ten Dependabot pull requests (#970 to #979) were open at once. GitHub evicted `main`'s turbo entry, and the scheduled `Cache Divergence Probe` (run 45419741816) restored nothing and failed closed. A cache saved by a pull request can be read only by that pull request, yet it counts against the repository's limit. So it buys `main` nothing and pushes out what `main` saved. The cost of the rule: a pull request that changes the lockfile, a Docker layer or the Playwright version downloads that difference again in each of its runs.
+
+**What the rule does not cover: three writers outside this repository's steps still save from a pull request.** Each was measured on 2026-11-24.
+
+- `aquasecurity/trivy-action@master`, at both scan steps of `production-ci.yml` (`:503`, `:534`). Its `cache` input defaults to `true` and saves the scanner's database under `cache-trivy-<date>`. The live entry `cache-trivy-2026-11-21` is 101,647,499 bytes, so about 97 MB per pull request per day.
+- The same action caches the scanner's binary, `trivy-binary-v0.76.2`: 46 MB when it misses.
+- `pnpm/setup` saves `pnpm-lockfile-verified-*` entries of about 600 bytes. Its README says it saves them independently of its `cache` input.
+
+So the quota is not held near the 1.1 GB `main` uses. The Trivy entries grow with the number of pull requests that run the scan on a given day. Plan row `TRIVY-ACTION-SAVES-ITS-CACHE-FROM-EVERY-REF` (`docs/product/plan/chain.md`) closes the two Trivy caches.
+
+**One cache scope per image.** The `gha` backend's `scope` defaults to `buildkit`, and builds that share a scope overwrite each other's cache. With one shared scope, the images of the `container-security` matrix keep only the layers of whichever finished last. Each image uses its own scope, named after its service ([Docker: GitHub Actions cache](https://docs.docker.com/build/cache/backends/gha/)).
+
+---
+
 **Methodological note.** Two items of this audit correct earlier material: (a) OC-3 **refutes** the ground truth recorded as "already refuted" about `.tsbuildinfo` — under TypeScript 6.0.3 the up-to-date check compares the inputs against the _buildinfo_, not against the emitted files (`"up to date because newest input 'src/index.ts' is older than output 'tsconfig.build.tsbuildinfo'"`, EXIT=0, `dist` absent); (b) several scopes and severities reported originally were corrected downward or upward during the adversarial verification, and the tables above carry the corrected values, not the original ones.
