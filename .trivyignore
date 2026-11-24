@@ -25,10 +25,10 @@
 # at all. Both were open questions when it was written; a review named them, and
 # a scanner was installed to answer them rather than to restate them.
 #
-# Trivy 0.74.0 — the version the CI log shows in use — scanning this
-# repository's own `pnpm-lock.yaml`, which then reported exactly the two
-# image-size ids this file held until 2026-10-06 and nothing else, making it an
-# exact fixture:
+# Trivy 0.74.0 — the version the CI log showed when this was measured —
+# scanning this repository's own `pnpm-lock.yaml`, which then reported
+# exactly the two image-size ids this file held until 2026-10-06 and nothing
+# else, making it an exact fixture:
 #
 #   no ignore file              -> 2 findings
 #   exp: 2027-12-31 (future)    -> 0 findings   suppression active
@@ -41,11 +41,12 @@
 # apply to an image scan, which the workflow performs with the repository root
 # as its working directory.
 #
-# One residual: `production-ci.yml` pins the scanner as
-# `aquasecurity/trivy-action@master`, so the version reading this file is
-# whatever master resolves to that day. The measurement above is of 0.74.0; an
-# unpinned action is its own supply-chain question and is not this file's to
-# answer.
+# One residual: `production-ci.yml` names the scanner action as
+# `aquasecurity/trivy-action@master`, which is not pinned, so the version
+# reading this file is whatever master resolves to that day: on 2026-11-24 the
+# CI log of run 45501091490 shows v0.76.2. The measurement above is of 0.74.0;
+# an unpinned action is its own supply-chain question and is not this file's
+# to answer.
 #
 # ADDING AN ENTRY. Adjudicate it in the record FIRST, with its reachability
 # argument and its remove-when. Then project it here. Never the other way round:
@@ -64,8 +65,17 @@
 # digest was uploaded on 2026-11-08 (docs/deployment/base-images.md).
 
 # libssl3t64 in the distroless base: OpenSSL's QUIC server, which nothing in the
-# image reaches (Node links its own OpenSSL and has no QUIC without
-# --experimental-quic), with no Debian fix for trixie on 2026-11-21. Record:
+# image reaches (Node links its own OpenSSL and is built without QUIC), with no
+# Debian fix for trixie on 2026-11-21. Record:
 # docs/security/DEPENDENCY_AUDIT_RECORD.md, "Ignored image CVEs", which says how
 # the entry is reviewed and removed.
 CVE-2026-124709 exp:2026-12-15
+
+# libssl3t64 in the distroless base: OpenSSL's QUIC stack queues one
+# RETIRE_CONNECTION_ID frame per retransmitted NEW_CONNECTION_ID frame with no
+# limit, on client and server alike. Nothing in the image reaches it (Node links
+# its own OpenSSL and is built without QUIC, and no native addon loads the
+# image's libssl), and Debian has no fix for trixie on 2026-11-24. Record:
+# docs/security/DEPENDENCY_AUDIT_RECORD.md, "Ignored image CVEs", which says how
+# the entry is reviewed and removed.
+CVE-2026-107494 exp:2026-12-15
