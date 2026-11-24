@@ -44,9 +44,16 @@
 # One residual: `production-ci.yml` names the scanner action as
 # `aquasecurity/trivy-action@master`, which is not pinned, so the version
 # reading this file is whatever master resolves to that day: on 2026-11-24 the
-# CI log of run 45501091490 shows v0.76.2. The measurement above is of 0.74.0;
-# an unpinned action is its own supply-chain question and is not this file's
-# to answer.
+# CI log of run 45501091490 shows v0.76.2. The measurement above is of 0.74.0,
+# and the expiry was measured again on 0.76.2 that day, on the base image by
+# digest with the gate's severities:
+#
+#   CVE-2026-107494 exp:2026-12-15 (future) -> 0 findings, exit 0
+#   CVE-2026-107494 exp:2026-11-01 (past)   -> 1 finding,  exit 1
+#
+# A version master moves to later is not covered by either measurement; an
+# unpinned action is its own supply-chain question and is not this file's to
+# answer.
 #
 # ADDING AN ENTRY. Adjudicate it in the record FIRST, with its reachability
 # argument and its remove-when. Then project it here. Never the other way round:
