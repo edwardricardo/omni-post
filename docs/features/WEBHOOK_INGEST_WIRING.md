@@ -98,7 +98,7 @@ WebhookManager(prisma, redis)
   back-pressure (`attempts`/`backoff`/DLQ already exist).
 - **Tenancy**: the event resolves `channel`/`post` by `providerAccountId`; confirm there is no cross-tenant
   access when mapping to `accountId`/`projectId`.
-- Review with `appsec-security-auditor` (the inbound surface is high-risk).
+- Security review before the merge: the inbound surface is high-risk.
 
 ### 6. Tests + E2E
 

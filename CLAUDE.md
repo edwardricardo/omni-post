@@ -432,17 +432,6 @@ The regex in the reference IS the regex in CI, and a script-backed check's comma
 4. Use parallel subagents to fix issues
 5. Only then continue with the previous task
 
-### Multi-Agent Strategy
-
-Use specialized agents for different problem domains:
-
-- `software-architect-mvp` for workspace/dependency analysis
-- `qa-testing-strategist` for compilation audits and testing
-- `fastify-backend-developer` for import/dependency fixes
-- `nextjs-frontend-developer` for TypeScript compliance fixes
-- `postgresql-schema-architect` for database type issues
-- `performance-optimizer` for Result type and async patterns
-
 ### Code Quality Gates
 
 - ESLint: Must pass with zero errors, zero warnings
