@@ -286,7 +286,7 @@ Adding new security rules:
 
 1. **New required env var** → add to `apps/api/src/config/env.ts` (Zod schema), update `.env.example` AND `.env.test.example`, document in `docs/architecture/secrets-and-env.md`. If secret, use `z.string().min(32)`.
 2. **New sensitive field for logger redaction** → extend `REDACT_PATHS` in `@observability/logger` (`packages/observability/logger/src/index.ts`), the one list the API logger and the packages' base logger apply (case variations explicit — see ADR-0013). Document the threat in `docs/architecture/logging.md`.
-3. **New CWE control** → add fitness regex catalog entry in `CLAUDE.md §Automated Compliance Checks`; mirror in `.github/workflows/fitness.yml`.
+3. **New CWE control** → add fitness regex catalog entry in `docs/development/FITNESS_FUNCTIONS.md`; mirror in `.github/workflows/fitness.yml`.
 4. **New tenant-scoped model** → see §"Multi-Tenant Isolation" above (3-step checklist).
 5. **Amending a rule** → ADR required (see ADR-0001 template).
 6. **New rate-limited / IP-gated surface** → derive the client IP ONLY via
@@ -331,6 +331,6 @@ Adding new security rules:
    of the three left behind. The change that removes the last one also deletes
    that `COPY` line, because a `COPY` of a missing directory fails the build.
 
-Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
+Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
 
 - `#13` no direct pino · `#14` no per-class cache Maps · `#15` no insecure secret fallbacks · `#16` no `process.env.*` outside `config/env.ts` (api) · `#17` no `process.env.*` outside `lib/env.ts` (Next.js) · `#18` Argon2 only via canonical helper · `#19` no env reads inside provider Adapter classes · `#23` no raw Prisma queries outside guard exceptions · `#28` every Fastify `trustProxy` is the derived `FASTIFY_TRUST_PROXY` (allowlist — blocks `true` AND the now-inert numeric form) · `#29` no raw `x-forwarded-for` / `x-real-ip` reads outside `resolveClientIp` · `#41` single-use claim shape: a `data` consumption marker names its credential in the same call's `where` · `#45` the legal inventories under `docs/legal/` are current and every row is classified (`pnpm check:legal`) · `#48` every patched dependency has its record, its patch file and its ADR (`pnpm check:patched-deps`); the same gate's registry half runs every 6 hours in `patched-dependencies.yml` and opens a `patched-dependency` issue when the release that resolves a patch is published.

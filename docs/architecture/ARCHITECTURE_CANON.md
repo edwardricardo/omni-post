@@ -267,6 +267,6 @@ Adding new architecture patterns or amending these rules:
 5. **New DI token** → `TOKENS.MY_DEPENDENCY` symbol, register in `setupContainer`. Never `new` a concrete in domain or application code.
 6. **Amending a canon rule** → ADR required (see `docs/technical/ADR-NNNN-*.md` template via ADR-0001). Update this file with the new wording, link the ADR.
 
-Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
+Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
 
 - `#1` no Prisma in routes · `#2` domain framework-free · `#6` CQRS handlers without raw prisma · `#21` no prisma singleton outside composition roots · `#22` no `@layer application` in apps/api/src · `pnpm check:architecture` (dependency-cruiser rules + the shrink-only baseline).

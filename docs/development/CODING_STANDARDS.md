@@ -465,6 +465,6 @@ Adding or amending coding rules:
 6. **Amending a rule** → ADR required (see ADR-0001 template). Update this doc with the new wording + link the ADR.
 7. **New story requirement or runner change** → ADR (ADR-0035 is the current one); update §"Test Framework Rules", §"Mandatory Requirements for Every Sprint" and `docs/frontend/REACT_STANDARDS.md` together.
 
-Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
+Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
 
 - `#3` no `any` in domain/app/infra · `#4` no raw throws in domain/app · `#5` no `@ts-ignore` · `#8` no sprint/phase refs · `#9` @file header coverage · `#10` valid @layer values · `#12` @component on React components · `#47` method-level JSDoc on every touched file (`pnpm check:jsdoc`).

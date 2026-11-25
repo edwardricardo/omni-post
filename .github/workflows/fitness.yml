@@ -1,11 +1,11 @@
 name: Architectural Fitness Functions
 
-# Wires the fitness greps of docs/development/FITNESS_FUNCTIONS.md, listed in CLAUDE.md
-# §Automated Compliance Checks, to CI (the step summary enumerates the set). Any new
+# Wires the fitness greps of docs/development/FITNESS_FUNCTIONS.md, listed in its
+# inventory, to CI (the step summary enumerates the set). Any new
 # occurrence of any pattern fails the workflow and is annotated on the PR diff.
 #
 # Strategy: hard-zero (each returns count = 0), with the documented ratchets that
-# CLAUDE.md names: #1 and #21 ran as ratchets during the prisma->DI remediation
+# the reference names: #1 and #21 ran as ratchets during the prisma->DI remediation
 # and are hard-zero again; #38 carries one ratcheted sub-count for
 # packages/adapters/db-prisma; #45 and #46 hold one `pending` count per
 # inventory, exact at its pendingBaseline. Every baseline may fall and must
@@ -1567,10 +1567,12 @@ jobs:
           # Mirrors docs/development/FITNESS_FUNCTIONS.md #44. The rule, its fail-closed paths and its residual limits live in
           # scripts/testing/fitness-inventory-gate.mjs, pinned by
           # apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts. This step only runs it; the
-          # script derives N from the step names above and writes the job summary from it.
+          # script derives N from the step names above, holds it against the inventory and the
+          # blocks of docs/development/FITNESS_FUNCTIONS.md and the count sentence of CLAUDE.md
+          # §Automated Compliance Checks, and writes the job summary from it.
           set -euo pipefail
           if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SUMMARY:-/dev/null}"; then
-            echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate; fitness.yml, the blocks of docs/development/FITNESS_FUNCTIONS.md and the list of CLAUDE.md §Automated Compliance Checks disagree on its set, on a check's name or on its command; the stated count is not the derived N; or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
+            echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate; fitness.yml and the blocks and the inventory of docs/development/FITNESS_FUNCTIONS.md disagree on its set, on a check's name or on its command; the count CLAUDE.md §Automated Compliance Checks states is not the derived N, or that section holds a line of the list; or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
             exit 1
           fi
 
@@ -1660,8 +1662,8 @@ jobs:
       - name: "#55 The auto-loaded instruction files match their manifest and budget, and the hooks that enforce them are wired"
         if: always()
         run: |
-          # Mirrors docs/development/FITNESS_FUNCTIONS.md #55, a reference no session loads, so
-          # CLAUDE.md carries only its list line (ADR-0045). The rule, its fail-closed paths and its
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #55, a reference no session loads
+          # (ADR-0045). The rule, its fail-closed paths and its
           # residual limits live in scripts/testing/instruction-context-gate.mjs, pinned by
           # apps/api/tests/unit/scripts/instructionContextGate.test.ts. It reads git's listing and
           # the tracked files only, so it runs here, in the job that installs nothing.
