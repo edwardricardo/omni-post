@@ -685,13 +685,6 @@ def git_subcommand_index(words: list[str], start: int = 0) -> int:
     return _git_subcommand_at(words, start)[0]
 
 
-def git_subcommand(words: list[str]) -> str | None:
-    """The subcommand of the words of one command from its `git` on
-    (`git_subcommand_index`); None when there is none."""
-    j = git_subcommand_index(words)
-    return words[j] if j < len(words) else None
-
-
 def git_subcommands(command: str) -> set[str]:
     """Git subcommands invoked in `command` (`commit`, `fetch`, …); see git_invocations."""
     return {subcommand for subcommand, _ in git_invocations(command)}

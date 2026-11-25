@@ -268,6 +268,41 @@ class SensitiveWriteGateTests(_Gate):
         self.assertEqual(self._gate("bash -c \"bash -c 'git -C /root/omni-post checkout -- .claude/hooks-py/x.py'\""), "blocked(2)")
         self.assertEqual(self._gate("bash -c \"bash -c '/usr/bin/sed -i s/a/b/ .claude/settings.json'\""), "blocked(2)")
 
+    def test_an_unreadable_sibling_does_not_switch_the_word_reading_off(self):
+        self.assertEqual(self._gate("git -C /root/omni-post checkout -- .claude/hooks-py/x.py; echo \"$(echo 'unclosed)\""), "blocked(2)")
+
+    def test_a_script_that_cannot_be_read_is_judged_by_mention(self):
+        for command in (
+            "echo \"$(git -C /r checkout -- .claude/hooks-py/x.py 'unclosed)\"",
+            "echo \"$(/usr/bin/sed -i s/a/b/ .claude/settings.json 'unclosed)\"",
+            "git -C /r restore .claude/settings.json 'unclosed",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_a_git_write_in_a_deep_unquoted_substitution_is_refused(self):
+        deep = "echo " + "$(echo " * 12 + "git -C /r checkout -- .claude/hooks-py/x.py" + ")" * 12
+        self.assertEqual(self._gate(deep), "blocked(2)")
+
+    def test_a_script_past_the_depth_limit_is_judged_by_mention(self):
+        # Each level quotes the next, so no word of an outer level holds the write.
+        command = "bash -c \"bash -c 'git -C /r checkout -- .claude/hooks-py/x.py'\""
+        pre_bash.script_words.cache_clear()
+        self.addCleanup(pre_bash.script_words.cache_clear)
+        with mock.patch.object(pre_bash, "MAX_SHELL_DEPTH", 1):
+            self.assertEqual(pre_bash.strict_write_patterns(command), {"/.claude/hooks-py/"})
+            self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_an_unreadable_sibling_that_names_no_guarded_path_adds_no_refusal(self):
+        for command in (
+            "git -C /tmp/wt checkout -q main; echo \"$(echo 'unclosed)\"",
+            "rg -n x src/app.ts; echo \"$(git -C /tmp/wt checkout -q main 'unclosed)\"",
+            "echo \"$(echo checkout .env; git status 'unclosed)\"",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(pre_bash.strict_write_patterns(command), set())
+                self.assertEqual(self._gate(command), "allowed")
+
     def test_the_word_reading_judges_only_the_paths_a_command_names_itself(self):
         self.assertEqual(pre_bash.strict_write_patterns("git -C /r checkout -- .claude/hooks-py/x.py"), {"/.claude/hooks-py/"})
         self.assertEqual(pre_bash.strict_write_patterns("/usr/bin/sed -i s/a/b/ .env"), {"/.env"})
@@ -377,6 +412,20 @@ class NpxGateTests(_Gate):
         ):
             with self.subTest(command=command):
                 self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, command), "blocked(2)")
+
+    def test_a_package_tool_in_a_script_that_cannot_be_read_is_judged_by_mention(self):
+        for command in (
+            "echo \"$(/usr/bin/npx foo 'unclosed)\"",
+            "echo \"$(npm install x 'unclosed)\"",
+            "(yarn add x 'unclosed)",
+            "echo " + "$(echo " * 12 + "/usr/bin/npx foo" + ")" * 12,
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, command), "blocked(2)")
+
+    def test_an_unreadable_sibling_that_names_no_tool_adds_no_refusal(self):
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "pnpm dlx x; echo \"$(echo 'unclosed)\""), "allowed")
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "echo \"$(pnpm exec npxx 'unclosed)\""), "allowed")
 
     def test_a_package_tool_two_scripts_deep_is_refused(self):
         self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "bash -c \"bash -c 'npx foo'\""), "blocked(2)")

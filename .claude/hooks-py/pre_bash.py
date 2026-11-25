@@ -98,11 +98,21 @@ _UNTOKENIZABLE_WRITE_RE = re.compile(r">>?|\b(?:" + "|".join(sorted(_WRITE_VERBS
 # the guarded paths its OWN command names.
 _GIT_WRITE_SUBCOMMANDS = frozenset({"checkout", "restore", "apply", "revert", "rm", "clean"})
 _IN_PLACE_EDITORS = frozenset({"sd", "sed"})
-# The package tools the convention forbids, as the gate's patterns name them.
+# The package tools the convention forbids, as the gate's patterns name them:
+# after a space or at the start (the patterns), and after any character that
+# ends a word (the reading of a script nobody can tokenize: `$(npx …`,
+# `/usr/bin/npx …`).
 _NPM_YARN_SUBCOMMANDS = r"(install|i|add|ci|run|exec|update|upgrade)"
-_NPM_YARN_RE = re.compile(r"(^|\s)(npm|yarn)\s+" + _NPM_YARN_SUBCOMMANDS)
-_NPX_RE = re.compile(r"(^|\s)npx\s+\S")
+_NPM_YARN = r"(npm|yarn)\s+" + _NPM_YARN_SUBCOMMANDS
+_NPX = r"npx\s+\S"
+_NPM_YARN_RE = re.compile(r"(^|\s)" + _NPM_YARN)
+_NPX_RE = re.compile(r"(^|\s)" + _NPX)
+_NPM_YARN_WORD_RE = re.compile(r"(?<![\w-])" + _NPM_YARN)
+_NPX_WORD_RE = re.compile(r"(?<![\w-])" + _NPX)
 _NPM_YARN_SUBCOMMAND_RE = re.compile(_NPM_YARN_SUBCOMMANDS)
+# A git write named anywhere in a script nobody can tokenize: `git`, then a
+# subcommand of `_GIT_WRITE_SUBCOMMANDS` after it, read as events in one pass.
+_GIT_WRITE_WORDS_RE = re.compile(r"\b(?:git|" + "|".join(sorted(_GIT_WRITE_SUBCOMMANDS)) + r")\b")
 # The in-place construct of `COARSE_WRITE_RES[0]` as events read in one pass:
 # an editor opens it, a `|` or `;` closes it, and `-i` while it is open is the
 # edit. The pattern itself, searched again from each editor word, backtracks
@@ -124,32 +134,51 @@ def _in_place_edit(text: str) -> bool:
     return False
 
 
-def _words_of_scripts(command: str, depth: int) -> list[tuple[str, ...]] | None:
-    """The words of every command of `command` and of every script it hands to
-    a shell or to `eval`, each script tokenized once; None when some part
-    cannot be tokenized or nests past `MAX_SHELL_DEPTH`."""
+def _read_scripts(command: str, depth: int, words: list[tuple[str, ...]], unreadable: list[str]) -> None:
+    """Adds to `words` the words of every command of `command` and of every
+    script it hands to a shell or to `eval`, each script tokenized once, and
+    to `unreadable` the text of each script that cannot be tokenized or lies
+    past `MAX_SHELL_DEPTH`. A script that cannot be read takes its own text
+    with it, and only that: its siblings and its parents are still read."""
+    if depth > MAX_SHELL_DEPTH:
+        unreadable.append(command)
+        return
     nested = nested_scripts(command)
     segments = shell_segments(command)
-    if nested is None or segments is None or depth > MAX_SHELL_DEPTH:
-        return None
-    found = [tuple(command_words(segment)) for segment in segments]
-    for words in found:
-        start = program_index(list(words))
-        if start is not None and words[start] == "eval":
-            nested.append(" ".join(words[start + 1:]))
+    if nested is None or segments is None:
+        unreadable.append(command)
+        return
+    commands = [tuple(command_words(segment)) for segment in segments]
+    words.extend(commands)
+    for command_word in commands:
+        start = program_index(list(command_word))
+        if start is not None and command_word[start] == "eval":
+            nested.append(" ".join(command_word[start + 1:]))
     for script in nested:
-        inner = _words_of_scripts(script, depth + 1)
-        if inner is None:
-            return None
-        found.extend(inner)
-    return found
+        _read_scripts(script, depth + 1, words, unreadable)
 
 
 @functools.lru_cache(maxsize=4)
-def script_words(command: str) -> tuple[tuple[str, ...], ...]:
-    """`_words_of_scripts` of `command`, read once for both gates that use it;
-    empty when some part cannot be read (the patterns then read the text)."""
-    return tuple(_words_of_scripts(command, 0) or ())
+def script_words(command: str) -> tuple[tuple[tuple[str, ...], ...], tuple[str, ...]]:
+    """`_read_scripts` of `command`, read once for both gates that use it: the
+    words of every script that can be read, and the text of every one that
+    cannot."""
+    words: list[tuple[str, ...]] = []
+    unreadable: list[str] = []
+    _read_scripts(command, 0, words, unreadable)
+    return tuple(words), tuple(unreadable)
+
+
+def _git_write_named(text: str) -> bool:
+    """Whether `git` and, after it, a subcommand of `_GIT_WRITE_SUBCOMMANDS`
+    are named anywhere in `text`, decided in one pass."""
+    seen_git = False
+    for word in _GIT_WRITE_WORDS_RE.finditer(text):
+        if word.group(0) == "git":
+            seen_git = True
+        elif seen_git:
+            return True
+    return False
 
 
 def _git_writes(words: tuple[str, ...]) -> bool:
@@ -184,13 +213,21 @@ def strict_write_patterns(command: str) -> set[str]:
     with `-i` called by a path; in `command` and in every script it hands to a
     shell or to `eval`. It only adds to `COARSE_WRITE_RES`, which still reads
     the whole text: `git -C <dir> checkout <ref>` on a line that names a
-    guarded path elsewhere is not refused for it. Each command is read once,
-    so the time grows with the length of the command, not with its square."""
+    guarded path elsewhere is not refused for it. A script nobody can
+    tokenize, or one past the depth limit, is read by mention on its own text,
+    strictly: a git write or an in-place edit named in it, with the guarded
+    paths it names. Each command and each unreadable text is read once, so the
+    time grows with the length of the command, not with its square."""
     found: set[str] = set()
-    for words in script_words(command):
+    commands, unreadable = script_words(command)
+    for words in commands:
         own = " ".join(words)
         named = {pattern for pattern in SENSITIVE_PATTERNS if pattern not in found and _mentions(pattern, own)}
         if named and (_git_writes(words) or _edits_in_place(words)):
+            found |= named
+    for text in unreadable:
+        named = {pattern for pattern in SENSITIVE_PATTERNS if pattern not in found and _mentions(pattern, text)}
+        if named and (_git_write_named(text) or _in_place_edit(text)):
             found |= named
     return found
 
@@ -577,10 +614,13 @@ def package_tool_runs(command: str) -> tuple[bool, bool]:
     names, and npx with an argument: by mention anywhere in the text, and, on
     top, as the program of a command, read by basename, in the command and in
     every script it hands to a shell or to `eval`, where the patterns miss it
-    (`/usr/bin/npx …`, `(npx …)`, `bash -c 'npx …'`, `$(npx …)`)."""
+    (`/usr/bin/npx …`, `(npx …)`, `bash -c 'npx …'`, `$(npx …)`). A script
+    nobody can tokenize, or one past the depth limit, is read by mention on its
+    own text, the tool written as a word with what follows it."""
     npm = _NPM_YARN_RE.search(command) is not None
     npx = _NPX_RE.search(command) is not None
-    for words in script_words(command):
+    commands, unreadable = script_words(command)
+    for words in commands:
         if npm and npx:
             break
         start = program_index(list(words))
@@ -592,6 +632,9 @@ def package_tool_runs(command: str) -> tuple[bool, bool]:
         name = Path(words[start]).name
         npm = npm or (name in ("npm", "yarn") and _NPM_YARN_SUBCOMMAND_RE.match(argument) is not None)
         npx = npx or name == "npx"
+    for text in unreadable:
+        npm = npm or _NPM_YARN_WORD_RE.search(text) is not None
+        npx = npx or _NPX_WORD_RE.search(text) is not None
     return npm, npx
 
 

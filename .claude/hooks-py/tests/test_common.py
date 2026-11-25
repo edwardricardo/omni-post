@@ -33,7 +33,7 @@ from _common import (  # noqa: E402
     current_branch,
     emit_missing_file_context,
     git_invocations,
-    git_subcommand,
+    git_subcommand_index,
     git_subcommands,
     heredocs,
     memory_dir,
@@ -612,20 +612,30 @@ class AppliesToPatternLivenessTests(unittest.TestCase):
         self.assertEqual(_common.dead_applies_to_patterns(index, self.root), {"apps/web/": ["a", "b"]})
 
 
-class GitSubcommandTests(unittest.TestCase):
+class GitSubcommandIndexTests(unittest.TestCase):
     def test_the_subcommand_is_read_past_every_global_option(self):
         for words, expected in (
-            (["git", "checkout", "--", "f"], "checkout"),
-            (["git", "-C", "/r", "checkout", "--", "f"], "checkout"),
-            (["git", "--exec-path=/x", "restore", "f"], "restore"),
-            (["git", "--config-env", "core.pager=P", "rm", "f"], "rm"),
-            (["git", "-c", "a=b", "--git-dir=/r/.git", "clean", "-fd"], "clean"),
-            (["/usr/bin/git", "--no-pager", "log"], "log"),
-            (["git", "-C", "/r"], None),
-            (["git"], None),
+            (["git", "checkout", "--", "f"], 1),
+            (["git", "-C", "/r", "checkout", "--", "f"], 3),
+            (["git", "--exec-path=/x", "restore", "f"], 2),
+            (["git", "--config-env", "core.pager=P", "rm", "f"], 3),
+            (["git", "-c", "a=b", "--git-dir=/r/.git", "clean", "-fd"], 4),
+            (["/usr/bin/git", "--no-pager", "log"], 2),
+            (["git", "-C", "/r"], 3),
+            (["git"], 1),
         ):
             with self.subTest(words=words):
-                self.assertEqual(git_subcommand(words), expected)
+                self.assertEqual(git_subcommand_index(words), expected)
+
+    def test_a_git_after_the_start_of_the_command_is_read_from_its_own_index(self):
+        self.assertEqual(git_subcommand_index(["sudo", "git", "-C", "/r", "rm", "f"], 1), 4)
+        self.assertEqual(git_subcommand_index(["env", "A=1", "git", "status"], 2), 3)
+
+    def test_a_git_taken_as_an_options_value_reaches_the_same_subcommand(self):
+        words = ["git", "-C", "git", "-C", "git", "checkout", "f"]
+        self.assertEqual(git_subcommand_index(words, 0), 5)
+        self.assertEqual(git_subcommand_index(words, 2), 5)
+        self.assertEqual(git_subcommand_index(words, 4), 5)
 
 
 class RepositoryOfTests(unittest.TestCase):
