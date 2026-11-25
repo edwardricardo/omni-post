@@ -175,6 +175,109 @@ class SensitiveWriteGateTests(_Gate):
         self.assertEqual(self._gate('bash -c "rm -rf .claude/hooks-py/tests"'), "blocked(2)")
         self.assertEqual(self._gate("echo x >| .claude/settings.json"), "blocked(2)")
 
+    def test_an_untokenizable_line_with_a_file_redirection_or_an_interpreter_stays_refused(self):
+        for command in (
+            "echo 'x' 2>/dev/null > .env 'unclosed",
+            "echo x 2>&1 >.claude/settings.json 'unclosed",
+            "echo x >& .github/workflows/ci.yml 'unclosed",
+            "echo x >>.env 'unclosed",
+            "python3 -c \"import os; os.remove('.env')\" 'unclosed 2>/dev/null",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_a_real_write_in_code_or_in_command_position_stays_refused_through_every_construct(self):
+        for command in (
+            'bash -c "sed -i s/a/b/ .claude/settings.json"',
+            "sh -c 'git checkout -- .github/workflows/ci.yml'",
+            'eval "sed -i s/a/b/ .env"',
+            "eval 'git checkout -- .env'",
+            "echo .env | xargs sed -i s/a/b/",
+            "env LC_ALL=C sed -i s/a/b/ .env",
+            "sudo sed -i s/a/b/ .env",
+            "nohup perl -i -pe s/a/b/ .env",
+            "time sed -i s/a/b/ .env",
+            "python3 -c \"open('.env','w').write('x')\"",
+            "node -e \"require('fs').writeFileSync('.env','x')\"",
+            "bash <<'EOF'\nsed -i s/a/b/ .env\nEOF",
+            "python3 - <<'EOF'\nopen('.env','w')\nEOF",
+            "cat <<'EOF' | bash\ngit checkout -- .env\nEOF",
+            "ls | sed -i s/a/b/ .env",
+            "true && git checkout -- .env",
+            "false || git restore .env",
+            "ls; sd -i a b .env",
+            'echo "$(sed -i s/a/b/ .env)"',
+            "echo `git checkout -- .env`",
+            "cat <(sed -i s/a/b/ .env)",
+            "ls\nsed -i s/a/b/ .env",
+            "watch -n1 'sed -i s/a/b/ .env'",
+            "git -C . checkout -- .env",
+            "/usr/bin/sed -i s/a/b/ .env",
+            'git rebase --exec "sed -i s/a/b/ .env" HEAD~1',
+            "git -c core.pager='sed -i s/a/b/ .env' log",
+            'GIT_EDITOR="sed -i s/a/b/ .env" git commit',
+            "cat > /tmp/w.mjs <<'EOF'\nimport { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[2], 'x')\nEOF\nnode /tmp/w.mjs .env",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_code_handed_to_another_program_is_read_with_the_whole_line(self):
+        for command in (
+            "echo 'sed -i s/a/b/ .env' | bash",
+            "printf '%s\\n' 'git checkout -- .env' | sh",
+            "bash <<< 'sed -i s/a/b/ .env'",
+            "python3 <<< \"open('.env','w').write('x')\"",
+            "python3 - <<< \"open('.env','w').write('x')\"",
+            ". <(echo 'sed -i s/a/b/ .env')",
+            "c='sed -i s/a/b/ .env'; $c",
+            "c='sed -i s/a/b/ .env' && eval \"$c\"",
+            "export GIT_EDITOR='sed -i s/a/b/ .env'; git commit --amend",
+            "declare -x GIT_EDITOR='sed -i s/a/b/ .env'; git commit --amend",
+            "awk 'BEGIN{system(\"sed -i s/a/b/ .env\")}'",
+            "vim -es -c '!sed -i s/a/b/ .env' -c q",
+            "make --eval='x:; sed -i s/a/b/ .env' x",
+            "tar -cf /dev/null /etc/hostname --checkpoint=1 --checkpoint-action=exec='sed -i s/a/b/ .env'",
+            "gdb -batch -ex 'shell sed -i s/a/b/ .env'",
+            "rsync -e 'sh -c \"sed -i s/a/b/ .env\"' a b",
+            "find . -exec python3 -c \"open('.env','w')\" \\;",
+            "/usr/bin/python3 -c \"open('.env','w')\"",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_an_untokenizable_redirection_to_a_file_stays_refused(self):
+        for command in ("echo x >| .env 'unclosed", "rg x .env > /dev/null.bak 'unclosed", "rg x .env >/dev/nullx 'unclosed"):
+            with self.subTest(command=command):
+                self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_a_git_write_through_a_global_option_is_refused_when_its_own_words_name_the_path(self):
+        for command in (
+            "git -C /root/omni-post checkout -- .claude/hooks-py/x.py",
+            "git --exec-path=/tmp/x checkout -- .claude/hooks-py/x.py",
+            "git --config-env=core.pager=PAGER checkout -- .claude/settings.json",
+            "git -c core.x=y restore .claude/settings.json",
+            "git --git-dir=/r/.git --work-tree=/r rm .github/workflows/ci.yml",
+            'bash -c "git -C /r checkout -- .env"',
+            "eval 'git -C /r checkout -- .env'",
+            "echo \"$(git -C /r checkout -- .env)\"",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._gate(command), "blocked(2)")
+
+    def test_a_git_write_two_scripts_deep_is_refused(self):
+        self.assertEqual(self._gate("bash -c \"bash -c 'git -C /root/omni-post checkout -- .claude/hooks-py/x.py'\""), "blocked(2)")
+        self.assertEqual(self._gate("bash -c \"bash -c '/usr/bin/sed -i s/a/b/ .claude/settings.json'\""), "blocked(2)")
+
+    def test_the_word_reading_judges_only_the_paths_a_command_names_itself(self):
+        self.assertEqual(pre_bash.strict_write_patterns("git -C /r checkout -- .claude/hooks-py/x.py"), {"/.claude/hooks-py/"})
+        self.assertEqual(pre_bash.strict_write_patterns("/usr/bin/sed -i s/a/b/ .env"), {"/.env"})
+        self.assertEqual(pre_bash.strict_write_patterns("set -a; . ./.env.test; set +a; git -C /tmp/wt checkout -q main"), set())
+        self.assertEqual(pre_bash.strict_write_patterns("git -C /r log -- .env"), set())
+        # The patterns read these lines whole; the word reading adds only what they miss.
+        self.assertEqual(pre_bash.strict_write_patterns("perl -i -pe s/a/b/ .env"), set())
+        self.assertEqual(pre_bash.strict_write_patterns('rg "sed -i" .env'), set())
+        self.assertEqual(self._gate("set -a; . ./.env.test; set +a; git -C /tmp/wt checkout -q main"), "allowed")
+
     def test_a_relative_write_is_read_from_the_directory_it_is_written_in(self):
         self.assertEqual(self._gate("cd .claude && rm -rf hooks-py"), "blocked(2)")
         self.assertEqual(self._verdict(pre_bash.gate_sensitive_path_writes_require_token, "echo x > pre_bash.py", Path("/r/.claude/hooks-py")), "blocked(2)")
@@ -217,6 +320,147 @@ class NpxGateTests(_Gate):
         self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "npx cowsay hi"), "blocked(2)")
         self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, NPM_INSTALL), "blocked(2)")
         self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "pnpm dlx cowsay hi"), "allowed")
+
+    def test_a_package_tool_run_in_command_position_or_in_code_stays_refused(self):
+        for command in (
+            "npx lint-staged",
+            "/usr/bin/npx lint-staged",
+            "yarn add left-pad",
+            "sudo npm install -g x",
+            "env FOO=1 npx foo",
+            "nohup npx foo",
+            "time npx foo",
+            "echo a | xargs npx foo",
+            'bash -c "npx foo"',
+            "sh -c 'npm install x'",
+            'eval "npm install x"',
+            'echo "$(npx foo)"',
+            "echo `npx foo`",
+            "cat <(npx foo)",
+            "bash <<'EOF'\nnpx foo\nEOF",
+            "python3 -c \"import os; os.system('cd /x && npx foo')\"",
+            "node -e \"require('child_process').execSync('cd /x && npx foo')\"",
+            # Code handed to an interpreter cannot be read as shell words: a mention there counts.
+            "python3 - <<'EOF'\ntext = 'never npx lint-staged'\nEOF",
+            "ls\nnpx foo",
+            "ls | npx foo",
+            "true && yarn install",
+            "ls; npm ci",
+            "npx foo 'unclosed",
+            "(npx knip --reporter json > /tmp/k.json)",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, command), "blocked(2)")
+
+    def test_the_word_reading_refuses_only_the_runs_the_convention_names(self):
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "/usr/bin/npm install x"), "blocked(2)")
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "/usr/bin/npm view left-pad version"), "allowed")
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "(/usr/bin/npx)"), "allowed")
+
+    def test_a_package_tool_in_code_handed_to_another_program_stays_refused(self):
+        for command in (
+            "echo 'cd /x && npx foo' | bash",
+            "printf '%s\\n' 'cd /x && npm install y' | sh",
+            "bash <<< 'cd /x && npx foo'",
+            "python3 <<< \"import os; os.system('cd /x && npx foo')\"",
+            ". <(echo 'cd /x && npx foo')",
+            "c='cd /x && npx foo'; $c",
+            "c='cd /x && npx foo' && eval \"$c\"",
+            "export GIT_EDITOR='cd /x && npx foo'; git commit --amend",
+            "declare -x GIT_EDITOR='cd /x && npx foo'; git commit --amend",
+            "awk 'BEGIN{system(\"cd /x && npx foo\")}'",
+            "vim -es -c '!cd /x && npx foo' -c q",
+            "make --eval='x:; cd /x && npx foo' x",
+            "tar -cf /dev/null /etc/hostname --checkpoint=1 --checkpoint-action=exec='cd /x && npx foo'",
+            "gdb -batch -ex 'shell cd /x && npx foo'",
+            "rsync -e 'sh -c \"cd /x && npx foo\"' a b",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, command), "blocked(2)")
+
+    def test_a_package_tool_two_scripts_deep_is_refused(self):
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "bash -c \"bash -c 'npx foo'\""), "blocked(2)")
+        self.assertEqual(self._verdict(pre_bash.gate_no_npm_yarn_or_npx, "echo \"$(echo \\\"$(/usr/bin/npx foo)\\\")\""), "blocked(2)")
+
+
+class _CountingPattern:
+    """A compiled pattern whose searches are counted."""
+
+    def __init__(self, pattern, counter: list[int]):
+        self._pattern = pattern
+        self._counter = counter
+
+    def search(self, text):
+        self._counter[0] += 1
+        return self._pattern.search(text)
+
+
+class WordReadingCostTests(_Gate):
+    """A hook that times out does not refuse: the word reading must stay linear
+    in the length of the command, whatever its shape."""
+
+    def setUp(self):
+        super().setUp()
+        self._token = mock.patch.object(pre_bash, "check_grant_token", return_value="missing")
+        self._token.start()
+
+    def tearDown(self):
+        self._token.stop()
+        super().tearDown()
+
+    @staticmethod
+    def _many_editors(count: int) -> str:
+        return "true .claude/settings.json" + " sed" * count + "; sed -i s/a/b/ .claude/settings.json"
+
+    @staticmethod
+    def _many_gits(count: int, subcommand: str = "checkout") -> str:
+        return "git" + " -C git" * count + f" {subcommand} -- .claude/settings.json"
+
+    def _searches(self, command: str) -> int:
+        counter = [0]
+        patterns = [_CountingPattern(rx, counter) for rx in pre_bash.COARSE_WRITE_RES]
+        with mock.patch.object(pre_bash, "COARSE_WRITE_RES", patterns):
+            self.assertEqual(self._verdict(pre_bash.gate_sensitive_path_writes_require_token, command), "blocked(2)")
+        return counter[0]
+
+    def test_the_in_place_reading_searches_once_per_command_not_once_per_word(self):
+        few, many = self._searches(self._many_editors(10)), self._searches(self._many_editors(1000))
+        self.assertEqual(few, many, "searches must not grow with the number of editor words")
+        with mock.patch.object(pre_bash, "_in_place_edit", wraps=pre_bash._in_place_edit) as reading:
+            self._verdict(pre_bash.gate_sensitive_path_writes_require_token, self._many_editors(1000))
+        self.assertLessEqual(reading.call_count, 2, "one reading per command of the line")
+
+    def test_the_git_reading_walks_each_word_once(self):
+        for subcommand, verdict in (("checkout", "blocked(2)"), ("status", "allowed")):
+            with self.subTest(subcommand=subcommand):
+                with mock.patch.object(_common, "_git_subcommand_at", wraps=_common._git_subcommand_at) as walk:
+                    self.assertEqual(self._verdict(pre_bash.gate_sensitive_path_writes_require_token, self._many_gits(1000, subcommand)), verdict)
+                self.assertLessEqual(walk.call_count, 2, "a git word an earlier git consumed as an option value is not walked again")
+
+    def test_a_hostile_command_of_8_kb_is_decided_in_under_2_seconds(self):
+        import time
+
+        for command in (
+            self._many_editors(2000),
+            self._many_gits(1200),
+            self._many_gits(1200, "status"),
+            "echo " + "$(echo " * 1000 + ")" * 1000,
+        ):
+            with self.subTest(size=len(command), head=command[:20]):
+                started = time.monotonic()
+                self._verdict(pre_bash.gate_sensitive_path_writes_require_token, command)
+                self._verdict(pre_bash.gate_no_npm_yarn_or_npx, command)
+                self.assertLess(time.monotonic() - started, 2.0)
+
+    def test_the_one_pass_reading_agrees_with_the_in_place_pattern(self):
+        import random
+
+        pieces = ["sed", "sd", "perl", "ruby", "-i", "-in", "-i.bak", "ased", "sedx", "x", "|", ";", " ", "\n", "'", "s/a/b/", "-", "i"]
+        rng = random.Random(20261125)
+        for _ in range(4000):
+            text = "".join(rng.choice(pieces) for _ in range(rng.randint(0, 12)))
+            with self.subTest(text=text):
+                self.assertEqual(pre_bash._in_place_edit(text), pre_bash.COARSE_WRITE_RES[0].search(text) is not None)
 
 
 class MigrateGateTests(_Gate):
