@@ -6,10 +6,14 @@ name: Error Sites Stall
 # eslint-suppressions.json and the dates of their history rows and, when the list is above zero and
 # no row was added in the last 14 days, opens one issue (label error-sites-stalled), comments on it
 # once a day while it stays open, reopens it when it is closed while the list still stalls, and
-# fails the run. An input the gate cannot read (the suppressions file, the history or a GitHub call)
-# is retried, three attempts 30 s then 60 s apart, and then fails the run under its own title, so a
-# transient failure never reads as a stalled list; the gate opens no second issue, and on a day when
-# the list did not change it posts no second comment, so a retry repeats nothing it already did.
+# fails the run. Every outcome of the gate has an exit code of its own and a branch of its own, so no
+# failure reads as another. A GitHub call that failed for a moment is the one state a retry can
+# change: it is retried, three attempts 30 s then 60 s apart, and then fails the run under its own
+# title; the gate opens no second issue, and on a day when the list did not change it posts no second
+# comment, so a retry repeats nothing it already did. A call GitHub refused, a gh the runner cannot
+# start and a state of the checkout (an unreadable input, a list with no history row to date it, a
+# row dated after today) fail the run at once, named, since a retry meets the same state; and a code
+# the step does not know, Node's 1 among them, is the alarm itself failing.
 # This mode reads tracked files only, so the job installs nothing. The rest of the same gate is
 # fitness #57 (fitness.yml, Dependency Consistency job) and the battery step errors; this half stays
 # out of pull-request CI, so the calendar never blocks unrelated work. Pinned by
@@ -43,30 +47,81 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Exit codes of the mode: 0 the list is empty, or a history row was added inside the
-          # window; 1 the list is above zero and no row was added in 14 days (the signal); 2 a usage
-          # error; 3 an input could not be read (the suppressions file, the history or GitHub).
-          # Only 3 is retried: an API hiccup gets three attempts, 30 s then 60 s apart, so a
-          # transient failure and a stalled list never share a verdict or a title.
-          # --stalled compares the newest history row's date with today, in UTC; a list above zero
-          # with no row to date it, or with a newest row dated after today, is exit 3. --remind then
-          # opens the issue, comments on it once a day and reopens it if closed, and makes no API
-          # call otherwise.
+          # Exit codes of the mode, one meaning each, defined once as STALL_EXIT in
+          # scripts/testing/error-sites-gate.mjs:
+          #   0  not stalled: the list is empty, or a history row is dated inside the window
+          #   20 stalled: the list is above zero and no row was added in 14 days (the signal)
+          #   21 the list is above zero and its history does not exist or holds no row
+          #   22 the newest history row is dated after today, in UTC
+          #   23 eslint-suppressions.json could not be read
+          #   24 the history could not be read: its directory, or an entry of it
+          #   25 GitHub refused a call: a 4xx other than 408 and 429 that names no rate limit, gh's
+          #      exit 4 (not authenticated), or "Resource not accessible by ..." with or without a
+          #      status: the token or its permission
+          #   26 gh could not be run on the runner (ENOENT, EACCES)
+          #   27 a GitHub call failed for a moment while the list stalls: a 5xx, a 408, a 429, a
+          #      rate limit (on a 403 or a 429), a network error, a timeout, an answer that cannot
+          #      be read, or a failure with no status and no mark of a refusal, which may not be
+          #      momentary and is retried all the same
+          #   28 the issue listing filled its page, so the stall's issue could lie past it
+          #   2  a usage error in this step
+          #   1, 3, or any code not listed: the alarm itself failed (1 is Node's code for a script
+          #      that fails to load or throws before it decides; no path of the mode exits 3)
+          # Only 27 is retried, three attempts 30 s then 60 s apart: every other state is one a
+          # retry meets unchanged. --stalled compares the newest history row's date with today, in
+          # UTC; --remind then opens the issue, comments on it once a day and reopens it if closed,
+          # and makes no API call otherwise.
           status=0
           for attempt in 1 2 3; do
             status=0
             node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind || status=$?
-            [ "$status" -eq 3 ] || break
+            [ "$status" -eq 27 ] || break
             [ "$attempt" -eq 3 ] || sleep $((attempt * 30))
           done
           case "$status" in
             0) ;;
-            1)
+            20)
               echo "::error title=Error sites stalled::The list of existing error sites is above zero and no history row was added in the last 14 days. The error-sites-gate lines above give the total, the count per context and the date of the newest row; the issue labelled error-sites-stalled carries the same. Sweep the next context (convert its sites to the registry and record the change with node scripts/testing/error-sites-gate.mjs --record), or record the Maintainer's decision on the pace in the issue."
-              exit 1
+              exit "$status"
+              ;;
+            27)
+              echo "::error title=Error sites stall: a GitHub call failed::The gate exited 27 in each of 3 attempts, 30 s then 60 s apart: the list stalled (the error-sites-gate lines above give the total, the count per context and the newest row's date), and a GitHub call failed for a moment (a 5xx, a 408, a 429, a rate limit, a network error, a timeout, an answer that cannot be read, or a failure with no status and no mark of a refusal), so the issue labelled error-sites-stalled was not kept today. The last line above gives the call's error. Re-run the workflow once GitHub answers or the rate limit resets; if the same line repeats, it is no passing failure: read it."
+              exit "$status"
+              ;;
+            25)
+              echo "::error title=Error sites stall: GitHub refused a call::The gate exited 25 at once, with no retry: the list stalled (the lines above give its counts), and GitHub refused a call of the reminder (a 4xx status other than 408 and 429 that names no rate limit, gh's exit 4 for a missing authentication, or a resource not accessible to the token), so the issue labelled error-sites-stalled was not kept. The last line above names the refusal. Fix the token or its permission (this job grants issues: write), then re-run the workflow."
+              exit "$status"
+              ;;
+            26)
+              echo "::error title=Error sites stall: gh cannot be run::The gate exited 26 at once, with no retry: the list stalled (the lines above give its counts), and the runner could not start gh (ENOENT or EACCES), so the issue labelled error-sites-stalled was not kept. Fix the runner image or the step's PATH so gh runs, then re-run the workflow."
+              exit "$status"
+              ;;
+            28)
+              echo "::error title=Error sites stall: the issue listing is a full page::The gate exited 28 at once, with no retry: the list stalled (the lines above give its counts), and GitHub listed a full page of issues labelled error-sites-stalled, so the stall's issue could lie past it and the reminder opened and commented nothing, to open no second issue. Close or relabel the stale issues labelled error-sites-stalled until fewer than a page remain, then re-run the workflow."
+              exit "$status"
+              ;;
+            21)
+              echo "::error title=Error sites list has no history row to date it::The gate exited 21 at once, with no retry: the list of existing error sites is above zero and scripts/testing/error-sites-history/ does not exist or holds no row, so nothing dates the list and its stall cannot be read. Every rule with entries is born by a row (fitness #57, S3): restore the history on main."
+              exit "$status"
+              ;;
+            22)
+              echo "::error title=Error sites history row dated after today::The gate exited 22 at once, with no retry: the newest row of scripts/testing/error-sites-history/ is dated after today in UTC, which is no day a row was recorded on, so the window cannot be read from it. The line above names the row; correct its date on main (fitness #57, S10, refuses such a row on a pull request)."
+              exit "$status"
+              ;;
+            23)
+              echo "::error title=Error sites suppressions file could not be read::The gate exited 23 at once, with no retry: eslint-suppressions.json cannot be read, is not JSON or is not ESLint's shape for an errors/ entry, so the list cannot be counted. The line above gives the reason; fix the file on main."
+              exit "$status"
+              ;;
+            24)
+              echo "::error title=Error sites history could not be read::The gate exited 24 at once, with no retry: scripts/testing/error-sites-history/ could not be read, the directory itself or an entry of it that is no row file, is not JSON or is not a row. The lines above name the directory or each entry; fix them on main."
+              exit "$status"
+              ;;
+            2)
+              echo "::error title=Error sites stall step has a usage error::The gate exited 2: the command of this step does not match the gate's usage, which the line above prints. Fix the step; the list's state was not read."
+              exit "$status"
               ;;
             *)
-              echo "::error title=Error sites gate could not read its inputs::The gate exited $status. Exit 3, after 3 attempts 30 s then 60 s apart, means the suppressions file, the history or a GitHub call could not be read; exit 2 is a usage error in this step. Neither says the list stalled: read the lines above and re-run the workflow."
+              echo "::error title=Error sites stall alarm failed::The gate exited $status, which is no outcome of the stall mode: exit 1 is Node's code for a script that failed to load or threw before it decided, and its stack is above; no path of the mode exits 3. The alarm itself failed, so the list's state is unknown: fix the gate and re-run the workflow."
               exit "$status"
               ;;
           esac

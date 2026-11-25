@@ -106,6 +106,18 @@ type GateModule = {
   checkStall: (input: StallInput) => Outcome;
   readHistory: (root: string) => History;
   stateOf: (rows: readonly { row: Row }[]) => Map<string, number>;
+  STALL_EXIT: Readonly<{
+    NOT_STALLED: number;
+    GITHUB_FAILED: number;
+    STALLED: number;
+    UNDATED: number;
+    FUTURE_ROW: number;
+    BASELINE_UNREADABLE: number;
+    HISTORY_UNREADABLE: number;
+    GITHUB_REFUSED: number;
+    GH_NOT_RUNNABLE: number;
+    ISSUE_PAGE_FULL: number;
+  }>;
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
@@ -123,6 +135,7 @@ const {
   checkStall,
   readHistory,
   stateOf,
+  STALL_EXIT,
 } = (await import(GATE_SCRIPT)) as GateModule;
 /** The function the gate's own git calls run through, which drops the variables of another repository. */
 const { gitEnvironment: withoutForeignGit } = (await import(
@@ -2148,10 +2161,10 @@ const issueOf = (state: string, created: string): Record<string, unknown> => ({
 });
 
 describe("--stalled: whether the list stopped shrinking", () => {
-  it("exits 1 when the list is above zero and the newest row is dated the window's length before today, giving the total, each context and that date", () => {
+  it("exits STALLED when the list is above zero and the newest row is dated the window's length before today, giving the total, each context and that date", () => {
     plantClean();
 
-    expect(stall()).toEqual({ exitCode: 1, stdout: [], stderr: STALL_LINES });
+    expect(stall()).toEqual({ exitCode: STALL_EXIT.STALLED, stdout: [], stderr: STALL_LINES });
   });
 
   it("counts the window from the newest row, not the first, and holds a row of the thirteenth day inside it", () => {
@@ -2170,7 +2183,7 @@ describe("--stalled: whether the list stopped shrinking", () => {
       ],
       stderr: [],
     });
-    expect(over.exitCode).toBe(1);
+    expect(over.exitCode).toBe(STALL_EXIT.STALLED);
     expect(over.stderr[0]).toBe(
       `${PREFIX}STALLED: no history row was added in the last 14 days: the newest, ${HISTORY}/2026-11-25-admin.json, is dated 2026-11-25, 14 days before today, 2026-12-09 (UTC)`
     );
@@ -2193,7 +2206,7 @@ describe("--stalled: whether the list stopped shrinking", () => {
 
     const outcome = stall();
 
-    expect(outcome.exitCode).toBe(1);
+    expect(outcome.exitCode).toBe(STALL_EXIT.STALLED);
     expect(outcome.stderr.slice(1)).toEqual([
       `${PREFIX}1 site in 1 context`,
       `${PREFIX}core/auth: 1 site`,
@@ -2204,13 +2217,13 @@ describe("--stalled: whether the list stopped shrinking", () => {
     ["does not exist", () => remove(HISTORY)],
     ["holds no row", () => remove(ROW)],
   ])(
-    "exits 3 when the list is above zero and its history %s, since such a list cannot be dated",
+    "exits UNDATED when the list is above zero and its history %s, since such a list cannot be dated",
     (what, plant) => {
       plantClean();
       plant();
 
       expect(stall()).toEqual({
-        exitCode: 3,
+        exitCode: STALL_EXIT.UNDATED,
         stdout: [],
         stderr: [
           `${PREFIX}${HISTORY} ${what}, so the list of 5 sites cannot be dated: a list above zero is dated by the rows of its history`,
@@ -2224,30 +2237,35 @@ describe("--stalled: whether the list stopped shrinking", () => {
       "the suppressions file is not JSON",
       () => write(BASELINE, "{ broken\n"),
       `${PREFIX}${BASELINE} is not JSON:`,
+      STALL_EXIT.BASELINE_UNREADABLE,
     ],
     [
       "a row of the history is no row",
       () => addRow("2026-11-21-bad.json", { version: 1, fixed: {} }),
       `${PREFIX}${HISTORY}/2026-11-21-bad.json: is not a row of the history:`,
+      STALL_EXIT.HISTORY_UNREADABLE,
     ],
-  ])("exits 3, not 1, when %s, though the window is over", (_label, plant, message) => {
-    plantClean();
-    plant();
+  ])(
+    "exits the code of the input it cannot read, not STALLED, when %s, though the window is over",
+    (_label, plant, message, code) => {
+      plantClean();
+      plant();
 
-    const outcome = stall();
+      const outcome = stall();
 
-    expect(outcome.exitCode).toBe(3);
-    expect(outcome.stdout).toEqual([]);
-    expect(outcome.stderr).toHaveLength(1);
-    expect(outcome.stderr[0]?.startsWith(message)).toBe(true);
-  });
+      expect(outcome.exitCode).toBe(code);
+      expect(outcome.stdout).toEqual([]);
+      expect(outcome.stderr).toHaveLength(1);
+      expect(outcome.stderr[0]?.startsWith(message)).toBe(true);
+    }
+  );
 
-  it("exits 3 when the newest row is dated after today, a day no row was recorded on", () => {
+  it("exits FUTURE_ROW when the newest row is dated after today, a day no row was recorded on", () => {
     plantClean();
     addRow("2026-12-05-admin.json", { version: 1, fixed: { "api/admin": 1 } });
 
     expect(stall()).toEqual({
-      exitCode: 3,
+      exitCode: STALL_EXIT.FUTURE_ROW,
       stdout: [],
       stderr: [
         `${PREFIX}the newest history row, ${HISTORY}/2026-12-05-admin.json, is dated 2026-12-05, after today, 2026-12-04 (UTC): a row is dated the day it is recorded, so the window cannot be read from it`,
@@ -2277,19 +2295,19 @@ describe("--stalled: whether the list stopped shrinking", () => {
     const west = inZone("Pacific/Pago_Pago", "2026-12-04T00:30:00Z");
 
     expect(east).toBe("0 4");
-    expect(west).toBe("1 3");
+    expect(west).toBe(`${String(STALL_EXIT.STALLED)} 3`);
   });
 });
 
 describe("--stalled --remind: one issue, a comment a day", () => {
-  it("opens one labelled issue that carries the facts when none exists, and still exits 1", () => {
+  it("opens one labelled issue that carries the facts when none exists, and still exits STALLED", () => {
     plantClean();
     const double = ghDouble();
 
     const outcome = stall({ gh: double.gh });
 
     expect(outcome).toEqual({
-      exitCode: 1,
+      exitCode: STALL_EXIT.STALLED,
       stdout: [`${PREFIX}remind: open: ${STALL_TITLE}`],
       stderr: STALL_LINES,
     });
@@ -2324,7 +2342,7 @@ describe("--stalled --remind: one issue, a comment a day", () => {
 
     const outcome = stall({ gh: double.gh });
 
-    expect(outcome.exitCode).toBe(1);
+    expect(outcome.exitCode).toBe(STALL_EXIT.STALLED);
     expect(outcome.stdout).toEqual([`${PREFIX}remind: comment #4: ${STALL_TITLE}`]);
     expect(double.calls).toEqual([
       ISSUES_CALL,
@@ -2386,21 +2404,26 @@ describe("--stalled --remind: one issue, a comment a day", () => {
     expect(double.calls).toEqual([]);
   });
 
-  it("exits 3, not 1, when a GitHub call fails, with the stall's lines and the call's error", () => {
+  it("exits GITHUB_FAILED, not STALLED, when a GitHub call fails for a moment, with the stall's lines and the call's error", () => {
     plantClean();
     const double = ghDouble({ failsOn: ["issue", "create"] });
 
     const outcome = stall({ gh: double.gh });
 
     expect(outcome).toEqual({
-      exitCode: 3,
+      exitCode: STALL_EXIT.GITHUB_FAILED,
       stdout: [],
       stderr: [...STALL_LINES, `${PREFIX}GitHub: HTTP 502: Bad Gateway`],
     });
   });
 
   it.each([
-    ["is no list", { listing: { message: "Not Found" } }],
+    [
+      "is no list",
+      { listing: { message: "Not Found" } },
+      STALL_EXIT.GITHUB_FAILED,
+      `GitHub answered what cannot be read: listing the ${STALL_LABEL} issues returned no list, or a full page`,
+    ],
     [
       "is a full page of 100 other issues, past which the stall's issue could be",
       {
@@ -2411,27 +2434,29 @@ describe("--stalled --remind: one issue, a comment a day", () => {
           created_at: "2026-11-01T00:00:00Z",
         })),
       },
+      STALL_EXIT.ISSUE_PAGE_FULL,
+      `GitHub listed a full page of 100 ${STALL_LABEL} issues, so the stall's issue could lie past it: listing the ${STALL_LABEL} issues returned no list, or a full page`,
     ],
-  ])("exits 3, opening and commenting nothing, when the issue listing %s", (_label, answers) => {
-    plantClean();
-    const double = ghDouble(answers);
+  ])(
+    "exits the code of the listing's state, opening and commenting nothing, when the issue listing %s",
+    (_label, answers, code, line) => {
+      plantClean();
+      const double = ghDouble(answers);
 
-    const outcome = stall({ gh: double.gh });
+      const outcome = stall({ gh: double.gh });
 
-    expect(outcome).toEqual({
-      exitCode: 3,
-      stdout: [],
-      stderr: [
-        ...STALL_LINES,
-        `${PREFIX}GitHub: listing the ${STALL_LABEL} issues returned no list, or a full page`,
-      ],
-    });
-    expect(double.calls).toEqual([ISSUES_CALL]);
-  });
+      expect(outcome).toEqual({
+        exitCode: code,
+        stdout: [],
+        stderr: [...STALL_LINES, `${PREFIX}${line}`],
+      });
+      expect(double.calls).toEqual([ISSUES_CALL]);
+    }
+  );
 });
 
 describe("the stall workflow", () => {
-  it("runs the exact command of the stall mode and retries only exit 3", () => {
+  it("runs the exact command of the stall mode and retries only GITHUB_FAILED", () => {
     const workflow = readFileSync(
       path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
       "utf8"
@@ -2446,18 +2471,23 @@ describe("the stall workflow", () => {
     expect(runs).toEqual([
       "node scripts/testing/error-sites-gate.mjs --stalled --days 14 --remind || status=$?",
     ]);
-    expect(retries).toEqual(['[ "$status" -eq 3 ] || break']);
+    expect(retries).toEqual([`[ "$status" -eq ${String(STALL_EXIT.GITHUB_FAILED)} ] || break`]);
   });
 });
 
-describe("--stalled from the command line", () => {
-  const runCommand = (args: readonly string[], environment: NodeJS.ProcessEnv = {}) =>
-    spawnSync(process.execPath, [GATE_SCRIPT, ...args], {
-      cwd: root,
-      encoding: "utf8",
-      env: { ...gitEnvironment(), FITNESS_BASE_REF: "", ...environment },
-    });
+/** Runs a copy of the gate (this one by default) as a process in the case's root. */
+const runCommand = (
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv = {},
+  options: { script?: string; node?: readonly string[] } = {}
+) =>
+  spawnSync(process.execPath, [...(options.node ?? []), options.script ?? GATE_SCRIPT, ...args], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...gitEnvironment(), FITNESS_BASE_REF: "", ...environment },
+  });
 
+describe("--stalled from the command line", () => {
   it.each([
     [
       "--stalled with --record",
@@ -2514,7 +2544,7 @@ describe("--stalled from the command line", () => {
         environment
       );
 
-      expect(undated.status).toBe(3);
+      expect(undated.status).toBe(STALL_EXIT.UNDATED);
       expect(undated.stderr).toBe(
         `${PREFIX}${HISTORY} does not exist, so the list of 5 sites cannot be dated: a list above zero is dated by the rows of its history\n`
       );
@@ -2526,5 +2556,637 @@ describe("--stalled from the command line", () => {
     } finally {
       rmSync(bin, { recursive: true, force: true });
     }
+  });
+});
+
+describe("--stalled: one exit code per meaning", () => {
+  /** The UTC day `offset` days from the instant the case runs, the clock the process reads. */
+  const utcDayFromNow = (offset: number): string =>
+    new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  /** The stall mode's arguments in the case's root. */
+  const stallArgs = (...extra: string[]): string[] => [
+    "--stalled",
+    "--days",
+    "14",
+    "--root",
+    root,
+    ...extra,
+  ];
+  /** Puts `bin` first on the path, so the `gh` it holds is the one the gate runs. */
+  const ghFrom = (bin: string): NodeJS.ProcessEnv => ({
+    PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
+  });
+  /** Writes a `gh` into the scratch directory that runs the given lines. */
+  const writeGh = (lines: readonly string[], mode = 0o755): void => {
+    writeFileSync(path.join(scratch, "gh"), [`#!${process.execPath}`, ...lines].join("\n"), {
+      mode,
+    });
+  };
+
+  /** Moves the clean tree's one row to the given day, so the process's own clock dates it. */
+  const birthOn = (day: string): string => {
+    remove(ROW);
+    const file = `${HISTORY}/${day}-birth.json`;
+    writeJson(file, BIRTH);
+    return file;
+  };
+
+  let scratch = "";
+  beforeEach(() => {
+    scratch = mkdtempSync(path.join(tmpdir(), "error-sites-stall-codes-"));
+  });
+  afterEach(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it("gives every meaning a code of its own, none of them 1 or 2", () => {
+    const codes = Object.values(STALL_EXIT);
+
+    expect(STALL_EXIT).toEqual({
+      NOT_STALLED: 0,
+      STALLED: 20,
+      UNDATED: 21,
+      FUTURE_ROW: 22,
+      BASELINE_UNREADABLE: 23,
+      HISTORY_UNREADABLE: 24,
+      GITHUB_REFUSED: 25,
+      GH_NOT_RUNNABLE: 26,
+      GITHUB_FAILED: 27,
+      ISSUE_PAGE_FULL: 28,
+    });
+    expect(new Set(codes).size).toBe(codes.length);
+    expect(codes).not.toContain(1);
+    expect(codes).not.toContain(2);
+    expect(codes).not.toContain(3);
+  });
+
+  it("exits NOT_STALLED and says so when the list is empty", () => {
+    plantClean();
+    writeJson(BASELINE, NO_ERROR_SITES);
+
+    const result = runCommand(stallArgs());
+
+    expect(result.status).toBe(STALL_EXIT.NOT_STALLED);
+    expect(result.stdout).toBe(`${PREFIX}not stalled: the list of existing error sites is empty\n`);
+    expect(result.stderr).toBe("");
+  });
+
+  it("exits STALLED with the stall's lines when the newest row is older than the window", () => {
+    plantClean();
+    const day = utcDayFromNow(-20);
+    const file = birthOn(day);
+
+    const result = runCommand(stallArgs());
+    const lines = result.stderr.split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.STALLED);
+    expect(result.stdout).toBe("");
+    expect(lines[0]).toMatch(
+      new RegExp(
+        `^${PREFIX}STALLED: no history row was added in the last 14 days: the newest, ${file}, is dated ${day}, 2[01] days before today, \\d{4}-\\d{2}-\\d{2} \\(UTC\\)$`
+      )
+    );
+    expect(lines.slice(1)).toEqual([...STALL_LINES.slice(1), ""]);
+  });
+
+  it("exits GITHUB_FAILED, the code the workflow retries, when a GitHub call fails while the list stalls", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeFileSync(
+      path.join(scratch, "gh"),
+      [
+        `#!${process.execPath}`,
+        'process.stderr.write("HTTP 502: Bad Gateway\\n");',
+        "process.exit(1);",
+      ].join("\n"),
+      { mode: 0o755 }
+    );
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GITHUB_FAILED);
+    expect(lines[0]).toMatch(new RegExp(`^${PREFIX}STALLED: `));
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]).toBe(
+      `${PREFIX}GitHub: Command failed: gh api repos/{owner}/{repo}/issues?labels=${STALL_LABEL}&state=all&per_page=100`
+    );
+    expect(lines[5]).toBe("HTTP 502: Bad Gateway");
+  });
+
+  it.each([
+    ["GITHUB_REFUSED", 401],
+    ["GITHUB_REFUSED", 403],
+    ["GITHUB_REFUSED", 404],
+    ["GITHUB_REFUSED", 422],
+    ["GITHUB_FAILED", 408],
+    ["GITHUB_FAILED", 429],
+    ["GITHUB_FAILED", 502],
+  ] as const)(
+    "exits %s when GitHub answers the reminder's first call with HTTP %i",
+    (name, status) => {
+      plantClean();
+      birthOn(utcDayFromNow(-20));
+      writeGh([
+        `process.stderr.write("gh: the answer (HTTP ${String(status)})\\n");`,
+        "process.exit(1);",
+      ]);
+
+      const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+      const lines = result.stderr.trimEnd().split("\n");
+      const call = `Command failed: gh api repos/{owner}/{repo}/issues?labels=${STALL_LABEL}&state=all&per_page=100`;
+
+      expect(result.status).toBe(STALL_EXIT[name]);
+      expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+      expect(lines[4]).toBe(
+        name === "GITHUB_REFUSED"
+          ? `${PREFIX}GitHub refused the call (HTTP ${String(status)}): ${call}`
+          : `${PREFIX}GitHub: ${call}`
+      );
+      expect(lines[5]).toBe(`gh: the answer (HTTP ${String(status)})`);
+    }
+  );
+
+  it.each([
+    ["ENOENT", "no gh on the path", () => undefined],
+    ["EACCES", "a gh that is not executable", () => writeGh(["process.exit(0);"], 0o644)],
+  ])("exits GH_NOT_RUNNABLE, naming %s, when the runner finds %s", (code, _what, plant) => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    plant();
+
+    const result = runCommand(stallArgs("--remind"), { PATH: scratch });
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GH_NOT_RUNNABLE);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]).toBe(`${PREFIX}gh could not be run (${code}): spawnSync gh ${code}`);
+  });
+
+  it.each([
+    [
+      "a 429",
+      ['process.stderr.write("gh: slow down (HTTP 429)\\n");', "process.exit(1);"],
+      "GitHub: Command failed:",
+    ],
+    [
+      "a 502",
+      ['process.stderr.write("gh: bad gateway (HTTP 502)\\n");', "process.exit(1);"],
+      "GitHub: Command failed:",
+    ],
+    [
+      "a network error",
+      ['process.stderr.write("error connecting to api.github.com\\n");', "process.exit(1);"],
+      "GitHub: Command failed:",
+    ],
+    [
+      "an answer that is not JSON",
+      ['process.stdout.write("<html>busy</html>");'],
+      "GitHub answered what cannot be read: ",
+    ],
+  ])("exits GITHUB_FAILED, never 3, when the reminder meets %s", (_label, ghLines, start) => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh(ghLines);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GITHUB_FAILED);
+    expect(result.status).not.toBe(3);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]?.startsWith(`${PREFIX}${start}`)).toBe(true);
+  });
+
+  it("exits ISSUE_PAGE_FULL, which the workflow does not retry, when the issue listing is a full page", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([
+      'if (process.argv[2] === "api") {',
+      "  const issues = Array.from({ length: 100 }, (_, index) => ({",
+      "    number: index + 10,",
+      '    title: "Another issue " + String(index),',
+      '    state: "open",',
+      '    created_at: "2026-11-01T00:00:00Z",',
+      "  }));",
+      "  process.stdout.write(JSON.stringify(issues));",
+      "}",
+    ]);
+    const retried = readFileSync(
+      path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
+      "utf8"
+    )
+      .split("\n")
+      .flatMap((line) => /\[ "\$status" -eq (\d+) \] \|\| break/.exec(line)?.[1] ?? [])
+      .map(Number);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.ISSUE_PAGE_FULL);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]).toBe(
+      `${PREFIX}GitHub listed a full page of 100 ${STALL_LABEL} issues, so the stall's issue could lie past it: listing the ${STALL_LABEL} issues returned no list, or a full page`
+    );
+    expect(retried).toEqual([STALL_EXIT.GITHUB_FAILED]);
+    expect(retried).not.toContain(STALL_EXIT.ISSUE_PAGE_FULL);
+  });
+
+  it("exits 1, Node's own code, with the stack of a plain Error a fault raises inside the reminder", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh(["process.stdout.write('[\"FAULT-MARKER\"]');"]);
+    const fault = path.join(scratch, "fault.mjs");
+    writeFileSync(
+      fault,
+      [
+        "const parse = JSON.parse;",
+        "JSON.parse = (text, ...rest) => {",
+        '  if (String(text).includes("FAULT-MARKER")) throw new Error("the reminder failed plainly");',
+        "  return parse(text, ...rest);",
+        "};",
+      ].join("\n")
+    );
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch), {
+      node: ["--import", pathToFileURL(fault).href],
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Error: the reminder failed plainly");
+    expect(result.stderr).toContain("issue-reminder.mjs");
+    expect(result.stderr).not.toContain(PREFIX);
+  });
+
+  it("exits 1, Node's own code, with the stack of a fault the reminder raises, which no retry changes", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh(["process.stdout.write('[\"FAULT-MARKER\"]');"]);
+    const fault = path.join(scratch, "fault.mjs");
+    writeFileSync(
+      fault,
+      [
+        "const parse = JSON.parse;",
+        "JSON.parse = (text, ...rest) => {",
+        '  if (String(text).includes("FAULT-MARKER")) throw new TypeError("the reminder failed");',
+        "  return parse(text, ...rest);",
+        "};",
+      ].join("\n")
+    );
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch), {
+      node: ["--import", pathToFileURL(fault).href],
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("TypeError: the reminder failed");
+    expect(result.stderr).toContain("issue-reminder.mjs");
+    expect(result.stderr).not.toContain(PREFIX);
+  });
+
+  it.each([
+    [
+      "GITHUB_FAILED",
+      "a primary rate limit on a 403",
+      [
+        'process.stderr.write("gh: API rate limit exceeded for installation ID 12345. (HTTP 403)\\n");',
+      ],
+      "GitHub rate-limited the call: Command failed:",
+    ],
+    [
+      "GITHUB_FAILED",
+      "a secondary rate limit on a 403",
+      [
+        'process.stderr.write("gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again. (HTTP 403)\\n");',
+      ],
+      "GitHub rate-limited the call: Command failed:",
+    ],
+    [
+      "GITHUB_FAILED",
+      "a rate limit on a 429",
+      [
+        'process.stderr.write("gh: API rate limit exceeded for installation ID 12345. (HTTP 429)\\n");',
+      ],
+      "GitHub rate-limited the call: Command failed:",
+    ],
+    [
+      "GITHUB_REFUSED",
+      "a 403 that names no rate limit",
+      ['process.stderr.write("gh: Must have admin rights to Repository. (HTTP 403)\\n");'],
+      "GitHub refused the call (HTTP 403): Command failed:",
+    ],
+  ] as const)("exits %s on %s", (name, _label, ghLines, start) => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([...ghLines, "process.exit(1);"]);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT[name]);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]?.startsWith(`${PREFIX}${start}`)).toBe(true);
+  });
+
+  it("exits GITHUB_REFUSED when gh exits 4, its code for a command that needs authentication", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([
+      'process.stderr.write("To get started with GitHub CLI, please run:  gh auth login\\n");',
+      "process.exit(4);",
+    ]);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GITHUB_REFUSED);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]?.startsWith(`${PREFIX}gh is not authenticated (exit 4): Command failed:`)).toBe(
+      true
+    );
+  });
+
+  it("exits GITHUB_REFUSED when a GraphQL call is refused as not accessible to the token, with no HTTP status", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([
+      'if (process.argv[2] === "api") process.stdout.write("[]");',
+      'if (process.argv[2] === "issue") {',
+      '  process.stderr.write("GraphQL: Resource not accessible by integration (createIssue)\\n");',
+      "  process.exit(1);",
+      "}",
+    ]);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GITHUB_REFUSED);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(
+      lines[4]?.startsWith(
+        `${PREFIX}GitHub refused the call (the token lacks a permission): Command failed: gh issue create`
+      )
+    ).toBe(true);
+  });
+
+  it("exits HISTORY_UNREADABLE when the history's path is a file, not a directory", () => {
+    plantClean();
+    remove(HISTORY);
+    write(HISTORY, "not a directory\n");
+
+    const result = runCommand(stallArgs());
+
+    expect(result.status).toBe(STALL_EXIT.HISTORY_UNREADABLE);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      `${PREFIX}${HISTORY} is not a directory, so the history could not be read\n`
+    );
+  });
+
+  it("exits FUTURE_ROW, naming the state, when the newest row is dated after today", () => {
+    plantClean();
+    const day = utcDayFromNow(2);
+    const file = birthOn(day);
+
+    const result = runCommand(stallArgs());
+
+    expect(result.status).toBe(STALL_EXIT.FUTURE_ROW);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(
+      new RegExp(
+        `^${PREFIX}the newest history row, ${file}, is dated ${day}, after today, \\d{4}-\\d{2}-\\d{2} \\(UTC\\): a row is dated the day it is recorded, so the window cannot be read from it\\n$`
+      )
+    );
+  });
+
+  it("exits BASELINE_UNREADABLE, naming the file, when the suppressions file is not JSON", () => {
+    plantClean();
+    write(BASELINE, "{ broken\n");
+
+    const result = runCommand(stallArgs());
+
+    expect(result.status).toBe(STALL_EXIT.BASELINE_UNREADABLE);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.startsWith(`${PREFIX}${BASELINE} is not JSON:`)).toBe(true);
+  });
+
+  it("exits HISTORY_UNREADABLE, naming the entry, when a row of the history is no row", () => {
+    plantClean();
+    addRow("2026-11-21-bad.json", { version: 1, fixed: {} });
+
+    const result = runCommand(stallArgs());
+
+    expect(result.status).toBe(STALL_EXIT.HISTORY_UNREADABLE);
+    expect(result.stdout).toBe("");
+    expect(
+      result.stderr.startsWith(
+        `${PREFIX}${HISTORY}/2026-11-21-bad.json: is not a row of the history:`
+      )
+    ).toBe(true);
+  });
+
+  it("exits 1, Node's own code, with the fault's stack when the mode throws before it decides, and when the script fails to load", () => {
+    plantClean();
+    const fault = path.join(scratch, "fault.mjs");
+    writeFileSync(
+      fault,
+      'Date.prototype.toISOString = () => { throw new Error("the clock failed"); };\n'
+    );
+    const alone = path.join(scratch, "error-sites-gate.mjs");
+    writeFileSync(alone, readFileSync(GATE_SCRIPT, "utf8"));
+
+    const thrown = runCommand(stallArgs(), {}, { node: ["--import", pathToFileURL(fault).href] });
+    const unloaded = runCommand(stallArgs(), {}, { script: alone });
+
+    expect(thrown.status).toBe(1);
+    expect(thrown.stdout).toBe("");
+    expect(thrown.stderr).toContain("Error: the clock failed");
+    expect(thrown.stderr).toContain("error-sites-gate.mjs");
+    expect(thrown.stderr).not.toContain(PREFIX);
+    expect(unloaded.status).toBe(1);
+    expect(unloaded.stderr).toContain("ERR_MODULE_NOT_FOUND");
+  });
+});
+
+/** The reminder's surface this suite reads; a literal import of an untyped `.mjs` would be an implicit any. */
+type ReminderModule = {
+  remindIssues: (input: {
+    gh: Gh;
+    label: { name: string; color: string; description: string };
+    reminders: readonly { title: string; body: string; comment: string }[];
+    today: string;
+    log: string[];
+  }) => void;
+  IssueListingFullError: new (
+    label: string,
+    page: number
+  ) => Error & {
+    label: string;
+    page: number;
+  };
+  IssueListingUnreadableError: new (message: string) => Error;
+};
+const { remindIssues, IssueListingFullError, IssueListingUnreadableError } = (await import(
+  path.join(REPO_ROOT, "scripts/testing/lib/issue-reminder.mjs")
+)) as ReminderModule;
+
+describe("the reminder's named refusals", () => {
+  const LABEL = { name: STALL_LABEL, color: "b60205", description: "A label" };
+  const REMINDER = { title: STALL_TITLE, body: "The facts.", comment: "Still standing." };
+  /** Runs the reminder against a `gh` that answers each call with the next of the given texts. */
+  const remindWith = (...answers: string[]): unknown => {
+    const queue = [...answers];
+    try {
+      remindIssues({
+        gh: () => queue.shift() ?? "",
+        label: LABEL,
+        reminders: [REMINDER],
+        today: "2026-12-04",
+        log: [],
+      });
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  };
+  const fullPage = JSON.stringify(
+    Array.from({ length: 100 }, (_, index) => ({
+      number: index + 10,
+      title: `Another issue ${String(index)}`,
+      state: "open",
+      created_at: "2026-11-01T00:00:00Z",
+    }))
+  );
+
+  it("raises IssueListingFullError, with the label and the page, when the issue listing fills its page", () => {
+    const error = remindWith(fullPage);
+
+    expect(error).toBeInstanceOf(IssueListingFullError);
+    expect(error).toMatchObject({
+      message: `listing the ${STALL_LABEL} issues returned no list, or a full page`,
+      label: STALL_LABEL,
+      page: 100,
+    });
+  });
+
+  it.each([
+    [
+      "the issue listing is no list",
+      [JSON.stringify({ message: "Not Found" })],
+      `listing the ${STALL_LABEL} issues returned no list, or a full page`,
+    ],
+    [
+      "the comment listing is no list",
+      [
+        JSON.stringify([
+          { number: 4, title: STALL_TITLE, state: "open", created_at: "2026-12-01T07:23:10Z" },
+        ]),
+        JSON.stringify({ message: "Not Found" }),
+      ],
+      "listing the comments of #4 returned no list",
+    ],
+  ])(
+    "raises IssueListingUnreadableError, with its message, when %s",
+    (_label, answers, message) => {
+      const error = remindWith(...answers);
+
+      expect(error).toBeInstanceOf(IssueListingUnreadableError);
+      expect(error).not.toBeInstanceOf(IssueListingFullError);
+      expect((error as Error).message).toBe(message);
+    }
+  );
+
+  it("raises IssueListingUnreadableError, with the parser's message and cause, when a listing is not JSON", () => {
+    const error = remindWith("<html>busy</html>");
+
+    expect(error).toBeInstanceOf(IssueListingUnreadableError);
+    expect((error as Error).cause).toBeInstanceOf(SyntaxError);
+    expect((error as Error).message).toBe(((error as Error).cause as Error).message);
+  });
+
+  it("lets an error of the gh it was given pass through as it was thrown", () => {
+    const thrown = new Error("HTTP 502: Bad Gateway");
+    let error: unknown;
+    try {
+      remindIssues({
+        gh: () => {
+          throw thrown;
+        },
+        label: LABEL,
+        reminders: [REMINDER],
+        today: "2026-12-04",
+        log: [],
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBe(thrown);
+  });
+});
+
+describe("the stall workflow's branches", () => {
+  it("has one case branch and one line of its comment per exit code of the mode, and a default branch for the alarm's own failure", () => {
+    const workflow = readFileSync(
+      path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
+      "utf8"
+    );
+    const lines = workflow.split("\n").map((line) => line.trim());
+    const branches = lines.flatMap((line) => /^(\d+)\)/.exec(line)?.[1] ?? []).map(Number);
+    const documented = lines.flatMap((line) => /^# +(\d+) /.exec(line)?.[1] ?? []).map(Number);
+    const expected = [...Object.values(STALL_EXIT), 2].sort((left, right) => left - right);
+
+    expect([...branches].sort((left, right) => left - right)).toEqual(expected);
+    expect([...documented].sort((left, right) => left - right)).toEqual(expected);
+    expect(lines).toContain("*)");
+  });
+
+  it("retries the momentary code and no other", () => {
+    const lines = readFileSync(
+      path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
+      "utf8"
+    )
+      .split("\n")
+      .map((line) => line.trim());
+    const retries = lines.filter(
+      (line) => /\$status"? -eq \d+/.test(line) && !line.includes("attempt")
+    );
+
+    expect(retries).toEqual([`[ "$status" -eq ${String(STALL_EXIT.GITHUB_FAILED)} ] || break`]);
+  });
+
+  it("ends every branch of the case in an exit, but the not-stalled one, which exits nothing", () => {
+    const lines = readFileSync(
+      path.join(REPO_ROOT, ".github/workflows/error-sites-stall.yml"),
+      "utf8"
+    )
+      .split("\n")
+      .map((line) => line.trim());
+    const body = lines.slice(lines.indexOf('case "$status" in') + 1, lines.indexOf("esac"));
+    const branches = new Map<string, string[]>();
+    let label = "";
+    for (const line of body) {
+      const opened = /^(\d+|\*)\)(.*)$/.exec(line);
+      if (opened !== null) {
+        label = opened[1] ?? "";
+        branches.set(label, opened[2]?.trim() === "" ? [] : [opened[2]?.trim() ?? ""]);
+      } else {
+        branches.get(label)?.push(line);
+      }
+    }
+    const lastStatements = [...branches].map(([branch, statements]) => [
+      branch,
+      statements.filter((statement) => statement !== ";;").at(-1) ?? "",
+    ]);
+
+    expect(branches.get("0")).toEqual([";;"]);
+    expect(lastStatements.filter(([branch]) => branch !== "0")).toEqual(
+      [...branches.keys()]
+        .filter((branch) => branch !== "0")
+        .map((branch) => [branch, 'exit "$status"'])
+    );
   });
 });
