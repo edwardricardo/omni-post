@@ -318,8 +318,14 @@ jobs:
             local/${{ matrix.service }}:scan
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ env.SENTRY_DSN_BUILD_ARG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # One cache scope per image: the `gha` backend's scope defaults to `buildkit`, and builds
+          # that share a scope overwrite each other's cache, so the images of the matrix would keep
+          # only the layers of whichever finished last. Only `main` exports: a cache a pull request
+          # saves can be read by that pull request alone, yet it counts against the repository's
+          # cache limit and pushes out the entries `main` relies on. Every other ref reads the
+          # scope `main` saved; an empty `cache-to` passes no `--cache-to` to the build.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', matrix.service) || '' }}
           load: true
 
       # The Node runtime advisory is judged by the `node-runtime-advisory` job below, which is
@@ -602,8 +608,10 @@ jobs:
           # The same build-args as the scanned build above, so the pushed image
           # is the one that was scanned and measured (and hits the same cache).
           build-args: ${{ env.SENTRY_DSN_BUILD_ARG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # The same per-image scope and the same rule as the scanned build above: only `main`
+          # exports.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', matrix.service) || '' }}
 
   # The image scanner reads an image's OS packages and its module manifests, never the `node`
   # executable a distroless base ships without a package record, so this job holds that executable

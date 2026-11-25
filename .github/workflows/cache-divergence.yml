@@ -79,7 +79,7 @@ jobs:
       # write back to it, so a divergent artifact cannot be laundered into a
       # fresh cache entry by the probe itself.
       #
-      # COUPLING — the key expression MUST stay identical to the three turbo
+      # COUPLING — the key expression MUST stay identical to the four turbo
       # cache steps in ci.yml, and the prefix restore-key identical to the one
       # they use off main (the Lint job's restore step holds the canonical
       # rationale). GitHub Actions cannot import an expression across workflow
