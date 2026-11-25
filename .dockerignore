@@ -49,10 +49,6 @@ test-results
 # portal would have lost routes in silence. A directory name is not a role.
 apps/api/reports
 
-# graphify knowledge graphs — rebuilt by the post-commit hook, never a build input
-graphify-out
-**/graphify-out
-
 # Environment / secrets — never ship to an image
 .env
 .env.local

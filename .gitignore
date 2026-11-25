@@ -181,8 +181,6 @@ odd/
 Gentleman-Skills/
 .gentle-ai-instance
 
-# graphify knowledge-graph outputs (regenerable)
-graphify-out/
 
 # CLAUDE.local.md — per-dev personal Claude memory
 CLAUDE.local.md
