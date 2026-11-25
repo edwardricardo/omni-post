@@ -521,8 +521,12 @@ describe("battery verdict", () => {
         "\u001b[31m     \u001b[31m×\u001b[31m writes the environment a checkout lacks and warns once\u001b[39m\u001b[32m 74\u001b[2mms\u001b[22m\u001b[39m",
       ],
       [
-        "a console header",
+        "a console header on stderr",
         "\u001b[90mstderr\u001b[2m | tests/unit/hooks/useWebhooks.test.tsx\u001b[2m > \u001b[22m\u001b[2museCreateWebhookSubscription\u001b[2m > \u001b[22m\u001b[2mwarns on 4xx",
+      ],
+      [
+        "a console header on stdout",
+        "\u001b[90mstdout\u001b[2m | tests/eval/repurposeTrajectory.eval.test.ts\u001b[2m > \u001b[22m\u001b[2mtrajectory eval — repurpose slice\u001b[2m > \u001b[22m\u001b[2mretries a generation node that throws a transient error, warns once, then completes",
       ],
       [
         "a failure's header",
