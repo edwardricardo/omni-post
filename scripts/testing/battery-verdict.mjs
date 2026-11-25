@@ -9,15 +9,21 @@
  *
  *   GREEN needs ALL of: `steps.tsv` present and holding exactly the planned number of steps, each
  *   with its log; every exit code 0; no toolchain warning line in any log; every api run with a
- *   readable report, no failed test and no `Worker exited` / `Unhandled Error` line; and a tree
- *   that did not change while the battery ran. Anything else is RED, and every reason is named.
+ *   readable report, no failed test and no `Worker exited` / `Unhandled Error` outside a test's
+ *   name; and a tree that did not change while the battery ran. Anything else is RED, and every
+ *   reason is named.
  *   Each check starts from what was actually written, so a verdict computed over missing inputs is
  *   RED, never GREEN.
  *
  *   A warning line is any line of any `*.log` carrying the word `warn`, `warns`, `warning` or
  *   `warnings` in any case, or a runtime warning category such as `DeprecationWarning`: the
  *   toolchain and the runtime (ESLint plugins, Node, Python, vite, React, the package manager) all
- *   speak that way. The word counts only when it stands apart from a path: a letter, digit, `_`,
+ *   speak that way. A line is read as a terminal shows it: its colour and other escape sequences
+ *   are removed first, with Node's `stripVTControlCharacters`, the function ESLint's formatter
+ *   measures its own coloured columns with, so a word a tool colours (the severity of ESLint's
+ *   stylish row, `\u001b[33mwarning\u001b[39m`) is read like any other, and so is the first line
+ *   of output under a vitest console header, which opens on the header's closing sequences. The
+ *   word counts only when it stands apart from a path: a letter, digit, `_`,
  *   `.`, `/` or `-` glued to it on either side makes it part of a file name, a directory or a flag
  *   (`warning-banner.ts`, `src/warnings/`, `--max-warnings 0`), which a step that lists files or
  *   echoes its command prints without warning about anything. A `.` after the word still ends it
@@ -26,19 +32,25 @@
  *   the verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
  *   own pino records at level "warn" — the code under test logging on the failure paths its tests
  *   exercise. Those records are counted per message, so a new one is visible without failing the
- *   run. Pino writes the level in two spellings, and both are that record. The label, as the API's
- *   logger formats it (`"level":"warn"`): a line that holds that text anywhere is taken for the
- *   record, whatever else the line says. The number, pino's default, written by every logger that
- *   sets no level formatter (the packages' loggers, Fastify's own): a line that starts with
- *   `{"level":40,` and parses as one JSON object, so a numeric record at another level, a line that
- *   only quotes the record, one that continues after it and one that is cut are read whole. Pino
- *   writes its own level first, so a record at another level cannot start that way; a logger that
- *   defined a custom level numbered 40 would, and the repository defines none.
+ *   run. A record is a line that, as a terminal shows it, starts with its level and parses as one
+ *   JSON object, so a record a test writes under a vitest console header, whose line opens on the
+ *   header's closing sequences, is one. Pino writes
+ *   its own level first, in two spellings, and both are that record: the label, as the API's logger
+ *   formats it (`{"level":"warn",`), and the number, pino's default, written by every logger that
+ *   sets no level formatter (the packages' loggers, Fastify's own: `{"level":40,`). A record at
+ *   another level cannot start that way; a logger that defined a custom level numbered 40 would,
+ *   and the repository defines none. A line that only quotes a record, one on which another tool's
+ *   text comes before or after the record, and one that is cut are read whole, so a tool's warning
+ *   on a record's line is a warning line.
  *
- *   One kind of text is not read: the title of a test block on the line where the record-coverage
- *   gate (`scripts/testing/record-coverage-gate.mjs`) lists that block. A title is data the gate
- *   copies from a test, often a block of the base the change's author cannot edit, so a block named
- *   "logs warnings" is not a warning. The exception holds only in the log named exactly
+ *   One kind of text is not read: the name of a test, on a line where the tool that lists it writes
+ *   it in that tool's own grammar. A name is data the tool copies from a test, so a test named "logs
+ *   warnings" is not a warning wherever a runner or a gate prints it. Two tools write names into the
+ *   battery's logs: the record-coverage gate and vitest.
+ *
+ *   The record-coverage gate (`scripts/testing/record-coverage-gate.mjs`) writes the title of a test
+ *   block on the line where it lists that block; often a block of the base the change's author
+ *   cannot edit. The exception holds only in the log named exactly
  *   `record-coverage.log` at the top of the log directory, and only on a line that is, from its
  *   first character to its last, the gate's grammar
  *   `record-coverage-gate: <class>: <path>::<title> (<kind>): <detail>`, with `<class>` one of
@@ -52,6 +64,19 @@
  *   summary and its own problems, a runtime warning) and every line of every other log. A change to
  *   the gate's line that the grammar no longer matches turns its titles back into warning lines:
  *   RED, never a waived warning.
+ *
+ *   Vitest writes a test's name on three kinds of line, and the exception holds on them in any log,
+ *   only after vitest's banner (` RUN  v<version> <root>`) came earlier in that log: a finished
+ *   test its default reporter lists, which in the battery is a slow or a failed one
+ *   (` <indentation><✓ or ×> <name> <duration>ms`, the indentation two spaces per level of nesting);
+ *   the header above a test's console output (`stdout | <full name>` or `stderr | <full name>`); and
+ *   the header above a failure's error (` FAIL  <full name>`). The name runs to the end of a header,
+ *   and to the duration that ends a test line; a test file's line has the same shape and is read
+ *   without its path. Everything else is read: the symbol and the duration, the output under a
+ *   console header, the error under a failure header, every other line of the log (vitest's own
+ *   warnings, a runtime's category), every line before the banner and every line of a log without
+ *   one. The text the warning rule reads is also what the api runs' `Worker exited` /
+ *   `Unhandled Error` count reads, so a test named after either is not counted.
  *
  *   Its residual limits, stated rather than implied. (1) A title may not hold every character: a
  *   carriage return before the line's end, U+2028 or U+2029 makes the line read whole, so a
@@ -67,11 +92,28 @@
  *   colon-free run and `::` splits there, and that run is read as a path: a warning word in it still
  *   counts. (5) The name must match exactly and the walk lists the top level only: a log whose name
  *   differs from `record-coverage.log` in case is read whole, and a `record-coverage.log` in a
- *   subdirectory, like every file there, is not read at all.
+ *   subdirectory, like every file there, is not read at all. (6) Once vitest's banner came, any
+ *   line in a test line's shape, or opening on `stdout | `, `stderr | ` or ` FAIL  `, is taken for
+ *   vitest's: a test's own console output written in that shape has its text after the symbol or
+ *   the label unread. The rule holds to the end of the log, which is safe only while no battery
+ *   step writes another tool's output into a vitest log after the banner: today each vitest
+ *   step's command ends with its vitest run, so what follows the banner is vitest's output, the
+ *   output of the tests it runs and pnpm's closing lines. A step that runs another tool after
+ *   vitest into the same log must end the rule where that tool's output starts.
+ *   (7) The grammar holds the lines the battery's runs print and no others: no
+ *   retry, repeat or heap suffix (no configuration of the repository sets one), no skipped or todo
+ *   test (fitness #32 refuses a committed one), no suite line (vitest lists suites only for a run
+ *   that collects one file). Such a line, and a name holding a carriage return, U+2028 or U+2029, is
+ *   read whole, and a line feed splits a name into lines that are each read whole: RED, never a
+ *   waived warning. (8) No other runner prints a name on a line of a step that can be GREEN: the
+ *   integration tier's log names each suite file, node:test's names reach it only in the output of a
+ *   file that failed, whose step exits non-zero, and no step runs Playwright's runner. Those names,
+ *   and the source a failing vitest test's code frame quotes, are read whole.
  * @layer infrastructure
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { stripVTControlCharacters } from "node:util";
 
 const STEPS_FILE = "steps.tsv";
 const STEP_ROW = /^([^\t]+)\t(\d+)$/;
@@ -106,9 +148,24 @@ const COVERAGE_BLOCK_LINE =
  */
 const COVERAGE_MOVED_LINE =
   /^(record-coverage-gate: moved: [^:]*::).*( \(deletion\): its bodyHash reappears as [^:]*::).*$/;
-const APP_WARN_RECORD = '"level":"warn"';
-/** How pino starts a record at warn when no formatter renames its level: the number, first. */
-const NUMERIC_WARN_RECORD_START = '{"level":40,';
+/** The line vitest writes first for a run: ` RUN  v<version> <root>`. */
+const VITEST_BANNER = /^ RUN {2}v\d+\.\d+\.\d+\S* /;
+/**
+ * A finished test as vitest's default reporter lists it, slow or failed: one space, two per level
+ * of nesting, the state symbol and a space, the test's name, then its duration. The groups are the
+ * text before the name and the duration; the name is lazy, so it runs to the duration that ends
+ * the line.
+ */
+const VITEST_TEST_LINE = /^( (?: {2})*[✓×] ).*?( {1,2}\d+ms)$/;
+/** The header vitest writes above a test's console output: the stream, then the test's full name. */
+const VITEST_CONSOLE_HEADER = /^((?:stdout|stderr) \| ).*$/;
+/** The header vitest writes above a failure's error: the label, then the task's full name. */
+const VITEST_FAIL_HEADER = /^( FAIL {2}).*$/;
+/**
+ * How pino starts a record at warn: its level first, as the label the API's logger formats or as
+ * pino's default number.
+ */
+const APP_WARN_RECORD_STARTS = ['{"level":"warn",', '{"level":40,'];
 const APP_WARN_MESSAGE = /"msg":"((?:[^"\\]|\\.)*)/;
 const NO_MESSAGE = "<no msg field>";
 const UNHANDLED_LINE = /Worker exited|Unhandled Error/;
@@ -145,7 +202,8 @@ const MESSAGE_LIMIT = 80;
  * @property {number | null} passed
  * @property {number | null} pending
  * @property {number | null} failed
- * @property {number} unhandled Lines of the run's log carrying `Worker exited` or `Unhandled Error`.
+ * @property {number} unhandled Lines of the run's log carrying `Worker exited` or `Unhandled Error`
+ *   outside a test's name.
  */
 
 /**
@@ -219,13 +277,12 @@ function readSteps(outDir) {
 
 /**
  * @param {string} line A line of a step's log.
- * @returns {boolean} Whether the line is an application record at warn: it holds the level's label,
- *   or it starts with the level's number and parses as one JSON object, so another tool's text
- *   before or after the record leaves the line a line to read.
+ * @returns {boolean} Whether the line is an application record at warn: it starts with the level,
+ *   in either spelling, and parses as one JSON object, so another tool's text before or after the
+ *   record leaves the line a line to read.
  */
 function isAppWarnRecord(line) {
-  if (line.includes(APP_WARN_RECORD)) return true;
-  if (!line.startsWith(NUMERIC_WARN_RECORD_START)) return false;
+  if (!APP_WARN_RECORD_STARTS.some((start) => line.startsWith(start))) return false;
   try {
     JSON.parse(line);
     return true;
@@ -244,22 +301,33 @@ function messageOf(line) {
 }
 
 /**
- * The text of a log line the warning rule reads: the line whole, except a line of the record-coverage
- * gate's log that lists a test block, which is read without its block titles.
+ * The text of a log line the warning rule reads: the line whole, except a line that lists a test
+ * by its name in the grammar of the tool that wrote it, which is read without the name. Those are
+ * a line of the record-coverage gate's log that lists a test block, and a test line, a console
+ * header or a failure header in a log after vitest's banner.
  *
  * @param {string} log The log's file name.
- * @param {string} text The line, without its line ending.
+ * @param {string} text The line as a terminal shows it: no line ending, no colour sequence.
+ * @param {boolean} vitest Whether vitest's banner came earlier in the log.
  * @returns {string}
  */
-function warningTextOf(log, text) {
-  if (log !== COVERAGE_GATE_LOG) return text;
-  const hit = COVERAGE_BLOCK_LINE.exec(text) ?? COVERAGE_MOVED_LINE.exec(text);
+function warningTextOf(log, text, vitest) {
+  const hit =
+    log === COVERAGE_GATE_LOG
+      ? (COVERAGE_BLOCK_LINE.exec(text) ?? COVERAGE_MOVED_LINE.exec(text))
+      : vitest
+        ? (VITEST_TEST_LINE.exec(text) ??
+          VITEST_CONSOLE_HEADER.exec(text) ??
+          VITEST_FAIL_HEADER.exec(text))
+        : null;
   return hit === null ? text : hit.slice(1).join("");
 }
 
 /**
  * Scans every `*.log` once: toolchain warning lines, application warn records, and the unhandled
- * lines of each api run.
+ * lines of each api run. Each line is read without its escape sequences, by every rule, the
+ * record's included; the warning and unhandled rules also read it without a test's name its tool
+ * writes.
  *
  * @param {string} outDir
  * @param {string[]} entries
@@ -288,18 +356,21 @@ function scanLogs(outDir, entries) {
     }
     const apiLog = API_LOG.exec(log);
     const run = apiLog === null ? null : Number(apiLog[1]);
+    let vitest = false;
     content.split("\n").forEach((raw, index) => {
       const text = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
-      if (run !== null && UNHANDLED_LINE.test(text)) {
+      const shown = stripVTControlCharacters(text);
+      if (VITEST_BANNER.test(shown)) vitest = true;
+      const read = warningTextOf(log, shown, vitest);
+      if (run !== null && UNHANDLED_LINE.test(read)) {
         unhandled.set(run, (unhandled.get(run) ?? 0) + 1);
       }
-      if (isAppWarnRecord(text)) {
+      if (isAppWarnRecord(shown)) {
         total += 1;
-        const msg = messageOf(text);
+        const msg = messageOf(shown);
         messages.set(msg, (messages.get(msg) ?? 0) + 1);
         return;
       }
-      const read = warningTextOf(log, text);
       if (!WARNING_WORD.test(read) && !WARNING_CATEGORY.test(read)) return;
       warnings.push({ log, line: index + 1, text: text.slice(0, WARNING_TEXT_LIMIT) });
     });
