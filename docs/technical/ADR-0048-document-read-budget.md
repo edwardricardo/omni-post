@@ -86,6 +86,8 @@ read it let through.
   `bash /dev/stdin <<EOF`, `bash -o pipefail <<EOF` and `cat <<EOF | bash`.
 - `pushd` moves the directory as `cd` does, but `popd` is not followed: a reader after a `popd` is
   resolved from the directory the `pushd` moved to.
+- Nothing inside a substitution is counted, nor inside a group or subshell followed by any pipe (a
+  pager's too) or a redirection to a file: `(cat f) | less` is not counted.
 - The shared scans of `_common.py` are superlinear on three hostile shapes, which the hook scans
   once per script: `<<` with no delimiter on every line, many `<<` on one line, and many shell
   words before one `-c` (about 11 s at 64 KB). The cost is time, never a refusal.

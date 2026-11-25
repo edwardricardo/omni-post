@@ -335,6 +335,25 @@ class SubshellTests(_Budget):
     def test_a_cd_in_a_pipeline_of_several_commands_runs_in_its_own_subshell(self):
         self.assertAllowed("cd sub | true; head -n 900 notes.md")
 
+    def test_a_reader_whose_enclosing_construct_sends_its_output_elsewhere_is_not_read(self):
+        for command in (
+            "{ cat big.md; echo x; } > copy.md",
+            "(cat big.md && echo x) | rg needle",
+            "body=$(cd . && cat big.md)",
+            "x=$(true && cd sub); head -n 900 notes.md",
+            "(cat big.md; echo x) 2>/dev/null > copy.md",
+            "(echo }; cat big.md; echo x) | rg needle",
+            "bash -c 'cat big.md' | rg needle",
+            "bash -c 'cat big.md' > copy.md",
+            "bash > copy.md <<'EOF'\ncat big.md\nEOF",
+        ):
+            self.assertAllowed(command)
+        self.assertEqual(self.ledger(), [])
+
+    def test_a_reader_whose_enclosing_construct_prints_to_the_terminal_is_read(self):
+        for command in ("(cd sub && head -n 900 notes.md)", 'bash -c "cat big.md"', "bash <<'EOF'\ncat big.md\nEOF"):
+            self.assertRefused(command)
+
 
 class ReadShapeTests(_Budget):
     def test_a_limit_given_as_a_numeric_string(self):

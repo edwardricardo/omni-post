@@ -626,34 +626,76 @@ def _known_reader(segment: list[str]) -> tuple[str, list[str], list[Request]] | 
         return None
 
 
-def _pipelines(tokens: list[str]) -> list[list[list[str]]]:
-    """The commands of a token list, grouped into pipelines."""
-    pipelines: list[list[list[str]]] = [[[]]]
-    for token in tokens:
-        if token in _PIPES:
-            pipelines[-1].append([])
-        elif token in _common._SHELL_SEPARATORS:
-            pipelines.append([[]])
+def _pipelines(tokens: list[str]) -> list[list[tuple[int, list[str]]]]:
+    """The commands of a token list, grouped into pipelines, each command with
+    the index of its first token."""
+    pipelines: list[list[tuple[int, list[str]]]] = [[]]
+    fresh = True
+    for index, token in enumerate(tokens):
+        if token in _common._SHELL_SEPARATORS:
+            if token not in _PIPES:
+                pipelines.append([])
+            fresh = True
         else:
-            pipelines[-1][-1].append(token)
-    return [[segment for segment in pipeline if segment] for pipeline in pipelines if any(pipeline)]
+            if fresh:
+                pipelines[-1].append((index, []))
+                fresh = False
+            pipelines[-1][-1][1].append(token)
+    return [pipeline for pipeline in pipelines if pipeline]
 
 
 def _prints_to_a_file(segment: list[str]) -> bool:
     """Whether the command sends its standard output to a file, where it does
     not reach the agent. A duplication onto another descriptor (`>&2`, `2>&1`)
     still reaches it: the tool captures both streams."""
-    for index, token in enumerate(segment):
-        if not token.startswith(">") and token not in ("&>", "&>>"):
-            continue
-        descriptor = segment[index - 1] if index > 0 and segment[index - 1].isdigit() else "1"
-        if descriptor != "1":
-            continue
-        target = segment[index + 1] if index + 1 < len(segment) else ""
-        if token == ">&" and target.isdigit():
-            continue
-        return True
-    return False
+    return any(_redirects_stdout(segment, index) for index in range(len(segment)))
+
+
+def _redirects_stdout(tokens: list[str], index: int) -> bool:
+    """Whether the token at `index` sends standard output to a file."""
+    token = tokens[index]
+    if not token.startswith(">") and token not in ("&>", "&>>"):
+        return False
+    if index > 0 and tokens[index - 1].isdigit() and tokens[index - 1] != "1":
+        return False
+    return not (token == ">&" and index + 1 < len(tokens) and tokens[index + 1].isdigit())
+
+
+def _silenced(tokens: list[str]) -> tuple[list[bool], list[bool]]:
+    """Per token: whether it lies inside a `$( … )` substitution, and whether
+    its output cannot reach the agent: inside a substitution, or inside a group
+    `( … )` or `{ … }` whose close is followed, before the command ends, by a
+    pipe or a redirection to a file. Linear: one pass finds each command's tail
+    from the right, one pairs the brackets, and the spans are summed."""
+    leaves = [False] * (len(tokens) + 1)
+    for index in range(len(tokens) - 1, -1, -1):
+        token = tokens[index]
+        if token in _PIPES or _redirects_stdout(tokens, index):
+            leaves[index] = True
+        elif token not in _common._SHELL_SEPARATORS:
+            leaves[index] = leaves[index + 1]
+    inside = [0] * (len(tokens) + 1)
+    muted = [0] * (len(tokens) + 1)
+    opened: list[tuple[int, bool, str]] = []
+    for index, token in enumerate(tokens):
+        if token in ("(", "{"):
+            substitution = token == "(" and index > 0 and tokens[index - 1].endswith("$")
+            opened.append((index, substitution, ")" if token == "(" else "}"))
+        elif opened and token == opened[-1][2]:
+            start, substitution, _ = opened.pop()
+            if substitution or leaves[index + 1]:
+                muted[start] += 1
+                muted[index + 1] -= 1
+            if substitution:
+                inside[start] += 1
+                inside[index + 1] -= 1
+    in_substitution, without_output, depth, mute = [], [], 0, 0
+    for index in range(len(tokens)):
+        depth += inside[index]
+        mute += muted[index]
+        in_substitution.append(depth > 0)
+        without_output.append(mute > 0)
+    return in_substitution, without_output
 
 
 def _new_directory(words: list[str] | None, cwd: str) -> str:
@@ -696,27 +738,32 @@ def _bash_reads(command: str, cwd: str, depth: int = 0) -> dict[str, list[Reques
     text, docs = _heredocs(command)
     tokens = _lex(text.replace("\\\n", ""))
     bodies_match = sum(1 for token in tokens if token == "<<") == len(docs)
+    in_substitution, without_output = _silenced(tokens)
     operator = 0
     outer: list[str] = []
     nested: dict[tuple[str, str], None] = {}
-    for pipeline in _pipelines(tokens):
+    for indexed in _pipelines(tokens):
+        pipeline = [segment for _, segment in indexed]
         starts: list[str] = []
-        for segment in pipeline:
+        scripts: list[list[tuple[str, str]]] = []
+        for first, segment in indexed:
+            operators = segment.count("<<")
+            starts.append(cwd)
+            scripts.append([])
+            if in_substitution[first]:
+                operator += operators  # a substitution is its own subshell: its `cd` and brackets stay in it
+                continue
             words = _without_substitutions(_common.command_words(segment))
             index = _common.program_index(words)
             for _ in range(words[:index].count("(") if index is not None else words.count("(")):
                 outer.append(cwd)
-            starts.append(cwd)
             program = _program_words(words)
             if len(pipeline) == 1:
                 cwd = _new_directory(program, cwd)
-            operators = segment.count("<<")
             if depth < MAX_NESTING:
                 if bodies_match and _feeds_a_shell(program):
-                    for doc in docs[operator:operator + operators]:
-                        nested.setdefault((doc.body, starts[-1]), None)
-                for script in _shell_scripts(segment):
-                    nested.setdefault((script, starts[-1]), None)
+                    scripts[-1].extend((doc.body, starts[-1]) for doc in docs[operator:operator + operators])
+                scripts[-1].extend((script, starts[-1]) for script in _shell_scripts(segment))
             operator += operators
             for _ in range(words.count(")")):
                 if outer:
@@ -727,10 +774,16 @@ def _bash_reads(command: str, cwd: str, depth: int = 0) -> dict[str, list[Reques
             if reader is None or reader[0] not in _PASS_THROUGH or reader[1]:
                 break
             effective -= 1
+        # Only the command whose output reaches the agent counts, with the
+        # scripts it hands to a shell; a construct around it may send it away.
+        if without_output[indexed[effective][0]] or any(_prints_to_a_file(segment) for segment in pipeline[effective:]):
+            continue
         reader = _known_reader(pipeline[effective])
-        if reader is not None and not any(_prints_to_a_file(segment) for segment in pipeline[effective:]):
+        if reader is not None:
             for file in reader[1]:
                 _add(reads, _resolve(starts[effective], file), reader[2])
+        for key in scripts[effective]:
+            nested.setdefault(key, None)
     for script, script_cwd in nested:
         _add_nested(reads, script, script_cwd, depth)
     return reads
