@@ -63,13 +63,37 @@ runs:
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
+    - name: Compute pnpm cache key
+      # Written once, read by both steps of the pair below, so the two cannot drift apart.
+      id: pnpm-store-key
+      shell: bash
+      run: |
+        echo "key=${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}" >> "$GITHUB_OUTPUT"
+        echo "prefix=${{ runner.os }}-pnpm-store-" >> "$GITHUB_OUTPUT"
+
+    # Only `main` saves the store; every other ref restores it read-only. A cache a pull request
+    # saves can be read by that pull request alone, yet it counts against the repository's cache
+    # limit, so pull requests saving their stores push out the entries `main` relies on. On
+    # `main` the post step of `actions/cache` saves at the end of a job that passed, after every
+    # later step that writes into the store. The cost: a pull request that changes the lockfile
+    # downloads the difference in each of its runs.
     - name: Setup pnpm cache
+      if: github.ref == 'refs/heads/main'
       uses: actions/cache@v6
       with:
         path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        key: ${{ steps.pnpm-store-key.outputs.key }}
         restore-keys: |
-          ${{ runner.os }}-pnpm-store-
+          ${{ steps.pnpm-store-key.outputs.prefix }}
+
+    - name: Restore pnpm cache (read-only)
+      if: github.ref != 'refs/heads/main'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ steps.pnpm-store-key.outputs.key }}
+        restore-keys: |
+          ${{ steps.pnpm-store-key.outputs.prefix }}
 
     - name: Install dependencies
       shell: bash

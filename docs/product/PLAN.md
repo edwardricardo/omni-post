@@ -61,7 +61,7 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
 | #    | Feature                                                                           | Today                                      | Old rows attached | State       | Closed by |
 | ---- | --------------------------------------------------------------------------------- | ------------------------------------------ | ----------------- | ----------- | --------- |
 | F-01 | The platform starts from an empty database                                        | WORKS                                      | 20                | in progress | —         |
-| F-02 | The first administrator comes to exist                                            | WORKS                                      | 1                 | in progress | —         |
+| F-02 | The first administrator comes to exist                                            | WORKS                                      | 1                 | closed      | #980      |
 | F-03 | An administrator signs in, stays signed in and signs out                          | WORKS from page to data                    | 15                | open        | —         |
 | F-04 | An administrator recovers a password                                              | PARTIAL                                    | 5                 | open        | —         |
 | F-05 | Administrators and their roles are managed                                        | WORKS through the users and security pages | 10                | open        | —         |
