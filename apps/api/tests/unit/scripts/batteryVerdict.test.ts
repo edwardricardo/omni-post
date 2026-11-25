@@ -104,6 +104,10 @@ const vitestReport = (overrides: Readonly<Record<string, unknown>> = {}): object
   ...overrides,
 });
 
+/** A record of the API's logger, the level as its label, copied from an api run's log. */
+const LABEL_RECORD =
+  '{"level":"warn","time":"2026-10-18T21:21:30.900Z","pid":2047690,"host":"omnipost-dev","name":"api","service":"omnipost-api","module":"ai","provider":"openai","msg":"Provider not available, trying next provider"}';
+
 /** Writes one battery log directory and returns its path. */
 const makeLogDir = (fixture: LogDirFixture = {}): string => {
   const dir = path.join(scratchRoot, "logs");
@@ -416,6 +420,189 @@ describe("battery verdict", () => {
       expect(verdict.warnings).toEqual([{ log: "api-1.log", line: 2, text: line }]);
       expect(verdict.appWarnRecords.total).toBe(0);
     });
+
+    it("returns GREEN over a labelled record copied from an api run's log, and counts it", async () => {
+      const outDir = makeLogDir({ logs: { "api-1.log": `${LABEL_RECORD}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.reasons).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+      expect(verdict.appWarnRecords).toEqual({
+        total: 1,
+        messages: [{ msg: "Provider not available, trying next provider", count: 1 }],
+      });
+    });
+
+    it.each([
+      ["a labelled record after another tool's text", `warning: x ${LABEL_RECORD}`],
+      [
+        "a labelled record followed by another tool's text",
+        `${LABEL_RECORD} warning: unused variable`,
+      ],
+      [
+        "a labelled record that another tool's JSON line holds",
+        '{"tool":"x","record":{"level":"warn","msg":"a warning was raised"}}',
+      ],
+      [
+        "a line that starts as a labelled record and is cut",
+        '{"level":"warn","time":1,"msg":"a warning',
+      ],
+    ])("returns RED over %s", async (_form, line) => {
+      const outDir = makeLogDir({ logs: { "api-1.log": `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "api-1.log", line: 2, text: line.slice(0, 220) }]);
+      expect(verdict.appWarnRecords.total).toBe(0);
+    });
+  });
+
+  describe("coloured lines", () => {
+    it.each([
+      [
+        "ESLint's stylish row, whose severity its formatter colours",
+        "  \u001b[2m12:5\u001b[22m  \u001b[33mwarning\u001b[39m  'x' is assigned a value but never used  \u001b[2mno-unused-vars\u001b[22m",
+      ],
+      ["a line that opens on a coloured word", "\u001b[33mwarning\u001b[39m: x"],
+    ])("returns RED over %s", async (_form, line) => {
+      const outDir = makeLogDir({ logs: { "lint.log": `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "lint.log", line: 2, text: line }]);
+    });
+
+    it("returns GREEN over jscpd's coloured path whose file name holds the word", async () => {
+      const outDir = makeLogDir({
+        logs: {
+          "duplicates.log":
+            " - \u001b[1m\u001b[32m/root/omni-post-worktrees/chain-battery/apps/admin/components/warning-banner.tsx\u001b[39m\u001b[22m [603:76 - 619:39] (17 lines, 50 tokens)\n",
+        },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+  });
+
+  describe("vitest's test lines", () => {
+    /** Vitest's banner, the first line it writes in each of the battery's vitest logs. */
+    const BANNER =
+      "\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.12 \u001b[39m\u001b[90m/root/omni-post-worktrees/chain-battery/apps/api\u001b[39m";
+    /** The slow test's line that turned a battery RED with every step at exit 0 on 2026-11-21. */
+    const MEASURED_SLOW_LINE =
+      "     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m answers REQUEST_TIMEOUT at 408, in one response that closes the connection, with one warn line \u001b[33m 302\u001b[2mms\u001b[22m\u001b[39m";
+    /** A console header as vitest writes it above a test's output, copied from an admin run's log. */
+    const CONSOLE_HEADER =
+      "\u001b[90mstderr\u001b[2m | tests/unit/hooks/useWebhooks.test.tsx\u001b[2m > \u001b[22m\u001b[2museCreateWebhookSubscription\u001b[2m > \u001b[22m\u001b[2mpropagates ApiError on 4xx";
+
+    /** A vitest log as the battery leaves one: a blank line, the banner, a blank line, its lines. */
+    const vitestLog = (...lines: readonly string[]): string =>
+      ["", BANNER, "", ...lines, ""].join("\n");
+
+    it("returns GREEN over the measured slow test's line, whose name holds the word", async () => {
+      const outDir = makeLogDir({ logs: { "api-1.log": vitestLog(MEASURED_SLOW_LINE) } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.reasons).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it.each([
+      [
+        "a failed test's line",
+        "\u001b[31m     \u001b[31m×\u001b[31m writes the environment a checkout lacks and warns once\u001b[39m\u001b[32m 74\u001b[2mms\u001b[22m\u001b[39m",
+      ],
+      [
+        "a console header",
+        "\u001b[90mstderr\u001b[2m | tests/unit/hooks/useWebhooks.test.tsx\u001b[2m > \u001b[22m\u001b[2museCreateWebhookSubscription\u001b[2m > \u001b[22m\u001b[2mwarns on 4xx",
+      ],
+      [
+        "a failure's header",
+        "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m tests/unit/scripts/platformStart.test.ts\u001b[2m > \u001b[22mdb:up, the services alone (--services-only)\u001b[2m > \u001b[22mprints a warning when the environment file is missing",
+      ],
+    ])("reads %s without the test's name", async (_shape, line) => {
+      const outDir = makeLogDir({ logs: { "api-1.log": vitestLog(line) } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it("returns RED over the output vitest writes under a test's console header", async () => {
+      const output =
+        "\u001b[22m\u001b[39mWarning: An update to Panel inside a test was not wrapped in act(...)";
+      const outDir = makeLogDir({ logs: { "admin.log": vitestLog(CONSOLE_HEADER, output) } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "admin.log", line: 5, text: output }]);
+    });
+
+    it("returns GREEN over a record a test writes under its console header, and counts it", async () => {
+      const outDir = makeLogDir({
+        logs: { "admin.log": vitestLog(CONSOLE_HEADER, `\u001b[22m\u001b[39m${LABEL_RECORD}`) },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+      expect(verdict.appWarnRecords).toEqual({
+        total: 1,
+        messages: [{ msg: "Provider not available, trying next provider", count: 1 }],
+      });
+    });
+
+    it("returns RED over a record under a console header that another tool's text follows", async () => {
+      const output = `\u001b[22m\u001b[39m${LABEL_RECORD} warning: unused variable`;
+      const outDir = makeLogDir({ logs: { "admin.log": vitestLog(CONSOLE_HEADER, output) } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "admin.log", line: 5, text: output.slice(0, 220) }]);
+      expect(verdict.appWarnRecords.total).toBe(0);
+    });
+
+    it("returns RED over a runtime category written between vitest's lines", async () => {
+      const line =
+        "(node:1824577) [DEP0040] DeprecationWarning: The punycode module is deprecated.";
+      const outDir = makeLogDir({
+        logs: { "api-1.log": vitestLog(MEASURED_SLOW_LINE, line) },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "api-1.log", line: 5, text: line }]);
+    });
+
+    it.each([
+      ["a log vitest did not write", "lint.log", `${MEASURED_SLOW_LINE}\n`],
+      ["a vitest log, before its banner", "api-1.log", `${MEASURED_SLOW_LINE}\n${BANNER}\n`],
+      [
+        "a vitest log, with text after the duration",
+        "api-1.log",
+        `${BANNER}\n${MEASURED_SLOW_LINE} warning: x\n`,
+      ],
+    ])("returns RED over a slow test's line in %s, read whole", async (_where, log, content) => {
+      const outDir = makeLogDir({ logs: { [log]: content } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings.map((line) => line.log)).toEqual([log]);
+    });
   });
 
   describe("the record-coverage gate's block lines", () => {
@@ -710,6 +897,25 @@ describe("battery verdict", () => {
 
       expect(verdict.status).toBe("RED");
       expect(verdict.apiRuns[0]?.unhandled).toBe(1);
+    });
+
+    it("counts no unhandled line for a slow test whose name holds the phrase", async () => {
+      const outDir = makeLogDir({
+        logs: {
+          "api-1.log": [
+            "",
+            "\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.12 \u001b[39m\u001b[90m/root/omni-post-worktrees/chain-battery/apps/api\u001b[39m",
+            "",
+            "     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m returns RED when an api log carries Unhandled Error or Worker exited \u001b[33m 302\u001b[2mms\u001b[22m\u001b[39m",
+            "",
+          ].join("\n"),
+        },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.apiRuns[0]?.unhandled).toBe(0);
+      expect(verdict.status).toBe("GREEN");
     });
 
     it("returns RED when an api report counts a failed test", async () => {
