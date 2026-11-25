@@ -10,7 +10,10 @@ subagent, by the `agent_id` of the hook input) and per file, of the spans read
 and the bytes they cover, in `.claude/state/instruction-context/
 <session_id>.document-reads.jsonl`, which git ignores. A call is refused when
 the union of the spans this agent already read of the file, with the new ones,
-would cover more than the budget; reading a span again adds nothing.
+would cover more than the budget; reading a span again adds nothing. A span
+counts only for the file as it was when it was read, by its size and its
+modification time: a log appended to or an output regenerated since is counted
+afresh.
 
 - `Read`: the span is `offset` and `limit` (an integer, a float or a numeric
   string); with no `limit` the tool reads `READ_DEFAULT_LIMIT` lines from
@@ -28,9 +31,10 @@ would cover more than the budget; reading a span again adds nothing.
   (`timeout`, `env`, `command`, `nice`, `sudo`) or not, from a file named or
   from a redirected standard input (`cat < f`). No range is the whole file.
   What reaches the agent is the output of a pipeline's last command, so a
-  reader whose output feeds a search or a computation (`cat f | rg x`) or goes
-  to a file (`cat f > g`) is not a read, and one that feeds only a pager
-  (`cat f | less`) is. A command that searches or computes (`rg`, `jq`, `wc`,
+  reader whose output feeds a search, a computation or a ranged filter
+  (`cat f | rg x`, `cat f | bat -r 1:20`) or goes to a file (`cat f > g`) is
+  not a read, and one that feeds only a pager (`cat f | less`, a `bat` with no
+  range) is. A command that searches or computes (`rg`, `jq`, `wc`,
   `awk`, a script) is never counted: querying is the way past. A `cd` that is
   a command of its own moves the directory files resolve against; one inside a
   pipeline of several commands does not.
@@ -156,7 +160,6 @@ _COUNT_RE = re.compile(r"^([+-]?)(\d+)([A-Za-z]*)$")
 _NUMBER_RE = re.compile(r"^\s*[+-]?\d+(?:\.\d*)?\s*$")
 _BAT_RANGE_RE = re.compile(r"^(\d*)(?::(\+?)(\d*))?$")
 _SED_PRINT_RE = re.compile(r"^(?:(\d+|\$)(?:,(\d+|\$|\+\d+))?)?p$")
-_SED_ALLOWED_EXTRA_RE = re.compile(r"^\d*q$")
 
 
 class UnreadableRange(ValueError):
@@ -444,12 +447,14 @@ def _head_tail(program: str, arguments: list[str]) -> tuple[list[str], list[Requ
 
 def _sed_requests(scripts: list[str]) -> list[Request] | None:
     """The spans of a `sed -n` script made only of line-number `p` commands;
-    None for any other script, which computes rather than prints a range."""
+    None for any other script, which computes rather than prints a range: a
+    quit command (`10q`) among them too, since where it stops depends on the
+    order the lines are printed in."""
     requests: list[Request] = []
     for script in scripts:
         for command in re.split(r"[;\n]", script):
             command = command.strip()
-            if not command or _SED_ALLOWED_EXTRA_RE.match(command):
+            if not command:
                 continue
             match = _SED_PRINT_RE.match(command)
             if not match:
@@ -656,15 +661,17 @@ def _bash_reads(command: str, cwd: str) -> dict[str, list[Request]]:
         start = cwd
         if len(pipeline) == 1:
             cwd = _new_directory(words[0], cwd)
+        # Walk back over trailing pagers: a pass-through reader that names no
+        # file and no range. One with a range (`bat -r`) is a filter and stops
+        # the walk, as `head`, `tail` and `sed` do. Each command is parsed once.
         effective = len(pipeline) - 1
-        while effective > 0:
-            reader = _known_reader(pipeline[effective])
-            if reader is None or reader[0] not in _PASS_THROUGH or reader[1]:
-                break
+        reader = _known_reader(pipeline[effective])
+        while (effective > 0 and reader is not None and reader[0] in _PASS_THROUGH and not reader[1]
+               and all(request == WHOLE for request in reader[2])):
             effective -= 1
+            reader = _known_reader(pipeline[effective])
         if any(_prints_to_a_file(segment) for segment in pipeline[effective:]):
             continue
-        reader = _known_reader(pipeline[effective])
         if reader is not None:
             for file in reader[1]:
                 _add(reads, _resolve(start, file), reader[2])
@@ -764,9 +771,13 @@ def _judge(data: dict, reads: dict[str, list[Request]], state_root: Path, stack:
             spans = [(request, document.span(request)) for request in requests]
         finally:
             document.close()
+        # A file regenerated or appended to since a span was read is another
+        # document: only the spans read of it as it is now count.
+        version = [status.st_size, status.st_mtime_ns]
         union = merged(
             [tuple(entry["bytes"]) for entry in prior
-             if entry.get("agent") == agent and entry.get("file") == path and _is_span(entry.get("bytes"))]
+             if entry.get("agent") == agent and entry.get("file") == path and entry.get("version") == version
+             and _is_span(entry.get("bytes"))]
         )
         before = covered(union)
         after = covered(union + [span for _, span in spans])
@@ -778,7 +789,7 @@ def _judge(data: dict, reads: dict[str, list[Request]], state_root: Path, stack:
                 continue
             recorded.add(span)
             lines = [request[1], request[2]] if request[0] == "lines" else None
-            pending.append({"agent": agent, "file": path, "lines": lines, "bytes": list(span)})
+            pending.append({"agent": agent, "file": path, "version": version, "lines": lines, "bytes": list(span)})
 
     if not pending:
         return None

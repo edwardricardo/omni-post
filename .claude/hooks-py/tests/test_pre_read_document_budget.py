@@ -4,6 +4,7 @@ import contextlib
 import fcntl
 import io
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -103,6 +104,22 @@ class DocumentTests(_Budget):
         self.assertIsNotNone(self.read("big.md", offset=41, limit=1))
         self.assertEqual([entry["lines"] for entry in self.ledger()], [[1, 30], [31, 40]])
 
+    def test_a_document_rewritten_with_another_size_is_counted_afresh(self):
+        self.assertIsNone(self.read("big.md", offset=1, limit=40))
+        status = os.stat(self.doc("big.md"))
+        self.assertEqual(self.ledger()[0]["version"], [status.st_size, status.st_mtime_ns])
+        (self.docs / "big.md").write_text(LINE * 120)
+        self.assertIsNone(self.read("big.md", offset=41, limit=40))
+        self.assertIsNotNone(self.read("big.md", offset=81, limit=1))
+
+    def test_the_tail_of_a_growing_log_is_not_refused_for_the_tails_of_its_earlier_versions(self):
+        log_file = self.docs / "run.log"
+        log_file.write_text(LINE * 50)
+        for _ in range(3):
+            self.assertIsNone(self.bash("tail -n 30 run.log"))
+            with log_file.open("a") as handle:
+                handle.write(LINE * 30)
+
     def test_the_same_range_read_again_adds_nothing(self):
         for _ in range(3):
             self.assertIsNone(self.read("big.md", offset=1, limit=30))
@@ -116,6 +133,9 @@ class DocumentTests(_Budget):
         self.assertIsNotNone(self.read("big.md", offset=41, limit=1, agent="agent-a"))
 
     def test_each_document_has_its_own_ledger(self):
+        # The same size and modification time, so only the path tells them apart.
+        status = os.stat(self.doc("big.md"))
+        os.utime(self.doc("big.json"), ns=(status.st_atime_ns, status.st_mtime_ns))
         self.assertIsNone(self.read("big.md", offset=1, limit=40))
         self.assertIsNone(self.read("big.json", offset=41, limit=40))
         self.assertIsNotNone(self.read("big.json", offset=1, limit=1))
@@ -250,11 +270,26 @@ class BashReaderTests(_Budget):
     def test_a_reader_whose_output_feeds_a_pager_is_still_read(self):
         self.assertRefused("cat big.md | less")
         self.assertRefused("sed -n '1,50p' big.md | cat")
+        self.assertRefused("cat big.md | bat -p")
+
+    def test_a_reader_whose_output_feeds_a_ranged_filter_is_not_read(self):
+        for command in ("cat big.md | bat -r 1:20", "cat big.md | head -n 20", "cat big.md | sed -n '1,20p'"):
+            self.assertAllowed(command)
+        self.assertEqual(self.ledger(), [])
+
+    def test_a_sed_script_with_a_quit_command_is_not_counted(self):
+        for command in ("sed -n 'p;10q' big.md", "sed -n '5,$p;20q' big.md", "sed -n '1,50p;Q' big.md"):
+            self.assertAllowed(command)
+        self.assertEqual(self.ledger(), [])
 
     def test_a_range_the_hook_cannot_compute_skips_only_that_reader_and_is_logged(self):
         self.assertAllowed("L=5; bat -r $L:+8 big.md")
         self.assertIn("FAULT", (self.root / "hooks.log").read_text())
         self.assertRefused("L=5; bat -r $L:+8 big.md; cat big.md")
+
+    def test_a_range_the_hook_cannot_compute_at_the_end_of_a_pipeline_logs_once(self):
+        self.assertAllowed("L=5; cat big.md | bat -r $L:+8")
+        self.assertEqual((self.root / "hooks.log").read_text().count("FAULT"), 1)
 
     def test_a_reader_whose_output_goes_to_a_file_is_not_read(self):
         self.assertAllowed("cat big.md > copy.md")
@@ -337,7 +372,10 @@ class EdgeTests(_Budget):
 
     def test_a_range_already_recorded_adds_nothing_when_the_ledger_is_past_the_budget(self):
         path = ic.state_file(self.state, SESSION, guard.LEDGER_KIND)
-        ic.append_entry(path, {"agent": guard.MAIN_AGENT, "file": self.doc("big.md"), "lines": [1, 50], "bytes": [0, 50_000]})
+        status = os.stat(self.doc("big.md"))
+        version = [status.st_size, status.st_mtime_ns]
+        entry = {"agent": guard.MAIN_AGENT, "file": self.doc("big.md"), "version": version, "lines": [1, 50], "bytes": [0, 50_000]}
+        ic.append_entry(path, entry)
         self.assertIsNone(self.read("big.md", offset=1, limit=10))
         self.assertIsNotNone(self.read("big.md", offset=51, limit=1))
 

@@ -33,7 +33,9 @@ tool were not measured and a session's ledger could only be approximated by a da
 3. The budget is 40,000 bytes of one document per agent per session (`BUDGET_BYTES`). A document at
    or under it is never refused. For a larger one the hook keeps, per session, per agent and per
    file, the byte spans read, and refuses a call when their union with the new spans would cover
-   more than the budget. A span read again adds nothing.
+   more than the budget. A span read again adds nothing. Each span is recorded with the file's
+   size and modification time, and only the spans of the file as it is now count: a log appended
+   to or an output regenerated during the session is counted afresh.
 4. `Read` counts `offset` and `limit` (2,000 lines with no `limit`; zero or below reads nothing).
    A `Bash` command is judged only when it is plain: it holds no subshell or group (`(`, `)`, `{`,
    `}`), no command or process substitution (`$(`, a backtick, `<(`, `>(`), no heredoc or
@@ -89,9 +91,10 @@ read it let through.
   that also held a subshell.
 - Known limits, stated rather than guarded: a glob (`cat docs/*.md`), `git show <rev>:<path>`,
   `rg ''` (a search that matches every line), an interpreter that prints a file, the Grep tool, a
-  reader feeding a filter (`cat f | head -n 20`), `sed` without `-n`, a range the hook cannot
-  compute (`bat -r $L:+8`, skipped with a log line) and a command the shared tokenizer cannot read
-  are not counted.
+  reader feeding a ranged filter (`cat f | head -n 20`, `cat f | bat -r 1:20`), `sed` without
+  `-n`, a `sed` script with a quit command (`sed -n 'p;10q'`), a range the hook cannot compute
+  (`bat -r $L:+8`, skipped with a log line) and a command the shared tokenizer cannot read are not
+  counted.
 - `pushd` moves the directory as `cd` does, but `popd` is not followed: a reader after a `popd` is
   resolved from the directory the `pushd` moved to.
 - The hook makes one tokenizing pass and calls none of the shared scans for heredocs or nested
