@@ -27,7 +27,7 @@
       "total": 1285
     },
     "blocks": {
-      "total": 16134,
+      "total": 16143,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15823
+        "BEHAVIOURAL": 15832
       }
     },
     "deleted": {
@@ -76827,438 +76827,501 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 62,
+      "blockCount": 71,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::derives N from the workflow and reports no violation when all three sides carry 1..N",
-          "line": 383,
+          "line": 435,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "06efca03e3acbac720eaf0f28fcebe54fe039d418cd2776080c9a1c318187bf2"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::compares sets, so checks declared out of numeric order on all three sides are not a violation",
-          "line": 400,
+          "line": 452,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d2dc7eb14deeffb1eb651ea8a7a81a6f957e0b797fbcc43db1f3a4a9f99046bf"
+          "bodyHash": "fb2452a3f2cd1d7a2acfde81ab1a04bdb124856120db238179d635a71be3d879"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reads a single-quoted step name and a step whose name is not its first key",
-          "line": 411,
+          "line": 463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "4d05b42a978e2f8caef7b1a901de51ee1d956987823d907931217bed2528c603"
+          "bodyHash": "1a9cd26ee37376a5c09e63ec373042035b8c166cdf2393c03a485a1be3db0800"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::does not read a step-name-shaped line inside a run block as a step",
-          "line": 443,
+          "line": 495,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "732391206b9da455a61cd168a076126930daef1c2b414a06613b4f05069d9283"
+          "bodyHash": "2dcbc9aee03300609d45ee094174c0517bb0fa6751174dbcdb17a8efc06b805e"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::does not read a step name written as a block scalar as a check, nor its lines as steps",
-          "line": 457,
+          "line": 509,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "9c692e0b82576097ac9bcf215ebdcb97ad092b8b6727c6e55f0914b85fc230ce"
+          "bodyHash": "03f52991d997acc00bd16d95741c2fb42cc4681eab373320001a247ef7457966"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::tolerates a count sentence wrapped across lines",
-          "line": 471,
+          "line": 523,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "54360b13e9eb0acc845468f3378524db6e23a0cac2fdaebf551f6d03918bca75"
+          "bodyHash": "c7182b3bba37437e96484470e11e36ebcf89565d8ac2287741ec821706f0d8d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::gives each numbered step the lines of its run body, and ends a step's body at the next step",
-          "line": 481,
+          "line": 533,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d881b9e8669092e33361d770299d1c146428142dee55e7b22a3e704921f78860"
+          "bodyHash": "d07300437069c6ebd15d2e3f0645358618c2060e2b14587196fa22912fc1734c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reads the list from the `## Inventory` section of the reference",
+          "line": 559,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bf3b466a005f826a041ed921e47c331fd6c79b84b65f0a81e7c6de9e168d5447"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list left only in CLAUDE.md, which it does not read: %s",
+          "line": 571,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ad7c28068d26c5817738121131205f3722ac201820b16b585153fa956ed0a80e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line left in CLAUDE.md beside a complete inventory: %s",
+          "line": 607,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "78b06b41211b2e2f08b4cc6ebd057bd275e826b69a05e8db944dcab3da1d63e9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reads the count sentence from CLAUDE.md §Automated Compliance Checks, naming CLAUDE.md when it is stale",
+          "line": 627,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5ee7a5f7890c72ebfef1376d5c58b9b37857f7f6e122ba2edeea9be7eef0b53c"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a check number two steps claim, naming the number and both lines",
-          "line": 507,
+          "line": 642,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "9119c16fe0b3eab9496f4e9a582bc6da950116f2961893eda5c37c6462c830d7"
+          "bodyHash": "c203ebcf55199a9298a0a7a7d3011121e2db7d796c92660a37f34ab94075e901"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a hole below the derived maximum",
-          "line": 518,
+          "line": 653,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "043c4b3780a10c11d6edc0476eda44bdb93b3f5b59aab79250b581289a828cb8"
+          "bodyHash": "1aa595e7d3d7697edbe1f822de352af3359793fa9d155b250944be8d83706792"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a hole at #1, even when every side agrees on the rest",
-          "line": 532,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "2f5dd6e3e2e0cb2decdd468207b7599ba15dad1ad45c3f71f0d363a6b62d5931"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a step with no block in the reference as wired but undocumented",
-          "line": 543,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "91bf13243abe79c519f1f7f01d8cfc5823678ff4a211219eeed3c4240a47554f"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a reference block with no step as documented but unwired",
-          "line": 555,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "9b7a88970c604031baab40a337cfe8e22915ca52c8d2a41bf498e94e2a8f9302"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a count sentence left at the previous value",
-          "line": 567,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "c44ed609e3313f35e9b3a458e391df7baeb0c2616930b42169173b37cd4a686b"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a count sentence whose range disagrees with its own count",
-          "line": 579,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "cd6c6b8f9b75316e3ed03e09d18d84c4beb840575ee9309b2790998ae816efd0"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses two count sentences, since which one is the canon's is ambiguous",
-          "line": 590,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "b61a43ad7fb9bef533b57befc530c7242e1c4d04149821a1b47455cef36f3e90"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a step the list leaves out as wired but unlisted",
-          "line": 603,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "615f3ba727b5923e61b988b32c77a64f02a736b7dd022f023a873b24254a464c"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line with no step as listed but unwired",
-          "line": 615,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "be1e06c47f79bb65a95edb5f3f433b5cc9733c1ca2998ba6e090b72e2ef1c8d9"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a check listed twice, naming the number and both lines",
-          "line": 629,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "9cce2e5748024695701c92a0c00a1eac68a7358689a5781403e4d20c642dcc2d"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line whose name differs from its step's, printing the line as it must read",
-          "line": 640,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "5b2009d5ba001a6ff74b486c376282b653c83ded9bbee83619c8b56c053c09a9"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list command its step does not run",
-          "line": 654,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "3f5ddc7fd94d9e36eaf5064adc40fa77ba8a4ae4088185f6536c2751a4f13780"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::accepts a list command its own step runs",
           "line": 667,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "1988dfa401165f9fc3725277eea6b5fc7cff7419af0c7e0d59904c01ae7e7ca1"
+          "bodyHash": "eaf1ce7282d087574c24a025247a8b69206372fcc4f9bbc0aeab80813f51bab0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a step with no block in the reference as wired but undocumented",
+          "line": 678,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3179743f00e7c692de867f9eb36cea345747b788eb2d7c665b15de6a6f4192c5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a reference block with no step as documented but unwired",
+          "line": 690,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "634165b1b5ab2c6b79a56958317250c913cb259f292a18f13f6294b9c5bc2714"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a count sentence left at the previous value",
+          "line": 702,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1635f801ea42cf2d5fd4f26e80931cee63d828a743cdbea5c776514ab845f3d9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a count sentence whose range disagrees with its own count",
+          "line": 714,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "169eb5f483ea5e69dbd898e329b88d73bdd869856ddc056acdc8553a511bc567"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses two count sentences, since which one is the canon's is ambiguous",
+          "line": 725,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d5a675e770f7fe5d79aba436b755db7d460d1d2c30512b114bc0312c07348536"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a step the list leaves out as wired but unlisted",
+          "line": 738,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "184c3174269c145a4bd2d4f8cd32b066ea46c706f70463095c1f59d6be298389"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line with no step as listed but unwired",
+          "line": 750,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4f714e5c20df5d66cde144139f76475ad557a9a69e2e60bcbfcd1b96763c77be"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a check listed twice, naming the number and both lines",
+          "line": 766,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5febd60663a901822a9b60263172d3b7cdef7cc7edbe53ec9ee9c8de4eda8fcc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line whose name differs from its step's, printing the line as it must read",
+          "line": 777,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "513fb914a814e2d526eb927c347b5921311e4b5120c6fb571d76581186e719a0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list command its step does not run",
+          "line": 791,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9b7b694cd054d7b00f25b0f1470376d7c766079fab52c47f97334330c48a4b89"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::accepts a list command its own step runs",
+          "line": 804,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8066476f86dab5be08ba82d3790556ac883a4ca037a3b76ad18c65c859f5f378"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list command that only another check's step runs",
-          "line": 686,
+          "line": 823,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "43950407052e05dfef29d3b0a935e020da06927f32ea9d30bfb4a4fc6ab9614d"
+          "bodyHash": "f09d273c469721aa859d4b427030675ced39ccdb2e24bccceb9978f6b4a7a111"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list command that only the unnamed step after the check runs: %s",
-          "line": 705,
+          "line": 839,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "c367be1d5efdd41eb82a5ebb6ad3511bbe7df2baae3afe7cbcb0b829ca61ae48"
+          "bodyHash": "a6259ec9a773671735658655bcaab3d765e3ce9950ca0a228b172ff0e6987c75"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::keeps a step's body its own across a list nested inside the step",
-          "line": 731,
+          "line": 865,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "1ed40281c8f511c3b5e80893d1a59df6cde6c8fc5695f64de678483a37125df4"
+          "bodyHash": "e20afcc7f005082fcde548462daf94cebe32dce06f6d88b351d5624f85a0c353"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::keeps a step's body its own across a comment at %s between its keys and its run body",
-          "line": 756,
+          "line": 890,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "4dd196403bbc70e344472115e4f6c931d58198435df12e66c007811413da5200"
+          "bodyHash": "74f89437a880e4917913e4ca5c23c10b4694c3826972356267069935d3e7886b"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reads the name on the first key line as the step's own when the dash line holds %s",
-          "line": 779,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "5e71e9e1f6f6f25656552cfdef5bd6d66de80ee4e40954074874b6fdeb9c9f5b"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line that states neither shell nor a command",
-          "line": 805,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "dd644137b41b318528078ac72d2fab0988d54b117870d859e0150e3390763ee9"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a line that opens like an entry without the bold number, by its line, and counts it as no entry",
-          "line": 816,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "49583f2995d469f3824175ccf299882860bf2e54dc274d87c0a2b117a4570a1f"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list number with a leading zero as a line not in the list's form",
-          "line": 830,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "b169ba4b3ed1ed9150b2bc3956c6dc542f316de9513891d882d12def14a7ce41"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a check block left in a code block of the section",
-          "line": 842,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "3ccea7eabd8dbef5e2cfb743e092121dfd26058ab93ba2d9e4e05e62e46dd410"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::does not read a list-shaped line after the section ends",
-          "line": 859,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "e9eda3d144230dfc66fb656961f9630ae1ff4e78cc0c5a7ce2f766af8971e5e7"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a section that holds no list line",
-          "line": 870,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "26fcc04556ab79330b56d81535ebe02aacdd6acb449d99e3f4eb8802c430a7a0"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a section whose code block never closes",
-          "line": 884,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "fa4ab35c850049669c66dbca68236ac61028061bf46383e8be1662f7abd2e8e7"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a canon with no Automated Compliance Checks section",
-          "line": 898,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "ad82c24e5e3571d1e742f72b76ac491456fe0a256b7cc19d9790f2218b0f6870"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a section that states no count sentence",
           "line": 910,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0107c0d993c9a0e3ae2bea5ffce6e3cd5ea184155861c41b334044167b020bb7"
+          "bodyHash": "e270ec244b773c07da393d2fbe4db565cf8b3aaf4d312cbb2e648b1e904a990a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list line that states neither shell nor a command",
+          "line": 933,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8ccc346d366bc277d7c1415bc54652341defc45567b86bfb56d7437a81b245e8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a line that opens like an entry without the bold number, by its line, and counts it as no entry",
+          "line": 944,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1ffff929993cb9e52a4183e3c14d28d4c562a975f047bb772a3fa6aaa9733ac5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a list number with a leading zero as a line not in the list's form",
+          "line": 958,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "aa1b4caf1d423c3379dc6c4a2600ef311fbbc0b80ef5c0b51ea7afcc2bea8745"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a check block left in a code block of the section",
+          "line": 972,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a1a8440be3bb4eb0940477b32f5e21519658768908a3d57abef979ef49dc4bdb"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::does not read a list-shaped line after the inventory's section ends",
+          "line": 989,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "49a7aa58b98a104681c66f532eed052664f4f793fcffbe35014800a56dfa3222"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses an inventory that holds no list line",
+          "line": 1004,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "632cbb9f7d8a9d490efebb3086f2c3b4c0c6ee8b8bceafb8cda0e4e85d8f66ff"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses an inventory whose code block never closes",
+          "line": 1018,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e3bea8d40e4e4b00c3d7c18210fd859a2c1fd72f4725254f87e84dbfc73c3be1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a reference whose inventory's section was renamed",
+          "line": 1037,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9cb51226d2fd2edcd56e95d6e39c7cd16c5055429fc2ea153541487c52dedea4"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a CLAUDE.md section whose code block never closes, since its count sentence cannot be delimited",
+          "line": 1049,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f3f381e6c2246692d658194b4014a06e386c15d099f136427cd02c21d1662f8e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a canon with no Automated Compliance Checks section",
+          "line": 1063,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e17493a7478952f412239c997197063e82b55f0565bd5b6837868ff07c479884"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a section that states no count sentence",
+          "line": 1078,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0c43ff7a9592badc843d741171e25cd4979b9dd8ff69490ed2ccb29e54398c25"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reports a `# N.` comment that does not open a block by its line, instead of counting it",
-          "line": 923,
+          "line": 1091,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "097eaad7f030134f306dcfb6603cc1446b6e5b44426b539db1057467561e6440"
+          "bodyHash": "ffb19ac68677be02fdbb96a764dfbbbac3932e4d996258f88a6f31338464f455"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reports a look-alike after a blank line as a duplicate heading when its number exists",
-          "line": 940,
+          "line": 1109,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "3ef91e4a3e0df9d26cf324d99ac4df27c8962cdae9aec2baceb2be7472c55460"
+          "bodyHash": "eef6e57b7240b67633cda9a3f0f3a7c93dcd37702f6549e519a73c1ac2d21805"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reports a look-alike after a blank line as documented but unwired when its number does not",
-          "line": 956,
+          "line": 1126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ddcd2c3e661fa88a869f8c658c05b9425b41c578be11c3707c421d231e321cdb"
+          "bodyHash": "17231047874137391d466c86fbb2fbdb4eb72667f3f9e51e26adc410d90e2450"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::does not read a comment that starts with a number but no period as a heading",
-          "line": 971,
+          "line": 1142,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f7c773e187df1967891c2c05e1814638b59e885ce3fae8282878cb2b827e8944"
+          "bodyHash": "8542c6c7207243b2bb18bda8400b7a264f7ba1c741dac97cd8d0f0ca8a45d4ba"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::does not end the section at a column-0 `## ` comment inside the code block",
-          "line": 984,
+          "line": 1156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0c4d4fa622b252df999397b9169ff97128f30728d1e8028a02e958a8a2397204"
+          "bodyHash": "f020a343a95a5566a9c75d41893fc685a22e68be6df09a969d63d8f32e24ed67"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::stops at the next level-2 heading, so a `# N.` line in a later section is not read",
-          "line": 998,
+          "line": 1171,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "2215f625e8f78692982d97cbcd8cc3fa1ed172aa13e0486b42cf8f89bcd7bcd7"
+          "bodyHash": "0186e343bdb736597a6940c43ddd6cba6080a1bfe1e9f513717ea420846052c3"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a count sentence in the reference, since the count is stated once, in CLAUDE.md",
-          "line": 1014,
+          "line": 1188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "20fc753df1e93588352f2a042311b68e64b7927b908960cf838217afef01c5a6"
+          "bodyHash": "2b7afc5f9fcf3bd6e1fab490df18deb93e8658055dbf2290ea0c38d8db07b6da"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a reference with no `## Check blocks` section",
-          "line": 1028,
+          "line": 1202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f7f48c4827f204c48aed077d2e05aa040bc98df800d764490cfa81d24c3045d9"
+          "bodyHash": "015ca4cc80346753f316a7cfb4e3be4a7f46139003504d735bce7d5a44b4c574"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a reference with zero check headings",
-          "line": 1042,
+          "line": 1216,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "cd286e3ee0255aed898b4472c6dc1490afdb24dbcb7dd75a38b4110a4b640fa8"
+          "bodyHash": "f5967eb9838873a4a05a364c2e74fa22741e796313e185d188f3a50c6e337eef"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a reference whose code block never closes",
-          "line": 1056,
+          "line": 1230,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "18565a4533cb16512b59b3778c05efe37fec61ad161c08b470a5a30be264a4b7"
+          "bodyHash": "117d1d18c1f4d1cc124d3d89451b74774e3956226da40d1a519be0d087ffded6"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses an unquoted `#N` name, which YAML reads as a comment",
-          "line": 1072,
+          "line": 1246,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d7da9e9edd3263b24f5da12e642449bfa2ef1e1a3a14e2a8617bb211ec720058"
+          "bodyHash": "5686019501b9525950f21cbcea729eb772dee25ae6c2aa057fc462021dc9ef72"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a numbered name outside an entry of a steps list",
-          "line": 1085,
+          "line": 1259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "7a1792d66c77a2a10eb79e794f12f6a6222685085bea269a615d9ab248bfb5f8"
+          "bodyHash": "3f4083eafe644b37643fb30e2694a3074305f572c8a7f29d536c3f34a1809e07"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a numbered name nested inside an entry of a steps list: %s",
-          "line": 1116,
+          "line": 1290,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "c67d4ddcdd768f8b4a216ad3fbb39c144936e17e58073e1fc28fb5de9711ae8b"
+          "bodyHash": "58dcb649e02149b094a56d18b2129fd0116e4400630ce6945ba33b99c8308f60"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a numbered name nested inside an entry whose dash line holds %s",
-          "line": 1139,
+          "line": 1310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "50c2b3c5c372768e34f6386d7ed268769bed2d988084a2aa86951c4c4e951042"
+          "bodyHash": "aa82a775f762180a8e4a63dbc03483e8d19b8b3b29182d9300fb9d8b99734afa"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reads an unnumbered name nested inside an entry as nothing, so the step keeps its body: %s",
-          "line": 1162,
+          "line": 1330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ecc0153c67bc012254f499b8b5877bad602c9c618a49a0eadc800f4d174f7120"
+          "bodyHash": "11e5fe245010be6eda170f7051a15262e27209aad35696d3cc1c6264c30364fc"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a check number with a leading zero",
-          "line": 1183,
+          "line": 1348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "e04fe66f8c9fd57fea7b6122bb77a7dc61310017b17c59578c72086f0a75b7e3"
+          "bodyHash": "938976485d0618028a3ba052888b19c33dc7111370f3ae15daa0c34b4891c6d1"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::refuses a workflow with zero numbered steps",
-          "line": 1196,
+          "line": 1361,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "6f6515d4707b32a0c526ce5a5f717f711e103050fce36dfac3a320ba47e4cd8f"
+          "bodyHash": "81b04f86a09027d15a6a950f99bc7507ef7872b6ddbf9bf250acee394b4ef67c"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::states the derived count and lists every check by number, in numeric order",
-          "line": 1212,
+          "line": 1377,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "705a4ea3976d82ffd859210de05eaf762a340ad4e8f48b33b93b84e78ea46f7d"
+          "bodyHash": "ba13b7466a73ad5ec24294af457698f113ba47ac651334beaaf21c5ed8d41842"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 0, prints the derived N and appends the summary on a clean inventory",
-          "line": 1268,
+          "line": 1433,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f74d8b92d87b91975f51109e8ee931b936875ec541599c3905713f869fecb5f"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 with each violation on stderr and writes no summary when the inventory is red",
-          "line": 1286,
+          "line": 1451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0ab66ef1622e2a23eb0746a36ba6544822d5d93084ac753fe1ba2990f159bb58"
+          "bodyHash": "ead9a84f321ece034d2d88da967b65dc734904ed559a700f62677d300195107d"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 naming an input file that cannot be read",
-          "line": 1304,
+          "line": 1469,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2697756ed1d9a7095332dc367043540503fcd147bba0ed5d992f3757a73b386"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 naming a reference that cannot be read",
-          "line": 1316,
+          "line": 1481,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1be03e0e30eb5cce5b4cbd418e8025df9132b1072c1c7b28442b6d33fac6a94"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 when a list command occurs only in another check's step, naming the check and its step",
-          "line": 1328,
+          "line": 1493,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0649397e06437acbf70a97745d9ae339abb8af2cc0529c87f06fe6a551e0924e"
+          "bodyHash": "72a6e82594d97d84e664ba25a8132a10c984e4564cfe86a2c8c490ea5154a5a7"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 when a list command occurs only in an unnamed step after the check",
-          "line": 1351,
+          "line": 1513,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d61bf382ee6edc9bc88f5c287bfe6188f009a327b6567d7fbb7f59e0eb14dc8e"
+          "bodyHash": "28c697db77de400276cbe249cb73d81063c812607f7102043ac8379c077931bb"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 naming the reference's missing `## Inventory` and each line of a list left only in CLAUDE.md",
+          "line": 1534,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f8c469eaecda26bb9a0d3e5b4842ad5e8c58ea1658131e79b23105ae23bd7b22"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 naming CLAUDE.md when its count sentence is stale",
+          "line": 1558,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c0c6179deabbf4c630d225d63f1ae31c9cce3105b801ee321d8e533509cbf9f9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 naming the line of a list line left in CLAUDE.md beside a complete inventory",
+          "line": 1579,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d149fa41f86148b5cbb2f525899f00f028d709a546d5b7593ea84b3a2e94701a"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 on a numbered name nested inside a step, even when every side carries its number",
-          "line": 1374,
+          "line": 1601,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "037ee923bd69ffb7533313b04219ad0f69b1db12405ae16904de23f1b0d21d7b"
+          "bodyHash": "4b53c979d1d626a959b77d0f78bf120e1b3c109331bf0568cebd5c15b513de5f"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::exits 1 on an unknown argument instead of ignoring it",
-          "line": 1395,
+          "line": 1622,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d542cba0e9af1311e9af4a7687bb32835ca3e1a4c690bf8ed7ad8b09df3d22f"
         },
         {
           "id": "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts::reads the workflow, the canon and the reference beside its own scripts directory, needing neither git nor the working directory",
-          "line": 1406,
+          "line": 1633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0931666fd3a1c83c01d41564c777d577e0bb7af29d537d53b9b1512cd0845f24"
