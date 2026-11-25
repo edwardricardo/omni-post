@@ -78,10 +78,10 @@ the shared-kernel criterion (Evans §14.2).
 DECISION: "add // canon-exception: hotfix:INC-1234 in apps/api/src/billing/X.ts"
 
 RULE CHECK:
-- CLAUDE.md §Pragmatic-Exceptions hotfix: ✅ AUTHORIZES — P0/P1 incident with an incident-id,
-  ADR follow-up mandatory within ≤5 days.
+- docs/development/CANON_ENFORCEMENT.md §Pragmatic-Exceptions hotfix: ✅ AUTHORIZES — P0/P1
+  incident with an incident-id, ADR follow-up mandatory within ≤5 days.
 
-canon-check: CLAUDE.md §Pragmatic-Exceptions §hotfix — marker authorized;
+canon-check: docs/development/CANON_ENFORCEMENT.md §Pragmatic-Exceptions §hotfix — marker authorized;
 ADR-NNNN follow-up scheduled for 2026-06-02.
 ```
 

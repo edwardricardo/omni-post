@@ -59,6 +59,14 @@ packages/
   api-common/ - Base route handler, CSV export
   monitoring/ - Circuit breaker, health checks
   observability/ - OpenTelemetry instrumentation
+  api-errors/ - Canonical ApiError class, its parsing helpers and predicates (admin, client)
+  core/       - Bounded contexts: the domain and the application
+  eslint-plugin-errors/ - ESLint rules that keep error code, status and text in the registry
+  eslint-plugin-testing/ - ESLint rules for test files, and the assertion classifier
+  i18n/       - Frontend-only i18n surface
+  query-client/ - Shared TanStack Query client factory
+  test-contracts/ - Reach engine and scope contract of the test suites
+  vitest-shared/ - Shared vitest config factory
 ```
 
 ### Technology Stack
@@ -66,7 +74,7 @@ packages/
 - **Backend**: TypeScript, Fastify, Prisma ORM
 - **Database**: PostgreSQL with Redis for queues/caching
 - **Frontend**: Next.js, React, Tailwind CSS, Radix UI
-- **Testing**: node:test (API), Vitest (frontend), Playwright (E2E)
+- **Testing**: Vitest (API unit tests, frontend), node:test (API integration tests), Playwright (E2E)
 - **Monitoring**: Prometheus metrics, Pino structured logging, OpenTelemetry
 - **Storage**: S3-compatible storage for media files
 
@@ -93,42 +101,17 @@ packages/
 
 **All project documentation lives under `/docs/`.** Never create `.md` files in `apps/`, `packages/`, `infra/`, or any other directory. The only exceptions are `CLAUDE.md` (root) and `.claude/` configuration files.
 
-**Artifact language.** Every tracked artifact is written in English: code, comments, configuration, CI, documentation and plans. Four classes are exempt, and no others:
+**Artifact language.** Every tracked artifact is written in English: code, comments, configuration, CI, documentation and plans. The exempt classes (product locale data, a document with an English twin, immutable or third-party content, detector vocabulary) are defined in [ADR-0040](docs/technical/ADR-0040-artifact-language-and-role-attribution.md); fitness #53 holds the remaining debt per file and its allowlist names every exempt file. Spanish product text outside the locale files is a defect to fix, never an exception. A chat session is not an artifact.
 
-- product locale data: `apps/admin/messages/es.json`, `apps/client/messages/es.json`, the i18n fixtures, a language's name written in that language, and test fixtures whose subject is non-English text;
-- a document with an English twin: `docs/product/INVESTOR_ES.md` and `docs/product/MARKETING_ES.md`;
-- immutable or third-party content: an applied Prisma migration, whose checksum Prisma verifies, and vendored third-party data;
-- detector vocabulary: the bilingual tripwire word list of `.claude/hooks-py/pre_edit_tripwire_blocker.py` and its mirror in §Mandatory Pre-Action Triggers, and the artifact-language gate with its suite, which name the words they count.
+**Roles, never people.** An artifact names the role that decides, never the person who holds it. The Product Owner decides what the product does: priorities, the route, product and legal decisions. The Maintainer decides how it is built and delivered: architecture, merges, releases, and the grant authority of the hooks. [docs/GOVERNANCE.md](docs/GOVERNANCE.md) maps each role to its holder and is the one document that names the person; where a tool or a link needs an identity is listed in ADR-0040. A quote of a person is an English translation attributed to the role.
 
-Two kinds of file are left out of the count without being exempt: a generated record is counted at its source, never a second time, and a file holding a recorded defect carries that defect's ID as its reason until the defect closes. Spanish product text outside the locale files is a defect to fix, never an exception. A person's identity stays only where the roles rule below requires it, and a chat session is not an artifact. Fitness #53, the artifact-language gate, holds the remaining debt per file, and its allowlist names every exempt file with its reason ([ADR-0040](docs/technical/ADR-0040-artifact-language-and-role-attribution.md)).
-
-**Roles, never people.** An artifact names the role that decides, never the person who holds it. The Product Owner decides what the product does: priorities, the route, product and legal decisions. The Maintainer decides how it is built and delivered: architecture, merges, releases, and the grant authority of the hooks. [docs/GOVERNANCE.md](docs/GOVERNANCE.md) maps each role to its holder, with dates, and is the one document that names the person; an identity also stays where a tool or a link needs it: `github.com/edwardricardo/...` permalinks, `CODEOWNERS`, `.github/dependabot.yml` and `GRANT_ISSUER`, the issuer identity the hooks stamp on their grant files. A quote of a person is an English translation attributed to the role. An ADR names roles in MADR's `decision-makers`, `consulted` and `informed`; an accepted ADR may swap a person for a role in its metadata and prose, with its decision, status and rationale untouched and no per-file note.
-
-**Requests in feature documents.** This rule overrides two clauses of ODD: `L1` quoting the request verbatim in the user's language, and each `S#` quoting the user's exact strings verbatim. A feature document carries only an English translation of each request and of each later correction, and its `S#` quote that translation. The originals are kept verbatim in one Engram observation per feature, under topic `odd/<feature>/requests`, which holds every `L#` and is replaced whole on each update: a save under an existing topic key replaces the observation, so a separate save per `L#` would lose the earlier ones. Feature documents live under `odd/`, which git ignores, so no pull request shows them: the pull request that implements a request quotes in its body the translated `L#` it implements, and the Product Owner's approval of that pull request approves the translation, which is then the contract. Product data, such as `es` locale text, is copied as is.
+**Requests in feature documents.** This rule overrides two clauses of ODD: `L1` quoting the request verbatim in the user's language, and each `S#` quoting the user's exact strings. A feature document carries only an English translation of each request and of each later correction, and its `S#` quote that translation. The originals are kept verbatim in one Engram observation per feature, under topic `odd/<feature>/requests`, replaced whole on each update. The pull request that implements a request quotes in its body the translated `L#` it implements, and the Product Owner's approval of that pull request approves the translation. Product data, such as `es` locale text, is copied as is.
 
 **Plan closure.** Every tracked plan or tracker (a document whose purpose is to schedule or track work: the Master Plan, a roadmap, a tracker) carries a fixed `## Closure` heading that names where its state, decisions, rules, lessons and pending items go when it closes; one that predates this rule gains the heading at its closure at the latest. When it closes, each of them moves to the home its `## Closure` names, the file leaves the tree, and every place that cites it gets a permalink of the form `https://github.com/edwardricardo/omni-post/blob/<sha>/<path>`, where `<sha>` is a commit that still holds the file. Only what survives is translated. One exception stands, by the Product Owner's decision of 2026-11-10 ([ADR-0044](docs/technical/ADR-0044-feature-ordered-plan.md)): `docs/product/MASTER_PLAN.md` stays in the tree as an archive that takes no new row, and a citation of one of its closed rows may point at it.
 
 ### `/docs/` Structure
 
-| Directory             | Content                                                                                                                                                                                                                                     |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/api/`           | Saga engine reference (`saga.md`); endpoints: `docs/architecture/API.md` and the generated route table; error codes: `ERROR_CODES.md`, generated from the registry                                                                          |
-| `docs/frontend/`      | `REACT_STANDARDS.md`: the story requirement and the map to the frontend rules                                                                                                                                                               |
-| `docs/standards/`     | `frontend-standards.md`, the detailed frontend rules `REACT_STANDARDS.md` maps to                                                                                                                                                           |
-| `docs/architecture/`  | System design and architectural decisions                                                                                                                                                                                                   |
-| `docs/development/`   | Developer guides, contributing, migration guides                                                                                                                                                                                            |
-| `docs/features/`      | Feature specifications and design docs                                                                                                                                                                                                      |
-| `docs/reports/`       | Sprint reports and session logs                                                                                                                                                                                                             |
-| `docs/security/`      | Security policies and audits                                                                                                                                                                                                                |
-| `docs/audits/`        | The audit methodology (`AUDIT_METHODOLOGY.md`)                                                                                                                                                                                              |
-| `docs/legal/`         | Legal facts register: the record of processing activities, generated inventories and their classifications                                                                                                                                  |
-| `docs/support/`       | Support documentation: one page per feature on how it works and where to look on a ticket, its generated index and the non-features list                                                                                                    |
-| `docs/compliance/`    | Compliance operations: `RETENTION_CALENDAR.md`, the retention window per data type and the scheduled job that enforces it                                                                                                                   |
-| `docs/deployment/`    | Infrastructure and deployment guides; `DEPLOYMENT_CHECKLIST.md`, what an operator configures before a deployment and verifies after it, external services included                                                                          |
-| `docs/runbooks/`      | Runbooks for the alerts (`alert-*.md`), the chaos scenario and a failing provider contract test                                                                                                                                             |
-| `docs/technical/`     | Deep-dives and ADRs (`ADR-NNNN-*.md`, template in ADR-0001 — Status/Date/Decision-makers/Consulted/Informed/Context/Decision/Rationale/Alternatives/Consequences/Legal impact/Support impact/Deployment impact/Revisit if/Risks/References) |
-| `docs/product/`       | Product requirements and roadmap                                                                                                                                                                                                            |
-| `docs/observability/` | Logging, redaction, caching, background tasks (canon child)                                                                                                                                                                                 |
+[docs/README.md](docs/README.md) is the index of the documentation, by area: look there before a document is created.
 
 **Cross-cutting work.** Work that belongs to no feature (CI and gates, dependencies, the test system, observability, architecture rules, documentation and its checks, the security slice) is tracked in [docs/product/plan/cross-cutting.md](docs/product/plan/cross-cutting.md), a part of the plan ([docs/product/PLAN.md](docs/product/PLAN.md)). Consult it before starting any non-feature work, to avoid duplicating an item it already holds; an item that closes records its pull request and merge commit there.
 
@@ -136,11 +119,13 @@ Two kinds of file are left out of the count without being exempt: a generated re
 
 **Plan tracking.** The chain table of [PLAN.md](docs/product/PLAN.md) holds each feature's state, `open`, `in progress` or `closed`, and the pull request that closed it. A feature's first pull request sets `in progress` and writes the cut the Product Owner confirmed into its record in [chain.md](docs/product/plan/chain.md). Its closing pull request sets the row's `State` and `Closed by` (its number), updates the record's `Today` line and marks each item it resolved `Closed by #<n>`; a decision closes one as `Closed by decision of the <role> on <YYYY-MM-DD>: <decision>`. The merge commit and the date are read from the pull request. A `closed` feature holds no open item (fitness #56).
 
-**Support documentation flow.** Every ODD unit that touches a path listed in the `paths` of a support document under `docs/support/` updates that document in the same pull request (the `##` sections that changed, and its `verified` stamp moved to the commit the pull request checked it against), or says why not in the pull request's `## Support impact`. That section takes one line per document, `docs/support/<feature>.md — updated: <sections> → verified <sha>`, or `none for <feature> — <reason>`; silence is not an answer. The PR template and the ADR template (ADR-0001) carry the section beside `## Legal impact`. The index (`docs/support/README.md`) and the non-features list (`docs/support/NON_FEATURES.md`) are generated by `pnpm support:index`, and `pnpm check:support`, the battery step `support`, fails when a document breaks the template, a generated page is stale or a tree candidate is unclassified.
+**Support documentation flow.** A unit that touches a path listed in the `paths` of a document under `docs/support/` updates that document in the same pull request (the sections that changed, and its `verified` stamp), or says why not in `## Support impact`. `pnpm support:index` generates the index and the non-features list, and `pnpm check:support` holds them.
 
-**Deployment documentation flow.** Every ODD unit that adds, changes or removes something an operator configures or verifies around a deployment (a `vars.X` or `secrets.X` a workflow reads, a variable in an env schema or a Dockerfile `ARG`, an external account with its key, webhook or OAuth redirect URI, a post-deployment check) updates its row in `docs/deployment/DEPLOYMENT_CHECKLIST.md` in the same pull request, with the row's evidence path and the change that introduced it, or says why not in the pull request's `## Deployment impact`. That section takes one line per requirement, `docs/deployment/DEPLOYMENT_CHECKLIST.md — added|updated|removed: <row>`, or `none — <reason>`; silence is not an answer. The PR template and the ADR template (ADR-0001) carry the section after `## Support impact`. No check reads the document yet: the derived gate, `pnpm check:deployment`, is the plan item N-CI-8 (`docs/product/plan/chain.md`).
+**Deployment documentation flow.** A unit that adds, changes or removes something an operator configures or verifies around a deployment (a variable or secret a workflow reads, an env-schema variable or a Dockerfile `ARG`, an external account, a post-deployment check) updates its row in `docs/deployment/DEPLOYMENT_CHECKLIST.md` in the same pull request, or says why not in `## Deployment impact`.
 
-**Foundation practices flow.** Every ODD unit that adds an ADR, adds or changes a CI gate or fitness check, or demolishes and redoes code records the practice it teaches in `docs/development/FOUNDATION_PRACTICES.md` in the same pull request — a new entry, or an update to the entry it sharpens — in the document's four-field format: the practice, why (what not having it cost this repository, with the evidence path), how the next application enforces it from its first commit, and the measurable condition under which it may be loosened. A unit that teaches nothing the next application should adopt says so in the pull request body with one line, `none for foundation practices — <reason>`. The document is domain-agnostic: it records what to create and enforce from the first commit, never which packages, and never this repository's remediation of a defect the practice makes impossible. No check reads the document.
+**Foundation practices flow.** A unit that adds an ADR, adds or changes a CI gate or fitness check, or demolishes and redoes code records the practice it teaches in `docs/development/FOUNDATION_PRACTICES.md` in the same pull request, in that document's four-field format, or says why not in `## Foundation practices`.
+
+The pull request template says what each section takes; silence is not an answer.
 
 ---
 
@@ -168,23 +153,7 @@ Fitness `#24` (below) enforces that each child exists + has `## How to extend` +
 
 ## Pragmatic Exceptions
 
-CLAUDE.md + the 4 canon children are intentionally prescriptive. Real projects hit cases where the right call is to skip a rule — once, deliberately, and audibly. The rule for skipping the rule:
-
-**Every canon violation MUST carry a `// canon-exception: <scenario>:<ticket-or-branch>` comment in the same file.** Reviewers grep for this marker; CI does not block, but un-marked violations are. Scenarios below enumerate when the marker is acceptable. Anything outside the list requires an ADR.
-
-### Allowed scenarios
-
-| Scenario                         | What you can skip                                                            | Marker form                                                | Follow-up                                                                                                                                                                                 |
-| -------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One-off migration script         | UoW + ports + DI (use `prisma` direct)                                       | `// canon-exception: migration:<ts>`                       | None (script is throwaway; lives under `scripts/migrations/`)                                                                                                                             |
-| Prototype branch (`prototype/*`) | TDD strict (write tests after, not before)                                   | `// canon-exception: prototype:<branch>`                   | ADR before merging to main, OR delete the branch                                                                                                                                          |
-| Bug-fix hotpatch (P0/P1)         | Coverage gate, fitness count for the patch line                              | `// canon-exception: hotfix:<incident-id>`                 | **Mandatory** ADR within 5 working days of merge                                                                                                                                          |
-| Spike work                       | `any`, missing JSDoc, `@ts-ignore` on the spike file                         | `// canon-exception: spike:<branch>`                       | TTL ≤ 2 weeks; if it survives, ADR + remove markers                                                                                                                                       |
-| Test fixture coercion            | `as any` / `as never` to construct invalid state for negative tests          | `// canon-exception: test-fixture`                         | None (fixtures are not production code)                                                                                                                                                   |
-| Decorative-test demolition       | The `apps/api/vitest.config.ts` floor descent fitness #37 refuses, only that | `// canon-exception: decorative-demolition:<ledger-slice>` | The slice is listed in the committed ledger (`ledger.json`), which records its deletion and its descent ([ADR-0039](docs/technical/ADR-0039-decorative-demolition-coverage-exception.md)) |
-| Generated code                   | All canon (file is regenerated; commenting is futile)                        | Header comment in generated file                           | None (file is in `.gitattributes` `linguist-generated=true`)                                                                                                                              |
-
-`<ledger-slice>` is the demolition slice's work-unit id as the committed ledger lists it (`2.6a`, `2.8.1a`), grammar `[0-9]+(\.[0-9]+)+[a-z]?`. Fitness #37 refuses the bare scenario, a malformed id, a marker the base already carries on that metric, so each descent ships with its own, and a slice that the committed `ledger.json` does not record as deleted in that pull request with that descent.
+A canon rule is skipped once, deliberately and audibly: **every canon violation carries a `// canon-exception: <scenario>:<ticket-or-branch>` comment in the same file.** The allowed scenarios are `migration`, `prototype`, `hotfix`, `spike`, `test-fixture`, `decorative-demolition` and generated code (a header comment); the tripwire hook refuses any other, and a new scenario needs an ADR. What each scenario allows to skip, its follow-up, the record template of a hot patch and the reviewer's protocol are in [docs/development/CANON_ENFORCEMENT.md](docs/development/CANON_ENFORCEMENT.md): read it before writing a marker.
 
 ### Forbidden — never use as escape hatch
 
@@ -193,80 +162,24 @@ CLAUDE.md + the 4 canon children are intentionally prescriptive. Real projects h
 - **DI composition root rule** (`docs/architecture/ARCHITECTURE_CANON.md §Dependency Injection`): NO exception. The discipline cost is non-negotiable per ADR-0007.
 - **`@layer` standard values** (3 only): NO exception. Amendments require an ADR, not a marker.
 
-### Hotpatch ADR template
-
-For scenarios marked **Mandatory** above, the ADR-NNNN follow-up uses:
-
-```markdown
-# ADR-NNNN: <scenario>:<incident-id> — canon exception
-
-- **Status**: Accepted (canon-exception)
-- **Date**: YYYY-MM-DD
-- **Decision-makers**: <the role that approved the hotpatch>
-- **Consulted**: <the roles whose opinion was sought, or —>
-- **Informed**: <the roles kept up to date, or —>
-
-## What canon was broken
-
-<one line: which rule from which canon doc, file:line of the violation>
-
-## Why the canon path was infeasible
-
-<concrete: time pressure, incident scope, dependency outage, etc.>
-
-## Remediation plan
-
-- [ ] Restore canon path by <date>
-- [ ] Remove the `// canon-exception:` marker once remediated
-- [ ] Update relevant test/coverage gates
-
-## References
-
-- Incident: <link>
-- Commit that introduced the marker: <sha>
-```
-
-### Reviewer protocol
-
-When you see `// canon-exception:` in a diff:
-
-1. Confirm the scenario in the marker matches the allowed list above.
-2. For **Mandatory ADR** scenarios, block the merge unless the ADR PR is linked.
-3. For non-mandatory scenarios, accept the marker but note the TTL where applicable (spike: 2 weeks; prototype: until branch merges or dies).
-4. If the scenario isn't in the list → reject + ask for an ADR proposing a new allowed scenario.
-
-Audit the marker pool any time:
-
-```bash
-grep -rn "canon-exception:" apps/ packages/ infra/ --include="*.ts" --include="*.tsx" | wc -l
-```
-
-A non-zero count is FINE — that's the design. A growing count without paired ADRs or remediation is the smell. Spot-check during code review; no automated CI gate (intentionally — false positives would punish legitimate use).
-
 ---
 
 ## Mandatory Pre-Action Triggers (Tripwires)
 
-> **Hard-blocking checkpoints — these are NOT advisory.** The pre-edit
-> tripwire blocker hook (`.claude/hooks-py/pre_edit_tripwire_blocker.py`)
-> enforces this list automatically. Edit/Write/MultiEdit that matches any
-> tripwire below is **blocked** unless the assistant message contains a
-> valid `canon-check:` citation, OR a `sensitive-edit` token issued by
-> `omnipost-allow sensitive-edit` is active (audited in
-> `.claude/heuristic-overrides.log`).
+> **Hard-blocking checkpoints — these are NOT advisory.** `.claude/hooks-py/pre_edit_tripwire_blocker.py` blocks an Edit or Write that matches a tripwire unless the assistant message before it carries a valid `canon-check:` line or a `sensitive-edit` token is active. The reason of each row and how to extend the list are in [docs/development/CANON_ENFORCEMENT.md](docs/development/CANON_ENFORCEMENT.md).
 
-### Tripwires (auto-blocked)
+### Tripwires
 
-| # | Pattern | Why it's a tripwire |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| 1 | Comments matching `// <word>` where `<word>` ∈ {`temporary`, `temporal`, `provisional`, `puente`, `bridge`, `phase-bridge`, `hack`, `kludge`, `workaround`, `patch`, `parche`, `atajo`, `stub`, `placeholder`, `FIXME`, `XXX`, `time-bomb`, `silencioso`, `truco`, `trampa`} (case-insensitive, word-boundary) | Time-bomb / patch / workaround signature — 20 bilingual words derived from grep over `~/.claude/feedback/` + `feedback_archive/`. Per `feedback/canon-research.md §no-time-bombs §no-patches`. |
-| 1b | `// TODO §X.Y` markers (TODO followed by `§` and section ref) | Defers work to undefined future phase (vs `// TODO(date                                                                                                                                                                                                                                                                                                  | owner)` which has accountability). |
-| 2 | `// canon-exception:` without a scenario from the [Pragmatic Exceptions](#pragmatic-exceptions) allowed list following the colon | Marker must cite a real scenario; un-tagged exceptions defeat the audit grep. |
-| 3 | Import `from "@core/<a>/..."` inside a file under `packages/core/<b>/src/` where `<a> ≠ <b>` and `<a> ∉ {domain, embeddings, application/UseCase}` | Cross-bounded-context import. Resolve via port-adapter (see `docs/architecture/BOUNDED_CONTEXTS.md`). |
-| 4 | Mass `sed -i` against import paths in Bash (regex `sed.*-i.*from.*@core`) | Mass-rewrite of imports is the carrier for time-bomb resolution shortcuts. Force review per-file. |
-| 5 | Architectural pattern choice: `extends X`, `class Y implements Z` for new bounded-context-crossing types, `Shared Kernel` / `Anti-Corruption Layer` in JSDoc | Patterns that require DDD canon research (Evans + Vaughn Vernon). |
-| 6 | Plan/phase/sprint/timeline reference inside `//` or `*` comments — matches `Workstream:`, `Phase <letter><digit>`, `§<n>.<n>(.<a>)?`, `S<n>.<n>`, `Per §` / `Resolves §` / `Closes §`, `Sprint/Phase/Fase <digit>`, `Roadmap (item/fase/phase/§)` | Per CLAUDE.md §Coding-Standards §Comment-Quality-Rules: "No references to sprint numbers, implementation phases, or development timeline — belong in git history, not source code". |
-| 7 | (Separate hook `pre_edit_planmode_guard.py`) Edit/Write on branch matching `workstream/*` without recent Plan Mode activity in the transcript (no `EnterPlanMode` / `ExitPlanMode` tool, no Read/Edit of `/root/.claude/plans/*.md`). Trivial edits (< 30 lines diff on existing file) auto-pass. | Per `feedback/workflow.md §planning-before-execution`: non-trivial phase work requires Plan Mode active OR a plan file referenced. No env/token bypass exists; clear the guard via Plan Mode activity or a `/root/.claude/plans/*.md` Read/Edit in the (parent) transcript — a delegating orchestrator can do the latter on behalf of a sub-agent apply. |
+| #   | Pattern                                                                                                                                                                                                                                                                                                        | Held by                        |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| 1   | Comments matching `// <word>` where `<word>` ∈ {`temporary`, `temporal`, `provisional`, `puente`, `bridge`, `phase-bridge`, `hack`, `kludge`, `workaround`, `patch`, `parche`, `atajo`, `stub`, `placeholder`, `FIXME`, `XXX`, `time-bomb`, `silencioso`, `truco`, `trampa`} (case-insensitive, word-boundary) | `pre_edit_tripwire_blocker.py` |
+| 1b  | `// TODO §X.Y` markers (TODO followed by `§` and section ref)                                                                                                                                                                                                                                                  | `pre_edit_tripwire_blocker.py` |
+| 2   | `// canon-exception:` without a scenario from the [Pragmatic Exceptions](#pragmatic-exceptions) allowed list following the colon                                                                                                                                                                               | `pre_edit_tripwire_blocker.py` |
+| 3   | Import `from "@core/<a>/..."` inside a file under `packages/core/<b>/src/` where `<a> ≠ <b>` and `<a> ∉ {domain, embeddings, application/UseCase}`                                                                                                                                                             | `pre_edit_tripwire_blocker.py` |
+| 4   | Mass `sed -i` against import paths in Bash (regex `sed.*-i.*from.*@core`)                                                                                                                                                                                                                                      | no hook yet: the rule holds    |
+| 5   | Architectural pattern choice: `extends X`, `class Y implements Z` for new bounded-context-crossing types, `Shared Kernel` / `Anti-Corruption Layer` in JSDoc                                                                                                                                                   | no hook yet: the rule holds    |
+| 6   | Plan/phase/sprint/timeline reference inside `//` or `*` comments — matches `Workstream:`, `Phase <letter><digit>`, `§<n>.<n>(.<a>)?`, `S<n>.<n>`, `Per §` / `Resolves §` / `Closes §`, `Sprint/Phase/Fase <digit>`, `Roadmap (item/fase/phase/§)`                                                              | `pre_edit_tripwire_blocker.py` |
+| 7   | (Separate hook `pre_edit_planmode_guard.py`) Edit/Write on branch matching `workstream/*` without recent Plan Mode activity in the transcript (no `EnterPlanMode` / `ExitPlanMode` tool, no Read/Edit of `/root/.claude/plans/*.md`). Trivial edits (< 30 lines diff on existing file) auto-pass.              | `pre_edit_planmode_guard.py`   |
 
 ### Canon-check signature format
 
@@ -276,31 +189,19 @@ To bypass a tripwire, the assistant message preceding the Edit/Write **must** co
 canon-check: <canon-file>.md §<rule-id> — <decision> authorized because <canonical reason>
 ```
 
-Examples (valid):
+Example (valid):
 
 ```
 canon-check: feedback/canon-research.md §no-time-bombs — bridge `// TODO §5.1.c` rejected; resolution via port.
-canon-check: ARCHITECTURE_CANON.md §Saga.compensable — cross-context import `@core/saga` authorized because the saga engine is transversal infra, not a bounded context.
-canon-check: feedback/audit-deletion.md §three-questions — comment `// TODO §X.Y` authorized after (1) is it a time-bomb? no — TTL is 1 session, (2) is there an ADR? yes ADR-NNNN, (3) is the remediation testable? yes.
 ```
-
-The hook searches the prior assistant message for a line that starts with `canon-check:`, then a `.md` path as its first word, a `§` rule id, a dash (`—` or `-`) with a space on each side, and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the Edit/Write is blocked.
 
 ### Bypass via authorization token
 
-`omnipost-allow sensitive-edit` creates a 15-minute token. The same token gates two surfaces — direct edits to sensitive paths AND tripwire bypass — so the authorization surface is unified. All overrides are logged to `.claude/heuristic-overrides.log` and require ADR follow-up within 5 days (same protocol as hotpatch).
+`omnipost-allow sensitive-edit` opens a 15-minute token for both surfaces, sensitive paths and tripwires; every override is logged to `.claude/heuristic-overrides.log` and needs an ADR within 5 days.
 
-**Push grants.** `omnipost-allow push --count K --ttl N` leaves K consecutive windows of N minutes (`--count` defaults to 1 and is at most 12; each operation keeps its default TTL, 15 minutes). Each push window allows one publication: pre-bash allows a push while a window contains now and records the command on that window's grant, and post-bash consumes that grant once the push succeeds, even when it finishes after the window closed. A failed push consumes nothing, so a retry in the same window is allowed; a grant used early does not open the next window early. Run again while grants are pending, it appends its windows after the last pending one. Grants whose window is over are pruned on every read. `omnipost-allow status` lists the pending grants with their windows, and `omnipost-allow revoke <operation>` deletes them. `sensitive-edit` takes the same `--count` and stays valid for its whole window; using it consumes nothing. Every create, claim, consumption, prune and revoke goes to `.claude/hooks.log`.
+**Push grants.** A push needs a window the Maintainer issued with `omnipost-allow push`. Each window allows one publication, and a failed push consumes nothing; `omnipost-allow status` lists the pending windows. The mechanics (`--count`, `--ttl`, pruning, revoking, the log) are in [docs/GOVERNANCE.md](docs/GOVERNANCE.md) §The hooks' grant issuer.
 
 **Only the Maintainer issues grants.** No session writes `.claude/.allowed/` (pre-edit blocks every Edit/Write under it, pre-bash every Bash write construct on it) or runs `omnipost-allow` with anything but `status` (pre-bash); no token unlocks either, the `sensitive-edit` token included. The Maintainer issues, extends and revokes grants from their own terminal ([docs/GOVERNANCE.md](docs/GOVERNANCE.md) §The hooks' grant issuer). Reading the store (`ls`, `cat`, `jq`) stays allowed.
-
-### How to extend tripwires
-
-1. Add the pattern to the table above with rationale.
-2. Add the regex to `pre_edit_tripwire_blocker.py` `TRIPWIRE_PATTERNS`.
-3. Reset baseline: run `grep -rn '<new pattern>' apps/ packages/` and document any pre-existing instances in a ramp-down ADR.
-
-**Owner:** Maintainers.
 
 ---
 
@@ -395,10 +296,9 @@ The regex in the reference IS the regex in CI, and a script-backed check's comma
 **3+ Consecutive Errors Rule**: When 3 or more consecutive errors are encountered:
 
 1. STOP the current task immediately
-2. Enter planning mode
-3. Create a systematic plan to find root problems
-4. Use parallel subagents to fix issues
-5. Only then continue with the previous task
+2. Diagnose the root cause, by reading and measuring, before any further attempt
+3. Write the plan that fixes it
+4. Only then continue with the previous task
 
 ### Code Quality Gates
 
