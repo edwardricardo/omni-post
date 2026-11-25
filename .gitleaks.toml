@@ -116,10 +116,12 @@ regexes = ['''test:phase4c-integration''']
 
 [[allowlists]]
 description = """
-The dx-documentation-manager agent prompt embeds illustrative curl
+The dx-documentation-manager agent prompt embedded illustrative curl
 snippets — one literal and one inside a template literal that the agent
-uses to generate code samples — both with `YOUR_API_KEY` as the universal
-placeholder convention. No real tokens.
+used to generate code samples — both with `YOUR_API_KEY` as the universal
+placeholder convention. No real tokens. The file was removed from the
+repository on 2026-11-25; the entry covers its history for the
+full-repository scan that runs on push.
 """
 paths = ['''\.claude/agents/dx-documentation-manager\.md''']
 regexes = ['''Bearer YOUR_API_KEY''']

@@ -39,7 +39,7 @@ interface Report {
   unconsumedBackendRoutes: { route: RouteSite; canonicalUrl: string }[];
 }
 
-const IGNORE_PATTERNS = ["node_modules", "dist", ".next", "graphify-out", "tests/e2e"];
+const IGNORE_PATTERNS = ["node_modules", "dist", ".next", "tests/e2e"];
 
 const TEST_FILE_RE = /\.(test|spec)\.[tj]sx?$/;
 
