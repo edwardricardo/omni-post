@@ -2365,7 +2365,19 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # with no merge base the step passes origin/main, never an empty base, and a name that does not
 # resolve fails it closed. The scheduled half is no verdict of this check: error-sites-stall.yml
 # runs the sites gate with `--stalled --days 14 --remind` every day, and keeps one issue, labelled
-# error-sites-stalled, while the list is above zero and no row is dated in the last 14 days.
+# error-sites-stalled, while the list is above zero and no row is dated in the last 14 days. That
+# mode exits with codes of its own, one meaning each, defined once as `STALL_EXIT` in the gate: 0
+# not stalled, 20 stalled, 21 a list above zero whose history does not exist or holds no row, 22 a
+# newest row dated after today, 23 a suppressions file that cannot be read, 24 a history that
+# cannot be read, its directory or an entry, 25 a call GitHub refused (a 4xx other than 408 and
+# 429), 26 a `gh` the runner cannot start (ENOENT, EACCES), 27 a GitHub call that failed for a
+# moment (a 5xx, a 408, a 429, a network error, a timeout, or a status or an answer that cannot be
+# read), 28 an issue listing that fills its page, so the stall's issue could lie past it; a usage
+# error is 2, as in every mode, and no path of the mode exits 3. Every verdict sits above the codes
+# Node exits with by itself. A fault of the mode, one inside the reminder included, is left
+# uncaught, so Node exits 1 with its stack. The workflow retries only 27, names every other code in
+# a branch of its own at once, ends every branch but 0 in an exit, and reads 1, 3, or any code it
+# does not list, as the alarm itself failing.
 # WHAT FAILS, exit 1: a verdict of either gate, each on stderr, as `error-registry-gate: <code or
 # path>: <problem> (R<n>)` or `error-sites-gate: <path or context>: <problem>`; a rise names the
 # base's count, the head's and the command that lowers it, and a missing row the `--record`
