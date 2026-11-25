@@ -27,7 +27,7 @@
       "total": 1285
     },
     "blocks": {
-      "total": 16097,
+      "total": 16118,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15786
+        "BEHAVIOURAL": 15807
       }
     },
     "deleted": {
@@ -75778,728 +75778,875 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 103,
+      "blockCount": 124,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::passes, with the total, the contexts and the base it read, asking ESLint only about the scope",
-          "line": 285,
+          "line": 298,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49ba25bc3195e72b071517a1283799ac5818182e40d3d7a925bb46fb3420ea76"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::asserts nothing of an excluded file, even one ESLint ignores",
-          "line": 301,
+          "line": 314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7aec0438503e68b2e85570f843285d1c3239b9e22d9e023424a12ca6de245716"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S1 refuses an entry whose file git does not track",
-          "line": 317,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83bd67025aa479b849350249f2cac3981107c4145a9fa6a8503646c2c049351d"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S2 refuses an entry whose file its rule's list excludes, naming the entry",
-          "line": 329,
+          "line": 342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "889bf0afb590d2cb74b706027b86ff1f5aeaf78c3d3c1e9e6c1652770a816066"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S2 refuses an entry of a file with no TypeScript extension, and one of a rule the gate holds no scope for",
-          "line": 348,
+          "line": 361,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "490225f600986e02cfa8a8cdaa0a7462fc9fa3724e1149c4b0c62fa7d5133b38"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a baseline with errors/ entries and no history, naming the command that records the birth",
-          "line": 370,
+          "line": 383,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9ec0bf58499e5776f84e6f9e06f48867cd76a9008b8e043c414342dad2b7ed8"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a history with no errors/ entry left in the baseline",
-          "line": 382,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5e6111d2d3ff942a225aeab662d5e6c522a67fde5d6046f82853ef12a4cc5728"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::passes with no history and no errors/ entry, which is the end of the sweep",
-          "line": 396,
+          "line": 409,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e30c3077b869237c04b3b94fdc00574ef9d6a80200fd67fd6e7b7a1dd8afda3c"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::sums births, fixed sites and moves in any order, each move taking its count from the context of its source",
-          "line": 409,
+          "line": 422,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7bcd9d86b8e59b71ecd16cc263288b47b6d322e2c820490b3d41456026f7fbe5"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a context whose history yields another count than the baseline, with both counts",
-          "line": 431,
+          "line": 444,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f8ad3201a3d5fd166f446d870c2d91a1ac91c2e213cbf4ba0a671b1c4ee3600"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses the birth of a rule the gate holds no scope for, and a rule born twice",
-          "line": 446,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65e5c20c8df79c3110ad789718df12a627b75e03717361067dfe7fe9f08dd2ce"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a rule whose entries no row bears the birth of",
-          "line": 465,
+          "line": 478,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4df638baf45892bbb2ed4980ae782623c09bb5fd41a2315489f37eef9d750cef"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed on a row with %s",
-          "line": 477,
+          "line": 490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25a442a718467150b239577e2e139c740a150e48a18a16815f6e68bbe8a20dc2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed on a row that is not JSON, and on a file of the history with no row's name",
-          "line": 497,
+          "line": 510,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "229260d4e2306e1b66dc47d4f43c58e0646ed5dedcf5536d092137af5cd80bea"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a file of the scope with the rule %s",
-          "line": 517,
+          "line": 530,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1d08b621e1545b92d9776cde8ff2734eadb411bc9a18f8a960475534a257559"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::holds the rule's bodyWriter to a set option naming a tracked file",
-          "line": 561,
+          "line": 574,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dabcfd35883b5ebe4ddf11037a09e49e2b584ee1f1ad7651a80ab2cd702c29a6"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::names at most twenty files per problem, then counts the rest",
-          "line": 591,
+          "line": 604,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9418a0cc809c2f5c1608484d0cd0459edfddf14150461a26b66e7c2386da1e4a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed when ESLint's configuration cannot be resolved, and exit 3 wins over 1 with both printed",
-          "line": 613,
+          "line": 626,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d8c01090646f303b4ceb01f58f802b5e79e8217c5eb1456e133e5cd18f2befa"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses an entry that matches no tracked file, so the list names only what exists",
-          "line": 628,
+          "line": 641,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f874db77cc6defb007609dfb8a477c552222d71bfc0af14c781b6f8174e0c0c4"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses an outside-src entry that matches a file under a src directory, and keeps that file in scope",
-          "line": 643,
+          "line": 656,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b69392a0cab57eb41cbd9957c4c2d0ab56dbae0dc641c0fdf1ee7d0b8fd42f2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses an entry whose files do not carry what its kind claims, and a whole root that is no root",
-          "line": 660,
+          "line": 673,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4be8583b39c7f909c93902cf83c18750a4df85fbc1d959df343ce66d1e35ebf"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a JavaScript file under a src directory outside the excluded roots",
-          "line": 681,
+          "line": 694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d052d1e09e38fd2777407ad9f86426647c3572bfa5f915da3cf97808a770c146"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a plugin package whose exports leave its src",
-          "line": 694,
+          "line": 707,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "16412dd90c4701ffc35955844ed7772c336f4a3299a84b444c4e3b3b2c1c081d"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses an import of the plugin's src that is a package, leaves src, or is no literal; a type in a comment is no import",
-          "line": 709,
+          "line": 722,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07f728c6351a856356a30368b9019226cd1e4710317f0ef7620bb2fdd4b0b76a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::lets the plugin's src import node:path, the one built-in the scope allows, and no other",
-          "line": 735,
+          "line": 748,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "157c529f6a87efa8d6c720ad5e12ce0162ec3a908cc9a367e916c5fc828aa2c9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed when the plugin's manifest cannot be read",
-          "line": 766,
+          "line": 779,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58e597b25319e84cfd2bdf0854adef576cff68e7901c0868a4082384701baae7"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a directive in a file of the scope that %s",
-          "line": 782,
+          "line": 795,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a3ac1364c1fe3841bb3e42e4629a2fac4db63f73be6b4305664c490684a83be"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses an eslint configuration comment in a file of the scope that %s",
-          "line": 808,
+          "line": 821,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab744ad8f9118252cfc259c7c6325c6b2d6529c139290c401b8bd5b9ee05ba9f"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::lets a configuration comment of another plugin's rule stand in the same file",
-          "line": 836,
+          "line": 849,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "67ac602d1b10ee40bdc1b9852f23ee86e026bcae054f09089846407c97a007e5"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses pass-on-unpruned-suppressions in %s",
-          "line": 849,
+          "line": 862,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f3183529efc299efd51fad4a5ce240fc9edaac2bbb8f16d543655721b038a01"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a root lint script other than the one the gate holds",
-          "line": 864,
+          "line": 877,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9016b6d9e119acc21fa56ad5ee3161693bdd783fc9fe15185b6bd81f2044ddf0"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::holds the root lint script as the repository writes it",
-          "line": 879,
+          "line": 892,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9983e98ae650a667eb1017866553b37108456a9f458c1a58fc12f6aad4be8d24"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed when git cannot list the tree, and when it lists no file",
-          "line": 889,
+          "line": 902,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df537b621e17f188d258a251ff75b35380d6c6ba799c3fa69908e30a749af93d"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed when %s",
-          "line": 916,
+          "line": 929,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "331da4649f1153c258b1138dec710297856934885834b327987d28a4056fd3e0"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads a missing suppressions file as no entry, as ESLint does",
-          "line": 934,
+          "line": 947,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6555eab6defe0d6ee2518187ed9f395c781e3e08ff9a46db9a869042998917de"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed on a base that cannot be resolved, and names a base it resolved",
-          "line": 944,
+          "line": 957,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4fb32fc2d7ce7bc46a86b3175a6fcdd2b2aebe97177ff50ed1f655c5cf96eab9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::passes a head whose counts equal the base's, and names the base",
-          "line": 1051,
+          "line": 1064,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6bb8a31080a82eb4294e96fbff56ef696eea414675a30aab5feeb30b29cc98a4"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S6 refuses a count that rises against the base and an entry the base does not hold, with both counts and the command that lowers them",
-          "line": 1065,
+          "line": 1078,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "19cf5591663292ed9c151c8aa4fe4ca05bd7fa120bfd91c6af1df8ff76fd52b8"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S6 lets a rule be born against the base, by its own row",
-          "line": 1080,
+          "line": 1093,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dcf9f1128f12458eddf511e22bb52b8587e432df520595a56374dc1106941901"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S6 lets a count rise by exactly what a recorded move between two files of one context brings in",
-          "line": 1099,
+          "line": 1112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c64d233294ce61c78641d7b826625fc034f3b337e4d84839118901f679ba504e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S7 refuses a count that falls while git reports no change of its file, with no hint when all is committed, and passes once the file changed",
-          "line": 1113,
+          "line": 1126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1e12e5e02982e475f134bf4f29a7de51fc25b473b75f644f965485513f6ba7a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S7 tells a count lowered in an edit not yet committed to commit the edit, and passes once it is",
-          "line": 1131,
+          "line": 1144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a13fa5807286bfbe93112ff8e9f2a866a806fef34a87ee3ec6b202114821bfb"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S7 gives no hint for a count lowered by hand in the list while its file is untouched, though the list's edit is not committed",
-          "line": 1153,
+          "line": 1166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bddd4187f6dcff3f07cf501ffb0fc538922690dd2c90a2e3f2668d58a5ad94b9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S7 tells a count lowered in an edit not yet committed of a file renamed by HEAD to commit the edit, reading the file at its new path",
-          "line": 1168,
+          "line": 1181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0b4e4ab809b9258980c64713a00f062b20ae8c7f1e6cc331debb7665e6c44bc"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S7 exits 3, keeping its verdict, when git cannot tell whether the file holds a change that is not committed",
-          "line": 1189,
+          "line": 1202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "09808ee4c01b20b1e17f131ecc690f2a3c2a9cbbd35827b1b0145b011b319777"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S7 takes a deletion as the reason a count fell",
-          "line": 1213,
+          "line": 1226,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a2407b4cea94a3c81094de6682365e9e236c6cef06bd4151ab9283d5ab9f766"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S8 and S7 refuse a file renamed into an excluded path with its content unchanged, with no hint when all is committed",
-          "line": 1225,
+          "line": 1238,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f852cbf5e95ea3d0e28471cc1936dd93bd418377c1186db1802ff2fafc6944c"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S6a carries a count with its file through a rename inside one context that also fixes sites: no move, the fix recorded",
-          "line": 1247,
+          "line": 1260,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "694e6f004b462d9a9255eca60247f5709b6beec698dee9b530966132f97b7d0b"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses a row the head adds dated after today in UTC, and takes one dated today",
-          "line": 1266,
+          "line": 1279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca2b78c40dbba43c09143ce0c3c392b71da4892e9cd67f168d2e78f04e8e64b3"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S8 counts a portal as enrolled when any of its catalogs holds errorCodes on the base, stricter than R7's default locale",
-          "line": 1288,
+          "line": 1301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "adb1a048071c32ff10dbdcf45aa63797dbbdc3e880e7f2b2f915cddf05c2e134"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads the root's own repository even when GIT_DIR, GIT_WORK_TREE or GIT_INDEX_FILE points elsewhere",
-          "line": 1307,
+          "line": 1320,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b809ef8b3b739164e2ae74c2de3189cb1eef14ccf7841591be9274898496b50e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S6a carries a count with its file: a rename inside one context needs no row",
-          "line": 1333,
+          "line": 1346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0327cf069a99cffc9ac0a89cd16a98cc127d5b54dcf9f90bcdde246aa2cffed2"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 asks a rename across two contexts for its one move, and passes with it",
-          "line": 1344,
+          "line": 1357,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b6c8160c5845f636bc64351d195ab96151ae563a812db5bacc2a92787bbb2b00"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S9 refuses a change of the rule beside a change of a count, and passes a change of the rule alone",
-          "line": 1361,
+          "line": 1374,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f603933990bfe79b59cb2e3cf850c17a9dea079af010a8eed6b7df7c6987390"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S9 reads a change of the scope module or of the gate as a change of the rule",
-          "line": 1385,
+          "line": 1398,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "721e1e4542e8cb466ec083ebdeddcf096f849205a9d245988c8e625163143012"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses an edited row of the base, even one whose sum is unchanged, and a deleted one",
-          "line": 1401,
+          "line": 1414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bcf1fb66bc360faa3ffc2c730edc00dc550bab1b545209859b350de7eecdc95"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses a row that claims more than fell",
-          "line": 1423,
+          "line": 1436,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e25f5e3989911c13f2239ff84b5495bc337d7286abbeb18043db81c5a80d6ed"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses two rows in one change, and a row while no count differs",
-          "line": 1438,
+          "line": 1451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "824abe241a7c2ae87172912da8b7d1ada52f58f427d26b9b9b115d96172e35d1"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses a birth that shares its change with a fix",
-          "line": 1458,
+          "line": 1471,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b75fad660705e441b83c895325b779529ac2d8988965a482019092fd13c56ea9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses a move between two files of two contexts: only a rename crosses contexts",
-          "line": 1479,
+          "line": 1492,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d253a33bdc4d8e6116d7bff8be1b850992415f3d62d5890a0dbca5f5187a5fee"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses moves of renamed files whose counts are not each file's, even when their sum is",
-          "line": 1498,
+          "line": 1511,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e930edbf7e415c56939ec0712f425aa49105f7b697bd7c7977771c0fc2851ae5"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S10 refuses a move out of a file that fell by less, into a file that rose by less",
-          "line": 1535,
+          "line": 1548,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11f2bf233ea1ada0c65958f1f9eff7c87dd1a0d20887e6348994a9dbfc14d555"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::S8 refuses a portal that drops errorCodes from a catalog it held them in on the base",
-          "line": 1554,
+          "line": 1567,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "530eb940153a924cef385d6aefffdf05e8c89df71d963d13399520214545f943"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::fails closed on a row of the base that is not the format, and on a base baseline that is not JSON",
-          "line": 1575,
+          "line": 1588,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "754ce8cee93cf4281d1d5a82a0be3ea0df21e742b7458a579ca00f8c8ec38c2e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::writes the fixed sites the difference yields, and the gate then passes",
-          "line": 1598,
+          "line": 1611,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2d9ccb601a0df5760ffe509086efcdfa654031cb7bac5957ac54b9de4a5ee96a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::writes the move of a file renamed across two contexts, read from git",
-          "line": 1620,
+          "line": 1633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aaee69b248c9611de992a21f4584f4dfac5e6253039db767b1f59527ea0ca524"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::writes a stated move between two files of one context, and fixed as what fell beyond it",
-          "line": 1639,
+          "line": 1652,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d3f33dd75253e2899d964b549bb3533f58fa100e4dc9a8217a284cb5ee8cba2f"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a date after today in UTC, with no base and against one, and writes nothing",
-          "line": 1660,
+          "line": 1673,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85e69d07ce3f97966e991328e4a302122b4d13634bcee61e0b0259ca87a96c25"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses when nothing differs from the base, and when the head already adds a row",
-          "line": 1684,
+          "line": 1697,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cbe0c8a7a3154b1f624f51244b9c56834847eb338d7e0c0dd4da1766025dcfac"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a rise no stated move explains, a move across two contexts, and a move given for a renamed file",
-          "line": 1705,
+          "line": 1718,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83223600b6778b133c34b25589af3c047ad0a1c6e6dda28b8178c8a79a4c71cc"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads --moved from the command line, and refuses one that is not <from>:<to>:<count>",
-          "line": 1732,
+          "line": 1745,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce516f5ea9d5e6774ef236bd3b1353bd7f898540591eeb332e9330fdbd1c0fcd"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads every row and sums them, the one reader of the format the reference page shares",
-          "line": 1766,
+          "line": 1779,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "149725b938ebfc3df1d954d24f2dae868ca856c7d5b8fb8596d21c99f8580722"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::names every entry that is no row, so its caller fails closed, and reads no directory as no history",
-          "line": 1792,
+          "line": 1805,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd5c12b31427c2de6c5c7d0b8ae4b0836ad0fe770eb38ce90d002671e7d58b21"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::puts %s in %s",
-          "line": 1808,
+          "line": 1821,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc1cb7547f2092243d18b781297daec2073699a899e2732572230eda8176e277"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::writes the birth the baseline yields, as prettier writes it, and the gate then passes",
-          "line": 1832,
+          "line": 1845,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "429e7ddf35ab90ae60944e5f9f1a3f60922d240994dcb6371fcb9e30f5ab1443"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses when nothing differs, and never rewrites a row",
-          "line": 1851,
+          "line": 1864,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e11c82c691a2f59d3f7ab45055d0765b02f8d1a982ff7bfdf7123845dc38b56"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses a birth when the rule is born and its counts fell",
-          "line": 1872,
+          "line": 1885,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28f3ddb2b96e6847e4b8662797d9333459ea32caa7e5edb5890b3b2f05a71674"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::writes the birth of the one rule that awaits it, beside a rule already born",
-          "line": 1887,
+          "line": 1900,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f20855bfdf901bb56ccd98448096efcae8be06f076ced92054b174ae004b2515"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses when two rules await their birth, since a row bears one",
-          "line": 1904,
+          "line": 1917,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15200056d07067359e2175867df4d452a01ca13cac5500a43541708e9c120d6e"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::refuses the birth of a rule the gate holds no scope for",
-          "line": 1920,
+          "line": 1933,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6e5a0ac5b9844a8350d8c1c24b9984b1b00e0a41b1f87362f8605060d516e3b4"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 2 on %s",
-          "line": 1943,
+          "line": 1956,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "23cc4a1b3d394e54a28a9a6095aa42b0cd65f93750c35833b5ee69cf2cb84941"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::records a birth from the command line, and reads FITNESS_BASE_REF when --base is absent",
-          "line": 1959,
+          "line": 1972,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fb51936bc44cbbb31ad775b54e3d2154882439e1742fab350a7dfca000d25e97"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads a rule's severity and options, the identity of the plugin and the parser, the processor, the language, and an ignored path",
-          "line": 1979,
+          "line": 1992,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "659f0934beabcd354310eb0926f62dad95727ff82ae240381b91c58959e649d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::sees a block that adds a processor, swaps the parser or swaps the language, which the rule's own settings never show",
-          "line": 2024,
+          "line": 2037,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45a614b65bb2be9462a316a787972ba40018e7fa940907e835cdcae0ad4464f1"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 1 when the list is above zero and the newest row is dated the window's length before today, giving the total, each context and that date",
-          "line": 2151,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits STALLED when the list is above zero and the newest row is dated the window's length before today, giving the total, each context and that date",
+          "line": 2164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "658cbe1bd4631786c3963e0f6abf6c0cf1132ef103e83e03402c617e9329ab7a"
+          "bodyHash": "337bb64d6729780334930f5393a10b8a3677d55c2ea38c78bbdedca44f9f4867"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::counts the window from the newest row, not the first, and holds a row of the thirteenth day inside it",
-          "line": 2157,
+          "line": 2170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "74c6f2822380d704ff991cccd7b693d8663c2b54a0dd9e1d0bb12d67ae02acfa"
+          "bodyHash": "bb0848fd6bdbba6a731f48fb10f55f61e2bb5602e067aa2766ae44ca265659ed"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 0 when the list is empty, however old its history",
-          "line": 2179,
+          "line": 2192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "869a2570ce4cd43163641333f34176c807e93a0a3d2fe8323cbbc8c76bb8557c"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::counts a list of one site as a list above zero",
-          "line": 2190,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "1ce5e8c14a86115f1ac08a6b415b5a0bc414be8f082874cae08dec24f0a5d877"
-        },
-        {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 3 when the list is above zero and its history %s, since such a list cannot be dated",
           "line": 2203,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "5b46b04a41b10e3781fde7b86fb9e73c03681123650d2b672c84568ec3c7f423"
+          "bodyHash": "3bb1746f9580f1e4bd8cf79dbb04c3439e922cf92c093b813a86e371ded4f12c"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 3, not 1, when %s, though the window is over",
-          "line": 2222,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits UNDATED when the list is above zero and its history %s, since such a list cannot be dated",
+          "line": 2216,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "1348ff4d91c4286b48844ef2529855440205ce2ce40bccff8c69af769b4a976d"
+          "bodyHash": "c9d8e1472e55f98e14a0d4c7874c200b2bd802e61bf1ba05da774190935983ab"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 3 when the newest row is dated after today, a day no row was recorded on",
-          "line": 2245,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits the code of the input it cannot read, not STALLED, when %s, though the window is over",
+          "line": 2235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "8824ef5fff30ca6c75fd8b0a12313e73fe6b0bd1a6dc3632f54de235c72a41ef"
+          "bodyHash": "64823fb42010802a049076102112b12d81cdff604fd0c45f6a64b2000de3550b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits FUTURE_ROW when the newest row is dated after today, a day no row was recorded on",
+          "line": 2263,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "36b08e8fc6cf5eae94eb67027b2ecbd0143c638d2eeba75c87c16673578d9e02"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads today as the UTC date of the instant, whatever the time zone of the process",
-          "line": 2258,
+          "line": 2276,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f60362f89af45394df4a69efa890d609e21aec21c6c23b7f0375ff613ffbdda7"
+          "bodyHash": "c2fe2708c0caf3e41405a8ddd60ddac8819f817a7fb4f2e6fe41801cbc33fc4b"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::opens one labelled issue that carries the facts when none exists, and still exits 1",
-          "line": 2285,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::opens one labelled issue that carries the facts when none exists, and still exits STALLED",
+          "line": 2303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "80b42f77ce22e07f895c74a0a96de469828285f29dd750d322b84d6554076b5a"
+          "bodyHash": "971fbd7a23c1aa66dc0f8114b01adc391a2dbdeedbd7fefb312427100193dadb"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::comments on the open issue instead of opening a second one",
-          "line": 2321,
+          "line": 2339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "f2d2c14d9e84cf99ee033c0259649fbc6ec12f8e2fe2281bdb69adf01692e2c7"
+          "bodyHash": "264a87f31c87905a878ee51a466c19c407dd6a744334528a7e2e1031a09e2ca9"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::posts no second comment on the same day",
-          "line": 2336,
+          "line": 2354,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70ca956aaa350003c6c76f518f9a77e4f3f6e8a333264a41da8581b37b2d715b"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::comments nothing on the day it opened the issue, so a retry repeats nothing",
-          "line": 2351,
+          "line": 2369,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7335645b7d0d14f6c41b750d5cea7c5a4fee3918bb3e12ee9fe31a02f97d91a"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reopens the issue when it was closed while the list still stalls",
-          "line": 2363,
+          "line": 2381,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6b5cfafac008e9e0f2858de56f48d2ef478deddc66ee56d975a6868d4d6feb73"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::makes no GitHub call while a row is dated inside the window, nor when the list is empty",
-          "line": 2376,
+          "line": 2394,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a028216a063d7548754aeb7b751a64eac3cc0d19cc142f1e441e81d13f1b2c8"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 3, not 1, when a GitHub call fails, with the stall's lines and the call's error",
-          "line": 2389,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits GITHUB_FAILED, not STALLED, when a GitHub call fails for a moment, with the stall's lines and the call's error",
+          "line": 2407,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "5df39a8292422b734f5fb64567ad84d232311c7dd04739c86dfe22677f324752"
+          "bodyHash": "fa389c4d4321938d467b3569a886b7f3a947cf4f5af163ae7247a28fc6a445eb"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 3, opening and commenting nothing, when the issue listing %s",
-          "line": 2402,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits the code of the listing's state, opening and commenting nothing, when the issue listing %s",
+          "line": 2420,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "526a1e9f96fb51a9b554ac1e6e0daa4345a066b19d15f764e4caf6835d780003"
+          "bodyHash": "cf6b0569bdd6ee8a9211cf7650d50f9b75883b9094975d7e92218a0a3f9e5eb5"
         },
         {
-          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::runs the exact command of the stall mode and retries only exit 3",
-          "line": 2434,
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::runs the exact command of the stall mode and retries only GITHUB_FAILED",
+          "line": 2459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "39303788dac9aae03f0c127020a3ef7cc2924e7fcf4a9987672854b61a7f057e"
+          "bodyHash": "7be35391ded0ad71133f8fcc31c51b82ed81c79093f6579e2a839f24cd3d3288"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 2 on %s #2",
-          "line": 2461,
+          "line": 2491,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38f8e5bf1d14cc5c5f88676a769ab88f16b72b934d79fd6ce6087712539f4af0"
         },
         {
           "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::reads its two inputs and nothing else: no base, no ESLint and no GitHub call while the list does not stall",
-          "line": 2488,
+          "line": 2518,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "4fbbd84c4a5c3901c236b4706add75b753963ab37f2bdc70fad30a3fc3fa8bc3"
+          "bodyHash": "7f42ac5264f1608637f61576b821ce920db2588cfdaffcbadaf25517fd733648"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::gives every meaning a code of its own, none of them 1 or 2",
+          "line": 2603,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d1637960d2ad8713f29f3579ad91b99b99937f2d5b0896b57549412fff3f8960"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits NOT_STALLED and says so when the list is empty",
+          "line": 2624,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "edca50c7b5bab48e9f21eae30db21fdb2befded0e71d5ecb65cddad2e26a0a2a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits STALLED with the stall's lines when the newest row is older than the window",
+          "line": 2635,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "550718557c8dfb4ee5279a89cdc50054fbf2626eae0ee0cf669f4f718238f641"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits GITHUB_FAILED, the code the workflow retries, when a GitHub call fails while the list stalls",
+          "line": 2653,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "da7e7489159b3ce0450b9b5f7192d56d7599ff33b56e2139e7498f624424f946"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits %s when GitHub answers the reminder's first call with HTTP %i",
+          "line": 2678,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cf0cc2750edde026b6573fe357796f71580e22b08ba8fc2e39c630ee7603a171"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits GH_NOT_RUNNABLE, naming %s, when the runner finds %s",
+          "line": 2711,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "45d765eee185354d0e4ee7610776a00856edcf4a9395ddcdc566a3af788078d1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits GITHUB_FAILED, never 3, when the reminder meets %s",
+          "line": 2727,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2e24438aec80ac5260ea8bf2ed9ca627af282e7c940611d3ebfe652ee238edff"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits ISSUE_PAGE_FULL, which the workflow does not retry, when the issue listing is a full page",
+          "line": 2762,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a967ae484375468a0971621d5b0ce0c6ebf2198b742ae9eddd932046bab7a7dd"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 1, Node's own code, with the stack of a plain Error a fault raises inside the reminder",
+          "line": 2796,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "683ee4433d2e11827af88819f152561b296e4d62bb85375d63e422155a6f5742"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 1, Node's own code, with the stack of a fault the reminder raises, which no retry changes",
+          "line": 2823,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7ed889466a9477bc4b83f1d5c60ce29a69e52674220f2cf6cea1fd4ca2686868"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits FUTURE_ROW, naming the state, when the newest row is dated after today",
+          "line": 2850,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fe543e3ef0f31fcc8af5ab37ff1fad92fa3475361db1207d6f7d57c3085063b6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits BASELINE_UNREADABLE, naming the file, when the suppressions file is not JSON",
+          "line": 2866,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f4e45197cf3c07ea6bf52229ad179cf64808dc65529d835465b45b42f2266f24"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits HISTORY_UNREADABLE, naming the entry, when a row of the history is no row",
+          "line": 2877,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "26f44e4e713f54e7fbbdb7c9be2ba2659a17eb9726052e21889ee46304858cbf"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::exits 1, Node's own code, with the fault's stack when the mode throws before it decides, and when the script fails to load",
+          "line": 2892,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "49be8fd70d8e3a6ca86d7edfba556e24c61c9a8597be400073852be45ea71d44"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::raises IssueListingFullError, with the label and the page, when the issue listing fills its page",
+          "line": 2965,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8950a754b5764e5bf242569675a9e7d855781df2aa08637c098dfe37f08727b5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::raises IssueListingUnreadableError, with its message, when %s",
+          "line": 2976,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4d74d40fa7252be9bd75a3b5ec286c5775ad163da1b1a76f71e69e84df220f35"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::raises IssueListingUnreadableError, with the parser's message and cause, when a listing is not JSON",
+          "line": 3003,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a873bac8d430b10a925c1c012b33b6385aabed3adef23c6b5a77866be9e76671"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::lets an error of the gh it was given pass through as it was thrown",
+          "line": 3011,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5051336f8d462a824aa4c7abfe01cfa9a24313ea97766195efffc32ade3c594f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::has one case branch and one line of its comment per exit code of the mode, and a default branch for the alarm's own failure",
+          "line": 3033,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fbcf050ac1ea8da9c42419032bf8f7dbd89ed0aa52666f1619e5c40272e0c6e3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::retries the momentary code and no other",
+          "line": 3048,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a06fecc5ed4cc1bed070a18cc7d691d9ffb557a086a95a60c580a4141d5b7554"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/errorSitesGate.test.ts::ends every branch of the case in an exit, but the not-stalled one, which exits nothing",
+          "line": 3062,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5f2f9b335726feb8e6e0a2f28bcfe60a4577feb7d59e0b4d723dc21b8d975096"
         }
       ],
       "verdict": "KEEP",

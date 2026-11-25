@@ -14,10 +14,12 @@
  *   module imports nothing but Node's own modules, so a gate that uses it still runs with nothing
  *   installed.
  *
- *   FAIL-CLOSED: a listing that is no list is refused rather than read as no issue or no comment,
- *   which would open a second issue or post a second comment; a full page of issues is refused, since
- *   an issue past it could be duplicated; any call that fails throws with its error, and the actions
- *   completed before it stay in the caller's log.
+ *   FAIL-CLOSED: a listing that is not JSON or no list is refused, as `IssueListingUnreadableError`,
+ *   rather than read as no issue or no comment, which would open a second issue or post a second
+ *   comment; a full page of issues is refused, as `IssueListingFullError`, since an issue past it
+ *   could be duplicated; a caller tells the two apart by their class and prints their message as it
+ *   is. Any call that fails throws with its error, and the actions completed before it stay in the
+ *   caller's log.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -62,6 +64,55 @@ export function createGh() {
     execFileSync("gh", [...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
+/** The page of issues one listing asks for; a listing that fills it may leave issues past it. */
+const ISSUE_PAGE = 100;
+
+/**
+ * @description Raised when the listing of a label's issues fills the page it asked for, so more
+ *   issues may exist past it and the reminder's own issue could be among them: the reminder then
+ *   opens and comments nothing, rather than open a second issue. No retry changes it while the
+ *   label holds that many issues.
+ */
+export class IssueListingFullError extends Error {
+  /**
+   * @param {string} label The label whose issues filled the page.
+   * @param {number} page The number of issues the listing asked for, and received.
+   */
+  constructor(label, page) {
+    super(`listing the ${label} issues returned no list, or a full page`);
+    /** The label whose issues filled the page. */
+    this.label = label;
+    /** The number of issues the listing asked for, and received. */
+    this.page = page;
+  }
+}
+
+/**
+ * @description Raised when a listing the reminder reads (a label's issues, or an issue's comments
+ *   since the start of the day) answers with something it cannot read: text that is not JSON, or
+ *   JSON that is not a list. It is refused rather than read as no issue or no comment, which would
+ *   open a second issue or post a second comment.
+ */
+export class IssueListingUnreadableError extends Error {}
+
+/**
+ * The listing `gh` printed, parsed. Text that is not JSON is an unreadable listing, with the
+ * parser's own message; any other error is not the answer's and is thrown as it is.
+ *
+ * @param {string} answer
+ * @returns {unknown}
+ */
+function parsedListing(answer) {
+  try {
+    return JSON.parse(answer);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new IssueListingUnreadableError(error.message, { cause: error });
+    }
+    throw error;
+  }
+}
+
 /**
  * The issues carrying the label, open and closed. A full page is refused: an issue past it could
  * be duplicated.
@@ -71,12 +122,15 @@ export function createGh() {
  * @returns {Issue[]}
  */
 function listIssues(gh, label) {
-  const page = JSON.parse(
-    gh(["api", `repos/{owner}/{repo}/issues?labels=${label}&state=all&per_page=100`])
+  const page = parsedListing(
+    gh(["api", `repos/{owner}/{repo}/issues?labels=${label}&state=all&per_page=${ISSUE_PAGE}`])
   );
-  if (!Array.isArray(page) || page.length === 100) {
-    throw new Error(`listing the ${label} issues returned no list, or a full page`);
+  if (!Array.isArray(page)) {
+    throw new IssueListingUnreadableError(
+      `listing the ${label} issues returned no list, or a full page`
+    );
   }
+  if (page.length === ISSUE_PAGE) throw new IssueListingFullError(label, ISSUE_PAGE);
   return page
     .map((issue) => fieldsOf(issue))
     .filter((issue) => issue.pull_request === undefined)
@@ -99,9 +153,11 @@ function listIssues(gh, label) {
  */
 function commentsSince(gh, number, today) {
   const endpoint = `repos/{owner}/{repo}/issues/${String(number)}/comments`;
-  const page = JSON.parse(gh(["api", `${endpoint}?since=${today}T00:00:00Z&per_page=100`]));
+  const page = parsedListing(gh(["api", `${endpoint}?since=${today}T00:00:00Z&per_page=100`]));
   if (!Array.isArray(page)) {
-    throw new Error(`listing the comments of #${String(number)} returned no list`);
+    throw new IssueListingUnreadableError(
+      `listing the comments of #${String(number)} returned no list`
+    );
   }
   return page.map((comment) => String(fieldsOf(comment).body));
 }
@@ -118,7 +174,10 @@ function commentsSince(gh, number, today) {
  *   `reopen #<n>: <title>` or `skip #<n>: <title> (<why>)`, so a call that fails midway still
  *   reports what was done before it.
  * @returns {void}
- * @throws {Error} When a call to GitHub fails or answers with no list.
+ * @throws {IssueListingFullError} When the label's issues fill the page the listing asked for.
+ * @throws {IssueListingUnreadableError} When a listing answers with text that is not JSON, or JSON
+ *   that is not a list.
+ * @throws {Error} What the `gh` it was given throws when a call fails, as it was thrown.
  */
 export function remindIssues({ gh, label, reminders, today, log }) {
   const issues = listIssues(gh, label.name);

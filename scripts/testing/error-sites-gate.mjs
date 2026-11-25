@@ -92,7 +92,7 @@
  *   with the latest date. Today is the UTC date of the instant the run reads as now. The list is
  *   stalled when it is above zero and the newest row is dated `<n>` or more days before today, so
  *   the window counts from the birth until a row follows it. Exit 0 when the list is empty, or the
- *   newest row is inside the window; exit 1 when it stalled, writing the total, the count per
+ *   newest row is inside the window; exit 20 when it stalled, writing the total, the count per
  *   context and the newest row's date. `--remind` then keeps one issue (label
  *   `error-sites-stalled`) through the reminder the patched-dependencies gate shares
  *   (`lib/issue-reminder.mjs`): opened when none exists, commented on once a day while it stays
@@ -107,11 +107,22 @@
  *   ESLint's configuration that cannot be resolved; the plugin's manifest, a source file or a
  *   catalog that cannot be read; a base that cannot be resolved; a `git` call against the base that
  *   fails for another reason than a path absent there; `git status` failing on the file of a count
- *   S7 refuses, whose verdict is then printed with no hint. Under `--stalled`: the baseline or a history
- *   entry that cannot be read as above; a list above zero whose history does not exist or holds no
- *   row, since nothing dates it; a newest row dated after today, which is no day a row was recorded
- *   on; and, under `--remind`, a GitHub call that fails or answers with no list. A usage error exits
- *   2.
+ *   S7 refuses, whose verdict is then printed with no hint. A usage error exits 2.
+ *
+ *   `--stalled` EXITS WITH `STALL_EXIT`, one code per meaning, and never with 1 or 2 for an outcome
+ *   of its own, every verdict from 20 to 28, above the codes Node exits with by itself: 0 not
+ *   stalled; 20 stalled; 21 a list above zero whose history does not exist or holds no row, since
+ *   nothing dates it; 22 a newest row dated after today, which is no day a row was recorded on; 23
+ *   the baseline that cannot be read as above; 24 the history that cannot be read: its directory,
+ *   or an entry as above; and, under `--remind`, 25 a call GitHub refused (a 4xx other than 408 and
+ *   429); 26 a `gh` that cannot be run (`ENOENT`, `EACCES`); 27 a GitHub call that failed for a
+ *   moment (a 5xx, a 408, a 429, a network error, a timeout, a status that cannot be read, or an
+ *   answer that cannot be read), the one state a retry can change; 28 an issue listing that fills
+ *   the page the call asked for, so the stall's issue could lie past it (`reminderFailure` maps
+ *   each failure to its code, the reminder's named refusals by their class). No path of the mode exits 3. A usage error still exits 2, decided before
+ *   any mode. A fault of the mode, one inside the reminder included, is not caught: Node prints its
+ *   stack and exits 1, as it does for a script that fails to load, so the workflow reads 1, and any
+ *   code it does not know, as the alarm itself failing.
  *
  *   RESIDUAL LIMITS: the directive scan reads text, so a string that spells a directive is reported
  *   as one; the plugin's imports are read from its syntax, so code that loads a module with no
@@ -131,9 +142,9 @@
  *   [--base <ref>] [--moved <from>:<to>:<count>]... [--root <dir>]`, and
  *   `node scripts/testing/error-sites-gate.mjs --stalled --days <n> [--remind] [--root <dir>]`. The
  *   base is `--base`, else the variable `FITNESS_BASE_REF`; `--stalled` takes neither `--base` nor
- *   `--record`, `--days` is a positive integer and belongs to it, and so does `--remind`. Exit 0
- *   clean (under `--stalled`, not stalled), 1 a verdict (stalled), 2 a usage error, 3 an input that
- *   could not be read.
+ *   `--record`, `--days` is a positive integer and belongs to it, and so does `--remind`. Outside
+ *   `--stalled`, exit 0 clean, 1 a verdict, 2 a usage error, 3 an input that could not be read;
+ *   `--stalled` exits with `STALL_EXIT`, above.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -161,7 +172,12 @@ import {
   matchesGlob,
 } from "./lib/error-scope.mjs";
 import { gitEnvironment } from "./lib/git-environment.mjs";
-import { createGh, remindIssues } from "./lib/issue-reminder.mjs";
+import {
+  createGh,
+  IssueListingFullError,
+  IssueListingUnreadableError,
+  remindIssues,
+} from "./lib/issue-reminder.mjs";
 
 /** ESLint's suppressions file, relative to the root. */
 export const BASELINE = "eslint-suppressions.json";
@@ -188,6 +204,87 @@ export const RULE_SOURCES = Object.freeze([
 ]);
 
 const EXIT = Object.freeze({ CLEAN: 0, VERDICT: 1, USAGE: 2, UNREAD: 3 });
+/**
+ * The exit codes of `--stalled`, one meaning each, read by the stall workflow's branches and by the
+ * gate's tests. Every verdict sits from 20 to 28, above the codes Node exits with by itself (1 to
+ * 14), so neither 1, Node's code for a script that fails to load or throws, nor 2, the usage error
+ * decided before any mode, nor 3, the other modes' unreadable input, is an outcome of this mode: a
+ * code the workflow does not know is the alarm failing, never a verdict. GITHUB_FAILED is the one
+ * state a retry can change, and the only one retried.
+ */
+export const STALL_EXIT = Object.freeze({
+  NOT_STALLED: 0,
+  STALLED: 20,
+  UNDATED: 21,
+  FUTURE_ROW: 22,
+  BASELINE_UNREADABLE: 23,
+  HISTORY_UNREADABLE: 24,
+  GITHUB_REFUSED: 25,
+  GH_NOT_RUNNABLE: 26,
+  GITHUB_FAILED: 27,
+  ISSUE_PAGE_FULL: 28,
+});
+
+/** The failure of one call of the reminder's `gh`, carrying what the runner raised. */
+class GhCallError extends Error {
+  /** @param {unknown} cause What the runner raised. */
+  constructor(cause) {
+    super(messageOf(cause), { cause });
+    this.name = "GhCallError";
+  }
+}
+
+/** The 4xx statuses a retry can change: a request timeout and a rate limit. */
+const MOMENTARY_4XX = new Set([408, 429]);
+
+/**
+ * @description Classifies what stopped the stall's reminder by what the runner knows for certain.
+ *   A `gh` the system cannot start (a spawn error `ENOENT` or `EACCES`) is GH_NOT_RUNNABLE, the
+ *   runner's state. A call GitHub answered with a 4xx status other than 408 and 429, read from the
+ *   `HTTP <status>` that `gh` prints, is GITHUB_REFUSED, which no retry changes. Every other failed
+ *   call is GITHUB_FAILED: a 5xx, a 408, a 429, a network error, a timeout and a call whose status
+ *   cannot be read. The reminder names its own refusals: `IssueListingUnreadableError`, a listing
+ *   that is not JSON or no list, is GITHUB_FAILED too, and `IssueListingFullError`, an issue listing
+ *   that filled its page, is ISSUE_PAGE_FULL, since the stall's issue could lie past it and no retry
+ *   changes that. Any other error raised inside the reminder, a plain `Error` included, is a fault
+ *   of the script and is thrown again, so Node exits 1 with its stack.
+ * @param {unknown} error What `remindIssues` threw.
+ * @returns {{ exitCode: number, line: string }} The stall's exit code and the line that names it.
+ */
+export function reminderFailure(error) {
+  if (error instanceof GhCallError) {
+    const cause = /** @type {{ code?: unknown, stderr?: unknown }} */ (error.cause ?? {});
+    if (cause.code === "ENOENT" || cause.code === "EACCES") {
+      return {
+        exitCode: STALL_EXIT.GH_NOT_RUNNABLE,
+        line: `gh could not be run (${cause.code}): ${error.message}`,
+      };
+    }
+    const text =
+      typeof cause.stderr === "string" && cause.stderr !== "" ? cause.stderr : error.message;
+    const status = Number(/\bHTTP (\d{3})\b/.exec(text)?.[1]);
+    if (status >= 400 && status < 500 && !MOMENTARY_4XX.has(status)) {
+      return {
+        exitCode: STALL_EXIT.GITHUB_REFUSED,
+        line: `GitHub refused the call (HTTP ${String(status)}): ${error.message}`,
+      };
+    }
+    return { exitCode: STALL_EXIT.GITHUB_FAILED, line: `GitHub: ${error.message}` };
+  }
+  if (error instanceof IssueListingFullError) {
+    return {
+      exitCode: STALL_EXIT.ISSUE_PAGE_FULL,
+      line: `GitHub listed a full page of ${String(error.page)} ${error.label} issues, so the stall's issue could lie past it: ${error.message}`,
+    };
+  }
+  if (error instanceof IssueListingUnreadableError) {
+    return {
+      exitCode: STALL_EXIT.GITHUB_FAILED,
+      line: `GitHub answered what cannot be read: ${error.message}`,
+    };
+  }
+  throw error;
+}
 const PREFIX = "error-sites-gate: ";
 const DEFAULT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const USAGE = [
@@ -1990,12 +2087,15 @@ function rowYielded(difference, head, fileMoves) {
   return { row: expected.row ?? { version: 1 }, problems: expected.problems };
 }
 
-/** @type {(lines: readonly string[]) => Outcome} */
-const unreadOutcome = (lines) => ({
-  exitCode: EXIT.UNREAD,
+/** @type {(exitCode: number, lines: readonly string[]) => Outcome} */
+const linesOutcome = (exitCode, lines) => ({
+  exitCode,
   stdout: [],
   stderr: lines.map((line) => PREFIX + line),
 });
+
+/** @type {(lines: readonly string[]) => Outcome} */
+const unreadOutcome = (lines) => linesOutcome(EXIT.UNREAD, lines);
 
 /**
  * @param {Git} git
@@ -2287,20 +2387,22 @@ function describeRow(row) {
  * @param {Date} input.now The instant the run reads as now.
  * @param {Gh} [input.gh] Runs GitHub's CLI. Given (`--remind`), a stalled list keeps its issue
  *   through it; absent, the mode calls no GitHub API.
- * @returns {Outcome} 0 not stalled, 1 stalled, 3 an input that could not be read.
+ * @returns {Outcome} The outcome, its exit code one of `STALL_EXIT`, each with its own meaning.
  */
 export function checkStall({ root, days, now, gh }) {
   const read = readBaseline(root);
-  if ("error" in read) return unreadOutcome([read.error]);
+  if ("error" in read) return linesOutcome(STALL_EXIT.BASELINE_UNREADABLE, [read.error]);
   const history = readHistory(root);
-  if (history.problems.length > 0) return unreadOutcome(history.problems);
+  if (history.problems.length > 0) {
+    return linesOutcome(STALL_EXIT.HISTORY_UNREADABLE, history.problems);
+  }
   const contexts = [...baselineContexts(read.baseline)].sort(([left], [right]) =>
     byText(left, right)
   );
   const total = contexts.reduce((sum, [, count]) => sum + count, 0);
   if (total === 0) {
     return {
-      exitCode: EXIT.CLEAN,
+      exitCode: STALL_EXIT.NOT_STALLED,
       stdout: [`${PREFIX}not stalled: the list of existing error sites is empty`],
       stderr: [],
     };
@@ -2309,7 +2411,7 @@ export function checkStall({ root, days, now, gh }) {
   // The rows are sorted by file, and a row's name starts with its date: the last is the newest.
   const newest = history.rows.at(-1);
   if (newest === undefined) {
-    return unreadOutcome([
+    return linesOutcome(STALL_EXIT.UNDATED, [
       `${HISTORY} ${history.exists ? "holds no row" : "does not exist"}, so the list of ${counted(total, "site")} cannot be dated: a list above zero is dated by the rows of its history`,
     ]);
   }
@@ -2317,13 +2419,13 @@ export function checkStall({ root, days, now, gh }) {
   const today = utcDay(now);
   const elapsed = (Date.parse(today) - Date.parse(date)) / DAY_MS;
   if (elapsed < 0) {
-    return unreadOutcome([
+    return linesOutcome(STALL_EXIT.FUTURE_ROW, [
       `the newest history row, ${newest.file}, is dated ${date}, after today, ${today} (UTC): a row is dated the day it is recorded, so the window cannot be read from it`,
     ]);
   }
   if (elapsed < days) {
     return {
-      exitCode: EXIT.CLEAN,
+      exitCode: STALL_EXIT.NOT_STALLED,
       stdout: [
         `${PREFIX}not stalled: the newest history row, ${newest.file}, is dated ${date}, ${counted(elapsed, "day")} before today, ${today} (UTC), inside the ${String(days)}-day window`,
         `${PREFIX}${summary}`,
@@ -2336,6 +2438,8 @@ export function checkStall({ root, days, now, gh }) {
     summary,
     ...contexts.map(([context, count]) => `${context}: ${counted(count, "site")}`),
   ];
+  /** @type {number} */
+  let exitCode = STALL_EXIT.STALLED;
   /** @type {string[]} */
   const log = [];
   /** @type {string[]} */
@@ -2355,14 +2459,24 @@ export function checkStall({ root, days, now, gh }) {
       body,
       comment: `Still stalled on ${today}: ${facts}`,
     };
+    /** @type {Gh} */
+    const calling = (args) => {
+      try {
+        return gh(args);
+      } catch (error) {
+        throw new GhCallError(error);
+      }
+    };
     try {
-      remindIssues({ gh, label: STALL_ISSUE.label, reminders: [reminder], today, log });
+      remindIssues({ gh: calling, label: STALL_ISSUE.label, reminders: [reminder], today, log });
     } catch (error) {
-      unread.push(`GitHub: ${messageOf(error)}`);
+      const failure = reminderFailure(error);
+      exitCode = failure.exitCode;
+      unread.push(failure.line);
     }
   }
   return {
-    exitCode: unread.length > 0 ? EXIT.UNREAD : EXIT.VERDICT,
+    exitCode,
     stdout: log.map((entry) => `${PREFIX}remind: ${entry}`),
     stderr: [...verdicts, ...unread].map((line) => PREFIX + line),
   };
@@ -2447,13 +2561,11 @@ function parseArguments(argv) {
 }
 
 /**
- * @param {readonly string[]} argv
+ * @param {Arguments} options The parsed arguments.
  * @param {NodeJS.ProcessEnv} environment
  * @returns {Promise<Outcome>}
  */
-async function main(argv, environment) {
-  const options = parseArguments(argv);
-  if (options === null) return { exitCode: EXIT.USAGE, stdout: [], stderr: [USAGE] };
+async function main(options, environment) {
   const root = options.root ?? DEFAULT_ROOT;
   if (options.days !== undefined) {
     const remind = options.remind ? { gh: createGh() } : {};
@@ -2502,12 +2614,21 @@ function invokedAsScript() {
 }
 
 if (invokedAsScript()) {
+  const options = parseArguments(process.argv.slice(2));
   /** @type {Outcome} */
   let outcome;
-  try {
-    outcome = await main(process.argv.slice(2), process.env);
-  } catch (error) {
-    outcome = unreadOutcome([`the scan failed: ${messageOf(error)}`]);
+  if (options === null) {
+    outcome = { exitCode: EXIT.USAGE, stdout: [], stderr: [USAGE] };
+  } else if (options.days !== undefined) {
+    // A fault of the stall mode is left uncaught: Node prints its stack and exits 1, a code no
+    // outcome of the mode uses, so the workflow reads it as the alarm failing, never as a verdict.
+    outcome = await main(options, process.env);
+  } else {
+    try {
+      outcome = await main(options, process.env);
+    } catch (error) {
+      outcome = unreadOutcome([`the scan failed: ${messageOf(error)}`]);
+    }
   }
   for (const line of outcome.stdout) process.stdout.write(`${line}\n`);
   for (const line of outcome.stderr) process.stderr.write(`${line}\n`);
