@@ -2,7 +2,7 @@
 
 OmniPost is a multi-channel social media content management system: content is written once and published to the 11 platforms of the `Provider` enum in `infra/prisma/schema.prisma` (X, Instagram, Facebook, YouTube, TikTok, Snapchat, Telegram, Pinterest, LinkedIn, Bluesky, Threads), each with an adapter under `packages/providers/`.
 
-This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md) at the repository root holds the development commands, the project structure and the fitness checks.
+This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md) at the repository root holds the development commands, the project structure and the rules of the fitness checks, whose inventory is in [Fitness Functions](development/FITNESS_FUNCTIONS.md).
 
 ## Start here
 
@@ -35,7 +35,7 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 | [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                                                                                                                       |
 | [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting                                                                                                    |
 | [Dependency Audit Record](security/DEPENDENCY_AUDIT_RECORD.md)     | CVE floors, ignored advisories, patches, holds (read as a file)                                                                                          |
-| [Fitness Functions](development/FITNESS_FUNCTIONS.md)              | The block of every fitness check, by number (read as a file)                                                                                             |
+| [Fitness Functions](development/FITNESS_FUNCTIONS.md)              | The inventory and the block of every fitness check, by number (read as a file)                                                                           |
 | [Canon Enforcement](development/CANON_ENFORCEMENT.md)              | What each canon-exception scenario allows, the hot-patch record, the reviewer protocol, each tripwire's reason and the canon-check line (read as a file) |
 | [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                                                                                                              |
 | [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                                                                                                             |

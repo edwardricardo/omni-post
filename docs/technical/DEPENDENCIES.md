@@ -401,7 +401,7 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 6. **dependency-updates.yml** — Automated dependency management
 7. **cleanup.yml** — Cleanup tasks
 8. **audit.yml** — Pre-merge audit toolkit: one job per tool on every push and PR, SARIF to Code Scanning where supported (also daily at 3 AM UTC)
-9. **fitness.yml** — Architectural fitness functions: the greps whose blocks are in docs/development/FITNESS_FUNCTIONS.md, listed in CLAUDE.md §Automated Compliance Checks
+9. **fitness.yml** — Architectural fitness functions: the greps whose blocks are in docs/development/FITNESS_FUNCTIONS.md, listed in its inventory
 10. **chaos.yml** — Saga and outbox chaos scenarios, nightly (3:30 AM UTC), through the same test runner CI uses
 11. **cache-divergence.yml** — Daily probe for a Turborepo cache hit that replays artifacts not built from the commit (4:17 AM UTC)
 12. **maturity-reminder.yml** — Opens, or comments on, the issue of each maturity watchlist review due that day (1 PM, 5 PM and 9 PM UTC), and carries a review still unrecorded after its day over daily on the same issue, reopening it when it was closed on an earlier day

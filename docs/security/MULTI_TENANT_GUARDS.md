@@ -92,7 +92,7 @@ before deploying.
 
 ## Layer 3 — CI fitness function #23 + code review
 
-**Files:** `CLAUDE.md §Automated Compliance Checks` + `.github/workflows/
+**Files:** `docs/development/FITNESS_FUNCTIONS.md` + `.github/workflows/
 fitness.yml` step `#23`.
 
 Regex-based grep catches the antipattern of a Prisma adapter on a
@@ -1532,7 +1532,7 @@ Three reasons converging:
    (attribution + indexed lookup), and confers no isolation guarantee
    — the same searchability-only semantics as `AuditLog`.
 
-Fitness `#39` (CLAUDE.md §Automated Compliance Checks) enforces this
+Fitness `#39` (docs/development/FITNESS_FUNCTIONS.md) enforces this
 file's role mechanically: every `accountId`-bearing model must appear
 in `TENANT_SCOPED_MODELS` (`infra/prisma/src/extensions/tenantGuard.ts`)
 or in the fenced table list below — `DeletionRecord` landed enrolled in
@@ -1946,7 +1946,7 @@ methodology + verdict.
 - ADR-0014 — Multi-tenant isolation guards, 3-layer defense (`docs/technical/ADR-0014-multi-tenant-isolation-guards.md`)
 - ADR-0005 — Unit of Work with AsyncLocalStorage (the existing ALS
   pattern this layer extends)
-- CLAUDE.md §Automated Compliance Checks — fitness #23
+- docs/development/FITNESS_FUNCTIONS.md — fitness #23
 - CWE-639: Authorization Bypass Through User-Controlled Key —
   https://cwe.mitre.org/data/definitions/639.html
 - OWASP A01:2021 Broken Access Control —

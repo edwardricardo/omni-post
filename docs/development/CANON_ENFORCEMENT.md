@@ -94,7 +94,7 @@ The hook searches the prior assistant message for a line that starts with `canon
 
 ## How to extend tripwires
 
-1. Add the pattern to the table above with rationale.
+1. Add the pattern to the table above with rationale, and to the table of [CLAUDE.md](../../CLAUDE.md) §Mandatory Pre-Action Triggers.
 2. Add the regex to `pre_edit_tripwire_blocker.py` `TRIPWIRE_PATTERNS`.
 3. Reset baseline: run `grep -rn '<new pattern>' apps/ packages/` and document any pre-existing instances in a ramp-down ADR.
 
