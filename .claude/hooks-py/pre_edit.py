@@ -47,6 +47,10 @@ SENSITIVE_PATTERNS = [
     # patched-dependencies gate shares. It counts nothing, but a session that could
     # edit it could silence the alarm that says the list stopped shrinking.
     "/scripts/testing/lib/issue-reminder.mjs",
+    # The commit gate: the secret scan and lint-staged run from here before every
+    # commit, and no review reads it the way CI is read. A session that could edit
+    # it could drop the scan from its own next commit.
+    "/.husky/",
 ]
 
 # The grant store, or a file in it.
