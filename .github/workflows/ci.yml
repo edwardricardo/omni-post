@@ -57,17 +57,20 @@ jobs:
           #   below still matches any commit sharing the same pnpm-lock.yaml +
           #   turbo.json hash, so a pull request run can still replay such a
           #   dist; and on main a rerun finds the exact entry and replays it.
-          # - Entries also flow BETWEEN jobs of the same run under this shared
-          #   key — which is why only the gated Build Check job saves and every
-          #   other turbo job restores read-only.
+          # - On main, entries also flow BETWEEN jobs of the same run under this
+          #   shared key — which is why only the gated Build Check job saves and
+          #   every other turbo job restores read-only. Build Check saves on main
+          #   only, so a pull request run restores what main saved and saves
+          #   nothing.
           # - Coupled expression: .github/workflows/cache-divergence.yml probes
           #   this key and this prefix restore-key read-only, and keeps the
           #   prefix on main on purpose (its coupling note says why); changing
           #   either here without changing it there leaves the probe observing
           #   a cache CI no longer uses.
           # - One definition: the condition is written once, here, behind the
-          #   YAML anchor `turbo-restore-keys`. The other two turbo cache steps
-          #   of this file take it by alias, so the three cannot drift apart.
+          #   YAML anchor `turbo-restore-keys`. Every other turbo cache step of
+          #   this file takes it by alias (Build Check's pair through the alias
+          #   of its `with:` mapping), so none of them can drift apart.
           restore-keys: &turbo-restore-keys ${{ github.ref != 'refs/heads/main' && format('{0}-turbo-{1}-', runner.os, hashFiles('pnpm-lock.yaml', 'turbo.json')) || '' }}
 
       - name: Check formatting
@@ -638,18 +641,29 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Setup Turborepo cache
-        # The ONLY turbo cache step in this file with save enabled: every entry
-        # that reaches the cache is minted by this job, under the no-output
-        # gate below. On main it restores only an exact match of its key, a
-        # rerun of the same commit, so the entry it saves for a new commit is
-        # built from source and holds nothing replayed from an earlier entry.
+        # The ONLY turbo cache step in this file with save enabled, and only
+        # on main: every entry that reaches the cache is minted by this job,
+        # under the no-output gate below, and its post step saves only at the
+        # end of a job that passed. On main it restores only an exact match of
+        # its key, a rerun of the same commit, so the entry it saves for a new
+        # commit is built from source and holds nothing replayed from an
+        # earlier entry. Every other ref takes the read-only twin below: a
+        # cache a pull request saves can be read by that pull request alone,
+        # yet it counts against the repository's cache limit and pushes out
+        # the entries main relies on.
         # Key + restore-key rationale: see the canonical comment on the Lint
         # job's restore step (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md AC-1).
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
-        with:
+        with: &turbo-build-cache
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
           restore-keys: *turbo-restore-keys
+
+      - name: Restore Turborepo cache (read-only)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6
+        with: *turbo-build-cache
 
       - name: Build all packages
         # Turbo 2.9.16 has no --fail-on-warning flag, so a task that declares
@@ -933,14 +947,26 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
+        # Only main saves the browsers, through this step's post step at the
+        # end of a job that passed; every other ref takes the read-only twin
+        # below. A cache a pull request saves can be read by that pull request
+        # alone, yet it counts against the repository's cache limit and pushes
+        # out the entries main relies on. The cost: a pull request that bumps
+        # Playwright downloads the new browser in each of its runs.
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
-        with:
+        with: &playwright-cache-stories
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
           # A version bump restores the previous revision's cache and lets
           # `playwright install` fetch only the missing browser.
           restore-keys: |
             ${{ runner.os }}-playwright-
+
+      - name: Restore Playwright browsers (read-only)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6
+        with: *playwright-cache-stories
 
       - name: Install Chromium and its system libraries
         # A cache hit skips the browser download; the system libraries are not
@@ -1060,14 +1086,22 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
+        # The same rule as the Storybook Stories job: only main saves, and every other ref takes
+        # the read-only twin below.
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
-        with:
+        with: &playwright-cache-platform
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
           # A version bump restores the previous revision's cache and lets `playwright install`
           # fetch only the missing browser.
           restore-keys: |
             ${{ runner.os }}-playwright-
+
+      - name: Restore Playwright browsers (read-only)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6
+        with: *playwright-cache-platform
 
       - name: Install Chromium and its system libraries
         # A cache hit skips the browser download; the system libraries are not cached, so
