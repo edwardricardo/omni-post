@@ -328,23 +328,12 @@ overrides:
 # Empty from 2026-10-06 to 2026-10-31: the last two entries of that time, GHSA-848j-6mx2-7j84
 # (elliptic) and GHSA-vfj7-8cjw-p6xm (braces), left with @storybook/nextjs, the only package
 # whose chains carried either, so neither suppressed anything any more. One entry from
-# 2026-10-31, two from 2026-11-17, one since 2026-11-18, below. GHSA-g3hv-75wg-m249 (minimatch)
-# left on 2026-11-18: GitHub narrowed its range to >=7.0.0 <11.0.1 on 2026-11-04, outside the
-# 3.1.5 copy of the lint toolchain, so it suppressed nothing from then on, and `pnpm audit
-# --audit-level low` gives the same exit code and advisories without it (DEPENDENCY_AUDIT_RECORD
-# §"Ignored GHSAs").
+# 2026-10-31, two from 2026-11-17, one from 2026-11-18, empty since 2026-11-25.
+# GHSA-g3hv-75wg-m249 (minimatch) left on 2026-11-18: GitHub narrowed its range to >=7.0.0
+# <11.0.1 on 2026-11-04, outside the 3.1.5 copy of the lint toolchain, so it suppressed nothing
+# from then on, and `pnpm audit --audit-level low` gives the same exit code and advisories
+# without it. GHSA-fc5q-39xc-vjpf (picomatch) left on 2026-11-25 by the Maintainer's decision:
+# GitHub withdrew it on 2026-11-18 as not a security issue, and `pnpm audit --audit-level low`
+# finds no vulnerability without it (DEPENDENCY_AUDIT_RECORD §"Ignored GHSAs").
 auditConfig:
-  ignoreGhsas:
-    # GHSA-fc5q-39xc-vjpf (picomatch, high, CVE-2026-112366: denial of service through a
-    # single-branch repeated extglob pattern such as `+(*)`, whose compiled expression backtracks
-    # exponentially), ignored since 2026-11-17 by the Maintainer's decision. No fix exists on any
-    # line: the range is <=4.0.7 with no patched version, npm's latest is 4.0.7, and the candidate
-    # fixes (micromatch/picomatch#237 and #238 on master, #246 on v2) are open and unreviewed.
-    # Chain: the one copy, 4.0.7, under vite, vitest, tinyglobby, fdir, knip, lint-staged,
-    # dependency-cruiser and @secretlint/walker on dev chains, and under the portals' build
-    # tooling (next-intl -> @parcel/watcher, @sentry/nextjs -> @rollup/plugin-commonjs) on
-    # production chains; apps/api and apps/workers have none. The trigger is the PATTERN, and
-    # every pattern that reaches a picomatch copy is a literal of tracked configuration or a
-    # library's own constant, never a request. Row: DEPENDENCY_AUDIT_RECORD.md §"Ignored GHSAs".
-    # Remove-when: a picomatch release outside <=4.0.7 is published and the lockfile resolves it.
-    - GHSA-fc5q-39xc-vjpf
+  ignoreGhsas: []
