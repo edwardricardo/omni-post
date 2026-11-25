@@ -85,6 +85,15 @@ const CASES: readonly SanitizerCase[] = [
     input: '<svg onload=alert(1)><circle r="1"></circle></svg>',
     templateEngineHtml: '<svg><circle r="1"></circle></svg>',
   },
+  // DOMPurify's SVG tag allow-list does not hold these four names, which are attributes and not
+  // elements, so each element is removed and its text is kept.
+  {
+    name: "svg elements named part, exportparts, inputmode and enterkeyhint",
+    input:
+      "<svg><part>a</part><exportparts>b</exportparts><inputmode>c</inputmode>" +
+      "<enterkeyhint>d</enterkeyhint><g>e</g></svg>",
+    templateEngineHtml: "<svg>abcd<g>e</g></svg>",
+  },
   {
     name: "a math element carrying a javascript href",
     input: '<math><mi xlink:href="javascript:alert(1)">x</mi></math>',
