@@ -431,6 +431,29 @@ Compliance Checks`. The block now goes to the reference, and that section takes 
    grow with every new feedback rule, so their sum with the tracked set is measured here and held
    by no check (plan row `INSTRUCTION-BUDGET-LOCAL-FILES-HELD-BY-NO-CHECK`).
 
+## Amendment of 2026-11-25: the inventory in the reference
+
+1. **The list follows the blocks.** By the Product Owner's decision of 2026-11-25, the list of one
+   line per check left `CLAUDE.md` §Automated Compliance Checks for the section `## Inventory` of
+   [`docs/development/FITNESS_FUNCTIONS.md`](../development/FITNESS_FUNCTIONS.md), with no change of
+   wording but the pointers the move made false, and with it the detail of the ratcheted baselines and of the three checks that run on
+   `pull_request` only, the paragraph on a scope path that does not exist, the paragraph on the
+   integration-tier RLS coverage gate and "Extending the suite", now a section of its own there.
+   `CLAUDE.md` keeps the count sentence, where it is stated once, the pointer to the reference with
+   its search command, the mention of fitness #44 and the red-path rule for every gate. This changes
+   item 2 of the amendment of 2026-11-18, whose list is still derived from the workflow, and item 4,
+   since `CLAUDE.md` no longer carries a line for fitness #55.
+2. **Fitness #44 reads the list there.** It reads the numbered steps of the workflow, the `# N.`
+   headings of the reference's `## Check blocks` and the lines of its `## Inventory`, and the count
+   sentence of `CLAUDE.md`; a list left in `CLAUDE.md` is never read as the inventory, so a
+   reference without its inventory fails closed, and a list line left in that section is refused
+   by its line number. This changes item 3 of the amendment of 2026-11-18. A citation of
+   `CLAUDE.md §Automated Compliance Checks` now resolves in two hops, through the section's pointer
+   to the reference, where the Risks table says one; and the line of the References that names
+   "their list in `CLAUDE.md`" describes the state before this amendment.
+3. **The measurement.** `CLAUDE.md` went from 45,484 bytes before the pull request of the rows P to
+   21,185, and the auto-loaded tracked set, as the gate measures it, from 132,672 to 108,421 bytes.
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,

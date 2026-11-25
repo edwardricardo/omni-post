@@ -39,7 +39,8 @@ whose dates contain that artifact's date.
 
 The Maintainer holds the grant authority of the hooks. Only the Maintainer issues, extends and
 revokes grants for sensitive operations, with `.claude/bin/omnipost-allow` from their own terminal;
-no session can ([CLAUDE.md](../CLAUDE.md) §Bypass via authorization token).
+no session can ([CLAUDE.md](../CLAUDE.md) §Bypass via authorization token, the paragraph "Only
+the Maintainer issues grants").
 
 - The grant files live under `.claude/.allowed/`, which git ignores, and a grant file is deleted
   once no grant remains in it.
@@ -48,6 +49,8 @@ no session can ([CLAUDE.md](../CLAUDE.md) §Bypass via authorization token).
   role.
 - Nothing reads `authorized_by` back, and `.claude/hooks.log` does not record the issuer, so the
   field is a label on a local file, not an audit record.
+
+**Push grants.** `omnipost-allow push --count K --ttl N` leaves K consecutive windows of N minutes (`--count` defaults to 1 and is at most 12; each operation keeps its default TTL, 15 minutes). Each push window allows one publication: pre-bash allows a push while a window contains now and records the command on that window's grant, and post-bash consumes that grant once the push succeeds, even when it finishes after the window closed. A failed push consumes nothing, so a retry in the same window is allowed; a grant used early does not open the next window early. Run again while grants are pending, it appends its windows after the last pending one. Grants whose window is over are pruned on every read. `omnipost-allow status` lists the pending grants with their windows, and `omnipost-allow revoke <operation>` deletes them. `sensitive-edit` takes the same `--count` and stays valid for its whole window; using it consumes nothing. Every create, claim, consumption, prune and revoke goes to `.claude/hooks.log`.
 
 ## How a role changes hands
 

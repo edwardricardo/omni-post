@@ -67,7 +67,7 @@ The cache port lives at `packages/ports/src/CachePort.ts`. Two adapters implemen
 - **Default TTL** is configurable via `CACHE_TTL_DEFAULT` (seconds). Falls back to 3600 when unset. Explicit `ttlSeconds` per call always wins.
 - **In tests**, instantiate `new InMemoryCacheAdapter()` directly. Each test gets its own adapter, no shared state, deterministic TTL via `vi.useFakeTimers()`.
 - **Stampede protection** (single-flight, XFetch, SWR, jitter) is intentionally NOT implemented yet — tracked as PR-29 in the backlog. Concurrent factory calls on a missed key each run independently.
-- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep #14 blocks the pattern (see CLAUDE.md §Automated Compliance Checks). The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
+- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep #14 blocks the pattern (see docs/development/FITNESS_FUNCTIONS.md §Inventory). The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
 
 Full caching architecture rationale: [docs/architecture/caching.md](../architecture/caching.md).
 
@@ -84,6 +84,6 @@ Adding new observability rules:
 5. **Application service that must log** → take `logger: LoggerPort` (`@ports/core`) by constructor, ahead of a trailing `unitOfWork`, call it as `logger.error({ err, ...fields }, "message")`, and have the composition root pass `createLogger("<name>")` from the deployable's own factory. The `(context, message)` order is Pino's own and it is the contract: Pino reads `(message, object)` as a message plus a printf argument and drops the object, so a message-first port would accept a raw Pino logger that compiles and loses every context field. `apps/api/tests/unit/lib/loggerPortContract.type-test.ts` pins the order, and `loggerPortContract.test.ts` beside it pins the written line.
 6. **Replacing pino with OTel logs** → ADR required. See ADR-0013 §"Revisit if" for the convergence direction.
 
-Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
+Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
 
 - `#11` no raw `setInterval` outside scheduler · `#13` no direct `pino` imports in `apps/api/src` (factory only) · `#14` no per-class cache Maps in `apps/api/src` (CachePort only).

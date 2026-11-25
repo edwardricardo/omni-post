@@ -167,7 +167,7 @@ CI (`.github/workflows/ci.yml`) restores the `.turbo` cache, so only packages wi
 - **Branch** from `main`; nothing is pushed to `main` directly.
 - **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`), one reviewable work unit each, with its tests and docs alongside the behavior.
 - **Pre-commit** (`.husky/pre-commit`) runs gitleaks over the staged diff, then lint-staged: ESLint `--fix`, Prettier, the JSDoc gate (`pnpm check:jsdoc`) and secretlint over the staged files. Never bypass it.
-- **Before opening a PR**, run `pnpm lint`, `pnpm format:check`, `pnpm typecheck` and the tests of what you touched; CI runs the full set, including every fitness check in [CLAUDE.md §Automated Compliance Checks](../../CLAUDE.md#automated-compliance-checks-ci-fitness-functions).
+- **Before opening a PR**, run `pnpm lint`, `pnpm format:check`, `pnpm typecheck` and the tests of what you touched; CI runs the full set, including every fitness check in [the inventory of FITNESS_FUNCTIONS.md](FITNESS_FUNCTIONS.md#inventory).
 - **PR description** follows `.github/pull_request_template.md`: Summary, Verification, and the Legal, Support and Deployment impact sections, each answered, never left empty.
 
 Code standards are not restated here: [CODING_STANDARDS.md](./CODING_STANDARDS.md) (TypeScript, `Result` and error handling, naming, testing, JSDoc) and [ARCHITECTURE_CANON.md](../architecture/ARCHITECTURE_CANON.md) are the canon.

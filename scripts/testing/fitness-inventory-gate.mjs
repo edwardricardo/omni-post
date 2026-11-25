@@ -2,9 +2,9 @@
 /**
  * @file fitness-inventory-gate.mjs
  * @description Fitness check #44: the inventory of numbered fitness checks is contiguous, the
- *   workflow, the reference of check blocks and the list of the canon carry the same set, each list
- *   line names its check as its step does and says how it runs, and the count the canon states is
- *   derived.
+ *   workflow, the check blocks of the reference and the reference's inventory carry the same set,
+ *   each inventory line names its check as its step does and says how it runs, and the count the
+ *   canon states is derived.
  *
  *   WHY IT EXISTS, measured: the one invariant the fitness suite did not measure was the suite
  *   itself. A step wired without its block, a block whose step was deleted, a number two steps both
@@ -12,10 +12,11 @@
  *   check silently stopped being enforced, and the workflow summary printed a typed count that
  *   agreed with the document whatever actually ran. The step this gate replaced returned exit 0
  *   against all three of those plants. The check blocks then left the canon for a reference read on
- *   demand (ADR-0045), so the canon keeps one line per check: three files now state the suite, and
- *   this gate fails when they do not each hold every number from 1 to the highest step number
- *   exactly once, when a list line's name is not its step's or its command does not occur in that
- *   step's run body, or when the count sentence does not state that highest number.
+ *   demand (ADR-0045), and the list of one line per check followed them into the reference's
+ *   `## Inventory`, so the canon keeps only the count sentence: three sources in two files state the
+ *   suite, and this gate fails when they do not each hold every number from 1 to the highest step
+ *   number exactly once, when an inventory line's name is not its step's or its command does not
+ *   occur in that step's run body, or when the count sentence does not state that highest number.
  *
  *   THE THREE SOURCES. The workflow side is every step whose `name:` value starts with `#<number>`,
  *   double- or single-quoted, in any job of `.github/workflows/fitness.yml`, with the lines of the
@@ -30,12 +31,15 @@
  *   under `with:`, say), below the entry's own keys: neither names a step, so no step's body can
  *   be told to be its. A `name:` nested that way and not numbered changes nothing, and the step
  *   keeps its body. The reference side is every line of the form `# N.` at column 0 inside a fenced
- *   code block of the section `## Check blocks` of `docs/development/FITNESS_FUNCTIONS.md`. The list
- *   side is every line of `CLAUDE.md` §Automated Compliance Checks, outside code blocks, of the form
- *   `- **#N** <name> — <how>`, where `<how>` is `shell` for an inline check or one code span holding
- *   the command its step runs; the count sentence is read from the same section's prose. A section
- *   ends at the next level-1 or level-2 heading OUTSIDE a fence, so a column-0 `## ` shell comment
- *   inside a code block does not truncate it.
+ *   code block of the section `## Check blocks` of `docs/development/FITNESS_FUNCTIONS.md`. The
+ *   inventory side is every line of the section `## Inventory` of the same file, outside code
+ *   blocks, of the form `- **#N** <name> — <how>`, where `<how>` is `shell` for an inline check or
+ *   one code span holding the command its step runs. The count sentence is read from the prose of
+ *   `CLAUDE.md` §Automated Compliance Checks, and nothing else of that section is read as the list:
+ *   a list left there, or moved back there, leaves the reference's inventory missing or empty, which
+ *   fails closed, and each of its lines in that section's prose is refused by its line number. A
+ *   section ends at the next level-1 or level-2 heading OUTSIDE a fence, so a
+ *   column-0 `## ` shell comment inside a code block does not truncate it.
  *
  *   WHAT COUNTS AS A CHECK HEADING, and why the convention stays load-bearing. Every check block in
  *   the reference opens with `# N.` at column 0, either on the line after the fence opens or after
@@ -43,28 +47,30 @@
  *   and it is reported as such by its line number instead of being counted or ignored. A look-alike
  *   that does open a block (after a blank line) is counted, and then shows up as a duplicate heading
  *   or as a documented-but-unwired number, so it is red either way rather than silent. A line of the
- *   list that opens like an entry (a list marker, then `#` and a digit, bold or not) and is not
+ *   inventory that opens like an entry (a list marker, then `#` and a digit, bold or not) and is not
  *   exactly `- **#N** ` with no leading zero is reported by its line number the same way.
  *
  *   SETS, NOT SEQUENCES. The files declare the checks out of numeric order (19 sits before 16 in
  *   the workflow and before 18 in the reference), and that placement changes nothing, so the gate
- *   compares sets: the workflow numbers form `1..N` with no hole and no duplicate, the reference and
- *   the list each carry the same set with no duplicate, and the one count sentence states `N`
- *   checks numbered `#1-#N`. `N` is the highest number a workflow step declares; the summary prints
- *   that derived value.
+ *   compares sets: the workflow numbers form `1..N` with no hole and no duplicate, the check blocks
+ *   and the inventory each carry the same set with no duplicate, and the one count sentence states
+ *   `N` checks numbered `#1-#N`. `N` is the highest number a workflow step declares; the summary
+ *   prints that derived value.
  *
- *   WHAT FAILS beyond the sets: a list line whose name is not its step's name without the `#N `
- *   prefix, character for character (the violation prints the line as it must read); a list line
- *   that ends in neither ` — shell` nor ` — ` and one code span, or whose code span's text does not
- *   occur in its step's run body; a `# N.` heading inside a code block of the canon's section (the
- *   blocks live in the reference); and a count sentence in the reference (the count is stated once,
- *   in the canon).
+ *   WHAT FAILS beyond the sets: an inventory line whose name is not its step's name without the
+ *   `#N ` prefix, character for character (the violation prints the line as it must read); an
+ *   inventory line that ends in neither ` — shell` nor ` — ` and one code span, or whose code span's
+ *   text does not occur in its step's run body; a `# N.` heading inside a code block of the canon's
+ *   section (the blocks live in the reference); a line of the canon's section, outside code blocks,
+ *   in the list's form or opening like a list line (the list lives in the reference); and a count
+ *   sentence in the reference (the count is stated once, in the canon).
  *
  *   FAIL-CLOSED. An unreadable file, zero numbered steps, a numbered name outside an entry of a
- *   steps list or nested below its own keys, a missing section in the canon or the reference, zero
- *   reference headings, zero list lines, a fence that never closes, and a missing count sentence
- *   each exit 1 with a message naming the cause. A scan that read nothing must never render as a
- *   clean inventory.
+ *   steps list or nested below its own keys, a missing section (`## Check blocks` or `## Inventory`
+ *   in the reference, §Automated Compliance Checks in the canon), zero reference headings, zero
+ *   inventory lines, a fence that never closes in any of the three sections, and a missing count
+ *   sentence each exit 1 with a message naming the cause. A scan that read nothing must never
+ *   render as a clean inventory.
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) Textual, not a YAML or Markdown parser: a step
  *   whose name is assembled by a matrix, a composite action or a flow-style `{ name: … }` mapping is
@@ -75,7 +81,11 @@
  *   is its block scalars only, so a one-line `run:` value is not read and such a step can only be
  *   listed as `shell`. (4) A block's text and its step's body are still mirrored by hand. (5) The
  *   gate proves the inventory is complete, never that a listed check still measures what its prose
- *   claims.
+ *   claims. (6) A line of the list's form in the reference outside `## Inventory`, a duplicate under
+ *   `## Extending the suite` for one, is not read, so it can drift from the suite unseen. (7) A line
+ *   of the list's form in `CLAUDE.md` inside a code fence or a blockquote of its section, or in any
+ *   other section, is not read either: fitness #55 refuses the bytes it adds, because the ceiling of
+ *   the instruction budget equals the loaded bytes.
  *
  *   Usage: `node scripts/testing/fitness-inventory-gate.mjs [--workflow <path>] [--canon <path>]
  *   [--reference <path>] [--summary <path>]`. The three inputs default to the files beside the
@@ -99,6 +109,7 @@ const REFERENCE = fileURLToPath(
 
 const SECTION_HEADING = "## Automated Compliance Checks";
 const REFERENCE_SECTION = "## Check blocks";
+const INVENTORY_SECTION = "## Inventory";
 /** A `name:` key, optionally the first key of a sequence entry, with its raw value captured. */
 const NAME_KEY = /^(\s*)(-\s+)?name:\s*(.*)$/;
 /**
@@ -148,9 +159,9 @@ const ENTRY_LOOKALIKE = /^\s*[-*+]\s+\**#\d/;
 /**
  * @typedef {object} Entry
  * @property {number} number
- * @property {string} name The name the list line gives its check.
+ * @property {string} name The name the inventory line gives its check.
  * @property {string | null} command The code span's text, or `null` for a line that says `shell`.
- * @property {number} line One-based line in the canon.
+ * @property {number} line One-based line in the reference.
  */
 
 /**
@@ -450,40 +461,38 @@ function readBlockHeadings(text, label, sectionHeading) {
 }
 
 /**
- * @description The list of the canon's §Automated Compliance Checks: every line, outside code
- *   blocks, of the form `- **#N** <name> — <how>`, with every line that opens like an entry and is
- *   not in that form, every `# N.` heading left inside a code block of the section, and the count
- *   sentences of the section's prose.
+ * @typedef {object} Section
+ * @property {{ line: number, text: string }[]} prose The section's lines outside its code blocks.
+ * @property {{ line: number, text: string }[]} fencedHeadings Every `# N.` line inside a code block.
+ * @property {string[]} violations
+ * @property {boolean} readable False when the section could not be delimited, so nothing it holds
+ *   may be compared.
+ */
+
+/**
+ * @description One section of a Markdown file read as text, from its heading to the next level-1 or
+ *   level-2 heading outside a fence: its lines outside code blocks, and the `# N.` lines inside them.
  * @param {string} text
  * @param {string} label How the file is named in a violation.
- * @returns {{ entries: Entry[], fencedHeadings: { line: number, text: string }[], sentences: CountSentence[], violations: string[], readable: boolean }}
- *   `readable` is false when the section could not be delimited, so nothing it holds was compared.
+ * @param {{ heading: string, name: string, nothing: string, reading: string }} section The
+ *   section's heading and its `§` name, what a missing section leaves unread, and what an unclosed
+ *   fence would have it read from the rest of the file.
+ * @returns {Section}
  */
-function readCanonList(text, label) {
-  /** @type {Entry[]} */
-  const entries = [];
-  /** @type {{ line: number, text: string }[]} */
-  const fencedHeadings = [];
-  /** @type {string[]} */
-  const violations = [];
+function readSection(text, label, { heading, name, nothing, reading }) {
   const lines = text.split("\n");
-
-  const section = findSection(lines, SECTION_HEADING, label, "list line and no count sentence");
-  if ("violation" in section) {
-    return {
-      entries,
-      fencedHeadings,
-      sentences: [],
-      violations: [section.violation],
-      readable: false,
-    };
+  const found = findSection(lines, heading, label, nothing);
+  if ("violation" in found) {
+    return { prose: [], fencedHeadings: [], violations: [found.violation], readable: false };
   }
 
   /** @type {{ marker: string, line: number } | null} */
   let fence = null;
-  /** @type {string[]} */
+  /** @type {{ line: number, text: string }[]} */
   const prose = [];
-  for (let index = section.start + 1; index < lines.length; index += 1) {
+  /** @type {{ line: number, text: string }[]} */
+  const fencedHeadings = [];
+  for (let index = found.start + 1; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     const lineNumber = index + 1;
     if (fence !== null) {
@@ -498,47 +507,109 @@ function readCanonList(text, label) {
       continue;
     }
     if (SECTION_END.test(line)) break;
-    prose.push(line);
+    prose.push({ line: lineNumber, text: line });
+  }
 
-    const entry = LIST_ENTRY.exec(line);
+  if (fence !== null) {
+    return {
+      prose,
+      fencedHeadings,
+      violations: [
+        `${label}:${String(fence.line)} opens a code block that never closes, so where ` +
+          `§${name} ends cannot be read. Refusing rather than reading ${reading} from the rest of ` +
+          `the file.`,
+      ],
+      readable: false,
+    };
+  }
+  return { prose, fencedHeadings, violations: [], readable: true };
+}
+
+/**
+ * @description The inventory of the reference's `## Inventory`: every line, outside code blocks, of
+ *   the form `- **#N** <name> — <how>`, with every line that opens like an entry and is not in that
+ *   form.
+ * @param {string} text
+ * @param {string} label How the file is named in a violation.
+ * @returns {{ entries: Entry[], violations: string[], readable: boolean }} `readable` is false when
+ *   the section could not be delimited, so no line of it was compared.
+ */
+function readInventory(text, label) {
+  const section = readSection(text, label, {
+    heading: INVENTORY_SECTION,
+    name: "Inventory",
+    nothing: "list line",
+    reading: "the list",
+  });
+  /** @type {Entry[]} */
+  const entries = [];
+  /** @type {string[]} */
+  const violations = [];
+  for (const { line, text: content } of section.prose) {
+    const entry = LIST_ENTRY.exec(content);
     if (entry !== null) {
       const how = LIST_HOW.exec(entry[2] ?? "");
       entries.push({
         number: Number(entry[1]),
         name: how === null ? (entry[2] ?? "") : (how[1] ?? ""),
         command: how === null || how[2] !== undefined ? null : (how[3] ?? ""),
-        line: lineNumber,
+        line,
       });
       if (how === null) {
         violations.push(
-          `${label}:${String(lineNumber)} lists #${String(entry[1])} with no way it runs: a line ends ` +
+          `${label}:${String(line)} lists #${String(entry[1])} with no way it runs: a line ends ` +
             `in \` — shell\` for an inline check, or in \` — \` and one code span holding the ` +
             `command its step runs.`
         );
       }
-    } else if (ENTRY_LOOKALIKE.test(line)) {
+    } else if (ENTRY_LOOKALIKE.test(content)) {
       violations.push(
-        `${label}:${String(lineNumber)} reads \`${line.trim()}\`, which opens like a line of the check ` +
+        `${label}:${String(line)} reads \`${content.trim()}\`, which opens like a line of the check ` +
           `list but is not \`- **#<number>** <step name> — <how>\` (a dash, the number in bold with ` +
           `no leading zero, the step's name, an em dash, and \`shell\` or one code span). Rewrite it ` +
           `in that form, or reword it so it does not open like a list entry.`
       );
     }
   }
+  return {
+    entries: section.readable ? entries : [],
+    violations: [...violations, ...section.violations],
+    readable: section.readable,
+  };
+}
 
-  if (fence !== null) {
-    violations.push(
-      `${label}:${String(fence.line)} opens a code block that never closes, so where ` +
-        `§Automated Compliance Checks ends cannot be read. Refusing rather than reading the list ` +
-        `from the rest of the file.`
-    );
-    return { entries: [], fencedHeadings: [], sentences: [], violations, readable: false };
+/**
+ * @description What the canon's §Automated Compliance Checks holds for this gate: the count
+ *   sentences of its prose, every `# N.` heading left inside one of its code blocks, and every line
+ *   of its prose in the list's form or opening like a list line, left from the list's old home.
+ * @param {string} text
+ * @param {string} label How the file is named in a violation.
+ * @returns {{ sentences: CountSentence[], fencedHeadings: { line: number, text: string }[], listLines: { line: number, text: string }[], violations: string[], readable: boolean }}
+ *   `readable` is false when the section could not be delimited, so no count was read.
+ */
+function readCanonCount(text, label) {
+  const section = readSection(text, label, {
+    heading: SECTION_HEADING,
+    name: "Automated Compliance Checks",
+    nothing: "count sentence",
+    reading: "the count sentence",
+  });
+  if (!section.readable) {
+    return {
+      sentences: [],
+      fencedHeadings: [],
+      listLines: [],
+      violations: section.violations,
+      readable: false,
+    };
   }
   return {
-    entries,
-    fencedHeadings,
-    sentences: countSentencesOf(prose.join("\n")),
-    violations,
+    sentences: countSentencesOf(section.prose.map((line) => line.text).join("\n")),
+    fencedHeadings: section.fencedHeadings,
+    listLines: section.prose
+      .filter(({ text: content }) => LIST_ENTRY.test(content) || ENTRY_LOOKALIKE.test(content))
+      .map(({ line, text: content }) => ({ line, text: content.trim() })),
+    violations: [],
     readable: true,
   };
 }
@@ -593,15 +664,15 @@ function titleOf(step) {
 }
 
 /**
- * @description Each list line against its step: the name copied from the step's, and the command,
+ * @description Each inventory line against its step: the name copied from the step's, and the command,
  *   when the line names one, found in the step's run body.
  * @param {Entry[]} entries
  * @param {Step[]} steps
- * @param {string} canonLabel
+ * @param {string} referenceLabel
  * @param {string} workflowLabel
  * @returns {string[]}
  */
-function checkEntriesAgainstSteps(entries, steps, canonLabel, workflowLabel) {
+function checkEntriesAgainstSteps(entries, steps, referenceLabel, workflowLabel) {
   /** @type {Map<number, Step>} */
   const byNumber = new Map();
   for (const step of steps) if (!byNumber.has(step.number)) byNumber.set(step.number, step);
@@ -615,14 +686,14 @@ function checkEntriesAgainstSteps(entries, steps, canonLabel, workflowLabel) {
     if (entry.name !== title) {
       const how = entry.command === null ? "shell" : `\`${entry.command}\``;
       violations.push(
-        `${canonLabel}:${String(entry.line)} names #${String(entry.number)} \`${entry.name}\`, but ` +
+        `${referenceLabel}:${String(entry.line)} names #${String(entry.number)} \`${entry.name}\`, but ` +
           `its step at ${at} is named \`${title}\`. The list copies the step's name, so the line ` +
           `must read: \`- **#${String(entry.number)}** ${title} — ${how}\``
       );
     }
     if (entry.command !== null && !step.body.join("\n").includes(entry.command)) {
       violations.push(
-        `${canonLabel}:${String(entry.line)} says #${String(entry.number)} runs ` +
+        `${referenceLabel}:${String(entry.line)} says #${String(entry.number)} runs ` +
           `\`${entry.command}\`, but the run body of its step at ${at} does not contain that text. ` +
           `Name the command the step runs, or \`shell\` for an inline check.`
       );
@@ -647,14 +718,28 @@ export function evaluateInventory({
 }) {
   const workflow = readWorkflowSteps(workflowText, workflowLabel);
   const reference = readBlockHeadings(referenceText, referenceLabel, REFERENCE_SECTION);
-  const canon = readCanonList(canonText, canonLabel);
-  const violations = [...workflow.violations, ...reference.violations, ...canon.violations];
+  const inventory = readInventory(referenceText, referenceLabel);
+  const canon = readCanonCount(canonText, canonLabel);
+  const violations = [
+    ...workflow.violations,
+    ...reference.violations,
+    ...inventory.violations,
+    ...canon.violations,
+  ];
 
   for (const heading of canon.fencedHeadings) {
     violations.push(
       `${canonLabel}:${String(heading.line)} holds the check heading \`${heading.text}\` in a code ` +
         `block of §Automated Compliance Checks. The check blocks live in ${referenceLabel}; this ` +
-        `section keeps one line per check. Move the block there.`
+        `section states the suite's rules and its count. Move the block there.`
+    );
+  }
+  for (const left of canon.listLines) {
+    violations.push(
+      `${canonLabel}:${String(left.line)} reads \`${left.text}\`, a line of the check list left in ` +
+        `§Automated Compliance Checks. The list lives in ${referenceLabel} §Inventory, and a ` +
+        `second copy here would drift from the one this gate reads. Move the line there, or ` +
+        `delete it.`
     );
   }
   for (const sentence of countSentencesOf(referenceText)) {
@@ -678,19 +763,20 @@ export function evaluateInventory({
         `undocumented over a section whose \`# <number>.\` convention moved.`
     );
   }
-  if (canon.readable && canon.entries.length === 0) {
+  if (inventory.readable && inventory.entries.length === 0) {
     violations.push(
-      `zero list lines were read from ${canonLabel} §Automated Compliance Checks, so the list side ` +
-        `of the inventory is empty. Refusing rather than reporting every step as unlisted over a ` +
-        `list whose \`- **#<number>**\` form moved.`
+      `zero list lines were read from ${referenceLabel} §Inventory, so the list side of the ` +
+        `inventory is empty. Refusing rather than reporting every step as unlisted over a list ` +
+        `whose \`- **#<number>**\` form moved or that left the section.`
     );
   }
   if (
     workflow.steps.length === 0 ||
     !reference.readable ||
     reference.headings.length === 0 ||
-    !canon.readable ||
-    canon.entries.length === 0
+    !inventory.readable ||
+    inventory.entries.length === 0 ||
+    !canon.readable
   ) {
     return { inventory: null, violations };
   }
@@ -698,7 +784,7 @@ export function evaluateInventory({
   const n = Math.max(...workflow.steps.map((step) => step.number));
   const wired = new Set(workflow.steps.map((step) => step.number));
   const documented = new Set(reference.headings.map((heading) => heading.number));
-  const listed = new Set(canon.entries.map((entry) => entry.number));
+  const listed = new Set(inventory.entries.map((entry) => entry.number));
 
   const stepDuplicates = duplicatesOf(workflow.steps);
   if (stepDuplicates.size > 0) {
@@ -717,10 +803,10 @@ export function evaluateInventory({
         `as a heading; reword the comment.`
     );
   }
-  const entryDuplicates = duplicatesOf(canon.entries);
+  const entryDuplicates = duplicatesOf(inventory.entries);
   if (entryDuplicates.size > 0) {
     violations.push(
-      `${canonLabel} §Automated Compliance Checks lists a check more than once: ` +
+      `${referenceLabel} §Inventory lists a check more than once: ` +
         `${describeDuplicates(entryDuplicates)}. Keep one line per check.`
     );
   }
@@ -752,20 +838,20 @@ export function evaluateInventory({
   if (unlisted.length > 0) {
     violations.push(
       `wired but unlisted: ${numberList(unlisted)} has a step in ${workflowLabel} and no line in ` +
-        `the list of ${canonLabel} §Automated Compliance Checks. A check the list leaves out is ` +
-        `invisible to every session, which loads the list and not the blocks.`
+        `${referenceLabel} §Inventory. A check the inventory leaves out runs while the index of ` +
+        `the suite does not name it.`
     );
   }
   const listedUnwired = missingFrom(listed, wired);
   if (listedUnwired.length > 0) {
     violations.push(
-      `listed but unwired: ${numberList(listedUnwired)} has a line in the list of ${canonLabel} ` +
-        `§Automated Compliance Checks and no step in ${workflowLabel}. A check the list names and ` +
-        `nothing runs reads as enforced while it is not.`
+      `listed but unwired: ${numberList(listedUnwired)} has a line in ${referenceLabel} ` +
+        `§Inventory and no step in ${workflowLabel}. A check the inventory names and nothing runs ` +
+        `reads as enforced while it is not.`
     );
   }
   violations.push(
-    ...checkEntriesAgainstSteps(canon.entries, workflow.steps, canonLabel, workflowLabel)
+    ...checkEntriesAgainstSteps(inventory.entries, workflow.steps, referenceLabel, workflowLabel)
   );
 
   const [sentence, ...otherSentences] = canon.sentences;
@@ -789,7 +875,12 @@ export function evaluateInventory({
   }
 
   return {
-    inventory: { n, steps: workflow.steps, headings: reference.headings, entries: canon.entries },
+    inventory: {
+      n,
+      steps: workflow.steps,
+      headings: reference.headings,
+      entries: inventory.entries,
+    },
     violations,
   };
 }
@@ -812,8 +903,9 @@ export function renderSummary(inventory) {
     "## Fitness Functions",
     "",
     `${String(inventory.n)} checks (#1-#${String(inventory.n)}), derived from the numbered steps of ` +
-      "this workflow and matched against the list of CLAUDE.md §Automated Compliance Checks and the " +
-      "blocks of docs/development/FITNESS_FUNCTIONS.md.",
+      "this workflow and matched against the inventory and the blocks of " +
+      "docs/development/FITNESS_FUNCTIONS.md and the count sentence of CLAUDE.md §Automated " +
+      "Compliance Checks.",
     "",
     "| # | Check |",
     "| --- | --- |",

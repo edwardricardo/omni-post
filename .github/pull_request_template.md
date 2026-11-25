@@ -17,3 +17,7 @@
 ## Deployment impact
 
 <One line per deployment requirement this change adds, changes or removes (a variable or secret a workflow reads, a runtime variable, an external account, a post-deployment check), `docs/deployment/DEPLOYMENT_CHECKLIST.md — added|updated|removed: <row>`, or `none — <reason>`.>
+
+## Foundation practices
+
+<One line for the entry of `docs/development/FOUNDATION_PRACTICES.md` this change adds or sharpens (when it adds an ADR, adds or changes a CI gate or fitness check, or demolishes and redoes code), `docs/development/FOUNDATION_PRACTICES.md — added|updated: <practice>`, or `none for foundation practices — <reason>`.>
