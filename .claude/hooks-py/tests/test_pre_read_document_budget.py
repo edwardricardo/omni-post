@@ -196,22 +196,41 @@ class BashReaderTests(_Budget):
         self.assertRefused("sed -n '1,30p;61,80p' big.md")
         self.assertAllowed("sed -n -e '1,20p' -e '61,80p' big.md")
 
-    def test_a_reader_in_a_later_segment_or_a_nested_script_is_read(self):
+    def test_a_reader_in_a_later_command_is_read(self):
         self.assertRefused("echo start && cat big.md")
-        self.assertRefused('bash -c "cat big.md"')
-        self.assertRefused(f'cd {self.docs} && bash -c "cat big.md"', cwd=self.root)
-        self.assertRefused("bash <<'EOF'\ncat big.md\nEOF")
-
-    def test_a_reader_inside_a_substitution_feeds_the_command_around_it_and_is_not_read(self):
-        self.assertAllowed('engram save "topic" "$(cat big.md)"')
-        self.assertAllowed("body=$(bat -pp big.md)")
-        self.assertEqual(self.ledger(), [])
+        self.assertRefused("echo start\ncat big.md")
 
     def test_a_cd_earlier_in_the_command_moves_the_directory_files_resolve_against(self):
         self.assertRefused(f"cd {self.docs} && cat big.md", cwd=self.root)
         self.assertAllowed("cat big.md", cwd=self.root)
-        self.assertRefused("cd $(pwd) && cat big.md")
         self.assertRefused('cd "$D" && cat big.md')
+
+    def test_a_cd_in_a_pipeline_of_several_commands_does_not_move_the_directory(self):
+        self.assertAllowed("cd sub | true; head -n 900 notes.md")
+        self.assertRefused("cd sub; head -n 900 notes.md")
+
+    def test_a_command_that_is_not_plain_is_not_judged(self):
+        for command in (
+            "(cat big.md)",
+            "{ cat big.md; }",
+            'cat big.md "$(true)"',
+            "x=$(cat big.md)",
+            "cat big.md `true`",
+            "cat <(true) big.md",
+            "cat big.md | tee >(wc -c)",
+            "bash <<'EOF'\ncat big.md\nEOF",
+            "python3 - <<'EOF'\ncat big.md\nEOF",
+            "cat big.md <<< x",
+            "bash -c 'cat big.md'; cat big.md",
+            "sh -c 'cat big.md'",
+            "eval true; cat big.md",
+            "echo big.md | xargs cat; cat big.md",
+            "(cd sub && n=$(ls | wc -l)); head -n 900 notes.md",
+            "body=$(bash -c 'cat big.md')",
+        ):
+            self.assertAllowed(command)
+        self.assertEqual(self.ledger(), [])
+        self.assertFalse((self.root / "hooks.log").exists())
 
     def test_a_search_or_a_computation_is_never_counted(self):
         for command in (
@@ -233,9 +252,9 @@ class BashReaderTests(_Budget):
         self.assertRefused("sed -n '1,50p' big.md | cat")
 
     def test_a_range_the_hook_cannot_compute_skips_only_that_reader_and_is_logged(self):
-        self.assertAllowed("L=5; bat -r $L:$((L+8)) big.md")
+        self.assertAllowed("L=5; bat -r $L:+8 big.md")
         self.assertIn("FAULT", (self.root / "hooks.log").read_text())
-        self.assertRefused("L=5; bat -r $L:$((L+8)) big.md; cat big.md")
+        self.assertRefused("L=5; bat -r $L:+8 big.md; cat big.md")
 
     def test_a_reader_whose_output_goes_to_a_file_is_not_read(self):
         self.assertAllowed("cat big.md > copy.md")
@@ -281,78 +300,6 @@ class BashReaderTests(_Budget):
             self.assertAllowed(f"sudo {option} cat big.md")
         # With a command, `-k` only drops the cached credentials and runs it.
         self.assertRefused("sudo -k cat big.md")
-
-
-class HeredocTests(_Budget):
-    """A heredoc's body is read as commands only when it feeds a shell."""
-
-    def test_a_heredoc_fed_to_a_python_script_is_not_read(self):
-        self.assertAllowed("python3 scripts/write.py <<'EOF'\nbat big.md\nEOF")
-
-    def test_a_heredoc_fed_to_prettier_is_not_read(self):
-        self.assertAllowed("prettier --stdin-filepath x.md <<'EOF'\ncat big.md\nEOF")
-
-    def test_a_heredoc_fed_to_node_is_not_read(self):
-        self.assertAllowed("node - <<'EOF'\nconst text = `\nhead -n 900 big.md\n`;\nEOF")
-
-    def test_a_heredoc_fed_to_sd_is_not_read(self):
-        self.assertAllowed("sd foo bar <<'EOF'\ncat big.md\nEOF")
-
-    def test_a_heredoc_of_text_is_read_as_text(self):
-        self.assertAllowed("cat <<'EOF'\ncat big.md\nEOF")
-        self.assertAllowed("cat <<EOF > out.md\nbat big.md\nEOF")
-
-    def test_a_heredoc_fed_to_a_shell_is_read(self):
-        self.assertRefused("bash <<'EOF'\ncat big.md\nEOF")
-        self.assertRefused("sh -s <<EOF\nbat big.md\nEOF")
-        self.assertRefused("sudo bash <<'EOF'\ncd sub\nhead -n 900 notes.md\nEOF")
-
-    def test_a_heredoc_fed_to_a_shell_that_runs_a_script_file_is_its_input(self):
-        self.assertAllowed("bash run.sh <<'EOF'\ncat big.md\nEOF")
-
-    def test_a_heredoc_fed_to_a_shell_that_runs_a_c_script_is_its_input(self):
-        self.assertAllowed("bash -c 'wc -l' <<'EOF'\ncat big.md\nEOF")
-        self.assertAllowed("bash -sc 'wc -l' <<'EOF'\ncat big.md\nEOF")
-
-    def test_no_heredoc_is_read_when_the_operators_and_the_bodies_do_not_pair(self):
-        # The shared scan takes the quoted `<<X` for an operator and the next
-        # line for its body; the tokens see one operator for two bodies, so no
-        # body can be given to its program and none is read.
-        self.assertAllowed("echo '<<X'\ncat big.md\nX\nbash <<'EOF'\necho done\nEOF")
-
-
-class SubshellTests(_Budget):
-    """A `cd` holds where the shell holds it."""
-
-    def test_a_cd_inside_a_subshell_stays_inside_it(self):
-        self.assertAllowed("(cd sub && rg -c x notes.md); head -n 900 notes.md")
-        self.assertRefused("(cd sub && head -n 900 notes.md)")
-        self.assertAllowed("(cd sub); head -n 900 notes.md")
-
-    def test_a_cd_inside_a_brace_group_holds_after_it_as_in_the_shell(self):
-        self.assertRefused("{ cd sub; }; head -n 900 notes.md")
-
-    def test_a_cd_in_a_pipeline_of_several_commands_runs_in_its_own_subshell(self):
-        self.assertAllowed("cd sub | true; head -n 900 notes.md")
-
-    def test_a_reader_whose_enclosing_construct_sends_its_output_elsewhere_is_not_read(self):
-        for command in (
-            "{ cat big.md; echo x; } > copy.md",
-            "(cat big.md && echo x) | rg needle",
-            "body=$(cd . && cat big.md)",
-            "x=$(true && cd sub); head -n 900 notes.md",
-            "(cat big.md; echo x) 2>/dev/null > copy.md",
-            "(echo }; cat big.md; echo x) | rg needle",
-            "bash -c 'cat big.md' | rg needle",
-            "bash -c 'cat big.md' > copy.md",
-            "bash > copy.md <<'EOF'\ncat big.md\nEOF",
-        ):
-            self.assertAllowed(command)
-        self.assertEqual(self.ledger(), [])
-
-    def test_a_reader_whose_enclosing_construct_prints_to_the_terminal_is_read(self):
-        for command in ("(cd sub && head -n 900 notes.md)", 'bash -c "cat big.md"', "bash <<'EOF'\ncat big.md\nEOF"):
-            self.assertRefused(command)
 
 
 class ReadShapeTests(_Budget):
@@ -518,63 +465,35 @@ class FaultTests(_Budget):
         self.assertEqual(code, 0)
 
 
-def _unmatched_heredocs(lines: int) -> str:
-    return "cat <<EOF\n" * lines
-
-
-def _heredocs_on_one_line(count: int) -> str:
-    operators = "".join(f"<<D{index} " for index in range(count))
-    return "cat " + operators + "\n" + "".join(f"D{index}\n" for index in range(count))
-
-
-def _shell_words(count: int) -> str:
-    return "sh " * count + "-c 'cat notes.md'"
-
-
 class CostTests(_Budget):
-    """The hook's own calls into the shared scans: each scan once per script
-    the hook reads, over text no longer than that script, and one opening per
-    document. The shared scans' own cost on these shapes is theirs."""
+    """One tokenizing pass per command, none of the shared scans for heredocs
+    or nested shells, and one opening per document."""
 
-    def _calls(self, command: str) -> dict[str, list[int]]:
-        counts = {"heredocs": [0, 0], "lex": [0, 0], "shell_scripts": [0, 0]}
+    def test_a_command_is_tokenized_once_and_never_scanned_for_heredocs_or_shell_scripts(self):
+        commands = (
+            "cat <<EOF\n" * 200,
+            "cat " + "".join(f"<<D{index} " for index in range(80)) + "\n" + "".join(f"D{index}\n" for index in range(80)),
+            "sh " * 200 + "-c 'cat notes.md'",
+            "cd sub; head -n 30 notes.md | less",
+            "(cat big.md)",
+        )
+        lexed = [0]
+        real_lex = guard._lex
 
-        def counter(name, real, size):
-            def inner(argument):
-                counts[name][0] += 1
-                counts[name][1] += size(argument)
-                return real(argument)
+        def counting_lex(text):
+            lexed[0] += 1
+            return real_lex(text)
 
-            return inner
-
-        with mock.patch.object(guard, "_heredocs", counter("heredocs", guard._heredocs, len)), mock.patch.object(
-            guard, "_lex", counter("lex", guard._lex, len)
-        ), mock.patch.object(
-            guard, "_shell_scripts", counter("shell_scripts", guard._shell_scripts, lambda segment: sum(len(t) + 1 for t in segment))
-        ):
-            self.bash(command)
-        return counts
-
-    def assertScansOnce(self, command: str, scripts: int, segments: int):
-        counts = self._calls(command)
-        self.assertEqual(counts["heredocs"][0], scripts)
-        self.assertEqual(counts["lex"][0], scripts)
-        self.assertEqual(counts["shell_scripts"][0], segments)
-        self.assertLessEqual(counts["heredocs"][1], 2 * len(command))
-        self.assertLessEqual(counts["lex"][1], 2 * len(command))
-        self.assertLessEqual(counts["shell_scripts"][1], 2 * len(command))
-
-    def test_unmatched_heredoc_operators_on_every_line_are_scanned_once(self):
-        for lines in (50, 200):
-            self.assertScansOnce(_unmatched_heredocs(lines), scripts=1, segments=lines)
-
-    def test_heredoc_operators_on_one_line_are_scanned_once(self):
-        for count in (20, 80):
-            self.assertScansOnce(_heredocs_on_one_line(count), scripts=1, segments=1)
-
-    def test_a_script_named_by_many_shell_words_is_read_once(self):
-        for count in (50, 200):
-            self.assertScansOnce(_shell_words(count), scripts=2, segments=2)
+        refuse = AssertionError("a shared scan for heredocs or nested shells was called")
+        for scan in (_common.heredocs, _common.shell_scripts):
+            self.assertNotIn(scan, vars(guard).values())
+        with mock.patch.object(guard, "_lex", side_effect=counting_lex), mock.patch.object(
+            _common, "heredocs", side_effect=refuse
+        ), mock.patch.object(_common, "shell_scripts", side_effect=refuse):
+            for command in commands:
+                before = lexed[0]
+                self.bash(command)
+                self.assertLessEqual(lexed[0] - before, 1, command[:40])
 
     def test_one_document_is_opened_once_however_many_readers_name_it(self):
         opened = [0]

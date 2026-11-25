@@ -15,24 +15,25 @@ would cover more than the budget; reading a span again adds nothing.
 - `Read`: the span is `offset` and `limit` (an integer, a float or a numeric
   string); with no `limit` the tool reads `READ_DEFAULT_LIMIT` lines from
   `offset`, and a `limit` of zero or below reads nothing.
-- `Bash`: the commands that print a file's lines, read with the hooks' own
-  tokenizer (`_common`): `bat` (`-r`, `--line-range`), `cat`, `tac`, `nl`,
-  `less`, `more`, `head` and `tail` (`-n`, `-c`, with their default of 10
-  lines) and `sed -n` with line-number `p` commands only, behind a wrapper of
-  `_WRAPPERS` (`timeout`, `env`, `command`, `nice`, `sudo`) or not, from a file
-  named or from a redirected standard input (`cat < f`). No range is the whole
-  file. What reaches the agent is the output of a pipeline's last command, so a
+- `Bash`: a command is judged only when it is plain: it holds no subshell or
+  group (`(`, `)`, `{`, `}`), no command or process substitution (`$(`, a
+  backtick, `<(`, `>(`), no heredoc or here-string (`<<`, `<<<`), and no
+  command whose program is a shell, `eval` or `xargs`. A command that is not
+  plain is allowed, unrecorded and unlogged: the guard is against a habit, and
+  a structure it would have to interpret is where its wrong refusals came from.
+  In a plain command, read with the hooks' own tokenizer (`_common`), the
+  readers are `bat` (`-r`, `--line-range`), `cat`, `tac`, `nl`, `less`, `more`,
+  `head` and `tail` (`-n`, `-c`, with their default of 10 lines) and `sed -n`
+  with line-number `p` commands only, behind a wrapper of `_WRAPPERS`
+  (`timeout`, `env`, `command`, `nice`, `sudo`) or not, from a file named or
+  from a redirected standard input (`cat < f`). No range is the whole file.
+  What reaches the agent is the output of a pipeline's last command, so a
   reader whose output feeds a search or a computation (`cat f | rg x`) or goes
   to a file (`cat f > g`) is not a read, and one that feeds only a pager
   (`cat f | less`) is. A command that searches or computes (`rg`, `jq`, `wc`,
-  `awk`, a script) is never counted: querying is the way past. A `cd` moves the
-  directory files resolve against where the shell moves it: not past the `)` of
-  its subshell, nor past a pipeline of several commands. A script handed to a
-  shell (`bash -c`, a heredoc fed to a shell) is read the same way, to a depth
-  of `MAX_NESTING`; a heredoc fed to any other program is that program's input
-  and is not read. A reader inside a substitution (`"$(cat f)"`) is not a read:
-  its output is an argument of the command around it, as when a feature
-  document is mirrored to memory.
+  `awk`, a script) is never counted: querying is the way past. A `cd` that is
+  a command of its own moves the directory files resolve against; one inside a
+  pipeline of several commands does not.
 - The ledger is read and written under one lock, so two calls of one session
   made in parallel are judged one after the other. A call waits for it at most
   `LOCK_WAIT_SECONDS`; past that the ledger is a fault. An allowed read is
@@ -43,8 +44,8 @@ of it this agent has read and the way past. A fault of the hook (an input it
 cannot parse, a command the tokenizer cannot read, a file it cannot stat or
 read, a ledger it cannot read or write) allows the call and writes one line to
 the hooks' log: the guard protects a budget, not a secret, and it never stops a
-session by its own error. A range it cannot compute (`bat -r $L:$((L+8))`)
-skips that reader alone, with a log line. It reads a file only when the file is a document
+session by its own error. A range it cannot compute (`bat -r $L:+8`) skips
+that reader alone, with a log line. It reads a file only when the file is a document
 above the budget and the span does not reach from its first byte to its last,
 and only the part the span needs. No token and no variable switches it off: the
 budget changes by a pull request.
@@ -79,7 +80,6 @@ READ_DEFAULT_LIMIT = 2_000
 HEAD_TAIL_DEFAULT_LINES = 10
 LEDGER_KIND = "document-reads"
 MAIN_AGENT = "main"
-MAX_NESTING = 4
 REFUSING_EXIT_CODE = 2
 # How long a call waits for the ledger another call holds, and how often it
 # tries again: past the bound the ledger is a fault, and the call is allowed.
@@ -97,11 +97,16 @@ _CHUNK_BYTES = 1 << 20
 Request = tuple
 WHOLE: Request = ("lines", 1, None)
 
-# The shared scans, called through these names so a test can count the hook's
-# own calls apart from the calls the scans make to each other.
-_heredocs = _common.heredocs
+# The one tokenizing pass, called through this name so a test can count it.
 _lex = _common._lex
-_shell_scripts = _common.shell_scripts
+
+# What makes a command not plain: text that opens a command substitution (in
+# double quotes too), a heredoc or a here-string; a bracket the tokenizer reads
+# as an operator or a group word, which a process substitution `<(`, `>(` also
+# leaves; and a program that runs commands it is handed.
+_NOT_PLAIN_TEXT = ("<<", "`", "$(")
+_NOT_PLAIN_TOKENS = frozenset({"(", ")", "{", "}"})
+_NOT_PLAIN_PROGRAMS = _common._SHELLS | {"eval", "xargs"}
 
 _PIPES = frozenset({"|", "|&"})
 _READERS = frozenset({"bat", "cat", "tac", "nl", "less", "more", "head", "tail", "sed"})
@@ -316,21 +321,6 @@ def _whole_number(value: object) -> int | None:
     return None
 
 
-def _arguments(words: list[str]) -> list[str]:
-    """The words after the program, without the substitutions the tokenizer
-    left in them (`$`, and everything between a `(` and its `)`)."""
-    kept: list[str] = []
-    depth = 0
-    for word in words:
-        if word == "(":
-            depth += 1
-        elif word == ")":
-            depth = max(depth - 1, 0)
-        elif depth == 0 and word != "$":
-            kept.append(word)
-    return kept
-
-
 def _count(value: str) -> tuple[str, int]:
     """The sign and the number of a `head`/`tail` count (`20`, `-5`, `+3`, `2K`)."""
     match = _COUNT_RE.match(value)
@@ -518,27 +508,10 @@ def _sed(arguments: list[str]) -> tuple[list[str], list[Request]]:
     return (rest, requests) if requests else ([], [])
 
 
-def _without_substitutions(words: list[str]) -> list[str]:
-    """`words` without the bodies of the `$(…)` substitutions the tokenizer
-    split into words (`x=$(cat f)` comes as `x=$`, `(`, `cat`, `f`, `)`)."""
-    kept: list[str] = []
-    depth = 0
-    for index, word in enumerate(words):
-        if depth:
-            depth += {"(": 1, ")": -1}.get(word, 0)
-            continue
-        if word == "(" and index > 0 and words[index - 1].endswith("$"):
-            depth = 1  # the `$` before it stays, to say a value is computed there
-            continue
-        kept.append(word)
-    return kept
-
-
 def _program_words(words: list[str]) -> list[str] | None:
-    """The program a command runs and its arguments, past the substitutions,
-    the command prefixes and the wrappers of `_WRAPPERS`; None when it runs
-    none (an option of `_RUNS_NOTHING`)."""
-    words = _without_substitutions(words)
+    """The program a command runs and its arguments, past the command prefixes
+    and the wrappers of `_WRAPPERS`; None when it runs none (an option of
+    `_RUNS_NOTHING`)."""
     index = _common.program_index(words)
     while index is not None and index < len(words):
         name = Path(words[index]).name
@@ -597,7 +570,7 @@ def _reader(segment: list[str]) -> tuple[str, list[str], list[Request]] | None:
     program = Path(words[0]).name
     if program not in _READERS and program != "tee":
         return None
-    arguments = _arguments(words[1:])
+    arguments = words[1:]
     if program == "tee":
         return program, [], []
     if program == "bat":
@@ -616,9 +589,9 @@ def _reader(segment: list[str]) -> tuple[str, list[str], list[Request]] | None:
 
 
 def _known_reader(segment: list[str]) -> tuple[str, list[str], list[Request]] | None:
-    """`_reader`, with a range the hook cannot compute (a shell variable, an
-    arithmetic expansion) read as a fault of this reader alone: it is skipped
-    and logged, and the other readers of the command are still judged."""
+    """`_reader`, with a range the hook cannot compute (a shell variable) read
+    as a fault of this reader alone: it is skipped and logged, and the other
+    readers of the command are still judged."""
     try:
         return _reader(segment)
     except UnreadableRange as error:
@@ -626,178 +599,76 @@ def _known_reader(segment: list[str]) -> tuple[str, list[str], list[Request]] | 
         return None
 
 
-def _pipelines(tokens: list[str]) -> list[list[tuple[int, list[str]]]]:
-    """The commands of a token list, grouped into pipelines, each command with
-    the index of its first token."""
-    pipelines: list[list[tuple[int, list[str]]]] = [[]]
-    fresh = True
-    for index, token in enumerate(tokens):
-        if token in _common._SHELL_SEPARATORS:
-            if token not in _PIPES:
-                pipelines.append([])
-            fresh = True
+def _pipelines(tokens: list[str]) -> list[list[list[str]]]:
+    """The commands of a token list, grouped into pipelines."""
+    pipelines: list[list[list[str]]] = [[[]]]
+    for token in tokens:
+        if token in _PIPES:
+            pipelines[-1].append([])
+        elif token in _common._SHELL_SEPARATORS:
+            pipelines.append([[]])
         else:
-            if fresh:
-                pipelines[-1].append((index, []))
-                fresh = False
-            pipelines[-1][-1][1].append(token)
-    return [pipeline for pipeline in pipelines if pipeline]
+            pipelines[-1][-1].append(token)
+    return [[segment for segment in pipeline if segment] for pipeline in pipelines if any(pipeline)]
 
 
 def _prints_to_a_file(segment: list[str]) -> bool:
     """Whether the command sends its standard output to a file, where it does
     not reach the agent. A duplication onto another descriptor (`>&2`, `2>&1`)
     still reaches it: the tool captures both streams."""
-    return any(_redirects_stdout(segment, index) for index in range(len(segment)))
-
-
-def _redirects_stdout(tokens: list[str], index: int) -> bool:
-    """Whether the token at `index` sends standard output to a file."""
-    token = tokens[index]
-    if not token.startswith(">") and token not in ("&>", "&>>"):
-        return False
-    if index > 0 and tokens[index - 1].isdigit() and tokens[index - 1] != "1":
-        return False
-    return not (token == ">&" and index + 1 < len(tokens) and tokens[index + 1].isdigit())
-
-
-def _silenced(tokens: list[str]) -> tuple[list[bool], list[bool]]:
-    """Per token: whether it lies inside a `$( … )` substitution, and whether
-    its output cannot reach the agent: inside a substitution, or inside a group
-    `( … )` or `{ … }` whose close is followed, before the command ends, by a
-    pipe or a redirection to a file. Linear: one pass finds each command's tail
-    from the right, one pairs the brackets, and the spans are summed."""
-    leaves = [False] * (len(tokens) + 1)
-    for index in range(len(tokens) - 1, -1, -1):
-        token = tokens[index]
-        if token in _PIPES or _redirects_stdout(tokens, index):
-            leaves[index] = True
-        elif token not in _common._SHELL_SEPARATORS:
-            leaves[index] = leaves[index + 1]
-    inside = [0] * (len(tokens) + 1)
-    muted = [0] * (len(tokens) + 1)
-    opened: list[tuple[int, bool, str]] = []
-    for index, token in enumerate(tokens):
-        if token in ("(", "{"):
-            substitution = token == "(" and index > 0 and tokens[index - 1].endswith("$")
-            opened.append((index, substitution, ")" if token == "(" else "}"))
-        elif opened and token == opened[-1][2]:
-            start, substitution, _ = opened.pop()
-            if substitution or leaves[index + 1]:
-                muted[start] += 1
-                muted[index + 1] -= 1
-            if substitution:
-                inside[start] += 1
-                inside[index + 1] -= 1
-    in_substitution, without_output, depth, mute = [], [], 0, 0
-    for index in range(len(tokens)):
-        depth += inside[index]
-        mute += muted[index]
-        in_substitution.append(depth > 0)
-        without_output.append(mute > 0)
-    return in_substitution, without_output
+    for index, token in enumerate(segment):
+        if not token.startswith(">") and token not in ("&>", "&>>"):
+            continue
+        if index > 0 and segment[index - 1].isdigit() and segment[index - 1] != "1":
+            continue
+        if not (token == ">&" and index + 1 < len(segment) and segment[index + 1].isdigit()):
+            return True
+    return False
 
 
 def _new_directory(words: list[str] | None, cwd: str) -> str:
     """The directory after a `cd` or `pushd` command, from its program words."""
     if not words or Path(words[0]).name not in ("cd", "pushd"):
         return cwd
-    if any("$" in word or word == "(" for word in words[1:]):
+    if any("$" in word for word in words[1:]):
         return cwd  # a directory the shell computes: unknown here, so files keep resolving where they did
-    targets = [word for word in _arguments(words[1:]) if not word.startswith("-")]
+    targets = [word for word in words[1:] if not word.startswith("-")]
     if not targets:
         return os.path.expanduser("~") if Path(words[0]).name == "cd" else cwd
     return _resolve(cwd, targets[0])
 
 
-def _feeds_a_shell(words: list[str] | None) -> bool:
-    """Whether a command's standard input is read as commands: a shell with no
-    `-c` script and no script file (or with `-s`, which reads stdin whatever
-    its operands)."""
-    if not words or Path(words[0]).name not in _common._SHELLS:
-        return False
-    options = [word for word in words[1:] if word.startswith("-") and not word.startswith("--")]
-    if any(_common._sets_shell_command_flag(option) for option in options):
-        return False
-    operands = [word for word in words[1:] if not word.startswith(("-", "+"))]
-    return not operands or any("s" in option[1:] for option in options)
-
-
-def _bash_reads(command: str, cwd: str, depth: int = 0) -> dict[str, list[Request]]:
-    """The files `command` prints to the agent, with their spans. Raises
-    ValueError when the tokenizer cannot read the command.
-
-    Each shared scan runs once over `command`: its heredocs are found once and
-    the text left is lexed once. A heredoc's body is read as commands only when
-    it feeds a shell; the bodies are matched to their `<<` operators by order,
-    so a command where the two counts differ (an operator inside quotes) has
-    none of its heredocs read. A `cd` holds where the shell holds it: inside a
-    subshell `( … )` until its `)`, and not past a pipeline of several commands,
-    each of which runs in a subshell."""
+def _bash_reads(command: str, cwd: str) -> dict[str, list[Request]]:
+    """The files a plain `command` prints to the agent, with their spans; none
+    for a command that is not plain. Raises ValueError when the tokenizer cannot
+    read the command."""
+    if any(mark in command for mark in _NOT_PLAIN_TEXT):
+        return {}
+    tokens = _lex(command.replace("\\\n", ""))
+    if any(token in _NOT_PLAIN_TOKENS for token in tokens):
+        return {}
+    pipelines = _pipelines(tokens)
+    programs = [[_program_words(_common.command_words(segment)) for segment in pipeline] for pipeline in pipelines]
+    if any(words and Path(words[0]).name in _NOT_PLAIN_PROGRAMS for pipeline in programs for words in pipeline):
+        return {}
     reads: dict[str, list[Request]] = {}
-    text, docs = _heredocs(command)
-    tokens = _lex(text.replace("\\\n", ""))
-    bodies_match = sum(1 for token in tokens if token == "<<") == len(docs)
-    in_substitution, without_output = _silenced(tokens)
-    operator = 0
-    outer: list[str] = []
-    nested: dict[tuple[str, str], None] = {}
-    for indexed in _pipelines(tokens):
-        pipeline = [segment for _, segment in indexed]
-        starts: list[str] = []
-        scripts: list[list[tuple[str, str]]] = []
-        for first, segment in indexed:
-            operators = segment.count("<<")
-            starts.append(cwd)
-            scripts.append([])
-            if in_substitution[first]:
-                operator += operators  # a substitution is its own subshell: its `cd` and brackets stay in it
-                continue
-            words = _without_substitutions(_common.command_words(segment))
-            index = _common.program_index(words)
-            for _ in range(words[:index].count("(") if index is not None else words.count("(")):
-                outer.append(cwd)
-            program = _program_words(words)
-            if len(pipeline) == 1:
-                cwd = _new_directory(program, cwd)
-            if depth < MAX_NESTING:
-                if bodies_match and _feeds_a_shell(program):
-                    scripts[-1].extend((doc.body, starts[-1]) for doc in docs[operator:operator + operators])
-                scripts[-1].extend((script, starts[-1]) for script in _shell_scripts(segment))
-            operator += operators
-            for _ in range(words.count(")")):
-                if outer:
-                    cwd = outer.pop()
+    for pipeline, words in zip(pipelines, programs):
+        start = cwd
+        if len(pipeline) == 1:
+            cwd = _new_directory(words[0], cwd)
         effective = len(pipeline) - 1
         while effective > 0:
             reader = _known_reader(pipeline[effective])
             if reader is None or reader[0] not in _PASS_THROUGH or reader[1]:
                 break
             effective -= 1
-        # Only the command whose output reaches the agent counts, with the
-        # scripts it hands to a shell; a construct around it may send it away.
-        if without_output[indexed[effective][0]] or any(_prints_to_a_file(segment) for segment in pipeline[effective:]):
+        if any(_prints_to_a_file(segment) for segment in pipeline[effective:]):
             continue
         reader = _known_reader(pipeline[effective])
         if reader is not None:
             for file in reader[1]:
-                _add(reads, _resolve(starts[effective], file), reader[2])
-        for key in scripts[effective]:
-            nested.setdefault(key, None)
-    for script, script_cwd in nested:
-        _add_nested(reads, script, script_cwd, depth)
+                _add(reads, _resolve(start, file), reader[2])
     return reads
-
-
-def _add_nested(reads: dict[str, list[Request]], script: str, cwd: str, depth: int) -> None:
-    """The reads of a script the command hands to a shell; one that does not
-    tokenize is skipped."""
-    try:
-        found = _bash_reads(script, cwd, depth + 1)
-    except ValueError:
-        return
-    for path, requests in found.items():
-        _add(reads, path, requests)
 
 
 # --- the decision ------------------------------------------------------------

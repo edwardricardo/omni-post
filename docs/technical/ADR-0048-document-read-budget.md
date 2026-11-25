@@ -18,9 +18,9 @@ session remembers it. On the night of 2026-11-25 agents were handed whole docume
 600 thousand tokens that wrote little, and an estimate of 3.5 to 5 million tokens for a step a
 script does. The Maintainer asked for a gate, so that the rule cannot be forgotten.
 
-Measured before the gate merged, by replaying through it the 29,038 Bash commands the hooks' log
-kept from 2026-11-11 to 2026-11-25: 544 named an existing document; 6 would have been refused
-judged one command at a time, and 17 with one ledger per day, 10 of them on
+Measured before the gate merged, by replaying through it the 29,225 Bash commands the hooks' log
+kept from 2026-11-11 to 2026-11-25: 429 plain commands named an existing document; 5 would have
+been refused judged one command at a time, and 16 with one ledger per day, 10 of them on
 `docs/product/plan/chain.md` (225,115 bytes). One refusal was a range: lines 80 to 125 of
 `chain.md` are 49,392 bytes. The log keeps no `Read` call and no session id, so reads by the `Read`
 tool were not measured and a session's ledger could only be approximated by a day's.
@@ -35,14 +35,17 @@ tool were not measured and a session's ledger could only be approximated by a da
    file, the byte spans read, and refuses a call when their union with the new spans would cover
    more than the budget. A span read again adds nothing.
 4. `Read` counts `offset` and `limit` (2,000 lines with no `limit`; zero or below reads nothing).
-   `Bash` counts what a pipeline's last command prints: `bat`, `cat`, `tac`, `nl`, `less`, `more`,
-   `head`, `tail` and `sed -n` with line-number `p` commands, with their ranges, from a file named
-   or a redirected standard input, behind `timeout`, `env`, `command`, `nice` or `sudo` or not, and
-   the readers of a script handed to a shell (`bash -c`, a heredoc fed to a shell). A search or a
-   computation (`rg`, `jq`, `wc`, `awk`, a script), a heredoc fed to any program but a shell, and a
-   reader whose output goes to a file or to another program's argument (`"$(cat f)"`, as the memory
-   mirror of a feature document does) are never counted: querying is the way past. A `cd` holds
-   where the shell holds it, not past the `)` of its subshell.
+   A `Bash` command is judged only when it is plain: it holds no subshell or group (`(`, `)`, `{`,
+   `}`), no command or process substitution (`$(`, a backtick, `<(`, `>(`), no heredoc or
+   here-string (`<<`, `<<<`), and no command whose program is a shell, `eval` or `xargs`. A command
+   that is not plain is allowed, unrecorded and unlogged. In a plain command the hook counts what a
+   pipeline's last command prints, or the one before trailing pagers: `bat`, `cat`, `tac`, `nl`,
+   `less`, `more`, `head`, `tail` and `sed -n` with line-number `p` commands, with their ranges, from
+   a file named or a redirected standard input, behind `timeout`, `env`, `command`, `nice` or a
+   `sudo` that runs something, or not. A search or a computation (`rg`, `jq`, `wc`, `awk`, a script)
+   and a reader whose output goes to a file are never counted: querying is the way past. A `cd`
+   that is a command of its own moves the directory for what follows; one inside a pipeline of
+   several commands does not.
 5. The refusal exits 2 with the document's size, the budget, how much of it the agent has read and
    the way past. A fault of the hook allows the call and writes one line to the hooks' log.
 6. The ledger is read and written under one lock, so calls of one session made in parallel are
@@ -76,21 +79,26 @@ read it let through.
 - Each subagent has its own budget of every document, apart from its parent's: a parent that hands
   one document to five agents can have it read five times.
 - Every `Read` and `Bash` call pays for the hook. Measured on the development box on 2026-11-25: the
-  decision takes 0.02 to 0.1 ms, and running the hook as a process about 38 to 40 ms, against 6 ms
+  decision takes 0.02 to 0.1 ms, and running the hook as a process about 36 to 40 ms, against 6 ms
   for a bare interpreter.
+- A reader inside any construct that makes a command not plain is not counted, and neither is any
+  other reader of that command. This is a choice: the guard is against a habit, and every structure
+  it would have to interpret (heredoc bodies, groups, subshells, substitutions, nested shells) is
+  where three rounds of wrong refusals came from. Replayed over the log, the plain rule leaves one
+  whole read uncounted that the earlier design refused: a `cat` of a 41,849-byte log in a command
+  that also held a subshell.
 - Known limits, stated rather than guarded: a glob (`cat docs/*.md`), `git show <rev>:<path>`,
   `rg ''` (a search that matches every line), an interpreter that prints a file, the Grep tool, a
-  reader feeding a filter (`cat f | head -n 20`), `sed` without `-n`, `xargs`, a range the hook
-  cannot compute (`bat -r $L:$((L+8))`, skipped with a log line) and a command the shared tokenizer
-  cannot read are not counted. Three heredoc shapes that do feed a shell are not counted either:
-  `bash /dev/stdin <<EOF`, `bash -o pipefail <<EOF` and `cat <<EOF | bash`.
+  reader feeding a filter (`cat f | head -n 20`), `sed` without `-n`, a range the hook cannot
+  compute (`bat -r $L:+8`, skipped with a log line) and a command the shared tokenizer cannot read
+  are not counted.
 - `pushd` moves the directory as `cd` does, but `popd` is not followed: a reader after a `popd` is
   resolved from the directory the `pushd` moved to.
-- Nothing inside a substitution is counted, nor inside a group or subshell followed by any pipe (a
-  pager's too) or a redirection to a file: `(cat f) | less` is not counted.
-- The shared scans of `_common.py` are superlinear on three hostile shapes, which the hook scans
-  once per script: `<<` with no delimiter on every line, many `<<` on one line, and many shell
-  words before one `-c` (about 11 s at 64 KB). The cost is time, never a refusal.
+- The hook makes one tokenizing pass and calls none of the shared scans for heredocs or nested
+  shells. On the three shapes those scans are slow on, measured on 2026-11-25: `<<` with no
+  delimiter on every line and many `<<` on one line take under 0.1 ms at 8 to 64 KB (the text
+  check stops them before the tokenizer), and many shell words before one `-c` take 3 ms at 8 KB
+  and 19 ms at 64 KB.
 
 ## Legal impact
 
@@ -123,7 +131,8 @@ check is added, changed or retired`
 | A fault of the guard stops a session                 | Every fault allows the call and writes one line to the hooks' log      |
 | Two parallel calls both pass against one ledger      | The check and the record run under one lock on the ledger file         |
 | A held lock makes every call wait                    | The lock is waited for 2 seconds at most, then the call is allowed     |
-| A hostile command makes the shared scans slow        | The guard scans once per script; the scans' own cost is `_common.py`'s |
+| A hostile command makes the hook slow                | One tokenizing pass; no shared scan for heredocs or nested shells      |
+| A structure the hook misreads refuses a needed read  | A command that is not plain is not judged at all                       |
 
 ## References
 
