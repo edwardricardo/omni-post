@@ -33,12 +33,14 @@ from _common import (  # noqa: E402
     current_branch,
     emit_missing_file_context,
     git_invocations,
+    git_subcommand,
     git_subcommands,
     heredocs,
     memory_dir,
     notice_already_sent,
     notice_seen,
     recovered_file_notice,
+    repository_of,
     runs_git_push,
     shell_segments,
 )
@@ -608,6 +610,45 @@ class AppliesToPatternLivenessTests(unittest.TestCase):
             "a": {"key": "a", "appliesTo": ["apps/web/"]},
         }}
         self.assertEqual(_common.dead_applies_to_patterns(index, self.root), {"apps/web/": ["a", "b"]})
+
+
+class GitSubcommandTests(unittest.TestCase):
+    def test_the_subcommand_is_read_past_every_global_option(self):
+        for words, expected in (
+            (["git", "checkout", "--", "f"], "checkout"),
+            (["git", "-C", "/r", "checkout", "--", "f"], "checkout"),
+            (["git", "--exec-path=/x", "restore", "f"], "restore"),
+            (["git", "--config-env", "core.pager=P", "rm", "f"], "rm"),
+            (["git", "-c", "a=b", "--git-dir=/r/.git", "clean", "-fd"], "clean"),
+            (["/usr/bin/git", "--no-pager", "log"], "log"),
+            (["git", "-C", "/r"], None),
+            (["git"], None),
+        ):
+            with self.subTest(words=words):
+                self.assertEqual(git_subcommand(words), expected)
+
+
+class RepositoryOfTests(unittest.TestCase):
+    """A name longer than the file system allows cannot be a path: no `.git`
+    stands under it, and its repository is the one its parents lie in."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.base = Path(self._tmp.name)
+        (self.base / "repo" / ".git").mkdir(parents=True)
+
+    def test_an_argument_of_5000_characters_inside_a_checkout_lies_in_that_checkout(self):
+        self.assertEqual(repository_of(self.base / "repo" / ("a" * 5000)), self.base / "repo")
+        self.assertEqual(repository_of(self.base / "repo" / "/".join(["b" * 200] * 25)), self.base / "repo")
+
+    def test_an_argument_of_5000_characters_outside_every_checkout_lies_in_none(self):
+        self.assertIsNone(repository_of(self.base / ("a" * 5000)))
+
+    def test_any_other_failure_of_the_probe_is_raised(self):
+        with mock.patch.object(Path, "exists", side_effect=PermissionError(13, "denied")):
+            with self.assertRaises(PermissionError):
+                repository_of(self.base / "repo" / "x")
 
 
 if __name__ == "__main__":
