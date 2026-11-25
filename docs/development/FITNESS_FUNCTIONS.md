@@ -2370,9 +2370,12 @@ node scripts/testing/plan-closure-gate.mjs   # expect exit 0 and one line:
 # not stalled, 20 stalled, 21 a list above zero whose history does not exist or holds no row, 22 a
 # newest row dated after today, 23 a suppressions file that cannot be read, 24 a history that
 # cannot be read, its directory or an entry, 25 a call GitHub refused (a 4xx other than 408 and
-# 429), 26 a `gh` the runner cannot start (ENOENT, EACCES), 27 a GitHub call that failed for a
-# moment (a 5xx, a 408, a 429, a network error, a timeout, or a status or an answer that cannot be
-# read), 28 an issue listing that fills its page, so the stall's issue could lie past it; a usage
+# 429 that names no rate limit, `gh`'s exit 4 for a missing authentication, or "Resource not
+# accessible by" the token, with or without a status), 26 a `gh` the runner cannot start (ENOENT,
+# EACCES), 27 a GitHub call that failed for a moment (a 5xx, a 408, a 429, a rate limit on a 403 or
+# a 429, a network error, a timeout, an answer that cannot be read, or a failure with no status and
+# no mark of a refusal, which may not be momentary and is retried all the same), 28 an issue
+# listing that fills its page, so the stall's issue could lie past it; a usage
 # error is 2, as in every mode, and no path of the mode exits 3. Every verdict sits above the codes
 # Node exits with by itself. A fault of the mode, one inside the reminder included, is left
 # uncaught, so Node exits 1 with its stack. The workflow retries only 27, names every other code in

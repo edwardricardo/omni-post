@@ -2847,6 +2847,105 @@ describe("--stalled: one exit code per meaning", () => {
     expect(result.stderr).not.toContain(PREFIX);
   });
 
+  it.each([
+    [
+      "GITHUB_FAILED",
+      "a primary rate limit on a 403",
+      [
+        'process.stderr.write("gh: API rate limit exceeded for installation ID 12345. (HTTP 403)\\n");',
+      ],
+      "GitHub rate-limited the call: Command failed:",
+    ],
+    [
+      "GITHUB_FAILED",
+      "a secondary rate limit on a 403",
+      [
+        'process.stderr.write("gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again. (HTTP 403)\\n");',
+      ],
+      "GitHub rate-limited the call: Command failed:",
+    ],
+    [
+      "GITHUB_FAILED",
+      "a rate limit on a 429",
+      [
+        'process.stderr.write("gh: API rate limit exceeded for installation ID 12345. (HTTP 429)\\n");',
+      ],
+      "GitHub rate-limited the call: Command failed:",
+    ],
+    [
+      "GITHUB_REFUSED",
+      "a 403 that names no rate limit",
+      ['process.stderr.write("gh: Must have admin rights to Repository. (HTTP 403)\\n");'],
+      "GitHub refused the call (HTTP 403): Command failed:",
+    ],
+  ] as const)("exits %s on %s", (name, _label, ghLines, start) => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([...ghLines, "process.exit(1);"]);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT[name]);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]?.startsWith(`${PREFIX}${start}`)).toBe(true);
+  });
+
+  it("exits GITHUB_REFUSED when gh exits 4, its code for a command that needs authentication", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([
+      'process.stderr.write("To get started with GitHub CLI, please run:  gh auth login\\n");',
+      "process.exit(4);",
+    ]);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GITHUB_REFUSED);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(lines[4]?.startsWith(`${PREFIX}gh is not authenticated (exit 4): Command failed:`)).toBe(
+      true
+    );
+  });
+
+  it("exits GITHUB_REFUSED when a GraphQL call is refused as not accessible to the token, with no HTTP status", () => {
+    plantClean();
+    birthOn(utcDayFromNow(-20));
+    writeGh([
+      'if (process.argv[2] === "api") process.stdout.write("[]");',
+      'if (process.argv[2] === "issue") {',
+      '  process.stderr.write("GraphQL: Resource not accessible by integration (createIssue)\\n");',
+      "  process.exit(1);",
+      "}",
+    ]);
+
+    const result = runCommand(stallArgs("--remind"), ghFrom(scratch));
+    const lines = result.stderr.trimEnd().split("\n");
+
+    expect(result.status).toBe(STALL_EXIT.GITHUB_REFUSED);
+    expect(lines.slice(1, 4)).toEqual(STALL_LINES.slice(1));
+    expect(
+      lines[4]?.startsWith(
+        `${PREFIX}GitHub refused the call (the token lacks a permission): Command failed: gh issue create`
+      )
+    ).toBe(true);
+  });
+
+  it("exits HISTORY_UNREADABLE when the history's path is a file, not a directory", () => {
+    plantClean();
+    remove(HISTORY);
+    write(HISTORY, "not a directory\n");
+
+    const result = runCommand(stallArgs());
+
+    expect(result.status).toBe(STALL_EXIT.HISTORY_UNREADABLE);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      `${PREFIX}${HISTORY} is not a directory, so the history could not be read\n`
+    );
+  });
+
   it("exits FUTURE_ROW, naming the state, when the newest row is dated after today", () => {
     plantClean();
     const day = utcDayFromNow(2);

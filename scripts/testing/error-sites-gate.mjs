@@ -237,31 +237,79 @@ class GhCallError extends Error {
 /** The 4xx statuses a retry can change: a request timeout and a rate limit. */
 const MOMENTARY_4XX = new Set([408, 429]);
 
+/** `gh help exit-codes`: "If a command requires authentication, the exit code will be 4". */
+const GH_AUTH_EXIT = 4;
+
+/**
+ * The words GitHub answers a rate-limited call with, whatever its status. GitHub's REST
+ * documentation ("Rate limits for the REST API" and "Troubleshooting the REST API",
+ * docs.github.com/en/rest/using-the-rest-api) says a call over the primary or the secondary limit
+ * receives "a `403` or `429` response", the secondary one with "an error message that indicates that
+ * you exceeded a secondary rate limit"; the GraphQL page says the secondary limit may answer `200`
+ * or `403`. The documentation quotes no primary text: "API rate limit exceeded" is the message
+ * GitHub's API answers it with, which `gh` prints before the status. A 403 holding neither phrase
+ * is a refusal.
+ */
+const RATE_LIMITED = /\bAPI rate limit exceeded\b|\bsecondary rate limit\b/i;
+
+/**
+ * The refusal GitHub's "Troubleshooting the REST API" page names for a token without the
+ * permission an endpoint needs: "Resource not accessible by integration" or "Resource not
+ * accessible by personal access token". A GraphQL call (`gh issue create`, `comment`, `reopen`)
+ * prints it with no HTTP status, as `GraphQL: <message> (<operation>)`.
+ */
+const NOT_ACCESSIBLE = /\bResource not accessible by (?:integration|personal access token)\b/;
+
 /**
  * @description Classifies what stopped the stall's reminder by what the runner knows for certain.
  *   A `gh` the system cannot start (a spawn error `ENOENT` or `EACCES`) is GH_NOT_RUNNABLE, the
- *   runner's state. A call GitHub answered with a 4xx status other than 408 and 429, read from the
- *   `HTTP <status>` that `gh` prints, is GITHUB_REFUSED, which no retry changes. Every other failed
- *   call is GITHUB_FAILED: a 5xx, a 408, a 429, a network error, a timeout and a call whose status
- *   cannot be read. The reminder names its own refusals: `IssueListingUnreadableError`, a listing
- *   that is not JSON or no list, is GITHUB_FAILED too, and `IssueListingFullError`, an issue listing
- *   that filled its page, is ISSUE_PAGE_FULL, since the stall's issue could lie past it and no retry
- *   changes that. Any other error raised inside the reminder, a plain `Error` included, is a fault
- *   of the script and is thrown again, so Node exits 1 with its stack.
+ *   runner's state. A `gh` that exits 4, its code for a command that needs authentication, is
+ *   GITHUB_REFUSED. A call whose text names a rate limit (`RATE_LIMITED`) is GITHUB_FAILED whatever
+ *   its status, since the limit resets. A call refused as not accessible to the token
+ *   (`NOT_ACCESSIBLE`), with or without a status, and a call GitHub answered with a 4xx status
+ *   other than 408 and 429, read from the `HTTP <status>` that `gh` prints, are GITHUB_REFUSED,
+ *   which no retry changes. Every other failed call is GITHUB_FAILED: a 5xx, a 408, a 429, a
+ *   network error, a timeout, and a failure with no status and none of those marks, which may be
+ *   momentary or not and is retried. The reminder names its own refusals:
+ *   `IssueListingUnreadableError`, a listing that is not JSON or no list, is GITHUB_FAILED too, and
+ *   `IssueListingFullError`, an issue listing that filled its page, is ISSUE_PAGE_FULL, since the
+ *   stall's issue could lie past it and no retry changes that. Any other error raised inside the
+ *   reminder, a plain `Error` included, is a fault of the script and is thrown again, so Node exits
+ *   1 with its stack.
  * @param {unknown} error What `remindIssues` threw.
  * @returns {{ exitCode: number, line: string }} The stall's exit code and the line that names it.
  */
 export function reminderFailure(error) {
   if (error instanceof GhCallError) {
-    const cause = /** @type {{ code?: unknown, stderr?: unknown }} */ (error.cause ?? {});
+    const cause = /** @type {{ code?: unknown, status?: unknown, stderr?: unknown }} */ (
+      error.cause ?? {}
+    );
     if (cause.code === "ENOENT" || cause.code === "EACCES") {
       return {
         exitCode: STALL_EXIT.GH_NOT_RUNNABLE,
         line: `gh could not be run (${cause.code}): ${error.message}`,
       };
     }
+    if (cause.status === GH_AUTH_EXIT) {
+      return {
+        exitCode: STALL_EXIT.GITHUB_REFUSED,
+        line: `gh is not authenticated (exit ${String(GH_AUTH_EXIT)}): ${error.message}`,
+      };
+    }
     const text =
       typeof cause.stderr === "string" && cause.stderr !== "" ? cause.stderr : error.message;
+    if (RATE_LIMITED.test(text)) {
+      return {
+        exitCode: STALL_EXIT.GITHUB_FAILED,
+        line: `GitHub rate-limited the call: ${error.message}`,
+      };
+    }
+    if (NOT_ACCESSIBLE.test(text)) {
+      return {
+        exitCode: STALL_EXIT.GITHUB_REFUSED,
+        line: `GitHub refused the call (the token lacks a permission): ${error.message}`,
+      };
+    }
     const status = Number(/\bHTTP (\d{3})\b/.exec(text)?.[1]);
     if (status >= 400 && status < 500 && !MOMENTARY_4XX.has(status)) {
       return {
@@ -2395,6 +2443,13 @@ export function checkStall({ root, days, now, gh }) {
   const history = readHistory(root);
   if (history.problems.length > 0) {
     return linesOutcome(STALL_EXIT.HISTORY_UNREADABLE, history.problems);
+  }
+  // The reader counts `ENOTDIR` as an absent history; when something stands at the history's path
+  // itself, the history is there and cannot be read, which is not a list nothing dates.
+  if (!history.exists && existsSync(path.join(root, HISTORY))) {
+    return linesOutcome(STALL_EXIT.HISTORY_UNREADABLE, [
+      `${HISTORY} is not a directory, so the history could not be read`,
+    ]);
   }
   const contexts = [...baselineContexts(read.baseline)].sort(([left], [right]) =>
     byText(left, right)
