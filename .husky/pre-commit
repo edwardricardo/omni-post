@@ -34,4 +34,4 @@ else
   echo "   CI will still scan, so this is a local-feedback warning only."
 fi
 
-npx lint-staged
+pnpm exec lint-staged

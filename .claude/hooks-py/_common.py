@@ -18,6 +18,7 @@ Typical use from a hook:
 """
 
 import contextlib
+import errno
 import fcntl
 import hashlib
 import json
@@ -606,10 +607,20 @@ def nested_scripts(command: str) -> list[str] | None:
 
 def repository_of(path: Path) -> Path | None:
     """The root of the repository that contains `path` (the first parent with
-    `.git`), or None outside any repository."""
+    `.git`), or None outside any repository.
+
+    The guards call it on words of a command that may be no path at all (the
+    text an `sd` replaces). A name longer than the file system allows cannot
+    hold a `.git`, so that candidate is passed over and its parents are asked,
+    as for any other name with nothing under it: the probe raising there
+    refused the whole command. Any other failure of the probe is raised."""
     for candidate in (path, *path.parents):
-        if (candidate / ".git").exists():
-            return candidate
+        try:
+            if (candidate / ".git").exists():
+                return candidate
+        except OSError as error:
+            if error.errno != errno.ENAMETOOLONG:
+                raise
     return None
 
 
@@ -637,26 +648,41 @@ def git_invocations(command: str) -> list[tuple[str, list[str]]]:
         if tokens[i] != "git" and not tokens[i].endswith("/git"):
             i += 1
             continue
-        trees: list[str] = []
-        j = i + 1
-        while j < len(tokens):
-            tok = tokens[j]
-            if tok in _GIT_TREE_OPTIONS and j + 1 < len(tokens):
-                trees.append(tokens[j + 1])
-                j += 2
-                continue
-            if tok in _GIT_VALUE_OPTIONS:
-                j += 2
-                continue
-            if tok.startswith("-"):
-                j += 1
-                continue
-            if tok in _SHELL_SEPARATORS:
-                break
-            found.append((tok, trees))
-            break
+        j, trees = _git_subcommand_at(tokens, i)
+        if j < len(tokens) and tokens[j] not in _SHELL_SEPARATORS:
+            found.append((tokens[j], trees))
         i = max(j, i + 1)
     return found
+
+
+def _git_subcommand_at(tokens: list[str], start: int) -> tuple[int, list[str]]:
+    """For the `git` at `start` in `tokens`: the index of the word after its
+    global options (its subcommand, a separator, or the end), and the trees
+    its `-C`/`--work-tree` name, in order."""
+    trees: list[str] = []
+    j = start + 1
+    while j < len(tokens):
+        tok = tokens[j]
+        if tok in _GIT_TREE_OPTIONS and j + 1 < len(tokens):
+            trees.append(tokens[j + 1])
+            j += 2
+            continue
+        if tok in _GIT_VALUE_OPTIONS:
+            j += 2
+            continue
+        if tok.startswith("-"):
+            j += 1
+            continue
+        break
+    return j, trees
+
+
+def git_subcommand_index(words: list[str], start: int = 0) -> int:
+    """For the `git` at `start` in the words of one command: the index of its
+    subcommand past the global options (`-C <dir>`, `--exec-path=<dir>`, `-c
+    <name>=<value>`), as `git_invocations` reads it; `len(words)` when there
+    is none."""
+    return _git_subcommand_at(words, start)[0]
 
 
 def git_subcommands(command: str) -> set[str]:

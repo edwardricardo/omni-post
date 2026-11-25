@@ -425,6 +425,13 @@ class BashJudgementTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertIsNone(self._judge(command))
 
+    def test_an_argument_longer_than_a_file_name_is_judged_as_a_name_and_does_not_crash_the_guard(self):
+        phrase = "x" * 5000
+        self.assertIsNone(self._judge(f"sd 'old text' '{phrase}' src/app.ts"))
+        self.assertIsNone(guard.judge_call(self.checkout.edit(phrase), self.checkout.root))
+        refusal = self._judge(f"sd 'old text' '{phrase}' deps/workspace.yaml")
+        self.assertIn("The record guard refused this Bash command:", refusal)
+
     def test_an_opening_in_the_same_bash_command_does_not_open_the_record(self):
         for command in (
             f"rg -n lib {DOCUMENT} && sd -i a b deps/workspace.yaml",

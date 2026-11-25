@@ -33,12 +33,14 @@ from _common import (  # noqa: E402
     current_branch,
     emit_missing_file_context,
     git_invocations,
+    git_subcommand_index,
     git_subcommands,
     heredocs,
     memory_dir,
     notice_already_sent,
     notice_seen,
     recovered_file_notice,
+    repository_of,
     runs_git_push,
     shell_segments,
 )
@@ -608,6 +610,55 @@ class AppliesToPatternLivenessTests(unittest.TestCase):
             "a": {"key": "a", "appliesTo": ["apps/web/"]},
         }}
         self.assertEqual(_common.dead_applies_to_patterns(index, self.root), {"apps/web/": ["a", "b"]})
+
+
+class GitSubcommandIndexTests(unittest.TestCase):
+    def test_the_subcommand_is_read_past_every_global_option(self):
+        for words, expected in (
+            (["git", "checkout", "--", "f"], 1),
+            (["git", "-C", "/r", "checkout", "--", "f"], 3),
+            (["git", "--exec-path=/x", "restore", "f"], 2),
+            (["git", "--config-env", "core.pager=P", "rm", "f"], 3),
+            (["git", "-c", "a=b", "--git-dir=/r/.git", "clean", "-fd"], 4),
+            (["/usr/bin/git", "--no-pager", "log"], 2),
+            (["git", "-C", "/r"], 3),
+            (["git"], 1),
+        ):
+            with self.subTest(words=words):
+                self.assertEqual(git_subcommand_index(words), expected)
+
+    def test_a_git_after_the_start_of_the_command_is_read_from_its_own_index(self):
+        self.assertEqual(git_subcommand_index(["sudo", "git", "-C", "/r", "rm", "f"], 1), 4)
+        self.assertEqual(git_subcommand_index(["env", "A=1", "git", "status"], 2), 3)
+
+    def test_a_git_taken_as_an_options_value_reaches_the_same_subcommand(self):
+        words = ["git", "-C", "git", "-C", "git", "checkout", "f"]
+        self.assertEqual(git_subcommand_index(words, 0), 5)
+        self.assertEqual(git_subcommand_index(words, 2), 5)
+        self.assertEqual(git_subcommand_index(words, 4), 5)
+
+
+class RepositoryOfTests(unittest.TestCase):
+    """A name longer than the file system allows cannot be a path: no `.git`
+    stands under it, and its repository is the one its parents lie in."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.base = Path(self._tmp.name)
+        (self.base / "repo" / ".git").mkdir(parents=True)
+
+    def test_an_argument_of_5000_characters_inside_a_checkout_lies_in_that_checkout(self):
+        self.assertEqual(repository_of(self.base / "repo" / ("a" * 5000)), self.base / "repo")
+        self.assertEqual(repository_of(self.base / "repo" / "/".join(["b" * 200] * 25)), self.base / "repo")
+
+    def test_an_argument_of_5000_characters_outside_every_checkout_lies_in_none(self):
+        self.assertIsNone(repository_of(self.base / ("a" * 5000)))
+
+    def test_any_other_failure_of_the_probe_is_raised(self):
+        with mock.patch.object(Path, "exists", side_effect=PermissionError(13, "denied")):
+            with self.assertRaises(PermissionError):
+                repository_of(self.base / "repo" / "x")
 
 
 if __name__ == "__main__":

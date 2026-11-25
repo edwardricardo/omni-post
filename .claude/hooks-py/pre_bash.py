@@ -2,6 +2,7 @@
 """Pre-bash hook — blocks forbidden commands before they run."""
 
 import fnmatch
+import functools
 import os
 import re
 import socket
@@ -23,6 +24,7 @@ from _common import (  # noqa: E402
     commit_repos,
     current_branch,
     format_local,
+    git_subcommand_index,
     git_subcommands,
     grant_cli_invocations,
     make_logger,
@@ -88,6 +90,146 @@ COARSE_WRITE_RES = [
 # Fallback when the command cannot be tokenized (unclosed quote): every
 # redirection or write verb counts, by mention.
 _UNTOKENIZABLE_WRITE_RE = re.compile(r">>?|\b(?:" + "|".join(sorted(_WRITE_VERBS)) + r")\b")
+
+# What the words show on top of the patterns above, which read the text and
+# miss a write whose program sits behind a global option or a path: a git
+# subcommand that restores or deletes content, reached through `-C` or another
+# global option, and an in-place editor called by its path. Each is judged by
+# the guarded paths its OWN command names.
+_GIT_WRITE_SUBCOMMANDS = frozenset({"checkout", "restore", "apply", "revert", "rm", "clean"})
+_IN_PLACE_EDITORS = frozenset({"sd", "sed"})
+# The package tools the convention forbids, as the gate's patterns name them:
+# after a space or at the start (the patterns), and after any character that
+# ends a word (the reading of a script nobody can tokenize: `$(npx …`,
+# `/usr/bin/npx …`).
+_NPM_YARN_SUBCOMMANDS = r"(install|i|add|ci|run|exec|update|upgrade)"
+_NPM_YARN = r"(npm|yarn)\s+" + _NPM_YARN_SUBCOMMANDS
+_NPX = r"npx\s+\S"
+_NPM_YARN_RE = re.compile(r"(^|\s)" + _NPM_YARN)
+_NPX_RE = re.compile(r"(^|\s)" + _NPX)
+_NPM_YARN_WORD_RE = re.compile(r"(?<![\w-])" + _NPM_YARN)
+_NPX_WORD_RE = re.compile(r"(?<![\w-])" + _NPX)
+_NPM_YARN_SUBCOMMAND_RE = re.compile(_NPM_YARN_SUBCOMMANDS)
+# A git write named anywhere in a script nobody can tokenize: `git`, then a
+# subcommand of `_GIT_WRITE_SUBCOMMANDS` after it, read as events in one pass.
+_GIT_WRITE_WORDS_RE = re.compile(r"\b(?:git|" + "|".join(sorted(_GIT_WRITE_SUBCOMMANDS)) + r")\b")
+# The in-place construct of `COARSE_WRITE_RES[0]` as events read in one pass:
+# an editor opens it, a `|` or `;` closes it, and `-i` while it is open is the
+# edit. The pattern itself, searched again from each editor word, backtracks
+# over the rest of the text for every one of them, and a hook that runs past
+# its timeout refuses nothing.
+_IN_PLACE_EVENTS_RE = re.compile(r"(?P<editor>\b(?:sd|sed|perl|ruby)\b)|(?P<separator>[|;])|(?P<flag>\s-i\b)")
+
+
+def _in_place_edit(text: str) -> bool:
+    """Whether `COARSE_WRITE_RES[0]` matches `text`, decided in one pass."""
+    editing = False
+    for event in _IN_PLACE_EVENTS_RE.finditer(text):
+        if event.lastgroup == "editor":
+            editing = True
+        elif event.lastgroup == "separator":
+            editing = False
+        elif editing:
+            return True
+    return False
+
+
+def _read_scripts(command: str, depth: int, words: list[tuple[str, ...]], unreadable: list[str]) -> None:
+    """Adds to `words` the words of every command of `command` and of every
+    script it hands to a shell or to `eval`, each script tokenized once, and
+    to `unreadable` the text of each script that cannot be tokenized or lies
+    past `MAX_SHELL_DEPTH`. A script that cannot be read takes its own text
+    with it, and only that: its siblings and its parents are still read."""
+    if depth > MAX_SHELL_DEPTH:
+        unreadable.append(command)
+        return
+    nested = nested_scripts(command)
+    segments = shell_segments(command)
+    if nested is None or segments is None:
+        unreadable.append(command)
+        return
+    commands = [tuple(command_words(segment)) for segment in segments]
+    words.extend(commands)
+    for command_word in commands:
+        start = program_index(list(command_word))
+        if start is not None and command_word[start] == "eval":
+            nested.append(" ".join(command_word[start + 1:]))
+    for script in nested:
+        _read_scripts(script, depth + 1, words, unreadable)
+
+
+@functools.lru_cache(maxsize=4)
+def script_words(command: str) -> tuple[tuple[tuple[str, ...], ...], tuple[str, ...]]:
+    """`_read_scripts` of `command`, read once for both gates that use it: the
+    words of every script that can be read, and the text of every one that
+    cannot."""
+    words: list[tuple[str, ...]] = []
+    unreadable: list[str] = []
+    _read_scripts(command, 0, words, unreadable)
+    return tuple(words), tuple(unreadable)
+
+
+def _git_write_named(text: str) -> bool:
+    """Whether `git` and, after it, a subcommand of `_GIT_WRITE_SUBCOMMANDS`
+    are named anywhere in `text`, decided in one pass."""
+    seen_git = False
+    for word in _GIT_WRITE_WORDS_RE.finditer(text):
+        if word.group(0) == "git":
+            seen_git = True
+        elif seen_git:
+            return True
+    return False
+
+
+def _git_writes(words: tuple[str, ...]) -> bool:
+    """Whether a `git` among `words` has a subcommand of
+    `_GIT_WRITE_SUBCOMMANDS`. Each git's walk resumes after the options it
+    consumed: a `git` taken as an option's value (`git -C git …`) walks the
+    same words to the same subcommand, so it is not walked again."""
+    words = list(words)
+    index = 0
+    while index < len(words):
+        if Path(words[index]).name != "git":
+            index += 1
+            continue
+        end = git_subcommand_index(words, index)
+        if end < len(words) and words[end] in _GIT_WRITE_SUBCOMMANDS:
+            return True
+        index = max(end, index + 1)
+    return False
+
+
+def _edits_in_place(words: tuple[str, ...]) -> bool:
+    """Whether `sd` or `sed`, as a word of its own, read by basename, starts an
+    in-place edit (`_in_place_edit` of the words from the first of them on)."""
+    first = next((index for index, word in enumerate(words) if Path(word).name in _IN_PLACE_EDITORS), None)
+    return first is not None and _in_place_edit(" ".join(words[first:]))
+
+
+def strict_write_patterns(command: str) -> set[str]:
+    """The sensitive patterns that a write the words show names in its OWN
+    command: a git write subcommand reached through a global option (`git -C
+    <dir> checkout -- <path>`, `git --exec-path=… checkout`), or `sd`/`sed`
+    with `-i` called by a path; in `command` and in every script it hands to a
+    shell or to `eval`. It only adds to `COARSE_WRITE_RES`, which still reads
+    the whole text: `git -C <dir> checkout <ref>` on a line that names a
+    guarded path elsewhere is not refused for it. A script nobody can
+    tokenize, or one past the depth limit, is read by mention on its own text,
+    strictly: a git write or an in-place edit named in it, with the guarded
+    paths it names. Each command and each unreadable text is read once, so the
+    time grows with the length of the command, not with its square."""
+    found: set[str] = set()
+    commands, unreadable = script_words(command)
+    for words in commands:
+        own = " ".join(words)
+        named = {pattern for pattern in SENSITIVE_PATTERNS if pattern not in found and _mentions(pattern, own)}
+        if named and (_git_writes(words) or _edits_in_place(words)):
+            found |= named
+    for text in unreadable:
+        named = {pattern for pattern in SENSITIVE_PATTERNS if pattern not in found and _mentions(pattern, text)}
+        if named and (_git_write_named(text) or _in_place_edit(text)):
+            found |= named
+    return found
 
 
 def _mentions(pattern: str, text: str) -> bool:
@@ -240,11 +382,14 @@ def gate_sensitive_path_writes_require_token(command: str, cwd: Path | None = No
     if targets is None:
         coarse = coarse or _UNTOKENIZABLE_WRITE_RE.search(command) is not None
         targets = []
+    strict = strict_write_patterns(command)
     matched_path = next(
         (
             pattern
             for pattern in SENSITIVE_PATTERNS
-            if (coarse and pattern in mentioned) or any(_targets_pattern(pattern, target) for target in targets)
+            if (coarse and pattern in mentioned)
+            or pattern in strict
+            or any(_targets_pattern(pattern, target) for target in targets)
         ),
         None,
     )
@@ -464,11 +609,41 @@ def gate_git_push_requires_token(command: str) -> None:
     block(message)
 
 
+def package_tool_runs(command: str) -> tuple[bool, bool]:
+    """Whether `command` runs npm or yarn with a subcommand the convention
+    names, and npx with an argument: by mention anywhere in the text, and, on
+    top, as the program of a command, read by basename, in the command and in
+    every script it hands to a shell or to `eval`, where the patterns miss it
+    (`/usr/bin/npx …`, `(npx …)`, `bash -c 'npx …'`, `$(npx …)`). A script
+    nobody can tokenize, or one past the depth limit, is read by mention on its
+    own text, the tool written as a word with what follows it."""
+    npm = _NPM_YARN_RE.search(command) is not None
+    npx = _NPX_RE.search(command) is not None
+    commands, unreadable = script_words(command)
+    for words in commands:
+        if npm and npx:
+            break
+        start = program_index(list(words))
+        if start is None:
+            continue
+        argument = next((word for word in words[start + 1:] if word not in (")", "}")), None)
+        if argument is None:
+            continue
+        name = Path(words[start]).name
+        npm = npm or (name in ("npm", "yarn") and _NPM_YARN_SUBCOMMAND_RE.match(argument) is not None)
+        npx = npx or name == "npx"
+    for text in unreadable:
+        npm = npm or _NPM_YARN_WORD_RE.search(text) is not None
+        npx = npx or _NPX_WORD_RE.search(text) is not None
+    return npm, npx
+
+
 def gate_no_npm_yarn_or_npx(command: str) -> None:
-    pattern = r"(^|\s)(npm|yarn)\s+(install|i|add|ci|run|exec|update|upgrade)"
-    if re.search(pattern, command):
+    """Blocks npm/yarn and npx when the command runs them (`package_tool_runs`)."""
+    npm, npx = package_tool_runs(command)
+    if npm:
         block("OmniPost convention: use pnpm, never npm/yarn. Rewrite the command with 'pnpm'.")
-    if re.search(r"(^|\s)npx\s+\S", command):
+    if npx:
         block("OmniPost convention: use `pnpm dlx` / `pnpm exec`, never npx. Rewrite the command.")
 
 
