@@ -12,8 +12,10 @@
  *   the cases that need it to fire set to 1 ms. Two cases run the script as a process: the
  *   usage error, which reads no index, and a failure of the gate itself, made by a preload whose
  *   fetch rejects at once and whose timer throws, so it reaches no network and waits on no time;
- *   one case reads the four Dockerfiles, so the remedy the verdict states cannot drift from the
- *   stages it names.
+ *   two cases read the four Dockerfiles, one so the remedy the verdict states cannot drift from the
+ *   stages it names, and one so all four pin the same build digest and the same runtime digest,
+ *   because a base re-pin reaches every image in one change (`docs/deployment/base-images.md`,
+ *   "How to extend").
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -47,6 +49,16 @@ const { INDEX_URL, RETRY_DELAY_MS, DOCKERFILES, evaluate, main } = (await import
 const GATE = "node-runtime-advisory-gate";
 const USAGE = "usage: node scripts/testing/node-runtime-advisory-gate.mjs --version <vX.Y.Z>";
 const BASE_IMAGES_DOC = "docs/deployment/base-images.md";
+/** The build stage's `FROM`, which captures its digest. */
+const BUILD_FROM = /^FROM node:\d+\.\d+\.\d+-bookworm-slim@sha256:([0-9a-f]{64}) /;
+/** The runtime stage's `FROM`, which captures its digest. */
+const RUNTIME_FROM = /^FROM gcr\.io\/distroless\/nodejs\d+-debian13@sha256:([0-9a-f]{64}) /;
+
+/** The `FROM` lines of one Dockerfile of the repository the suite runs in. */
+const fromLinesOf = (file: string): string[] =>
+  readFileSync(path.join(REPO_ROOT, file), "utf8")
+    .split("\n")
+    .filter((line) => line.startsWith("FROM "));
 
 const makeRelease = (version: unknown, overrides: Partial<Release> = {}): Release => ({
   version,
@@ -527,5 +539,20 @@ describe("the remedy the verdict states", () => {
     expect([...DOCKERFILES].sort()).toEqual(images.sort());
     expect(stages).toEqual(DOCKERFILES.map((file) => ({ file, build: 1, runtime: 1 })));
     expect(existsSync(path.join(REPO_ROOT, BASE_IMAGES_DOC))).toBe(true);
+  });
+
+  it("finds one build digest and one runtime digest across every image's Dockerfile, so a re-pin that leaves one image on the earlier base fails", () => {
+    const pins = DOCKERFILES.map((file) => {
+      const froms = fromLinesOf(file);
+      const digestOf = (stage: RegExp): string | undefined =>
+        froms.map((line) => stage.exec(line)?.[1]).find((digest) => digest !== undefined);
+      return { file, build: digestOf(BUILD_FROM), runtime: digestOf(RUNTIME_FROM) };
+    });
+    const build = pins[0]?.build;
+    const runtime = pins[0]?.runtime;
+
+    expect(build).toMatch(/^[0-9a-f]{64}$/);
+    expect(runtime).toMatch(/^[0-9a-f]{64}$/);
+    expect(pins).toEqual(DOCKERFILES.map((file) => ({ file, build, runtime })));
   });
 });
