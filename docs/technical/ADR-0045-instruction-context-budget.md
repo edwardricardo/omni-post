@@ -463,7 +463,10 @@ beside the tools, outside the tree. A cost is in token-turns, the tokens a text 
 turns that carry it, and the tokens of a text were counted as its bytes divided by four: item 9
 measures how low that is, so the ratios between routes hold and every absolute token figure of
 items 1 to 6 is low by that factor. On that scale the decided text of the four canon documents is
-11,043 tokens, where the documents were 21,808.
+11,043 tokens, where the documents were 21,808. The 11,043 is the sum the walk measured row by row,
+before the loading decision moved the saga rules out and added the pointer lines, and before
+Prettier padded the tables; the four documents as committed are 46,944 bytes (item 7), 11,736 on
+that scale.
 
 1. **The main session keeps the canon loaded.** `CLAUDE.md` still imports the four canon
    documents with `@`, and they now hold their rules only; no path-scoped rule and no loader hook
