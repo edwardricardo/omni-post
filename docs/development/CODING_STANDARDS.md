@@ -1,28 +1,22 @@
-# Coding Standards — TypeScript · Result · Error Handling · Testing · Naming · React · JSDoc
-
-> Authoritative coding rules for omni-post. Auto-loaded via
-> `@docs/development/CODING_STANDARDS.md` in CLAUDE.md.
+# Coding Standards — TypeScript · Result · Error Handling · Testing · Naming · React · Mandatory Requirements · Documentation
 
 **Owner:** Maintainers
-**Loaded:** every session (Claude Code `@`-import, depth 1)
+**Reference:** [CODING_STANDARDS_REFERENCE.md](CODING_STANDARDS_REFERENCE.md), read as a file: the rationale, the examples and how to extend these rules.
 
 ---
 
 ## TypeScript Strict Mode
 
-**`exactOptionalPropertyTypes: true` is active. Treat the compiler as a collaborator.**
-
-### Zero-Tolerance Rules
+**`strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess` and `useUnknownInCatchVariables` are on (`tsconfig.base.json`). Treat the compiler as a collaborator.**
 
 - **Zero `any`** in domain, application, and infrastructure layers — use proper interfaces, generics, or `unknown` + type guard
-- **Zero `throw`** in domain/application — use `Result<T, DomainError>` for all fallible operations
+- **Zero `throw`** in domain/application — a fallible operation returns `Result` (§Result Type)
 - **Zero `@ts-ignore`** or `@ts-nocheck` in production source
 - **Zero `!.`** non-null assertions in domain/application — handle nullability explicitly
-- Optional properties: never assign `undefined` — omit the key instead
-- Error catch variables: type as `unknown`, narrow with `instanceof`
+- Optional properties: never assign `undefined` — omit the key with a conditional spread
+- An indexed or destructured element is `T | undefined` — check it before use
+- Error catch variables are `unknown` — narrow with `instanceof`
 - `as const` + union types preferred over `enum`
-
-### exactOptionalPropertyTypes Patterns
 
 ```typescript
 // WRONG - assigns undefined explicitly
@@ -37,39 +31,6 @@ const obj = {
 };
 ```
 
-### Array Operations & Null Safety
-
-```typescript
-// Always check for undefined after destructuring
-const [item] = array.splice(index, 1);
-if (item) {
-  item.property; // Safe
-}
-```
-
-### React State Updates with Optional Properties
-
-```typescript
-// CORRECT
-setState((prev) =>
-  prev.map((item) => ({
-    ...item,
-    ...(optionalProp !== undefined && { optionalProp }),
-  }))
-);
-```
-
-### Hook Dependency Arrays & Function Ordering
-
-```typescript
-// Declare functions BEFORE using in dependency arrays
-const helperFunction = useCallback(() => {}, []);
-
-useEffect(() => {
-  helperFunction();
-}, [helperFunction]);
-```
-
 ---
 
 ## Result Type
@@ -77,19 +38,20 @@ useEffect(() => {
 **All fallible operations return `Result<T, E>` — never throw across layer boundaries.**
 
 ```typescript
-// Domain error hierarchy
+// Domain error hierarchy (packages/core/domain/src/errors/DomainError.ts)
 DomainError
-  ├── ValidationError
-  ├── InvariantError
-  └── NotFoundError
+  ├── InvalidValueError
+  ├── InvariantViolationError
+  └── EntityNotFoundError
 
 // Use case signature
-execute(command: CreatePostCommand): Promise<Result<PostId, DomainError>>
+execute(command: CreatePostCommand): Promise<Result<PostId, UseCaseError>>
 
 // Never:
 execute(command: CreatePostCommand): Promise<Post>  // hides failure
 ```
 
+- The domain returns a `DomainError` subclass; a use case returns `UseCaseError` with a `USE_CASE_ERRORS` code
 - Use `ok()` and `err()` helpers from `@shared/types`
 - Narrow with `if (!result.ok)` before accessing `.value`
 
@@ -99,9 +61,9 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 
 - Domain errors extend `DomainError` — never raw `Error` for business failures
 - Infrastructure errors wrapped into domain/application errors before crossing layers
-- Single global error handler in Fastify translates domain errors → HTTP status codes
+- A route answers a failure with `sendProblem` and does not raise it; the single global error handler in Fastify answers whatever is raised, through the same function
 - An error response is ADR-0047's body; codes in `packages/shared/src/error-registry/`
-- Empty catch blocks: **zero tolerance** — log at minimum, rethrow if unrecoverable
+- Empty catch blocks: **zero tolerance** — in domain/application return `err`; in infrastructure log at minimum, rethrow if unrecoverable
 
 ---
 
@@ -119,39 +81,23 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 
 - **AAA pattern**: Arrange / Act / Assert — one behavior per test
 - Naming: `'returns X when Y given Z'` — behavior, not implementation
-  - `'returns PostNotFoundError when post does not exist'`
+  - `'returns EntityNotFoundError when the post does not exist'`
   - Never: `'calls repository.findById'`
 - `beforeEach(() => { /* reset mocks */ })` in every suite
-- Zero `console.log` in test files
+- Zero `console.log` in test files; `console.warn` and `console.error` write to stderr and are allowed
 - Zero `.only()` or `.skip()` committed
 - Async tests always `await` — no floating promises
-- A test waits on the observable result, never on a fixed time: `until` from `@packages/vitest-shared/determinism` or fake timers, never `setTimeout(resolve, ms)`, a `timers/promises` waiter or `waitForTimeout` (`testing/no-fixed-time-wait`, at `error`). A wait no result can replace carries `// fixed-wait: <kind> — <why>` on the line above, `<kind>` one of `latency-injection`, `clock-advance`, `interleaving`, `poll-step`, `ttl-expiry`
-
-`pnpm lint` holds part of this list at `error`, and refuses a test block that cannot fail. Such a block is reported in vitest and node:test alike, by the classifier of `packages/eslint-plugin-testing`: `testing/no-empty-test` (no assertion runs in it), `testing/no-tautological-assertion` (every assertion is true by construction) and `testing/no-existence-only-test` (every assertion on every path checks only presence, type or truthiness; a truthiness check of a verdict, `.ok` or `.success`, pins a state and is not presence). The files Vitest collects also take `vitest/expect-expect`, `no-conditional-expect`, `valid-expect`, `no-standalone-expect`, `no-identical-title`, `no-commented-out-tests`, `no-disabled-tests` and `no-focused-tests`: every test file but `*.integration.test.*`, `*.live.test.*`, `security/tests/` and `e2e/`, a static approximation of what the reach engine (`pnpm --filter @packages/test-contracts reach --json`) reports. Every test file takes `no-console`, which allows `console.warn` and `console.error`, the stderr writers `testing/no-stdout-in-node-test` points a node:test diagnostic to; no test file is exempt, since the runner's three entry points under `apps/api/tests/`, the only files that were, left the tree with WU-2.7 on 2026-10-29. The violations the tree held when the rules landed are listed in `eslint-suppressions.json`, which ESLint generates (`--suppress-rule`) and nobody edits by hand. It may only shrink: when a pull request deletes or fixes a suppressed block, the entry it leaves unused makes `pnpm lint` exit 2 while the file is still linted. A deleted file is the gap: its entries stay unreported until `eslint . --prune-suppressions` runs, so the change that deletes a test file runs the prune until the same pull request runs `pnpm exec eslint . --prune-suppressions`. A new violation is fixed, never added to the file.
+- A test waits on the observable result, never on a fixed time: `until` from `@packages/vitest-shared/determinism` or fake timers, never `setTimeout(resolve, ms)`, a `timers/promises` waiter or `waitForTimeout`. A wait no result can replace carries `// fixed-wait: <kind> — <why>` on the line above, `<kind>` one of `latency-injection`, `clock-advance`, `interleaving`, `poll-step`, `ttl-expiry`
+- A test block can fail: `pnpm lint` refuses one with no assertion, one whose every assertion is true by construction, and one whose every assertion checks only presence, type or truthiness (a truthiness check of a verdict, `.ok` or `.success`, pins a state and is not presence)
+- `eslint-suppressions.json` is generated by ESLint and never edited by hand, and it only shrinks: a new violation is fixed, never added to it. The change that deletes a test file runs `pnpm exec eslint . --prune-suppressions` in the same pull request
 
 ### Mock Factories (Required Pattern)
 
-```typescript
-// Never inline magic values in tests
-const makePost = (overrides?: Partial<Post>): Post => ({
-  id: PostId.create("post-uuid-001"),
-  status: PublishStatus.DRAFT,
-  createdAt: new Date("2024-01-01T00:00:00Z"),
-  ...overrides,
-});
-```
+Test data comes from a factory with overrides — `makeX(overrides?: Partial<X>): X`, defaults first and `...overrides` last — never inline magic values in a test.
 
 ### Zero Cancelled Tests
 
-**Cancelled tests are bugs. Investigate and fix every one — never ignore them.**
-
-A cancelled test means one of:
-
-- The test file doesn't use the correct test framework (`describe`/`it` from `node:test`) — rewrite or delete it
-- A prior test leaked resources (open handles, timers, DB connections) causing `--test-force-exit` to kill pending tests — fix the leak
-- A module resolution error (`ERR_MODULE_NOT_FOUND`) crashed the process before tests ran — fix the import or build dependency
-
-The target is **0 cancelled** on every run. If you find cancelled tests, diagnose the root cause and fix it before moving on.
+**Cancelled tests are bugs. Investigate and fix every one — never ignore them.** The target is **0 cancelled** on every run: diagnose the root cause and fix it before moving on. The runner of the node:test tiers fails a batch that holds one (`apps/api/scripts/run-tests.sh`).
 
 ### Coverage Targets
 
@@ -162,6 +108,8 @@ The target is **0 cancelled** on every run. If you find cancelled tests, diagnos
 | Infrastructure adapters | 70%     |
 | Route handlers          | 70%     |
 | Provider adapters       | 75%     |
+
+The gate holds one total, for the API's unit run (`apps/api/vitest.config.ts`): it only moves up (fitness #37), and no gate measures a layer.
 
 ### Test Framework Rules
 
@@ -175,11 +123,9 @@ The target is **0 cancelled** on every run. If you find cancelled tests, diagnos
 | E2E (admin auth, client publishing)                         | `Playwright`                                                                 | `import { test, expect } from "@playwright/test"`                                                                                    |
 | Component stories (`packages/ui`, client, admin components) | `vitest` browser mode through `@storybook/addon-vitest`, Playwright Chromium | `import type { Meta, StoryObj } from "@storybook/react"` (packages) / `"@storybook/nextjs-vite"` (apps); `storybook/test` for `play` |
 
-The story row adds no fourth framework: it is `vitest` in browser mode, with Playwright's Chromium as the browser. `pnpm --filter @apps/client test:stories` (`apps/client/vitest.stories.config.ts`) runs every story the client Storybook collects, its own and those of `packages/ui`, in the CI job `Storybook Stories` and the battery step `stories`; `pnpm --filter @apps/admin test:stories` runs the admin's, in that job and the battery step `stories-admin` ([ADR-0035](../technical/ADR-0035-stories-part-of-creating-ui.md)).
+The story row adds no fourth framework: it is `vitest` in browser mode, with Playwright's Chromium as the browser. What a story covers, when it passes and the flow before hand-over: [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md).
 
-**A story passes** when that run is green for it: it renders with no page error; it writes nothing to `console.error` or `console.warn` (the console contract of `packages/vitest-shared/src/storyConsoleContract.ts`); its `play` function, when it has one, passes; and axe reports zero violations at `error` over the WCAG 2.1 A/AA tags `wcag2a`, `wcag2aa`, `wcag21a` and `wcag21aa` (`parameters.a11y` in `packages/ui/src/storybook/index.tsx`). It runs in a real browser because jsdom cannot evaluate colour contrast (axe-core's README: the `color-contrast` rule is known not to work with JSDOM). A component's stories cover its meaningful states — default, disabled, loading, error, empty — not only its first render, and a state the component does not have is named as absent in the story file's header. A failing story is a defect, fixed in the same change or, if large, tracked as its own item: never skipped (`tags: ["!test"]`), never suppressed (an `a11y.test` of `todo` or `off`, or an axe rule switched off). The flow before hand-over and the gate: [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md).
-
-**The suffix picks the collector.** Every test file has exactly one runner, and its name decides which:
+**The suffix picks the collector.** Every test file has exactly one runner, and its name decides which; a file named for the wrong tier runs under the wrong runner, or under none.
 
 | Suffix                  | Collector                                                   | Where it may live               |
 | ----------------------- | ----------------------------------------------------------- | ------------------------------- |
@@ -189,56 +135,10 @@ The story row adds no fourth framework: it is `vitest` in browser mode, with Pla
 | `*.spec.ts`             | Playwright, through the `testMatch` of each portal's config | `apps/{client,admin}/**/e2e/**` |
 | `*.k6.js`               | k6, through the performance workflow                        | `performance/k6/scenarios/`     |
 
-`RESERVED_TIER_EXCLUDES` (`packages/vitest-shared`) keeps vitest off the last four: `defineWorkspaceVitestConfig` adds it to the `exclude` of every config built through it, and the four app configs (`apps/api`, `apps/workers`, `apps/admin`, `apps/client`), which compose their own config, spread it by hand. A file named for the wrong tier runs under the wrong runner, or under none.
-
-### Backend Unit Test Pattern (Vitest)
-
-```typescript
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import assert from "node:assert/strict";
-
-describe("Feature Name", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  describe("Specific Functionality", () => {
-    it("returns expected result when given valid input", async () => {
-      const result = await serviceUnderTest.method(testData);
-      assert.ok(result.ok, "Operation should succeed");
-      assert.strictEqual(result.value.property, expectedValue);
-    });
-  });
-});
-```
-
-### Backend Integration Test Pattern (node:test)
-
-```typescript
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-
-describe("Integration Feature", () => {
-  before(async () => {
-    /* one-time setup — DB, Redis, etc. */
-  });
-  after(async () => {
-    /* cleanup */
-  });
-
-  it("works with real services", async () => {
-    const result = await serviceUnderTest.method(testData);
-    assert.ok(result.ok, "Operation should succeed");
-  });
-});
-```
-
 ### Running Tests
 
-- Unit tests: `pnpm --filter @apps/api test` (runs Vitest)
-- Unit tests with coverage: `pnpm --filter @apps/api test:unit:coverage`
-- All tests (unit + integration): `pnpm --filter @apps/api test:all` (`pnpm test && pnpm test:integration`: Vitest first, then the node:test collector `scripts/run-tests.sh`)
-- Integration tests only: `pnpm --filter @apps/api test:integration`. Export the test env first (`set -a; . ./.env.test; set +a` from the repository root): `scripts/run-tests.sh` reads no env file and exits 2 when `DATABASE_URL` is empty
+- The commands: [CLAUDE.md](../../CLAUDE.md) §Test Commands (API)
+- Integration tests: export the test env first (`set -a; . ./.env.test; set +a` from the repository root): `scripts/run-tests.sh` reads no env file and exits 2 when `DATABASE_URL` is empty
 - **Integration tests need real services**: Start PostgreSQL and Redis with `pnpm db:up` before running tests that use Prisma or Redis. Never skip tests because services are down — start them.
 - **Test env**: vitest auto-loads `.env.test` via the `setupFiles` hook (`apps/api/tests/setup-env.ts`, `apps/workers/tests/setup-env.ts`). On fresh clone, run `cp .env.test.example .env.test` and edit `DATABASE_URL` / `REDIS_URL` to point at your local infra. Full canon in [docs/architecture/secrets-and-env.md](../architecture/secrets-and-env.md) §Test environment.
 
@@ -246,28 +146,29 @@ describe("Integration Feature", () => {
 
 ## Naming Conventions
 
-| Element             | Convention                              | Example                  |
-| ------------------- | --------------------------------------- | ------------------------ |
-| Variables/Functions | `camelCase`                             | `getUserData()`          |
-| Constants           | `UPPER_SNAKE_CASE`                      | `MAX_RETRY_ATTEMPTS`     |
-| Classes             | `PascalCase`                            | `CreatePostUseCase`      |
-| Interfaces          | `PascalCase` (no `I` prefix)            | `PostRepository`         |
-| Types               | `PascalCase`                            | `UserId`                 |
-| Domain Events       | `PascalCase`, past tense                | `PostPublished`          |
-| Commands            | `PascalCase` + `Command`                | `CreatePostCommand`      |
-| Queries             | `PascalCase` + `Query`                  | `GetPostQuery`           |
-| Use Cases           | `PascalCase` + `UseCase`                | `CreatePostUseCase`      |
-| Port interfaces     | `PascalCase` + `Repository`/`Port`      | `PostRepository`         |
-| Adapters            | Infra prefix + Port name                | `PrismaPostRepository`   |
-| DI tokens           | `UPPER_SNAKE_CASE` in `TOKENS`          | `TOKENS.POST_REPOSITORY` |
-| Queue names         | `UPPER_SNAKE_CASE` constant             | `QUEUES.PUBLISH`         |
-| Zod schemas         | `camelCase` + `Schema`                  | `createPostSchema`       |
-| Enums (if needed)   | `PascalCase`, values `UPPER_SNAKE_CASE` | `JobStatus.RUNNING`      |
-| Files (utilities)   | `kebab-case.ts`                         | `api-client.ts`          |
-| Files (React)       | `PascalCase.tsx`                        | `UserProfile.tsx`        |
-| Directories         | `kebab-case`                            | `shared-components/`     |
-| CSS Classes         | `kebab-case`                            | `.data-table-header`     |
-| Database            | `snake_case` (Prisma schema)            | `created_at`             |
+| Element                    | Convention                              | Example                 |
+| -------------------------- | --------------------------------------- | ----------------------- |
+| Variables/Functions        | `camelCase`                             | `getUserData()`         |
+| Constants                  | `UPPER_SNAKE_CASE`                      | `MAX_RETRY_ATTEMPTS`    |
+| Classes                    | `PascalCase`                            | `CreatePostUseCase`     |
+| Interfaces                 | `PascalCase` (no `I` prefix)            | `PostRepository`        |
+| Types                      | `PascalCase`                            | `UserId`                |
+| Domain Events              | `PascalCase`, past tense                | `PostPublished`         |
+| Commands                   | `PascalCase` + `Command`                | `CreatePostCommand`     |
+| Queries                    | `PascalCase` + `Query`                  | `GetPostQuery`          |
+| Use Cases                  | `PascalCase` + `UseCase`                | `CreatePostUseCase`     |
+| Port interfaces            | `PascalCase` + `Repository`/`Port`      | `PostRepository`        |
+| Adapters                   | Infra prefix + Port name                | `PrismaPostRepository`  |
+| DI tokens                  | `PascalCase` key of `TOKENS`            | `TOKENS.PostRepository` |
+| Queue names                | `UPPER_SNAKE_CASE` key of `QUEUE_NAMES` | `QUEUE_NAMES.PUBLISH`   |
+| Zod schemas                | `camelCase` + `Schema`                  | `createPostSchema`      |
+| Enums (if needed)          | `PascalCase`, values `UPPER_SNAKE_CASE` | `JobStatus.RUNNING`     |
+| Files (class, component)   | `PascalCase`, as its export             | `CreatePostUseCase.ts`  |
+| Files (other modules)      | `camelCase.ts`                          | `resolveClientIp.ts`    |
+| Files (framework-reserved) | the framework's name                    | `page.tsx`              |
+| Directories                | `kebab-case`                            | `shared-components/`    |
+| CSS Classes                | `kebab-case`                            | `.data-table-header`    |
+| Database                   | Prisma's defaults, no `@map`            | `Post`, `createdAt`     |
 
 ### Unused Variables
 
@@ -279,49 +180,39 @@ describe("Integration Feature", () => {
 
 ## React Component Standards
 
-> React standards: [docs/frontend/REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md) — the story requirement, and the map to the detailed rules in [docs/standards/frontend-standards.md](../standards/frontend-standards.md)
+> React standards: [docs/frontend/REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md) — component code, the story requirement, and the map to the detailed rules in [docs/standards/frontend-standards.md](../standards/frontend-standards.md)
 
-- Function Declaration Order:
-  1. State declarations (useState)
-  2. Refs (useRef)
-  3. Callback functions (useCallback) — declare before use
-  4. Effects (useEffect) — must come after functions they depend on
-  5. Render helpers
-  6. Return JSX
-- Dependencies: All functions used in hooks must be in dependency arrays
-- Named exports for components, default exports only for pages
 - Import order: React → External libs → Internal packages → Relative imports
 - No circular dependencies
 
+Before client code that calls the backend, or its tests, is written, read [frontend-standards.md](../standards/frontend-standards.md) §2.6 (the frontend follows the backend), §9.4 (client tests mock HTTP with MSW v2) and §9.5 (the proxy smoke test before a commit).
+
 ---
 
-## Mandatory Requirements for Every Sprint
+## Mandatory Requirements for Every Change
 
-**Every prompt that creates or modifies production code MUST include both of these — no exceptions:**
+**Every change that creates or modifies production code carries both of these — no exceptions:**
 
 ### 1. Tests (mandatory)
 
-Every new or modified class, method, or function requires tests in the same sprint:
+Every new or modified class, method, or function requires tests in the same change:
 
-- **New service / use case** → unit tests with mock factory pattern (`apps/api/tests/unit/`)
+- **New service / use case** → unit tests with mock factory pattern (in its package's tests; `apps/api/tests/unit/` for the API)
 - **New route / endpoint** → integration test with real HTTP request (`apps/api/tests/integration/`)
 - **New React component** → Vitest component test with `@testing-library/react`
-- **New React component** → a colocated `<basename>.stories.tsx` covering its meaningful states, run green with `pnpm --filter @apps/client test:stories` before hand-over (an admin component: `pnpm --filter @apps/admin test:stories`) — [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md), [ADR-0035](../technical/ADR-0035-stories-part-of-creating-ui.md)
+- **New React component** → a colocated `<basename>.stories.tsx` covering its meaningful states, run green before hand-over; `pnpm check:stories` enforces it — [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md)
 - **New hook** → Vitest hook test
 - **Modified method** → update existing tests to cover new behavior
 
-`pnpm check:stories` enforces the story. In `packages/ui/src/components`, `apps/client/components` and `apps/admin/components` it counts the component files without a sibling story and fails when a count differs from that root's baseline in `scripts/testing/story-coverage-baseline.json`: above it, a component landed without its story; below it, a story landed and the baseline is lowered in the same change. The baseline is deleted once every count reaches 0, and the gate then requires 0.
-
-Tests are never deferred to a later sprint. A sprint that produces code without tests
-is incomplete regardless of TypeScript compiling cleanly.
+Tests are never deferred to a later change. A change that produces code without tests is incomplete regardless of TypeScript compiling cleanly.
 
 ### 2. JSDoc (mandatory)
 
-Every new file and every new public method requires JSDoc in the same sprint:
+Every new file and every new public method requires JSDoc in the same change (§Documentation):
 
 - **New file** → `@file/@description/@layer` header
 - **New public method** → `@method/@description/@param/@returns`
-- **New React component** → `@component` with key props documented
+- **New React component** → `@component`, its props documented on the props interface
 - **New hook** → `@hook` with return value documented
 
 ---
@@ -332,25 +223,27 @@ Every file gets a JSDoc header — **no exceptions, including index files, types
 
 ```typescript
 /**
- * @file create-post.use-case.ts
+ * @file CreatePostUseCase.ts
  * @description Orchestrates post creation: validates input, constructs aggregate,
  *              persists via repository, dispatches PostCreated event via outbox.
  * @layer application
  */
 ```
 
-Every public class method gets:
+Every public method of an exported class gets:
 
 ```typescript
 /**
  * @method execute
  * @description Creates a new post aggregate and persists it transactionally.
  * @param command - Validated creation parameters
- * @returns Result<PostId> on success, ValidationError or InvariantError on failure
+ * @returns Result<PostId> on success, UseCaseError on failure
  */
 ```
 
-**Enforced on every file a change touches.** `pnpm check:jsdoc` (`scripts/testing/jsdoc-touched-gate.mjs`, with its rules in `eslint.jsdoc.config.ts`) holds each `.ts` and `.tsx` source file under `apps/` and `packages/` that a change adds or modifies to zero violations, across the whole file and not only the edited lines. A public method of an exported class gets the block above. An exported function gets the same block without `@method`. `@returns` is left out when the function returns nothing. A React component in `apps/admin`, `apps/client` or `packages/ui` needs a description only, in its body or in `@description`, because its props are documented on the props interface. Tests, specs, stories, declaration files and generated code are out of scope. It runs in lint-staged on the staged files, as the battery step `jsdoc` against the merge base with `origin/main`, and in CI as fitness #47 against the pull request's base. An `eslint-disable` directive does not exempt a file. A file no change touches is not checked, and `pnpm lint` does not load these rules. At the end of the current plan, a reconciliation, `pnpm check:jsdoc --all`, lists every file still in violation with its count.
+- An exported function gets the same block without `@method`; `@returns` is left out when the function returns nothing
+- A React component in `apps/admin`, `apps/client` or `packages/ui` needs a description only, in its body or in `@description`, because its props are documented on the props interface
+- **Enforced on every file a change touches**: `pnpm check:jsdoc` holds each `.ts` and `.tsx` source file under `apps/` and `packages/` that a change adds or modifies to zero violations, across the whole file and not only the edited lines. Tests, specs, stories, declaration files and generated code are out of scope. An `eslint-disable` directive does not exempt a file
 
 ### @layer Standard Values
 
@@ -366,105 +259,20 @@ Every public class method gets:
 
 Resolve ambiguity by path. When a file could fit two layers, pick by this table:
 
-| Path                                                                                              | @layer           |
-| ------------------------------------------------------------------------------------------------- | ---------------- |
-| `apps/api/src/domain/`, `packages/shared/` (pure contracts, no framework deps)                    | `domain`         |
-| `packages/ports/` (pure contracts, no framework deps; may import `@core/application/UseCase` too) | `domain`         |
-| `apps/api/src/application/`                                                                       | `application`    |
-| `apps/api/src/infrastructure/`, `apps/api/src/**/*Routes.ts`, `apps/api/src/**/*Processor.ts`     | `infrastructure` |
-| `apps/workers/src/`                                                                               | `infrastructure` |
-| `apps/admin/`, `apps/client/` (pages, components, hooks, stores, lib)                             | `infrastructure` |
-| `packages/ui/` (UI primitives)                                                                    | `infrastructure` |
-| `packages/adapters/`, `packages/providers/` (hexagonal adapters)                                  | `infrastructure` |
-| `packages/monitoring/`, `packages/observability/` (cross-cutting)                                 | `infrastructure` |
-| `packages/api-common/` (shared HTTP helpers)                                                      | `infrastructure` |
-| Tests (`**/tests/**`, `**/*.test.ts`, `**/*.test.tsx`)                                            | `infrastructure` |
-
-A `packages/ports/` module stays `@layer domain` although it may import `@core/application/UseCase`: the application owns its ports (Cockburn: the application defines them; Martin: the boundaries live in the use-case ring), so a port may use the `Result` and `UseCaseError` vocabulary of that one file and nothing else of the application layer. The `ports-depend-only-on-domain-and-shared` rule of `.dependency-cruiser.cjs` holds it.
-
-**Examples:**
-
-- `GatewayBillingService.ts` → `@layer application`
-- `PrismaPostRepository.ts` → `@layer infrastructure`
-- `billingWebhookRoutes.ts` → `@layer infrastructure`
-- `GatewaySwitchProcessor.ts` → `@layer infrastructure`
-- `Post.ts` (entity) → `@layer domain`
-- `PostRepository.ts` (interface) → `@layer domain`
-- `PaymentAdapter.ts` (port contract in `packages/ports/`) → `@layer domain`
-- `CampaignList.tsx` (React component) → `@layer infrastructure`
-- `useCampaigns.ts` (React hook) → `@layer infrastructure`
-- `dashboard/page.tsx` (Next.js page) → `@layer infrastructure`
-- `postRoutes.test.ts` (unit test) → `@layer infrastructure`
-
-**Forbidden variations:** `test`, `integration`, `unit`, `testing`, `presentation`, `page`, `hooks`, `ui`, `client-components`, `client-hooks`, `client-pages`, `client-state`, `client-lib`, `client-tests`, `ports`, `provider`, `test-infrastructure`, `infrastructure (routes)`, `routes`, `service`, `handler` — always normalize to one of `domain` / `application` / `infrastructure`.
+| Path                                                                                               | @layer           |
+| -------------------------------------------------------------------------------------------------- | ---------------- |
+| `packages/core/domain/`, `packages/ports/`, `packages/shared/` (pure contracts, no framework deps) | `domain`         |
+| `packages/core/application/`, `packages/core/<context>/`                                           | `application`    |
+| `apps/` (all of it), every other package, config files and tests anywhere                          | `infrastructure` |
 
 ### React component JSDoc — props on the interface
 
-React components get `@component` **in addition to** `@layer infrastructure`. The two tags answer different questions: `@layer` locates the file in the hexagonal architecture (always `infrastructure` for UI); `@component` marks the file as a React component for readers and grep-based tooling.
-
-A component's props are documented **on the props `interface`**, one JSDoc comment above each prop, and the component function carries a description only. `@param` tags on the component function are redundant, not forbidden: `pnpm check:jsdoc` (fitness #47) asks a component for a description and nothing else, so it neither requires nor refuses them, and this canon leaves them out. The interface is where a reader, the editor's hover and every tool that types the component find the prop's meaning; the description on the function says what the component renders.
-
-**Canonical template:**
-
-```tsx
-/**
- * @file CampaignList.tsx
- * @description List view of campaigns with filter/sort controls and inline actions.
- * @component CampaignList
- * @layer infrastructure
- */
-
-interface CampaignListProps {
-  /** Account whose campaigns will be listed. Required. */
-  accountId: string;
-  /** When true, shows archived campaigns mixed with active ones. Default: false. */
-  includeArchived?: boolean;
-  /** Fired after the user triggers archive/unarchive on any row. */
-  onChange?: (campaignId: string) => void;
-}
-
-/**
- * Renders a paginated list of campaigns for an account, with inline archive,
- * duplicate, and analytics actions. Filters persist in the URL query string.
- */
-export function CampaignList({ accountId, includeArchived = false, onChange }: CampaignListProps) {
-  // ...
-}
-```
-
-Storybook note: Next.js App Router components that use `useRouter` from `next/navigation` need `parameters.nextjs.appDirectory: true` in the Storybook preview (`@packages/ui/storybook` sets it for both portals). Autodocs pages are not generated: `@storybook/addon-docs` left on 2026-10-25 (deps-remove-2), so no story carries `tags: ["autodocs"]`.
-
-### Storybook port convention
-
-An app that runs a Storybook runs it on its own dedicated port, so two can run side by side during parallel development:
-
-- `apps/client`: `6006`
-- `apps/admin`: `6007` (its Storybook was re-created on 2026-11-20 on the client's framework and runner)
-
-`packages/ui` does **not** run its own Storybook; its stories are picked up by the client Storybook via a cross-package glob in `apps/client/.storybook/main.ts`. This avoids dual-maintenance of addons/preview configuration. A `packages/ui` story goes beside its component (`packages/ui/src/components/<basename>.stories.tsx`), as every component story does: `pnpm check:stories` counts only a sibling `<basename>.stories.tsx` as a component's story (§Mandatory Requirements for Every Sprint).
+A React component file carries `@component` beside `@layer infrastructure`, and its props are documented on the props interface. The rule and its template: [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md) §Component JSDoc.
 
 ### Comment Quality Rules
 
 - Comments explain **why**, not **what** — the code already shows what
-- No references to sprint numbers, implementation phases, or development timeline
-- No comments like "Added in Sprint X", "Part of Phase Y", "TODO: done" — these belong in git history, not source code
+- A comment, a JSDoc block or a file header states the current responsibility and contract, and nothing of its history: not what it replaced, not a migration under way, not the bug it fixed, not a date or a "recent change", not how its dependencies are injected. The test: would the sentence make sense if the code had always been this way? History belongs in the pull request and in git
+- No references to sprint numbers, implementation phases, the plan or the development timeline ("Added in Sprint X", "Part of Phase Y", "TODO: done")
 - Inline comments only when the logic is genuinely non-obvious
 - All comments in **English**, under the broader artifact-language rule of [CLAUDE.md](../../CLAUDE.md) §Documentation Policy: every tracked artifact is English
-
----
-
-## How to extend
-
-Adding or amending coding rules:
-
-1. **New naming convention** → append a row to the Naming table; add a fitness regex if the convention is grep-able.
-2. **New TypeScript pattern** → add to the §"exactOptionalPropertyTypes Patterns" or §"Zero-Tolerance Rules" subsection with a concrete example.
-3. **New test framework rule** → update the §"Test Framework Rules" table + a backend or frontend pattern subsection.
-4. **New `@layer` value** → forbidden. Three values total (`domain`, `application`, `infrastructure`). Amendments require an ADR.
-5. **New mandatory artefact per sprint** → extend §"Mandatory Requirements for Every Sprint". Keep the bar high but realistic.
-6. **Amending a rule** → ADR required (see ADR-0001 template). Update this doc with the new wording + link the ADR.
-7. **New story requirement or runner change** → ADR (ADR-0035 is the current one); update §"Test Framework Rules", §"Mandatory Requirements for Every Sprint" and `docs/frontend/REACT_STANDARDS.md` together.
-
-Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
-
-- `#3` no `any` in domain/app/infra · `#4` no raw throws in domain/app · `#5` no `@ts-ignore` · `#8` no sprint/phase refs · `#9` @file header coverage · `#10` valid @layer values · `#12` @component on React components · `#47` method-level JSDoc on every touched file (`pnpm check:jsdoc`).

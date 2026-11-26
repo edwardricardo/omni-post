@@ -86,7 +86,7 @@ A non-zero count is FINE — that's the design. A growing count without paired A
 Examples (valid):
 
 ```
-canon-check: ARCHITECTURE_CANON.md §Saga.compensable — cross-context import `@core/saga` authorized because the saga engine is transversal infra, not a bounded context.
+canon-check: SAGA_CANON.md §Saga.compensable — cross-context import `@core/saga` authorized because the saga engine is transversal infra, not a bounded context.
 canon-check: feedback/audit-deletion.md §three-questions — comment `// TODO §X.Y` authorized after (1) is it a time-bomb? no — TTL is 1 session, (2) is there an ADR? yes ADR-NNNN, (3) is the remediation testable? yes.
 ```
 

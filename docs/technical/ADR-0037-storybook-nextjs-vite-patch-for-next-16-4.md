@@ -116,8 +116,8 @@ add it to the watchlist until then."_
 
 - **Wait for 10.6.3.** Rejected: it is unpublished, with no date. Meanwhile the floor either waits,
   keeping the advisories open, or lands over 68 failing stories, which ADR-0035 calls a defect.
-- **`appDirectory: false`.** Rejected. CODING_STANDARDS.md (§"React component JSDoc — props on the
-  interface", its Storybook note) requires `appDirectory: true` for App Router components that use
+- **`appDirectory: false`.** Rejected. REACT_STANDARDS.md (§"A story per component", its App
+  Router note) requires `appDirectory: true` for App Router components that use
   `next/navigation`. No component with a story imports `next/navigation` today, so the 68 stories
   would pass, but 17 files of `apps/client` import it (`lib/auth/authContext.tsx` among them), and
   the first story of a component that reads it would render against the Pages Router mock. It also
@@ -231,8 +231,8 @@ stands, a catalog move away from 10.6.1 fails the install with `ERR_PNPM_UNUSED_
   (local, untracked)
 - Canon: [SECURITY_CANON.md](../security/SECURITY_CANON.md) §"Patched dependencies", row `next` and
   its note
-- Standards: [CODING_STANDARDS.md](../development/CODING_STANDARDS.md) (§"React component JSDoc — props on the
-  interface"); [ADR-0035](ADR-0035-stories-part-of-creating-ui.md)
+- Standards: [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md) (§"A story per component", its App
+  Router note); [ADR-0035](ADR-0035-stories-part-of-creating-ui.md)
 - pnpm 12.6.0 source, `dist/pnpm.mjs`: `calcPatchHashes`, `verifyPatches`,
   `getOutdatedLockfileSetting`, `applyPatchToDir`
 - Watchlist: `scripts/testing/maturity-watchlist.json`, entry `patch-storybook-nextjs-vite-10.6.3`

@@ -1,10 +1,7 @@
 # Architecture Canon — Hexagonal · DDD · CQRS · UoW · Saga · DI
 
-> Authoritative rules for system architecture in omni-post. Auto-loaded via
-> `@docs/architecture/ARCHITECTURE_CANON.md` in CLAUDE.md.
-
 **Owner:** Maintainers
-**Loaded:** every session (Claude Code `@`-import, depth 1)
+**Reference:** [ARCHITECTURE_CANON_REFERENCE.md](ARCHITECTURE_CANON_REFERENCE.md), read as a file: the rationale, the examples and how to extend these rules.
 
 ---
 
@@ -19,11 +16,9 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 - `domain/` imports **nothing** external — no Prisma, no Fastify, no Redis, no BullMQ, no SDKs
 - `application/` imports **domain, ports and the shared kernel only** — no concrete adapters, no infrastructure classes
 - `infrastructure/` imports application + domain + external libs
-- Routes call **use cases only**: a route plugin receives its dependencies from the composition root, and a route never reaches the Prisma client, a repository, an adapter or a provider. It imports the domain for its types and passes primitives; the use case builds the value objects
-- **Never** `import { prisma } from "@infra/prisma"` in a route file, and never `fastify.container.resolve(...)` either — §Dependency Injection gives the composition-root shape and the routes still on the container
-- Ports (interfaces) live in `packages/ports/` — technology-free names (`PostRepository` not `PrismaPostPort`)
-- Concrete adapters are instantiated **only** in the DI composition root (`Container.ts`)
-- The gate is dependency-cruiser's rule set (`.dependency-cruiser.cjs`, run by `pnpm check:architecture` in the local battery and in CI) with the shrink-only known-violations baseline `.dependency-cruiser-known-violations.json`: a violation the baseline does not list fails the check, and so does a listed entry that no longer occurs, so the baseline only shrinks
+- Routes call **use cases only**: the composition root resolves the use cases a route plugin needs and passes them in as the plugin's options. A route module never reaches the Prisma client, the container (`fastify.container.resolve`, `TOKENS`), a repository, an adapter or a provider. It imports the domain for its types and passes primitives; the use case builds the value objects
+- Ports (interfaces) live in `packages/ports/` — technology-free names (`PostRepository` not `PrismaPostPort`). A port imports domain types, `@shared/types` and the `Result` and `UseCaseError` vocabulary of `@core/application/UseCase`, and nothing else of the core
+- Gate: `pnpm check:architecture` (dependency-cruiser; local battery and CI). Its baseline `.dependency-cruiser-known-violations.json` only shrinks: a violation it does not list fails, and so does a listed entry that no longer occurs
 
 ---
 
@@ -41,7 +36,7 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 ### Value Objects
 
 - All properties `readonly` — no setters, ever
-- Validate on construction, throw domain error on invalid input
+- Validate on construction; an invalid input returns a domain error as `Result`
 - Equality by value, not reference
 - Wrap primitives: `new ShortCode('abc123')` not bare `string`
 
@@ -57,14 +52,14 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 - Past tense names: `PostPublished`, `CrisisModeEntered`
 - Immutable payload, no methods beyond constructor
 - Always carry: `aggregateId`, `occurredAt: Date`
-- Extend base `DomainEvent` class
+- Extend the base `BaseDomainEvent` class
 
 ### Repositories (Ports)
 
 - Return **domain objects** — never raw Prisma types outside infrastructure
-- `findById` returns `Result<T, NotFoundError>` — never `T | null`
+- `findById` returns `Result<T, EntityNotFoundError>` — never `T | null`
 - Command repo (`PostRepository`) is separate from query repo (`PostQueryRepository`)
-- No DTOs in or out — that is the use case's job
+- No DTOs in or out of a command repository — that is the use case's job; a query repository returns DTOs (§CQRS)
 
 ---
 
@@ -74,9 +69,9 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 
 ### Commands
 
-- Return `Result<void, DomainError>` or `Result<EntityId, DomainError>` — never a full object graph
+- Return `Result<void, UseCaseError>` or `Result<EntityId, UseCaseError>` — never a full object graph
 - Load aggregate → call aggregate method → save via repo via Unit of Work
-- Zero `findMany`, `select`, or read operations inside command handlers
+- Zero `findMany`, `select`, or read operations inside command handlers beyond loading the aggregate
 - State changes go through the aggregate — never `repository.update({ field: value })` directly
 
 ### Queries
@@ -88,70 +83,21 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 
 ### CQRS Bus
 
-- CQRSBus handlers delegate to Application layer use cases — **never** call `prisma.*` directly
-- One implementation only — the Application layer use cases. No parallel Prisma path.
+- CQRSBus handlers delegate to Application layer use cases, the one implementation — **never** call `prisma.*` directly, no parallel Prisma path
 
 ---
 
 ## Unit of Work
 
-**Every mutating use case MUST use UoW. No exceptions for new code.**
+**Every mutating use case MUST use UoW. No exceptions for new code.** Queries (read-only) do not need UoW.
 
-All 56 mutating use cases in the project use Unit of Work. New mutating use cases
-must follow the same pattern. Queries (read-only) do not need UoW.
-
-```typescript
-// Required pattern for ALL mutating use cases:
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-
-export class MyUseCase {
-  constructor(
-    private readonly someRepository: SomeRepository,
-    private readonly unitOfWork?: UnitOfWork // LAST param, optional for tests
-  ) {}
-
-  async execute(input: Input): Promise<Result<Output, UseCaseError>> {
-    // Validation, domain logic...
-
-    const doWork = async (): Promise<Result<Output, UseCaseError>> => {
-      // ALL repo writes + event dispatch go here
-      await this.someRepository.save(aggregate);
-      return ok(output);
-    };
-
-    try {
-      if (this.unitOfWork) {
-        let result: Result<Output, UseCaseError> = ok(undefined) as Result<Output, UseCaseError>;
-        await this.unitOfWork.executeInTransaction(async () => {
-          result = await doWork();
-        });
-        return result;
-      }
-      return await doWork();
-    } catch (error: unknown) {
-      return err(
-        new UseCaseError(
-          "...",
-          USE_CASE_ERRORS.INTERNAL_ERROR,
-          error instanceof Error ? error : undefined
-        )
-      );
-    }
-  }
-}
-```
-
-### UoW Rules
-
-- **Never** write to a repository outside of `executeInTransaction` in production code
-- **Never** put external API calls (provider APIs, email, etc.) inside the transaction — only DB writes
-- UoW parameter is `optional` for backward compatibility in unit tests
+- `unitOfWork?: UnitOfWork` is the LAST constructor parameter, optional so a unit test can construct the use case without it
 - DI container MUST pass `container.resolve<UnitOfWork>(TOKENS.UnitOfWork)` to every mutating use case
+- ALL repository writes and event dispatch run inside the transaction callback — **never** write to a repository outside it in production code
+- **Never** put external API calls (provider APIs, email, etc.) inside the transaction — only DB writes
 - `PrismaUnitOfWork` uses `AsyncLocalStorage` — repositories auto-detect the active transaction via `PrismaUnitOfWork.getTransactionClient()`
-
-### The second sanctioned shape: `executeResultInTransaction` (ADR-0023)
-
-**When the work returns a `Result` whose `err` must abort the transaction, use `executeResultInTransaction`, not `executeInTransaction`.** The `let result` capture in the pattern above is what makes the distinction load-bearing: it stores an `err` in a variable and lets the callback RESOLVE, so the Unit of Work sees a success and Prisma COMMITS. For a single-statement save that is harmless — the statement either ran or it did not. For a multi-statement save (an aggregate whose update writes the row, then its content, then its media, then its outbox rows) a failure raised on the JS side after the first statement is caught by the repository, returned as `err`, and the partial write commits. `executeResultInTransaction<T, E>(fn)` closes that hole with the same seam: `ok` commits, `err` rolls back and is returned unchanged as a value, and a genuine `throw` still propagates. The abort signal is the `Result` itself, so the application core keeps returning `Result` and gains no raised control flow — this is fitness **#4**'s own documented remove-when, satisfied without adding a name to its exception list. `executeInTransaction` is unchanged and remains correct for work that signals failure by raising.
+- **When the work returns a `Result` whose `err` must abort the transaction, use `executeResultInTransaction`, not `executeInTransaction`** (ADR-0023): `ok` commits, `err` rolls back and is returned unchanged as a value, and a genuine `throw` still propagates. `executeInTransaction` remains correct for work that signals failure by raising
+- The template of a mutating use case, and why there are two shapes, are in this section's reference
 
 ---
 
@@ -168,105 +114,22 @@ export class MyUseCase {
 
 ## Saga Pattern
 
-**Every saga in this repo is canon-aligned to Richardson (microservices.io) + Azure Architecture Center "Saga design pattern". Steps are classified, the pivot is identified, countermeasures are explicit. Definition-time enforcement via `defineSaga()` factory in `packages/shared/src/saga.ts` — sagas that compile are canon-by-construction.**
-
-### Step classification (Azure §4-8)
-
-Every step MUST declare its `class` — a discriminated union enforced by the TS compiler:
-
-- **`compensable`** — pre-pivot. MUST implement `compensate()` (TS rejects classes without it). Idempotent. On saga failure pre-pivot, compensable steps are walked in reverse and their `compensate()` is invoked.
-- **`pivot`** — point of no return. NO `compensate()`. If retries exhausted → saga FAILED, no rollback (the pivot's external side-effects, e.g. enqueued provider jobs that may have already published, cannot be canonically undone).
-- **`retryable`** — post-pivot. NO `compensate()`. Idempotent forward-recovery only; retried until success or terminal failure.
-
-### `pivotStepIndex` (Azure §5)
-
-Every `SagaDefinition` MUST declare `pivotStepIndex` (the array index of the pivot step). Use the `defineSaga()` factory, which forces preCommit / pivot / postCommit segments and derives the index — TS rejects passing a `PivotStep` into preCommit, a `RetryableStep` as pivot, etc.
-
-```typescript
-const saga = defineSaga({
-  id: "my-saga",
-  name: "My Saga",
-  version: "1.0.0",
-  preCommit: [validateStep, createStep], // CompensableStep[]
-  pivot: scheduleStep, // PivotStep
-  postCommit: [waitStep, finalizeStep], // RetryableStep[]
-});
-```
-
-### Countermeasures (Azure §15-20)
-
-Sagas with concurrent execution risk MUST attach the relevant countermeasures via `step.countermeasures`:
-
-- **`SemanticLock`** — application-level lock keyed by aggregate. Rejects a second saga from progressing while the first holds the lock. Use when 2+ sagas can race on the same aggregate.
-- **`RereadCheck`** — confirms aggregate state hasn't changed pre-write. Activated by the engine before `step.execute()`; returns `{stillValid:false}` aborts the step. Use to close dirty-read windows between read-and-write steps.
-- **`VersionCheck`** — Optimistic Concurrency Control via aggregate version. Saga step emits `expectedVersion` in the command; use case rejects with `CONFLICT` if persisted version has advanced. Use for retryable post-pivot updates that race with manual writes.
-
-### Compensation (Richardson + Azure §3)
-
-- Compensation is **idempotent and retryable**.
-- Compensations execute in **reverse order** of forward steps, and ONLY on `compensable` steps strictly before `pivotStepIndex`. Engine enforces this — a compensation walk past the pivot is a canon violation that the engine refuses by construction.
-- "No no-op compensations" — every compensable step's `compensate()` is real undo logic. If a step has nothing to undo (e.g., pure validation), declare its compensate as `{ success: true }` explicitly so the canon classification is self-documenting.
-
-### Terminal state (Azure §9 + Richardson)
-
-Sagas MUST reach `COMPLETED`, `FAILED`, or `COMPENSATED`. Infinite `RUNNING` is a canon violation enforced by the timeout checker in `SagaManagerLifecycle` (default 30 min). Recovery scheduler resumes due retries on every tick (5 s).
-
-### DedupeKey
-
-Deterministic: `cmd-${sagaId}-${stepId}[-compensate]`. Never `randomUUID()`. The CQRS bus dedupes by command ID; the outbox dedupes by message ID — both rely on this determinism.
-
-### Outbox coupling (Richardson Outbox)
-
-Domain events emitted via outbox in the SAME DB transaction as saga state mutation. Consumer dedupe via `messageId` unique constraint. Saga + Outbox are tightly coupled — Richardson explicitly says "the Saga and Domain event patterns create the need for this pattern."
-
-### Re-execution guard
-
-```typescript
-const TERMINAL = ["COMPLETED", "FAILED", "COMPENSATED"];
-if (TERMINAL.includes(saga.status)) return;
-```
-
-Engine checks this at the top of `executeSaga` — terminal sagas never re-execute regardless of how the engine is invoked (recovery checker, event resume, manual re-trigger).
+Before a saga is written or changed (`packages/shared/src/saga.ts`, `apps/api/src/saga/` or a file that calls `defineSaga`), read [SAGA_CANON.md](SAGA_CANON.md): it holds the saga rules and their reference.
 
 ---
 
 ## Dependency Injection
 
-**This is the canon for ALL dependency injection in the codebase. Any new code, and any code being modified, MUST follow it. The bulk-schedule worker (`apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`) + the prisma→DI workstream (merge commit `93ebcdc7`, ADR-0007) are the reference implementations.**
+**This is the canon for ALL dependency injection in the codebase. Any new code, and any code being modified, MUST follow it.**
 
-- **130+ tokens** — every new dependency gets a `TOKENS.MY_DEPENDENCY` symbol
-- Registration in `Container.ts` composition root only
-- Lifecycle: repositories → singleton, use cases → singleton, UoW → **transient**
-- No `new ConcreteClass()` inside domain or application constructors
-- Allowed `new` in domain: Value Objects from primitives, Domain Events — nothing else
-
-### Composition root is the ONLY place that wires concretes
-
-- **Only a composition root may import a singleton or construct an adapter.** The composition root is `apps/api/src/infrastructure/container/**` (and the bootstrap `apps/api/src/index.ts`, which passes the singleton into `setupContainer`). Every other unit — services, adapters, repositories, processors, route handlers, workers — **RECEIVES its dependencies by constructor injection** and never reaches for a global.
-- **Never `import { prisma } from "@infra/prisma"` outside the composition root.** Take `constructor(private readonly prisma: PrismaClient)` and have the root pass `container.resolve(TOKENS.PrismaClient)`. The same rule applies to any other singleton/global (Redis, queues, caches): inject the port, don't import the instance. Enforced by fitness **#21** (hard-zero).
-- **Route plugins receive their dependencies from the composition root.** The root resolves the use cases a route plugin needs and passes them in as the plugin's options; a route module references neither the container nor `TOKENS`, and never a repository, `prisma`, an adapter or a provider. A container referenced outside the Composition Root is a Service Locator (Seemann): it hides a module's dependencies until run time, the failure fitness **#43** was written for. Fitness **#1** keeps the `prisma` singleton out of route files, and `pnpm check:architecture` holds the rest. Decided in ADR-0033.
-- **The deviation, stated rather than hidden.** Route modules and one route-handler module still resolve from the container with `fastify.container.resolve(TOKENS.X)`. Each is an entry of the known-violations baseline `.dependency-cruiser-known-violations.json` under `routes-no-container`, which holds their count (this paragraph names none, because the workstream below shrinks it), beside the route modules that still reach Prisma, a repository, an adapter or a provider. The entries may only shrink: a new one fails the check, and so does a listed one that no longer occurs. The routes workstream, whose open rows are ARCH-20 and ARCH-22 in `docs/product/plan/cross-cutting.md`, removes them context by context. The five per-request guards (`rbacMiddleware`, `adminAuthMiddleware`, `customerOrAdminAuth`, `integrationAuthMiddleware`, `auditMiddleware`) resolve from `request.server.container` too, so they need their own injected dependencies before the container can leave Fastify: converting the route plugins alone does not remove it.
-- **A class that already receives a port must USE that port** — never inject a repository and then also call `prisma.*` directly (the "paradox" anti-pattern). If the port lacks a method you need, add it to the port + its adapter; do not bypass it.
-
-### Composition root per executable; the application core is shared, never duplicated
-
-- Use cases (the application layer) are **delivery-mechanism-agnostic** and are **shared** across entry-points (HTTP API, queue workers, CLI) — **never duplicated** (Explicit Architecture; see canon index). The domain + application + ports live in shared `packages/` (`@core/*`) so every deployable consumes the same core.
-- **Each deployable has its OWN composition root** at its entry point (`apps/api` and `apps/workers` each wire the shared core) — Mark Seemann, "composition root per executable" (see canon index). A worker that needs business logic resolves the **same** use case from its container; it does not re-implement it and does not touch Prisma directly.
-- Background consumers may run **in-process** in `apps/api` (resolving use cases from `app.container`, e.g. the repurpose/triage/trend/bulk-schedule consumers) **or** as a separate `apps/workers` executable with its own composition root — both are canon as long as the application core is shared, not duplicated. The choice is operational (independent scaling/isolation vs simplicity).
-
----
-
-## How to extend
-
-Adding new architecture patterns or amending these rules:
-
-1. **New aggregate / VO / domain event** → follow the DDD section. New invariants live in the entity method, not the use case.
-2. **New use case** → mutating ones use UoW (mandatory). Reads return DTOs, not domain objects.
-3. **New saga** → use `defineSaga()` factory; classify every step; declare countermeasures explicitly. Saga that doesn't fit the canon → write an ADR justifying the deviation.
-4. **New port / adapter** → port in `packages/ports/` (technology-free name), adapter in infrastructure. Register in the composition root only. A port imports domain types, `@shared/types` and the `Result` and `UseCaseError` vocabulary of `@core/application/UseCase`, and nothing else of the core: the application owns its ports (Cockburn: the application defines them; Martin: the boundaries live in the use-case ring).
-5. **New DI token** → `TOKENS.MY_DEPENDENCY` symbol, register in `setupContainer`. Never `new` a concrete in domain or application code.
-6. **Amending a canon rule** → ADR required (see `docs/technical/ADR-NNNN-*.md` template via ADR-0001). Update this file with the new wording, link the ADR.
-
-Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
-
-- `#1` no Prisma in routes · `#2` domain framework-free · `#6` CQRS handlers without raw prisma · `#21` no prisma singleton outside composition roots · `#22` no `@layer application` in apps/api/src · `pnpm check:architecture` (dependency-cruiser rules + the shrink-only baseline).
+- Every new dependency gets a `TOKENS.MyDependency` symbol, registered in the composition root only
+- **Only a composition root may import a singleton or construct an adapter.** The composition root is `apps/api/src/infrastructure/container/**` (and the bootstrap `apps/api/src/index.ts`, which passes the singleton into `setupContainer`)
+- Every other unit — services, adapters, repositories, processors, route handlers, workers — **RECEIVES its dependencies by constructor injection** and never reaches for a global
+- **Never `import { prisma } from "@infra/prisma"` outside the composition root** (fitness #21). Take `constructor(private readonly prisma: PrismaClient)` and have the root pass `container.resolve(TOKENS.PrismaClient)`. The same rule applies to any other singleton/global (Redis, queues, caches): inject the port, don't import the instance
+- **A class that already receives a port must USE that port** — never inject a repository and then also call `prisma.*` directly. If the port lacks a method you need, add it to the port + its adapter; do not bypass it
+- Lifecycle: repositories, use cases and the Unit of Work are singletons; the Unit of Work keeps no transaction state (the active transaction lives in `AsyncLocalStorage`)
+- No `new ConcreteClass()` inside domain or application constructors. Allowed `new` in domain: Value Objects from primitives, Domain Events — nothing else
+- **Each deployable has its OWN composition root** at its entry point (`apps/api`, `apps/workers`); the domain, the application and the ports live in shared `packages/` (`@core/*`) and are **never duplicated**
+- A worker that needs business logic resolves the **same** use case from its container; it does not re-implement it and does not touch Prisma directly
+- Background consumers may run in-process in `apps/api` or as a separate `apps/workers` executable — both are canon as long as the application core is shared
+- The reference implementation, the known deviation and the sources are in this section's reference
