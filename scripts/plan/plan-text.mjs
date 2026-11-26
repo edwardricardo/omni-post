@@ -9,10 +9,10 @@
  *   {@link readRecordSpan}, the one walker of a chain record's span. The walker gives each line of
  *   the span its kind (a label, an item, a note, a continuation, prose or refused), reads the
  *   record's item lists, names each line its grammar refuses, and scans every line no list reads
- *   for an item's shape; the gate judges a closed feature with it and the records read every chain record with it, so
- *   a line inside a chain record that the gate refuses the records refuse too, and a line the gate
- *   reads as an item, a note or a continuation is read the same way by both. The records add
- *   rules of their own on top of it, which their header states.
+ *   for an item's shape; the gate judges a closed feature with it and the records read every
+ *   chain record with it, so a line inside a chain record that the gate refuses the records
+ *   refuse too, and a line the gate reads as an item, a note or a continuation is read the same
+ *   way by both. The records add rules of their own on top of it, which their header states.
  *
  *   It reads the plan by its line shapes, not with a Markdown parser, writes nothing, and imports
  *   nothing beyond Node's own modules: the fitness job that runs the gate installs no package.
