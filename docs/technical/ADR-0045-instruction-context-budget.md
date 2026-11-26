@@ -540,8 +540,8 @@ that scale.
    tracked set, as the gate measures it, is 68,883 bytes, and `budget.bytes` was lowered from
    108,421 to 68,883 with the gate's `--write`. Five documents are new, each read as a file and never
    imported: `ARCHITECTURE_CANON_REFERENCE.md` 6,191 bytes, `CODING_STANDARDS_REFERENCE.md` 6,554,
-   `SECURITY_CANON_REFERENCE.md` 6,458, `LOGGING_CANON_REFERENCE.md` 2,041 and `SAGA_CANON.md`
-   3,954, 25,198 in all. The documents that received a section grew: `REACT_STANDARDS.md` from 8,062
+   `SECURITY_CANON_REFERENCE.md` 6,511, `LOGGING_CANON_REFERENCE.md` 2,041 and `SAGA_CANON.md`
+   3,954, 25,251 in all. The documents that received a section grew: `REACT_STANDARDS.md` from 8,062
    to 11,072, `frontend-standards.md` from 33,337 to 35,409, `dependency-audit-policy.md` from 2,384
    to 5,012 and `schema-conventions.md` from 20,082 to 20,588.
 
