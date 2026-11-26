@@ -25,7 +25,9 @@ direction" below. The Node 26 line arrived on 2026-10-15, ahead of its LTS date
 on 2026-10-15" below holds the measurements. Both stages moved to 26.12.1, the
 security release of 2026-10-21, on 2026-10-22 (§"Moved to Node 26.12.1 on
 2026-10-22"), and to 26.13.1, the security release of 2026-11-11, on 2026-11-14
-(§"Moved to Node 26.13.1 on 2026-11-14").
+(§"Moved to Node 26.13.1 on 2026-11-14"). The production digest moved again on
+2026-11-26, for Debian's `libzstd1` fix, with Node unchanged (§"Re-pinned on
+2026-11-26: libzstd1 `1.5.7+dfsg-1+deb13u1`").
 
 ---
 
@@ -287,6 +289,65 @@ CRITICAL vulnerability in any of the four (`debian 13.7` and 767, 529, 25 and 25
 `node-pkg` targets for `api`, `workers`, `admin` and `client`). The gate itself
 is the `Container Security` job of the pull request, whose scanner is
 `aquasecurity/trivy-action@master`; this section records the local read.
+
+### Re-pinned on 2026-11-26: libzstd1 `1.5.7+dfsg-1+deb13u1`
+
+CVE-2026-124851 (HIGH, an information disclosure in Zstandard 1.5.1 to 1.5.7:
+crafted compressed data exposes an internal buffer of 64 KiB, uninitialized
+memory or literals of earlier decompressions on the same context, through the
+decompressed output) reached `libzstd1` `1.5.7+dfsg-1`, the version inside
+`80631bd2`. Debian fixes it in `1.5.7+dfsg-1+deb13u1`
+([DSA-6657-1](https://security-tracker.debian.org/tracker/DSA-6657-1)). It failed
+`Container Security` on all four services of pull request #996 on 2026-11-26
+(run 45783663707), as each image's only HIGH or CRITICAL finding, in a change
+that touches no Dockerfile. Only the production stage moves:
+
+| Stage      | Before                                          | After                                                                                                            |
+| ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| production | `distroless/nodejs26-debian13@sha256:80631bd2…` | `distroless/nodejs26-debian13@sha256:13e3ac17e2911d238622fea7808a7a161ba6b33a41e542ded6e399387e1dbc84`, `latest` |
+
+It is a multi-arch index, an OCI image index of four platforms, read on
+2026-11-26 at 08:56Z: the registry's `Docker-Content-Digest` for `latest` and the
+sha256 of the index's own bytes are both `13e3ac17`, uploaded on
+2026-11-25T20:54:24Z, the newest index of the image in the repository's tag list
+(its `nonroot` and `debug` variants are indexes of their own). The digest
+Dependabot proposed in #989 to #992, `b462e87a`, uploaded on
+2026-11-22T21:11:01Z, is the one index of the image between the two, and it
+cannot hold the fix: the trixie-security entry of `1.5.7+dfsg-1+deb13u1` in the
+new image's own `libzstd1` changelog is dated 2026-11-24T17:43:52Z, two days after
+that upload. So this change takes the newer `latest` into all four services at
+once.
+
+Measured on 2026-11-26 from the `linux/amd64` image of each digest (production
+manifest `521609db…`), by reading the image's own `var/lib/dpkg/status.d` from
+`podman create` and `podman export` and running its `node` with
+`podman run --network=none`:
+
+|                       | `80631bd2` (2026-11-14)                                                                         | `13e3ac17` (2026-11-26)                          |
+| --------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| debian                | 13.7                                                                                            | **13.8**                                         |
+| openssl               | `libssl3t64` 3.5.7-1~deb13u3                                                                    | `libssl3t64` **3.5.9-1~deb13u1**                 |
+| glibc                 | `libc6` 2.41-12+deb13u4                                                                         | `libc6` **2.41-12+deb13u5**                      |
+| zstd                  | `libzstd1` 1.5.7+dfsg-1                                                                         | **`libzstd1` 1.5.7+dfsg-1+deb13u1** (DSA-6657-1) |
+| node                  | v26.13.1                                                                                        | v26.13.1                                         |
+| Trivy `HIGH,CRITICAL` | 1 in each image of run 45783663707: `libzstd1` CVE-2026-124851, fixed in `1.5.7+dfsg-1+deb13u1` | not run locally; the pull request's jobs hold it |
+
+The two `status.d` inventories differ in `base-files`, `libc6`, `libssl3t64` and
+`libzstd1` only, and the two file trees, which hold the same 1762 paths, differ in
+those packages' libraries, changelogs and status entries and in
+`etc/debian_version`. Debian's 13.8 point release brought `libc6` deb13u5, glibc's
+stable-branch update with fixes for fourteen CVEs, and `libssl3t64` 3.5.9;
+`libzstd1` comes from trixie-security. `/nodejs/bin/node` is the same file in both
+(one sha256), and the image configuration (entrypoint, user, environment) is the
+same, so the readings of this `node` elsewhere in this document and in
+`docs/security/DEPENDENCY_AUDIT_RECORD.md` hold for the new digest. The
+`libssl3t64` move fixes neither ignored OpenSSL entry: Debian's tracker, read on
+2026-11-26, lists trixie's `3.5.9-1~deb13u1` vulnerable to both, so they stay in
+`.trivyignore` (§"Ignored image CVEs" of the audit record).
+
+No image was built from this change and Trivy was not run on the host. The gate
+is the `Container Security` job of the pull request, which builds and scans the
+four images; this section records the local read.
 
 ### pnpm in the build stage
 
