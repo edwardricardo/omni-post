@@ -422,6 +422,10 @@ export function useUpdateAccount() {
 
 D2 audit flags uses of v4 terminology as violations.
 
+### 2.6 The frontend follows the backend, never the reverse
+
+The backend is where a feature is modelled and where the contract is decided; the frontend is the view that follows it. On any mismatch of contract (types, response shapes, enum values, names) the client changes: its types mirror the server's DTOs one to one, with no client-side transform, shim or invented shape, and a server DTO is never renamed to suit the client. A projection the server does not deliver is a new query on the server, never an aggregation in the client. A feature the frontend lacks meanwhile is a row of the plan, not a client-side fix.
+
 ---
 
 ## 3. State Management
@@ -794,6 +798,20 @@ See `CODE_STANDARDS.md` §6 for transversal minimums. Frontend-specific:
 
 - Playwright for critical user flows (login, publish, billing)
 - Not required for every feature — focus on money paths and irreversible actions
+
+### 9.4 Client tests mock HTTP with MSW v2
+
+A test of a hook or a page under `apps/client/` that calls `/api/backend/*` intercepts the network with MSW v2, never `vi.stubGlobal("fetch", ...)`: one handler file per domain under `tests/mocks/handlers/`, registered in its `index.ts`; the test starts the server of `tests/mocks/server.ts` with `onUnhandledRequest: "error"`, resets the handlers after each test and closes it at the end; a per-test response is a `server.use(...)` override. Code that makes no network call needs no MSW: Vitest with mocked dependencies. A backend test never uses it (`app.inject()` or injected doubles), and a real browser against a real backend is Playwright. A test that still stubs `fetch` is not migrated on the way: it is a row of the plan.
+
+### 9.5 Smoke-test the proxy before committing client work
+
+Green types and green tests do not show that a client feature works: MSW answers in place of the proxy, and the proxy has logic of its own (the cookie it injects, the auth flow). Before committing a new hook or page under `apps/client/` that calls the backend, request its endpoint through the running portal:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" http://omnipost-dev:3200/api/backend/<endpoint>
+```
+
+401 means the request reached the backend; 404 means the proxy is broken; 500 is an upstream error. When the render cannot be seen in a browser, say so: never claim a visual check that was not made.
 
 ---
 

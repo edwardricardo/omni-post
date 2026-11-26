@@ -37,7 +37,7 @@ Each check is one line below: its number, the name of its step in `fitness.yml`,
 - **#21** No Prisma singleton imports outside composition roots — shell
 - **#22** No @layer application in apps/api/src (application code lives in @core/application) — shell
 - **#23** No raw Prisma queries outside tenant guard + composition root — shell
-- **#24** Canon child docs MUST exist + structured (anti-deletion) — shell
+- **#24** Canon child docs and their companions MUST exist + structured (anti-deletion) — shell
 - **#25** Circuit-breaker fail-fast for writes (two-part hard-zero) — shell
 - **#26** No .js-on-.ts relative imports in bundler-compiled frontend dirs — shell
 - **#27** Dev/test source-resolution invariants (--conditions development + @shared/types build-first) — shell
@@ -366,19 +366,41 @@ grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
 #     invisible to this regex for the same reason and gets NO exception line — a second
 #     inert line would be fat, not coverage; SMELL-111's closure enrols it.
 
-# 24. Canon child docs MUST exist + have §How to extend + Owner (anti-deletion).
-# Hard-zero (any missing file or missing required section fails CI). Acts as a
-# deletion guardrail: any PR that deletes a canon child or strips its required
-# structure hard-fails CI before merge. The 4 children are auto-loaded via
-# @-imports in CLAUDE.md (Claude Code memory system); losing one silently
-# strips load-bearing rules from every future session.
+# 24. Canon child docs and their companions MUST exist + structured (anti-deletion).
+# Hard-zero (any missing file or missing required line fails CI). Acts as a
+# deletion guardrail: any PR that deletes a canon child or its companion, or
+# strips the structure each carries, hard-fails CI before merge. The 4 children
+# load into every session through the @-imports of CLAUDE.md (Claude Code
+# memory system) and hold the rules, under a header whose **Owner:** line names
+# who decides them; each one's rationale, examples and §How to extend live in
+# its companion <NAME>_REFERENCE.md beside it, read as a file and never
+# imported. Losing a child silently strips load-bearing rules from every future
+# session; losing a companion strips the procedure every change of those rules
+# follows.
+# THE CONTRACT, per child: the child exists; a line of it starts `**Owner:**`;
+# its companion, the child's path with `.md` replaced by `_REFERENCE.md`, exists;
+# a line of the companion is exactly `## How to extend`. The step checks every
+# clause of every child and fails once at the end, so one run names every
+# violation; a missing child skips only its own **Owner:** check. The code below
+# stops at the first violation and is the same contract.
+# RESIDUAL LIMITS, stated rather than implied: (1) textual, so a matching line
+# inside a code fence counts; (2) it proves the companion exists, not that the
+# child's **Reference:** line points at it; (3) it proves the two lines exist,
+# not that the rules or the procedure under them are whole; (4) `-f` follows a
+# symbolic link, so a link to a file elsewhere passes for the file; (5) line
+# endings are read as bytes: a companion with CRLF line endings fails the heading
+# clause, because the `$` anchor refuses the carriage return before it (fail-
+# closed), while a child with CRLF line endings passes the **Owner:** clause,
+# whose pattern has no end anchor.
 for f in docs/architecture/ARCHITECTURE_CANON.md \
          docs/development/CODING_STANDARDS.md \
          docs/security/SECURITY_CANON.md \
          docs/observability/LOGGING_CANON.md; do
+  ref="${f%.md}_REFERENCE.md"
   if [ ! -f "$f" ]; then echo "MISSING canon child: $f"; exit 1; fi
-  grep -q '^## How to extend' "$f" || { echo "MISSING §How to extend in $f"; exit 1; }
-  grep -q '^\*\*Owner:' "$f" || { echo "MISSING **Owner:** in $f"; exit 1; }
+  grep -q '^\*\*Owner:\*\*' "$f" || { echo "MISSING **Owner:** in $f"; exit 1; }
+  if [ ! -f "$ref" ]; then echo "MISSING companion of $f: $ref"; exit 1; fi
+  grep -q '^## How to extend$' "$ref" || { echo "MISSING §How to extend in $ref"; exit 1; }
 done
 
 # 25. Circuit-breaker fail-fast for writes. Two-part hard-zero.

@@ -54,7 +54,7 @@ Wraps the shared `RedisCacheManager` singleton and translates between the manage
 - `getOrSet` → re-runs the factory if the cache read errored, propagates factory exceptions to the caller (the value, not the cache, is what they asked for).
 - `claim` → rejects. It has lock semantics: its answer decides who acts, so a claim Redis cannot decide is an error, never `true` or `false`. It runs one `SET key value EX ttl NX` on Redis and never consults L1, which is per pod and cannot arbitrate between pods. The manager has no Redis-free mode (`redisUrl` is required, and so is `REDIS_URL` at boot), so during a Redis outage every claim rejects; none is decided per pod.
 
-The adapter does NOT implement stampede protection (single-flight, XFetch, stale-while-revalidate, jitter). Concurrent factory calls on a missed key each run independently. This matches the underlying manager's behavior; PR-29 in the backlog tracks adding stampede protection once we have hot-key metrics to motivate per-policy decisions.
+The adapter does NOT implement stampede protection (single-flight, XFetch, stale-while-revalidate, jitter). Concurrent factory calls on a missed key each run independently. This matches the underlying manager's behavior; stampede protection waits for hot-key metrics to motivate per-policy decisions (§Stampede protection below).
 
 ### `InMemoryCacheAdapter` — tests + per-process scope
 
@@ -148,7 +148,7 @@ Pre-T4-L, `BranchManager` had `private branchCache = new Map<string, VersionBran
 
 T4-L preserves the existing behavior: when a `CachePort` is supplied, `cache.set` writes the branch; nothing reads it back. The migration does NOT add a read path that didn't exist before — that would be a behavior change disguised as a refactor.
 
-**PR-30** in the backlog tracks the dead-read investigation: should `getBranchByName`, `branchExists`, or `updateBranchHead` actually read the cache, or is the Map a residue from a pre-merge implementation?
+The dead read is open (the row BRANCH-CACHE-WRITE-IS-READ-BY-NOTHING of `docs/product/plan/cross-cutting.md`): should `getBranchByName`, `branchExists`, or `updateBranchHead` actually read the cache, or is the Map a residue from a pre-merge implementation?
 
 ---
 
@@ -162,7 +162,7 @@ T4-L deliberately did NOT ship them. Reasons:
 2. **Per-policy decisions.** Single-flight is right for expensive deterministic factories; SWR is right for caches where stale-by-N-seconds is acceptable; XFetch is right for very-hot keys with predictable-cost regeneration. One global policy fits none of these.
 3. **The cost of waiting is bounded.** Factory functions today are mostly DB lookups (~10ms) or HTTP fetches (~100ms). A small thundering herd lasts under a second; the cache is then warm. The real concern is the dozenth pod pile-on after a TTL expiry — and we'd see that in metrics first.
 
-Tracked as **PR-29** in the backlog. When we add it, the port surface stays the same — stampede protection is a property of the adapter, not the contract.
+Until stampede protection is added (the row CACHE-STAMPEDE-PROTECTION of `docs/product/plan/parking.md`), concurrent misses of one key each run the factory. When it is added, the port surface stays the same — stampede protection is a property of the adapter, not the contract.
 
 ---
 
@@ -247,7 +247,7 @@ Both responses carry `X-Cache-Key` and `X-Cache-Tags` as well.
 - [PettyCache (mediocre/petty-cache)](https://github.com/mediocre/petty-cache) — confirms `getOrSet`-style cache-aside as the canonical convenience method.
 - [OneUptime — Multi-Layer Caching Redis Node.js (2026)](https://oneuptime.com/blog/post/2026-01-25-multi-layer-caching-redis-nodejs/view) — explicit recommendation that "rather than repositories maintaining private cache instances, they delegate all caching to the injected CacheManager."
 - [type-cacheable](https://github.com/joshuaslate/type-cacheable) + [cache-flow](https://github.com/abourdin/cache-flow) — TypeScript ecosystem convergence on adapter interfaces.
-- [Wikipedia — Cache stampede](https://en.wikipedia.org/wiki/Cache_stampede) and [1xAPI single-flight 2026](https://1xapi.com/blog/nodejs-cache-stampede-single-flight-pattern-2026) — the deferred work in PR-29.
+- [Wikipedia — Cache stampede](https://en.wikipedia.org/wiki/Cache_stampede) and [1xAPI single-flight 2026](https://1xapi.com/blog/nodejs-cache-stampede-single-flight-pattern-2026) — the deferred stampede protection.
 - [AlachiSoft — Client cache + distributed](https://www.alachisoft.com/blogs/an-insight-into-using-client-cache-with-distributed-caching/) — the cache-coherence problem that motivates collapsing per-class Maps.
 - [OWASP A07:2021 — Identification and Authentication Failures](https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/) — the threat model for `RbacService.invalidateCache`.
 - Internal: [packages/ports/src/CachePort.ts](../../packages/ports/src/CachePort.ts), [packages/adapters/cache-redis/src/redis-cache-adapter.ts](../../packages/adapters/cache-redis/src/redis-cache-adapter.ts), [packages/adapters/cache-redis/src/in-memory-cache-adapter.ts](../../packages/adapters/cache-redis/src/in-memory-cache-adapter.ts), [packages/adapters/cache-redis/src/cache-manager.ts](../../packages/adapters/cache-redis/src/cache-manager.ts).

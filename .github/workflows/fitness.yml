@@ -581,31 +581,39 @@ jobs:
             exit 1
           fi
 
-      - name: "#24 Canon child docs MUST exist + structured (anti-deletion)"
+      - name: "#24 Canon child docs and their companions MUST exist + structured (anti-deletion)"
         if: always()
         run: |
           set -uo pipefail
-          # The 4 canon child docs are auto-loaded into every Claude Code
-          # session via @-imports in CLAUDE.md. Deleting one silently strips
-          # load-bearing rules from every future session, so this fitness
-          # step asserts each file exists AND carries the required structure
-          # (§"How to extend" + **Owner:** line). Hard-zero anti-deletion guardrail.
+          # The 4 canon child docs load into every Claude Code session through
+          # the @-imports of CLAUDE.md and hold the rules; each one's rationale,
+          # examples and §"How to extend" live in its companion
+          # <NAME>_REFERENCE.md beside it, read as a file. Deleting a child
+          # silently strips load-bearing rules from every future session, and
+          # deleting a companion strips the procedure every change of those
+          # rules follows, so this step asserts each child exists with its
+          # **Owner:** line AND its companion exists with its §"How to extend"
+          # heading. A missing child does not skip its companion's checks, so
+          # one run names every violation. Hard-zero anti-deletion guardrail. Mirrors
+          # docs/development/FITNESS_FUNCTIONS.md #24.
           MISSING=0
           for f in docs/architecture/ARCHITECTURE_CANON.md \
                    docs/development/CODING_STANDARDS.md \
                    docs/security/SECURITY_CANON.md \
                    docs/observability/LOGGING_CANON.md; do
+            ref="${f%.md}_REFERENCE.md"
             if [ ! -f "$f" ]; then
               echo "::error title=Fitness #24 violation::MISSING canon child: $f"
               MISSING=$((MISSING + 1))
-              continue
-            fi
-            if ! grep -q '^## How to extend' "$f"; then
-              echo "::error title=Fitness #24 violation::MISSING §'How to extend' heading in $f"
+            elif ! grep -q '^\*\*Owner:\*\*' "$f"; then
+              echo "::error title=Fitness #24 violation::MISSING **Owner:** line in $f"
               MISSING=$((MISSING + 1))
             fi
-            if ! grep -q '^\*\*Owner:' "$f"; then
-              echo "::error title=Fitness #24 violation::MISSING **Owner:** line in $f"
+            if [ ! -f "$ref" ]; then
+              echo "::error title=Fitness #24 violation::MISSING companion of $f: $ref"
+              MISSING=$((MISSING + 1))
+            elif ! grep -q '^## How to extend$' "$ref"; then
+              echo "::error title=Fitness #24 violation::MISSING §'How to extend' heading in $ref"
               MISSING=$((MISSING + 1))
             fi
           done

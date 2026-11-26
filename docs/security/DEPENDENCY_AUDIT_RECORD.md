@@ -1,6 +1,6 @@
 # Dependency Audit Record
 
-> The authoritative record of every accepted security debt in the dependency baseline (ADR-0018): ignored advisories, ignored image CVEs, CVE-floor pins with their dated history, blocked floors, compatibility pins, patched dependencies, the override audit and the build-tool holds. Its rules of use live in [SECURITY_CANON.md](SECURITY_CANON.md) §"Dependency audit record" and in [dependency-audit-policy.md](dependency-audit-policy.md). This document is read as a file and is never imported into the auto-loaded context ([ADR-0045](../technical/ADR-0045-instruction-context-budget.md)).
+> The authoritative record of every accepted security debt in the dependency baseline (ADR-0018): ignored advisories, ignored image CVEs, CVE-floor pins with their dated history, blocked floors, compatibility pins, patched dependencies, the override audit and the build-tool holds. Its rules of use live in [SECURITY_CANON_REFERENCE.md](SECURITY_CANON_REFERENCE.md) §"Dependency audit record" and in [dependency-audit-policy.md](dependency-audit-policy.md). This document is read as a file and is never imported into the auto-loaded context ([ADR-0045](../technical/ADR-0045-instruction-context-budget.md)).
 
 **Owner:** Maintainers
 

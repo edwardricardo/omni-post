@@ -30,6 +30,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **MANDATORY:** When a task includes Prisma schema changes, **always** run `pnpm db:up` first to start PostgreSQL + Redis, then run the migration. Never skip a migration because "DB is not running" — start it.
 
+Before a schema change, and again after its migration, read [docs/architecture/schema-conventions.md](docs/architecture/schema-conventions.md): the schema conventions, and the Prisma client regenerated after every migration.
+
 ### Test Commands (API)
 
 - `pnpm --filter @apps/api test` - Run unit tests with Vitest
@@ -131,23 +133,21 @@ The pull request template says what each section takes; silence is not an answer
 
 ## Canon Documents — Auto-Loaded Children
 
-The full canon is split across 5 files. CLAUDE.md and ALL 4 children are auto-loaded at every session start via `@`-import (Claude Code memory system, verified per [Claude Code memory docs](https://code.claude.com/docs/en/memory) §"Import additional files"). Editing any of them takes effect the next session.
+The canon is this file and four children, which load with it at session start through the `@`-imports below ([Claude Code memory docs](https://code.claude.com/docs/en/memory) §"Import additional files"); an edit takes effect the next session. A child holds its rules: their rationale, more examples and `## How to extend` are in the companion `*_REFERENCE.md` beside it, and a rule that governs one area (sagas, React, the client portal, Prisma, dependencies) is in that area's document, named by a pointer line of the loaded canon. Companions and area documents are read as files, never imported.
 
 @docs/architecture/ARCHITECTURE_CANON.md
 @docs/development/CODING_STANDARDS.md
 @docs/security/SECURITY_CANON.md
 @docs/observability/LOGGING_CANON.md
 
-Quick map of what lives where:
+| File                                                                               | Covers                                                                     |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [docs/architecture/ARCHITECTURE_CANON.md](docs/architecture/ARCHITECTURE_CANON.md) | Hexagonal/DDD/CQRS/UoW/Saga/DI                                             |
+| [docs/development/CODING_STANDARDS.md](docs/development/CODING_STANDARDS.md)       | TypeScript, naming, JSDoc, testing                                         |
+| [docs/security/SECURITY_CANON.md](docs/security/SECURITY_CANON.md)                 | Secrets, tenant isolation, client IP, literal parameters, dependency audit |
+| [docs/observability/LOGGING_CANON.md](docs/observability/LOGGING_CANON.md)         | Logging, redaction, caching, tasks                                         |
 
-| File                                                                               | Covers                             |
-| ---------------------------------------------------------------------------------- | ---------------------------------- |
-| [docs/architecture/ARCHITECTURE_CANON.md](docs/architecture/ARCHITECTURE_CANON.md) | Hexagonal/DDD/CQRS/UoW/Saga/DI     |
-| [docs/development/CODING_STANDARDS.md](docs/development/CODING_STANDARDS.md)       | TypeScript, naming, JSDoc, testing |
-| [docs/security/SECURITY_CANON.md](docs/security/SECURITY_CANON.md)                 | Secrets, env, multi-tenant guards  |
-| [docs/observability/LOGGING_CANON.md](docs/observability/LOGGING_CANON.md)         | Logging, redaction, caching, tasks |
-
-Fitness `#24` enforces that each child exists + has `## How to extend` + `**Owner:**` — anti-deletion guardrail.
+Fitness `#24` is the anti-deletion guardrail: each child exists and carries `**Owner:**`, and its companion exists and carries `## How to extend`.
 
 ---
 

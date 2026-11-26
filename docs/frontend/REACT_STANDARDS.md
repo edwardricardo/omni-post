@@ -11,14 +11,62 @@
 
 ## Where the rules live
 
-| Topic                                                                                           | Source                                                      |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| TypeScript, `Result`, naming, the test framework per domain, JSDoc and `@component`             | [CODING_STANDARDS.md](../development/CODING_STANDARDS.md)   |
-| Component architecture, Server and Client Components, TanStack Query, state, performance, ARIA  | [frontend-standards.md](../standards/frontend-standards.md) |
-| A story per component: the requirement, the pass criterion, the flow before hand-over, the gate | this page                                                   |
-| The installed Next.js: its version-matched guide, read before writing Next.js code              | `apps/<app>/node_modules/next/dist/docs/` (see below)       |
+| Topic                                                                                            | Source                                                                       |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| TypeScript, `Result`, naming, the test framework per domain, JSDoc                               | [CODING_STANDARDS.md](../development/CODING_STANDARDS.md)                    |
+| Component architecture, Server and Client Components, TanStack Query, state, performance, ARIA   | [frontend-standards.md](../standards/frontend-standards.md)                  |
+| Client code against the backend: the contract it follows, MSW in its tests, the proxy smoke test | [frontend-standards.md](../standards/frontend-standards.md) §2.6, §9.4, §9.5 |
+| Component code, and component JSDoc: `@component` and the props on the interface                 | this page                                                                    |
+| A story per component: the requirement, the pass criterion, the flow before hand-over, the gate  | this page                                                                    |
+| The installed Next.js: its version-matched guide, read before writing Next.js code               | `apps/<app>/node_modules/next/dist/docs/` (see below)                        |
 
 **Next.js itself.** The installed Next.js (16.x) has breaking changes against older versions: APIs, conventions and file layout may differ from what you know. Before writing Next.js code, read the guide the package ships for its own version, at `apps/<app>/node_modules/next/dist/docs/`; it resolves per app, because the repository root has no `node_modules/next`. The note lives here because `next dev` would otherwise write it as `AGENTS.md` and `CLAUDE.md` into each app (Next's `agentRules`), which CLAUDE.md §Documentation Policy forbids: both portals set `agentRules: false`, as `turbo.json` sets `agentGuidance: false`.
+
+## Component code
+
+- Function Declaration Order:
+  1. State declarations (useState)
+  2. Refs (useRef)
+  3. Callback functions (useCallback) — declare before use
+  4. Effects (useEffect) — must come after functions they depend on
+  5. Render helpers
+  6. Return JSX
+- Dependencies: All functions used in hooks must be in dependency arrays
+- Named exports for components, default exports only for pages
+
+## Component JSDoc — props on the interface
+
+A component file carries `@component` in addition to `@layer infrastructure` (fitness #12). Its props are documented **on the props `interface`**, one JSDoc comment above each prop, and the component function carries a description only: `pnpm check:jsdoc` (fitness #47) asks a component for a description and nothing else, and this canon leaves `@param` tags out of the function.
+
+```tsx
+/**
+ * @file CampaignList.tsx
+ * @description List view of campaigns with filter/sort controls and inline actions.
+ * @component CampaignList
+ * @layer infrastructure
+ */
+
+interface CampaignListProps {
+  /** Account whose campaigns will be listed. Required. */
+  accountId: string;
+  /** When true, shows archived campaigns mixed with active ones. Default: false. */
+  includeArchived?: boolean;
+  /** Fired after the user triggers archive/unarchive on any row. */
+  onChange?: (campaignId: string) => void;
+}
+
+/**
+ * Renders a paginated list of campaigns for an account, with inline archive,
+ * duplicate, and analytics actions. Filters persist in the URL query string.
+ */
+export function CampaignList({ accountId, includeArchived = false, onChange }: CampaignListProps) {
+  // ...
+}
+```
+
+### Reference: why two tags, and why the interface
+
+The two tags answer different questions: `@layer` locates the file in the hexagonal architecture (always `infrastructure` for UI); `@component` marks the file as a React component for readers and grep-based tooling. `@param` tags on the component function are redundant, not forbidden: the gate neither requires nor refuses them. The interface is where a reader, the editor's hover and every tool that types the component find the prop's meaning; the description on the function says what the component renders.
 
 ## A story per component
 
@@ -28,6 +76,7 @@
 - **What it imports.** `import type { Meta, StoryObj } from "@storybook/react"` in a package, `from "@storybook/nextjs-vite"` in an app; a `play` function takes `expect`, `userEvent`, `within` and `fn` from `storybook/test`. The file carries the canon header (`@file`, `@description`, `@layer infrastructure`).
 - **What it covers.** The component's meaningful states — default, disabled, loading, error, empty — not only its first render. A state the component does not have is named as absent in the file's header, so the absence reads as a decision.
 - **What runs it.** The client Storybook collects its own stories and those of `packages/ui` through the globs of `apps/client/.storybook/main.ts`; `packages/ui` runs no Storybook of its own. The admin Storybook, re-created on 2026-11-20 on the same framework and runner, collects the stories of `apps/admin/components` through `apps/admin/.storybook/main.ts`. Both previews are built by `createStoryPreview` of `@packages/ui/storybook` (`packages/ui/src/storybook/index.tsx`), each with its own intl provider, catalogs, styles and default theme: light for the client, dark for the admin, the theme each portal starts in.
+- **App Router components.** A component that uses `useRouter` from `next/navigation` needs `parameters.nextjs.appDirectory: true` in the Storybook preview; `@packages/ui/storybook` sets it for both portals. Autodocs pages are not generated, so no story carries `tags: ["autodocs"]`.
 
 ## When a story passes
 
@@ -59,7 +108,7 @@ It runs in the battery step `stories-gate` and in the `code-quality` job of `ci.
 
 ## How to extend
 
-1. **A change to the story requirement, the pass criterion or the runner** → ADR (ADR-0035 is the current one); update this page and CODING_STANDARDS §Test Framework Rules and §Mandatory Requirements in the same change.
+1. **A change to the story requirement, the pass criterion or the runner** → ADR (ADR-0035 is the current one); update this page and CODING_STANDARDS §Test Framework Rules and §Mandatory Requirements for Every Change in the same change.
 2. **A new component root** → add it to `ROOTS` in `scripts/testing/story-per-component-gate.mjs` and to the baseline with its measured count, with `apps/api/tests/unit/scripts/storyPerComponentGate.test.ts` updated in the same change.
-3. **An app that gains a Storybook** → its own `test:stories` script, battery step and CI job under the same criterion, its preview built with `createStoryPreview` of `@packages/ui/storybook`, its `vitest.stories.config.ts` loading `@packages/vitest-shared/story-console-contract`, and its port in CODING_STANDARDS §Storybook port convention. Nothing of another portal's preview or setup is copied.
+3. **An app that gains a Storybook** → its own `test:stories` script, battery step and CI job under the same criterion, its preview built with `createStoryPreview` of `@packages/ui/storybook`, its `vitest.stories.config.ts` loading `@packages/vitest-shared/story-console-contract`, and its own dedicated port, so two Storybooks can run side by side (6006 the client, 6007 the admin). Nothing of another portal's preview or setup is copied.
 4. **Any other React rule** → [frontend-standards.md](../standards/frontend-standards.md), the detailed body.

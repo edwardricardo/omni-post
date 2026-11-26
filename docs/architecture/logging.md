@@ -15,7 +15,7 @@
 │  (shared, no req payloads)    logger (redacts REDACT_PATHS)          │
 │                                                                      │
 │  apps/admin, apps/client    → useLogger() from @observability/       │
-│  (browser code)               browser-logger (Sentry/console adapter)│
+│  (browser code)               browser-logger (console adapter)       │
 │                                                                      │
 │  apps/workers/**            → createLogger() from @observability/    │
 │                               logger (redacts REDACT_PATHS)          │
@@ -107,7 +107,7 @@ One base logger per process, named children, no `service` binding, no test-mode 
 The browser is a different world:
 
 - No `pino` (pino's Node deps don't tree-shake well to the browser).
-- No stdout — the transport is `console.*` for dev or Sentry/DataDog for prod.
+- No stdout — the transport is `console.*`: `ConsoleLoggerAdapter` is the only implementation of `BrowserLoggerPort`, and both portals mount the provider on it.
 - No filesystem — `pino.destination()` is meaningless.
 - Often runs inside React components — the factory exposes a `useLogger(name)` hook that handles cleanup via `useEffect`.
 
@@ -160,7 +160,7 @@ Two important gotchas:
 1. **Case-sensitive.** `req.headers.AUTHORIZATION` does NOT match `authorization`. Pino doesn't normalise casing. Always test with the actual log payload structure.
 2. **No silent fallback.** If the path doesn't match the actual log structure, the field is logged in clear text. Pino logs no warning. Validate by checking real log entries after deploy.
 
-If the field is PII (email, SSN, credit card, phone, address, DOB) rather than auth credentials, **see PR-28 in the backlog**: PII redaction needs a separate threat-model session because admin/audit/customer-support workflows may legitimately need to read PII in their logs.
+If the field is PII (email, SSN, credit card, phone, address, DOB) rather than auth credentials, PII redaction needs a separate threat-model session, because admin/audit/customer-support workflows may legitimately need to read PII in their logs.
 
 ### Testing code that logs
 
@@ -211,17 +211,13 @@ To add a name, append it to `SENSITIVE_QUERY_PARAMETERS` with a comment naming w
 
 ---
 
-## Why no `LoggerPort` in domain?
+## The core logs through `LoggerPort`; the domain does not log
 
-Hexagonal purity would suggest a `LoggerPort` interface in `apps/api/src/domain/repositories/` that domain code could depend on. We deliberately don't.
+**The domain does not log.** Logging is an infrastructure concern, and domain entities and value objects have no logger dependency to abstract.
 
-**Reason 1: domain doesn't log.** CLAUDE.md rule: "Domain layer: zero logging". Domain entities/value-objects don't have a logger dependency to abstract.
+**The application core logs through a port.** `packages/core` takes `LoggerPort` (`packages/ports/src/LoggerPort.ts`, exported by `@ports/core`) by constructor and imports neither `@observability/logger` nor `pino`. The composition root passes the logger its deployable's own factory returns (`createLogger(name)` from `apps/api/src/lib/logger.ts` in the API). That logger implements the port as it is, because the port uses Pino's `(context, message)` order, so a core entry carries that factory's redaction and its `name`. The port exposes `warn` and `error` only: `info` and `debug` belong to infrastructure and routes.
 
-**Reason 2: pino types are de-facto canonical.** Hundreds of files in the codebase import `Logger` from `pino`. A formal port abstraction would require touching all of them and the gain is negligible — pino is the implementation, would be the implementation, and the type re-export `lib/logger.ts:186` already keeps callers from coupling to pino's package path directly.
-
-**Reason 3: Cockburn alternative.** The hexagonal architecture canon explicitly mentions the **decorator + factory** pattern as a valid alternative for cross-cutting concerns where a full port would add ceremony without payoff. Logging is the textbook example.
-
-If a future change requires swapping pino for another logger (Winston, Bunyan), the migration boundary is the three factories — **that's** the port surface, even if no `interface` declaration exists. Replace the factory bodies; no other code changes.
+**Infrastructure keeps Pino's types.** Outside the core, code takes the `Logger` type of `pino`, and the type re-export of `apps/api/src/lib/logger.ts` keeps callers in the API from coupling to pino's package path. A change that swaps pino for another logger has its boundary at the three factories and the port: the factory bodies change, and the port's callers do not.
 
 ---
 

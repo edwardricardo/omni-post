@@ -243,3 +243,9 @@ Migration directories follow the format `{timestamp}_{snake_case_name}`. Names s
 - `add_indexes` ✗ (too vague)
 
 Use the batch prefix (e.g., `t4t_`) when the migration is part of a numbered remediation batch — makes git archaeology easier.
+
+---
+
+## Regenerate the Prisma client after every migration
+
+A migration changes the database, never the generated client: after any change to `infra/prisma/schema.prisma` and its migration, run `pnpm --filter @infra/prisma generate` at once, then the typecheck, and confirm with `prisma migrate status`. Only `pnpm install` regenerates it by itself (the package's `postinstall`). A runtime `Unknown argument` on a field the schema holds means the client is old: regenerate before debugging anything else.
