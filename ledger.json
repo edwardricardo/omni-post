@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1285,
+      "total": 1286,
       "byShape": {
-        "test": 1033,
+        "test": 1034,
         "integration-test": 93,
         "live-test": 17,
         "spec": 10,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1113,
+        "KEEP": 1114,
         "ADJUDICATE": 99,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1273,
+      "machine": 1274,
       "confirmed": 12,
-      "total": 1285
+      "total": 1286
     },
     "blocks": {
-      "total": 16144,
+      "total": 16180,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15833
+        "BEHAVIOURAL": 15869
       }
     },
     "deleted": {
@@ -73712,6 +73712,275 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bd6ec6cbc4b93a55d69d4c2cb64350e4f92aea890b138d22ca007b5968516ca"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 36,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 0 and prints no annotation on a clean copy of the eight documents",
+          "line": 472,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "97ef780cc27419d2478196f493182d12c09fd93ce9afd61e89ff9150248c95f2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 1 naming the canon document that is missing",
+          "line": 478,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0192f1930b486d823ffb84f752071e83fa4e3310e6c77f5cb2380d4035f75478"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 1 naming the canon document that has no **Owner:** line",
+          "line": 486,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f0756a38aa58f4ebca2679701e576653544b1208944f22a3573c321b1c929172"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 1 naming the canon document whose **Owner: line lacks its closing asterisks",
+          "line": 497,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4f239b462c4c6fc5429f7547e5e91751a77a19f75d4e5ed882427777c6539924"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 1 naming the companion that is missing",
+          "line": 508,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ff23c3c3c20b8be4ae8fd18160b69bff034df60396d7b6f93e87f5baba64f6d9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 1 naming the companion that has no ## How to extend heading",
+          "line": 517,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e7cbcc2d8a15585342c1bca82ea5754c6a59ff05d166bceab3b0043f47717a99"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::exits 1 naming the companion whose ## How to extend heading carries trailing text",
+          "line": 528,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "eaf59e061356702fcb6202052d57607e47a42b70470ab27f661606cd49a22f7b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::prints both lines, the document's then the companion's, when a document and its companion are missing together",
+          "line": 543,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a38149748a48b00dbcf1846bb9c53e753646753835970d861941ed4a2308015d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::limit (1), textual: counts a ## How to extend heading that only a code fence holds, and exits 0",
+          "line": 555,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6ffd0652eaae87dca537812b74c4dec6b44a96604f061b210ab933351d18dd39"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::limit (2), the companion's existence and not the pointer: exits 0 when the **Reference:** line names another file",
+          "line": 565,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "050724c5daa32ce636d8a2dbb450357b1d37111f2e0709c03f9a7e38b660643e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::limit (3), the two lines and not what is under them: exits 0 when a document and its companion hold only their required line",
+          "line": 580,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4d56ac64a1965c3e1724fd4dde936359085c9da0d9adcb6ced51b347aa5f280e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::limit (4), -f follows a link: exits 0 when the document is a symbolic link to a file outside the copy",
+          "line": 592,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "77b4b16dbbf520c61e573f1050ac687b832b9ebe50ac7813efafb7095fe0f1d3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::limit (5), line endings as bytes: exits 1 naming a companion with CRLF line endings",
+          "line": 602,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f1a876740351be6d16c337a49a9f90561f4794e56976a6cab8c0c7c88078e436"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::limit (5), line endings as bytes: exits 0 on a canon document with CRLF line endings",
+          "line": 609,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c40fd8dafa407b1d08a4925b71b860d55b9cd42f041c527695392dbc5e9d5fe8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::returns the literal block of the named step without its indentation, ended by one line break",
+          "line": 695,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bb70be5fc33a7a7db9a3d4f2c8da7dfd1796d2a0c9098d87f1c93175f7066f79"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::accepts a job that runs on `%s`, a GitHub-hosted Ubuntu runner",
+          "line": 699,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "33f04130840c06721f0f33bfa2685f9c52c1b93e08e3e52de9f2511ca0eceaf8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::accepts an `env:` that only another job sets",
+          "line": 708,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5e992f2588943013dddb99c83f341f3e745c0739552c143c542d5c9aff57df4e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a `run: |` whose block holds no line",
+          "line": 723,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "787455d311d446e9b5b97bebbfa69b994477db84dd3c67d8e053483349c5fde6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a block line indented less than the block's first line",
+          "line": 729,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "df676bd774fc9125a694e68bccf42dba855faae1d41188b44bfb622228f0ef02"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a step that sets `run:` twice",
+          "line": 739,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "93a6c92184373a8319d8cf8726ac1244b00db8dd26f7d1924a5080acb8aeccfa"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a step with no `run:` key",
+          "line": 747,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "760daed2356d2a7aeda8fb3ccb2bfbb69322823fabb80b72953268e860bc2d74"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a quoted key on the step, which the reader cannot tell from `shell:`",
+          "line": 753,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5908347e95fe0196f367a96686e42f19fda7dd2ffadea9de504130ad3a823685"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a step that is not an entry of a job's `steps:` list",
+          "line": 763,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "968b4989e33e322a2a3c59802a4bcdd6d1ed62526633a882de927f1317a4227a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a workflow-level `env:`, which Actions exports to every step",
+          "line": 771,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "913acea7acced85a96303aaaaafc68c30b454628ad586493e7193019a8fe3dec"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses an `env:` of the step's job, which Actions exports to every step of it",
+          "line": 777,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "46fdc6964de769fe564ffc9c58b0069f06de0b2f69bed5c33a9e40df50296a28"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a `container:` of the step's job, which runs the body in another image",
+          "line": 783,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b6abf3810ed6856e08535ed659b458e9f378d04d14930adff3c07525d336ecad"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a quoted key of the step's job, which the reader cannot tell from `env:`",
+          "line": 791,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "16d143869883bc855709624f10d07fef0d46f31ded448715b8ddaa429b08986c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a job that runs on `%s`, which is not a GitHub-hosted Ubuntu runner",
+          "line": 799,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8964dd5dc97a9289b5e3bda9014c39b15ad847f64d54afc0e81bdd483f662fac"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a job that names no `runs-on:`",
+          "line": 810,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2f460ef060edb38c579d6be72e3b182ad5db4a2f23a8a5209116fb541cdf1e73"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses `run: %s`, which is not the literal block `run: |`",
+          "line": 816,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5a914daaa45b286627d0a3354edef6fadaa4bdb33838030da6cb58baa1ba3f5d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a step that names its own shell %s",
+          "line": 830,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fe50ceb189cff19f51a453cb8abd80c5acebb6b915c8488e0257161042c63a62"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a step key that changes what the body sees: `%s`",
+          "line": 836,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "402f8cd043027fb6434311dee612e36eaf81fbc48e9e74ebf081f0432e549674"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses %s `defaults:`",
+          "line": 852,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b3610a40d26939e616f0ca0d7646492dd8ef0766112581cb3dfe44394e2d2a6b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a workflow in which two steps' names start with the prefix",
+          "line": 856,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d64df398f07be512aa104bacca1f6674ddb15e23fa6eff980bbb09483741961f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a workflow in which no step's name starts with the prefix",
+          "line": 864,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2f2d755e9330047a3f7ac686de7e874931920e6b5a39bf28b3cacf107e2b71ae"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/canonChildDocsStep.test.ts::refuses a step name written %s",
+          "line": 868,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ce55416ddd71c3577cd4d445094e4f8e31f48c4f0cd4039a643017e97e25cc8f"
         }
       ],
       "verdict": "KEEP",
