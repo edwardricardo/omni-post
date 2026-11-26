@@ -1,89 +1,60 @@
 # Logging Canon — Logging · Background Tasks · Caching
 
-> Authoritative observability rules for omni-post. Auto-loaded via
-> `@docs/observability/LOGGING_CANON.md` in CLAUDE.md.
-
 **Owner:** Maintainers
-**Loaded:** every session (Claude Code `@`-import, depth 1)
+**Reference:** [LOGGING_CANON_REFERENCE.md](LOGGING_CANON_REFERENCE.md), read as a file: the rationale, the examples and how to extend these rules.
 
 ---
 
 ## Logging & Observability
 
-**All logger instances MUST come from one of three named factories — never `import pino from "pino"` directly outside the factory itself.** Each factory targets a distinct scope:
+**A logger comes from one of three factories or, in the core, from the port. Outside the two backend factories nothing calls `pino()`.**
 
-| Where                                                                                     | Factory                                                           | Why                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api/src/**`                                                                         | `createLogger(name)` from `apps/api/src/lib/logger.ts`            | Applies redaction of sensitive fields (`password`, `token`, `apiKey`, `accessToken`, `refreshToken`, `authorization`, `cookie`, `set-cookie`), binds the logger's `name` and `service: "omnipost-api"`, and uses `pino.destination({ sync: true })` in tests to avoid open handles.                                                                                                                           |
-| `packages/**` except `packages/core` (adapters, observability, providers, ui server-side) | `createLogger(name)` from `@observability/logger`                 | Lightweight factory for shared packages: one process-wide base logger and named children. It exports `REDACT_PATHS`, the one list of sensitive paths, and its base logger redacts with it and its `REDACT_CENSOR`; the API factory imports the same list and censor (ADR-0034, decision 8).                                                                                                                   |
-| `packages/core/**` (application services)                                                 | `LoggerPort` from `@ports/core`, injected by the composition root | The composition root passes the logger its deployable's own factory returns (`createLogger(name)` from `apps/api/src/lib/logger.ts` in the API). It implements the port as is, because the port uses Pino's `(context, message)` order, so core entries carry that factory's redaction and `name`. `packages/core` never imports `@observability/logger` or `pino`. The port exposes `warn` and `error` only. |
-| `apps/admin/**`, `apps/client/**`, `packages/ui/**` (browser code)                        | `useLogger(name)` from `@observability/browser-logger`            | Browser-targeted; routes through a `BrowserLoggerPort` (Sentry/console adapter).                                                                                                                                                                                                                                                                                                                              |
-| `apps/workers/**`                                                                         | `createLogger(name)` from `@observability/logger`                 | The packages' base logger, so worker lines carry `REDACT_PATHS`; no worker builds its own `pino()`.                                                                                                                                                                                                                                                                                                           |
-| Tests                                                                                     | Anything (real factory, `vi.fn()`, or test double)                | No restrictions in `*.test.ts`.                                                                                                                                                                                                                                                                                                                                                                               |
+| Scope                                                       | Logger                                                                                                                            |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/**`                                           | `createLogger(name)` from `apps/api/src/lib/logger.ts`                                                                            |
+| `apps/workers/**`, and `packages/**` except `packages/core` | `createLogger(name)` from `@observability/logger`                                                                                 |
+| `packages/core/**`                                          | `LoggerPort` from `@ports/core`, received by constructor; the composition root passes the logger its deployable's factory returns |
+| Browser code: `apps/admin`, `apps/client`, `packages/ui`    | `useLogger(name)` from `@observability/browser-logger`                                                                            |
+| Tests                                                       | the real factory or a double                                                                                                      |
 
-- **Zero `console.*` in production code** (JSDoc `@example` blocks excluded — those are documentation, not executed).
-- **Domain layer: zero logging** — logging is an infrastructure concern; domain stays pure.
-- Application layer: `WARN` or `ERROR` only — info/debug belong to infrastructure or routes. The port holds the line: `LoggerPort` has `warn` and `error` and nothing else.
-- Every log entry carries: `correlationId`, `layer`, `operation` where applicable.
-- Correlation ID propagated through: logger → domain events → outbox → BullMQ job data → error responses.
-- OTel SDK initialized as **first import** in entry points (`index.ts`) — before Fastify, before Prisma.
-- **Adding a new sensitive field?** Extend the `REDACT_PATHS` array that `@observability/logger` exports (`packages/observability/logger/src/index.ts`), which the API factory and the packages' base logger both apply, and document the rationale alongside the threat being mitigated. Redact paths are case-sensitive — `req.headers.AUTHORIZATION` does not match `authorization`. See [docs/architecture/logging.md](../architecture/logging.md) for the threat-model and how to extend safely.
+- **Redaction is one list.** Both backend factories redact with `REDACT_PATHS` and `REDACT_CENSOR` of `@observability/logger` (`packages/observability/logger/src/index.ts`); a logger built any other way redacts nothing. A new sensitive field goes into that list with the threat it mitigates. Pino's redact paths are case-sensitive: `authorization` does not match `AUTHORIZATION`, so each spelling is listed.
+- **The core logs through the port only.** `packages/core` imports neither `@observability/logger` nor `pino`. `LoggerPort` has `warn` and `error` and nothing else: `info` and `debug` belong to infrastructure and routes. It is called context first, Pino's order: `logger.error({ err, ...fields }, "message")`. In a constructor it goes ahead of a trailing `unitOfWork`.
+- **The domain does not log.**
+- **No `console.*` in production code.** A JSDoc `@example` is documentation, not code.
+- A log entry carries `correlationId`, `layer` and `operation` where they apply.
+- The correlation id travels with the work: logger, domain events, outbox, BullMQ job data, error responses.
+- An entry point starts the OpenTelemetry SDK before any other module loads: before Fastify, before Prisma.
+
+Held by fitness #13 (no `pino` instantiation in `apps/api/src`), ESLint `no-console`, and `pnpm check:architecture` (the core imports no workspace package but the core, the ports and the shared kernel). The reason of each factory and the threat model of the list: [docs/architecture/logging.md](../architecture/logging.md).
 
 ---
 
 ## Background Tasks
 
-**All recurring work MUST be registered via `BackgroundTaskScheduler` — never call `setInterval` / `setTimeout` directly in backend production code.**
+**Recurring work is registered in `BackgroundTaskScheduler` (`@observability/background-scheduler`, `TOKENS.BackgroundTaskScheduler`). No `setInterval` outside it. A `setTimeout` is awaited by the code that sets it (a delay, the timeout of a race); one that nothing awaits is background work with no owner, and is not written.**
 
-The scheduler lives at `packages/observability/background-scheduler/` and is wired into DI as `TOKENS.BackgroundTaskScheduler`. It applies `.unref()` by default, wraps callbacks with try/catch + logger, tracks in-flight async work, and is torn down on SIGINT/SIGTERM via `scheduler.shutdownAll()`.
+- **Register:** `scheduler.register(taskId, callback, intervalMs, options?)`. `taskId` is a stable string constant, one per task; a per-connection task may carry an id of its own. Registering an id again replaces its task. The callback may be sync or async; what it throws goes to `options.onError` or to the scheduler's logger.
+- **Unregister:** `scheduler.unregister(taskId)` in the owner's teardown: `stop()`, `shutdown()`, `destroy()`, an `onClose` hook, a request's `close` event.
+- `critical: true` only for a task that must keep the process alive while it runs; the default lets the process exit. `immediate: true` runs the callback once at registration.
+- **A library in `packages/`** takes `scheduler?: BackgroundTaskScheduler`, and the composition root passes it. Without one, the library's recurring work does not run.
+- **A worker that schedules** builds its own `DefaultBackgroundTaskScheduler` and calls `scheduler.shutdownAll()` in its `SIGTERM` and `SIGINT` handlers, as the API does at shutdown.
+- **Tests** inject `NoopBackgroundTaskScheduler` and run a task with `noopScheduler.triggerTask(taskId)`.
 
-- **Register:** `scheduler.register(taskId, callback, intervalMs, options?)` — `taskId` is a stable string constant (one per task, one per class, not a UUID unless the task is per-connection), `callback` may be sync or async, errors go through `options.onError` or the injected logger.
-- **Unregister:** `scheduler.unregister(taskId)` on teardown (`stop()` / `shutdown()` / `destroy()` / `onClose` hook / request `close` event).
-- **Use `critical: true`** only when the task must NOT let the process exit while still running (rare — default is safer).
-- **Use `immediate: true`** when the first execution must fire synchronously instead of after one interval.
-- **Libraries in `packages/`** accept `scheduler?: BackgroundTaskScheduler` as an **optional** dependency to stay pure when consumed outside the DI graph. The app's composition root passes the scheduler explicitly.
-- **Workers** (apps/workers) construct their own `DefaultBackgroundTaskScheduler` and call `scheduler.shutdownAll()` in their `SIGINT`/`SIGTERM` handlers.
-- **Tests** inject a `NoopBackgroundTaskScheduler` and fire callbacks manually via `noopScheduler.triggerTask(taskId)` when the test needs to exercise the task body.
-
-The only legitimate raw `setInterval` call in the entire backend is inside `DefaultBackgroundTaskScheduler` itself. The CI fitness grep blocks new occurrences.
+Held by fitness #11: `setInterval(` is in `default-scheduler.ts` and nowhere else in `apps/api/src`, `apps/workers/src` and `packages/`.
 
 ---
 
 ## Caching
 
-**All cross-pod cached state MUST go through `TOKENS.CachePort` — never instantiate `RedisCacheManager` outside the composition root, and never declare a per-class `private *Cache = new Map()`.**
+**Cached state shared across pods goes through `CachePort` (`TOKENS.CachePort`). `RedisCacheManager` is built for the composition root and nowhere else, and no class keeps a cache of its own in a `Map`.**
 
-The cache port lives at `packages/ports/src/CachePort.ts`. Two adapters implement it: `RedisCacheAdapter` (production, wraps the singleton `RedisCacheManager` with L1 in-process LRU + L2 Redis + tag invalidation) and `InMemoryCacheAdapter` (tests + per-process scopes; pure `Map` + per-entry TTL + tag index, no I/O).
+- **Inject `CachePort`, never the manager.** Production binds it to `RedisCacheAdapter`, over the one `RedisCacheManager` (`TOKENS.RedisCacheManager`: an in-process L1, Redis as L2, tags). Its surface is `get`, `set`, `getOrSet`, `delete`, `invalidateByTag`, `has` and `claim`.
+- **Cache-aside is `getOrSet(key, factory, options)`**; `get` with `set` only where the caller composes its own flow, such as a write-only counter or a pre-warmed entry.
+- **`claim(key, ttlSeconds)`** is an exclusive claim, such as a per-key throttle, never cache-aside: exactly one caller across every pod wins, and it rejects when Redis cannot decide.
+- **Keys** start with a feature prefix that ends in a colon (`credentials:`, `permissions:`); the manager adds `api:` on the wire.
+- **Tags** group keys for `invalidateByTag`: every role's permissions share `rbac:role`, and one call drops them all.
+- **TTL:** an explicit `ttlSeconds` wins; without one the manager's default applies, one hour unless `CACHE_TTL_DEFAULT` (seconds) sets it.
+- **No stampede protection:** concurrent misses of one key each run the factory.
+- **Tests** build their own `new InMemoryCacheAdapter()`, one per test, and drive its TTL with fake timers.
 
-| Scope                                                             | Adapter                | DI token                   |
-| ----------------------------------------------------------------- | ---------------------- | -------------------------- |
-| Cross-pod shared state (credentials, permissions, computed views) | `RedisCacheAdapter`    | `TOKENS.CachePort`         |
-| Underlying L1+L2 manager (singleton, advanced features)           | `RedisCacheManager`    | `TOKENS.RedisCacheManager` |
-| Tests (deterministic, no Redis)                                   | `InMemoryCacheAdapter` | injected directly per test |
-
-- **Inject `CachePort`** — never `RedisCacheManager` — into application services. The port surface is `get`, `set`, `getOrSet`, `delete`, `invalidateByTag`, `has`, `claim`. Use `getOrSet(key, factory, options)` for cache-aside; raw `get` + `set` only when callers compose their own flow (write-only counters, pre-warmed caches with no factory). Use `claim(key, ttlSeconds)` only for an exclusive claim, such as a per-key throttle, never for cache-aside: it is one atomic Redis `SET NX EX` that exactly one caller across every pod wins, and it rejects when Redis cannot decide instead of absorbing the failure.
-- **Namespace your keys** with a feature prefix (`credentials:`, `permissions:`, `branch:`, `version:`, `connection-health:`, `top-performers:`, `trends:`). The Redis manager additionally applies an `api:` prefix on the wire, so the on-the-wire key is e.g. `api:credentials:foo`.
-- **Tags** group keys for `invalidateByTag`. Use them for cross-key invalidation patterns (e.g. role-permission cache: every role's permissions share the `rbac:role` tag so `cache.invalidateByTag("rbac:role")` wipes the pool without enumerating roles).
-- **Default TTL** is configurable via `CACHE_TTL_DEFAULT` (seconds). Falls back to 3600 when unset. Explicit `ttlSeconds` per call always wins.
-- **In tests**, instantiate `new InMemoryCacheAdapter()` directly. Each test gets its own adapter, no shared state, deterministic TTL via `vi.useFakeTimers()`.
-- **Stampede protection** (single-flight, XFetch, SWR, jitter) is intentionally NOT implemented yet — tracked as PR-29 in the backlog. Concurrent factory calls on a missed key each run independently.
-- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep #14 blocks the pattern (see docs/development/FITNESS_FUNCTIONS.md §Inventory). The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
-
-Full caching architecture rationale: [docs/architecture/caching.md](../architecture/caching.md).
-
----
-
-## How to extend
-
-Adding new observability rules:
-
-1. **New sensitive field for redaction** → extend `REDACT_PATHS` in `@observability/logger` (`packages/observability/logger/src/index.ts`); the API factory and the packages' base logger both apply it. List case variations explicitly (Pino redaction is case-sensitive).
-2. **New scheduled task** → register via `scheduler.register(taskId, ...)`. Use a stable `taskId` constant. Unregister on teardown.
-3. **New cache namespace** → namespace keys with a colon-suffixed prefix (`credentials:`, etc.). Use tags for cross-key invalidation.
-4. **New logger scope** → if a NEW deployable surface appears (e.g. CLI tool, edge function), document its factory in the Logging table. ADR required if the redaction policy differs from the existing 3-factory model (see ADR-0013).
-5. **Application service that must log** → take `logger: LoggerPort` (`@ports/core`) by constructor, ahead of a trailing `unitOfWork`, call it as `logger.error({ err, ...fields }, "message")`, and have the composition root pass `createLogger("<name>")` from the deployable's own factory. The `(context, message)` order is Pino's own and it is the contract: Pino reads `(message, object)` as a message plus a printf argument and drops the object, so a message-first port would accept a raw Pino logger that compiles and loses every context field. `apps/api/tests/unit/lib/loggerPortContract.type-test.ts` pins the order, and `loggerPortContract.test.ts` beside it pins the written line.
-6. **Replacing pino with OTel logs** → ADR required. See ADR-0013 §"Revisit if" for the convergence direction.
-
-Companion fitness checks live in `docs/development/FITNESS_FUNCTIONS.md §Inventory`:
-
-- `#11` no raw `setInterval` outside scheduler · `#13` no direct `pino` imports in `apps/api/src` (factory only) · `#14` no per-class cache Maps in `apps/api/src` (CachePort only).
+Held by fitness #14: no `private *Cache = new Map()` in `apps/api/src`. A map held by one instance cannot carry an invalidation to another pod, so a revoked permission stays valid there until its TTL ends. Rationale and operations: [docs/architecture/caching.md](../architecture/caching.md).
