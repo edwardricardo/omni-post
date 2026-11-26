@@ -454,6 +454,150 @@ Compliance Checks`. The block now goes to the reference, and that section takes 
 3. **The measurement.** `CLAUDE.md` went from 45,484 bytes before the pull request of the rows P to
    21,185, and the auto-loaded tracked set, as the gate measures it, from 132,672 to 108,421 bytes.
 
+## Amendment of 2026-11-26: the canon keeps its rules, and its reference is read as a file
+
+The Product Owner took six decisions on 2026-11-26 on how the canon loads, one at a time, each on
+a measured cost. The measurements read 14 days of this project's session transcripts, 343 of them
+(main sessions 21,329 turns in 22 transcripts, subagents 55,356 turns in 321), with scripts kept
+beside the tools, outside the tree. A cost is in token-turns, the tokens a text weighs times the
+turns that carry it, and the tokens of a text were counted as its bytes divided by four: item 9
+measures how low that is, so the ratios between routes hold and every absolute token figure of
+items 1 to 6 is low by that factor. On that scale the decided text of the four canon documents is
+11,043 tokens, where the documents were 21,808.
+
+1. **The main session keeps the canon loaded.** `CLAUDE.md` still imports the four canon
+   documents with `@`, and they now hold their rules only; no path-scoped rule and no loader hook
+   carries them. Carried on every main-session turn, the decided text costs 235.4 million
+   token-turns over the 14 days, against 464.9 million for the documents before. A route by path
+   with full coverage would save 17.6% of it, 41.4 million, 0.13% of all the tokens of the period;
+   a native path-scoped rule does not reach full coverage, because it fires on a file of the main
+   checkout only: 34.4% of the main-session turns follow a code touch there, 82.4% follow one in
+   any checkout. The main session needs the rules before it touches a file, to write a brief and to
+   judge a delivery.
+2. **The writer and the verifier carry the canon; the auditor does not.** Subagents make 2,560 of
+   the 2,767 code writes of the period (92.5%), and 94.8% of their code writes fall in a sibling
+   worktree, where a native path-scoped rule does not load: such a rule is in the context of 5.1%
+   of their code writes. The ceiling cost of the canon loaded at the start of every agent that
+   writes code or only reads it is 331.5 million token-turns, 1.05% of all tokens, against 1,207
+   million when every subagent loaded the whole canon. The verifier judges a delivery against the
+   canon; a brief for an audit against the canon names the document.
+3. **The workers receive it by the native preload.** One loader skill, to be listed in `skills:` of
+   the writer's and the verifier's definitions, reads each tracked canon document at the agent's
+   launch by one command placeholder per document. Measured by probes on `sonnet`: a preloaded skill's
+   whole body reaches an agent with `omitClaudeMd`, as a user-role message ahead of the brief, and a
+   project skill preloads as a user skill does; a placeholder runs when the agent is launched, so the
+   agent receives the file as it is at that moment; outputs of 6,000 to 30,000 bytes arrived whole,
+   five of them 85,989 bytes in one skill, and one of 85.2 KB arrived as a preview of 2 KB that the
+   agent is not told to read; of two identical commands in one skill only the first was replaced
+   (one observation). So each canon document stays under 30,000 bytes, and each definition is to
+   stop its agent when the canon arrives missing or as a preview. This item records the decision.
+   The loader skill, the `skills:` field and the stop line are local configuration outside the tree
+   (git ignores `.claude/skills/`), added to the local agent definitions once the documents of this
+   change are on `main`; none of the three exists yet. A `SubagentStart` hook was not chosen: by
+   the documentation's account, not measured, its `additionalContext` is capped at 10,000
+   characters per string.
+4. **Each canon document keeps its rules, and its reference moves to a companion beside it.** The
+   rationale, the examples and `## How to extend` of each document are in
+   `ARCHITECTURE_CANON_REFERENCE.md`, `CODING_STANDARDS_REFERENCE.md`,
+   `SECURITY_CANON_REFERENCE.md` and `LOGGING_CANON_REFERENCE.md`, each in its document's
+   directory, read as a file and never imported. The reference is 5,371 tokens; loaded with the
+   rules, it would be carried on the 21,329 main-session turns and on the 30,022 turns of the agents
+   that write or read code, 275.8 million token-turns, 0.87% of all tokens. The rules keep the paths
+   the citations name: of 214 mentions of the four documents in tracked files, the 37 that name a
+   section all name a rule section.
+5. **Three-line headers.** Each canon document opens with its title, `**Owner:** Maintainers` and
+   a `**Reference:**` line that names its companion. The quote that said how the document loads and
+   the `**Loaded:**` line left: `CLAUDE.md` §Canon Documents says it once, and no script read them.
+   The four headers went from 280 to 270 tokens, so this decides where a fact is stated, not a cost.
+6. **A rule that governs one area lives in that area's document.** The saga rules are in
+   [`docs/architecture/SAGA_CANON.md`](../architecture/SAGA_CANON.md), the React rules in
+   `docs/frontend/REACT_STANDARDS.md`, the client portal's rules in
+   `docs/standards/frontend-standards.md`, the Prisma rule in
+   `docs/architecture/schema-conventions.md` and the dependency rules in
+   `docs/security/dependency-audit-policy.md`. The loaded canon keeps one pointer line per piece
+   that says when to read it, and the brief of a unit that touches the area names the document. The
+   pieces are about 2,160 tokens: loaded with the canon they would cost 111.3 million token-turns;
+   as native path-scoped rules 5.7 million, covering between 0% and 9% of the subagents' writes of
+   each area; as documents read on a pointer at the first touch in any checkout 21.5 million, 6.4
+   million of it the five pointer lines.
+7. **The bytes.** Before is `git cat-file -s 21e9bc007:<path>`, the base of this change; after is
+   `wc -c` of the tree.
+
+   | Loaded file             | Before  | After  |
+   | ----------------------- | ------- | ------ |
+   | `CLAUDE.md`             | 21,185  | 21,939 |
+   | `ARCHITECTURE_CANON.md` | 18,529  | 8,392  |
+   | `CODING_STANDARDS.md`   | 30,715  | 18,752 |
+   | `SECURITY_CANON.md`     | 24,800  | 13,164 |
+   | `LOGGING_CANON.md`      | 13,192  | 6,636  |
+   | **Total**               | 108,421 | 68,883 |
+
+   The four canon documents went from 87,236 to 46,944 bytes; `CLAUDE.md` grew by 754, its
+   §Canon Documents now saying how the four load and what fitness #24 holds. The auto-loaded
+   tracked set, as the gate measures it, is 68,883 bytes, and `budget.bytes` was lowered from
+   108,421 to 68,883 with the gate's `--write`. Five documents are new, each read as a file and never
+   imported: `ARCHITECTURE_CANON_REFERENCE.md` 6,191 bytes, `CODING_STANDARDS_REFERENCE.md` 6,554,
+   `SECURITY_CANON_REFERENCE.md` 6,458, `LOGGING_CANON_REFERENCE.md` 2,041 and `SAGA_CANON.md`
+   3,954, 25,198 in all. The documents that received a section grew: `REACT_STANDARDS.md` from 8,062
+   to 11,072, `frontend-standards.md` from 33,337 to 35,409, `dependency-audit-policy.md` from 2,384
+   to 5,012 and `schema-conventions.md` from 20,082 to 20,588.
+
+8. **Fitness #24 reads the companion.** Its contract, per canon document: the document exists; a
+   line of it starts `**Owner:**`; its companion, the document's path with `.md` replaced by
+   `_REFERENCE.md`, exists; a line of the companion is exactly `## How to extend`. The step checks
+   every clause of every document and exits 1 at the end when any failed, so one run names every
+   violation. Before, it required `## How to extend` in each canon document, which left with the
+   reference, and it accepted a line that starts `**Owner:` with no closing asterisks and a heading
+   that only starts `## How to extend`; both now fail. Its block is in
+   [`docs/development/FITNESS_FUNCTIONS.md`](../development/FITNESS_FUNCTIONS.md), with its limits:
+   it proves the companion exists, not that the `**Reference:**` line names it.
+9. **The token scale, measured twice.** On the main session's model (`claude-fable-5-2`), 3.23
+   bytes per token, 3.09 characters per token: the merge of the rows P lowered the five loaded files
+   by 24,251 bytes, from 132,672 to 108,421, and the first-turn input of the main session fell by
+   7,497 tokens, from 140,811 to 133,314, while the rest of the text recorded before the first turn
+   moved by about 1,000 characters. On `sonnet`, 2.78 bytes per token: a probe that preloaded about
+   174,200 bytes of canon text started at 65,763 tokens against 3,101 for its control. So the real
+   count is about 24% above "bytes divided by four" on the main session's model and about 44% above
+   on `sonnet`, and the 11,043 tokens of the decided text are about 13,700 on the first scale and
+   15,900 on the second. Each figure is one measurement on one model, and the first one measured the
+   text of `CLAUDE.md`, tables and lists, not the canon's. Sizes in this record are therefore given
+   in bytes.
+10. **What the review of the four documents left to this record.**
+    - The section "Mandatory Requirements for Every Sprint" of `CODING_STANDARDS.md` is renamed
+      "Mandatory Requirements for Every Change". ADR-0035 is a record that keeps its words, and it
+      names the section by its earlier heading (`:11` in full; `:88` and `:121` as "§Mandatory
+      Requirements"), which is now "Mandatory Requirements for Every Change".
+    - The section "Storybook port convention" of `CODING_STANDARDS.md` is removed. ADR-0035 cites it
+      (`:88`) for the colocation of a story, which `docs/frontend/REACT_STANDARDS.md` §"A story per
+      component" states.
+    - ADR-0035 records (`:10`, `:86-88`) that `CODING_STANDARDS.md` §Test Framework Rules gained the
+      story row and the criterion. The row stays there; the criterion lives in
+      `REACT_STANDARDS.md` alone, §"When a story passes".
+    - ADR-0037 cited `CODING_STANDARDS.md` §"React component JSDoc — props on the interface" for its
+      note that App Router components need `appDirectory: true`; the note is in
+      `REACT_STANDARDS.md` §"A story per component", and the two citations of ADR-0037 now name it.
+    - The section "Dependency audit record" is in both security files: `SECURITY_CANON.md` keeps the
+      rule to read the policy and the package's entry before a change, and says the record holds the
+      sections cited as `SECURITY_CANON.md §"<title>"`; `SECURITY_CANON_REFERENCE.md` holds the
+      obligation to read the entry and record the change, the statement that the record is
+      authoritative and the list of the moved titles. The canon no longer says why the record is not
+      loaded: decisions 1 and 2 of this record say it. So decision 2's "a short section, 'Dependency
+      audit record', with the obligation to read and update it", the line of the References that
+      names that section in `SECURITY_CANON.md`, and the Risks row "The canon's section lists every
+      moved title" describe the state before this amendment: an old citation resolves in one hop
+      through the canon's sentence to the record, and the titles are listed in the companion. The
+      record's rule, `.claude/rules/dependency-audit-record.md`, names the companion.
+11. **What this change does not do.** It adds no hook and no path-scoped rule for the canon. A
+    native path-scoped rule loads for a file of the main checkout and not for a file of a sibling
+    worktree, where most code is written: that limit holds for the two path-scoped rules of the
+    records, which stay as they are, and this change does not repair it. It adds no loader skill
+    and changes no agent definition: that configuration is local and follows the merge (item 3).
+    The budget check counts the tracked files a session loads, so no check of this repository will
+    hold the loader skill, and no gate holds a canon document under the 30,000 bytes a placeholder
+    delivers whole: the stop line decided for each definition is to be that guard, and until it is
+    added nothing holds that limit. The instruction
+    context gate, fitness #55, is unchanged; only its manifest's `budget.bytes` moved.
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,
@@ -497,5 +641,5 @@ check is added, changed or retired`
 - [ADR-0012](ADR-0012-fitness-functions-architecture-tests.md): the fitness functions, whose
   location of a check's regex the amendment of 2026-11-18 supersedes
 - [ADR-0018](ADR-0018-dependency-freshness-canon.md): the dependency freshness canon
-- [FOUNDATION_PRACTICES.md](../development/FOUNDATION_PRACTICES.md): FP-033, FP-034
+- [FOUNDATION_PRACTICES.md](../development/FOUNDATION_PRACTICES.md): FP-033, FP-034, FP-048
 - The plan row TOKEN-1 in [`cross-cutting.md`](../product/plan/cross-cutting.md)
