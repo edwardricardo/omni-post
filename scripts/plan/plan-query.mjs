@@ -11,22 +11,26 @@
  *   matches, one line each (id, kind, location, title), or as JSON with `--json`, or their number
  *   with `--count`. `check` fails while a line of the plan is unclassified, a file cannot be read
  *   or the plan's structure lacks a part `plan-records.mjs` names as a failure. Each takes
- *   `--help`.
+ *   `--help`. While a file cannot be read or the structure lacks a part, `show` and `list` exit 1
+ *   with each failure on stderr and nothing on stdout, whatever record they are asked for: a query
+ *   over a plan that does not parse whole could miss records in silence.
  *
  *   An argument is data: no shell runs and nothing is evaluated. `--file` takes one of the plan's
  *   fixed names and refuses every other value, a path or a traversal included, before anything is
  *   read; a filter's value is compared as literal text, never compiled as a regular expression,
  *   and an empty value or one that starts with `--` is a usage error.
  *
- *   Usage: `node scripts/plan/plan-query.mjs [--root <dir>] <show|list|check> [options]`. The root
- *   defaults to the repository this file lives in, located from the script's own URL. Exit 0 on
- *   success, 1 when a record is not found or the check fails, 2 on a usage error.
+ *   Usage: `node scripts/plan/plan-query.mjs [--root <dir>] <show|list|check> [options]`. `--root`
+ *   stands before the command, and anywhere else it is a usage error. The root defaults to the
+ *   repository this file lives in, located from the script's own URL. Exit 0 on success, 1 when a
+ *   record is not found, the plan cannot be read whole or the check fails, 2 on a usage error.
  * @layer infrastructure
  */
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   FILTER_FIELDS,
+  NO_ID_TEXT,
   filterRecords,
   findRecords,
   parsePlan,
@@ -49,10 +53,16 @@ const PREFIX = "plan-query: ";
 const NAMES = Object.keys(PLAN_FILES);
 const NAMES_TEXT = `${NAMES.slice(0, -1).join(", ")} and ${NAMES.at(-1) ?? ""}`;
 const KINDS = ["feature", "item"];
+const BROKEN_PLAN_USAGE = [
+  "  Exit 1, each failure named on stderr and nothing on stdout, when a plan file cannot be",
+  "  read or the plan's structure lacks a part, whatever is asked: a plan that does not parse",
+  "  whole could hide a record.",
+];
 
 const USAGE = {
   general: [
     "usage: node scripts/plan/plan-query.mjs [--root <dir>] <show|list|check> [options]",
+    "  --root <dir> stands before the command; <dir> holds docs/product/, this repository by default",
     "  show   prints one record (pnpm plan:show)",
     "  list   lists the records the filters match (pnpm plan:list)",
     "  check  fails while a line of the plan is unclassified (pnpm plan:check)",
@@ -63,6 +73,7 @@ const USAGE = {
     "  <id> is a feature's canonical id (F-02, A-TEAM-03) or any record's id as written;",
     `  <file>:<line> names the record that starts there, <file> one of ${NAMES_TEXT}.`,
     "  Exit 0 when one record is found, 1 when none or several are, 2 on a usage error.",
+    ...BROKEN_PLAN_USAGE,
   ],
   list: [
     "usage: pnpm plan:list [--kind feature|item] [--file <name>] [--<field> <value>]... [--json | --count]",
@@ -71,6 +82,7 @@ const USAGE = {
     ...Object.entries(FILTER_FIELDS).map(([name, rule]) => `    --${name} (${rule.match})`),
     "  A value is never empty and never starts with --.",
     "  Exit 0, with no line or a count of 0 when nothing matches; 2 on a usage error.",
+    ...BROKEN_PLAN_USAGE,
   ],
   check: [
     "usage: pnpm plan:check",
@@ -89,11 +101,11 @@ function usageError(lines) {
 }
 
 /**
- * @param {string} message
+ * @param {string[]} lines Each failure, without the command's prefix.
  * @returns {Outcome}
  */
-function failure(message) {
-  return { exitCode: 1, stdout: [], stderr: [PREFIX + message] };
+function failed(lines) {
+  return { exitCode: 1, stdout: [], stderr: lines.map((line) => PREFIX + line) };
 }
 
 /**
@@ -134,14 +146,17 @@ function recordLines(record) {
 }
 
 /**
+ * @description Reads and parses the plan under a root: the one path by which every command reads
+ *   it.
  * @param {string} root
  * @param {Date} now
- * @returns {{ plan: import("./plan-records.mjs").ParsedPlan, failures: string[] }}
+ * @returns {{ plan: import("./plan-records.mjs").ParsedPlan, sources: import("./plan-records.mjs").PlanSource[], failures: string[] }}
+ *   `failures` holds the files that could not be read, then what the plan's structure lacks.
  */
 function readPlan(root, now) {
   const { sources, failures } = readSources(root);
   const plan = parsePlan(sources, { now });
-  return { plan, failures: [...failures, ...plan.failures] };
+  return { plan, sources, failures: [...failures, ...plan.failures] };
 }
 
 /**
@@ -158,18 +173,16 @@ function show(args, root, now) {
     return usageError(USAGE.show);
   }
   const { plan, failures } = readPlan(root, now);
-  if (failures.length > 0) {
-    return { exitCode: 1, stdout: [], stderr: failures.map((line) => PREFIX + line) };
-  }
+  if (failures.length > 0) return failed(failures);
   const found = findRecords(plan.records, key);
   const record = found[0];
-  if (record === undefined) return failure(`no record carries the id "${key}"`);
+  if (record === undefined) return failed([`no record carries the id "${key}"`]);
   if (found.length > 1) {
-    return failure(
+    return failed([
       `${String(found.length)} records carry the id "${key}" ` +
         `(${found.map((r) => `${r.file}:${String(r.line)}`).join(", ")}); show one by its ` +
-        `location, <file>:<line>, the file one of ${NAMES_TEXT}`
-    );
+        `location, <file>:<line>, the file one of ${NAMES_TEXT}`,
+    ]);
   }
   return {
     exitCode: 0,
@@ -223,9 +236,7 @@ function list(args, root, now) {
   }
   if (json && count) return usageError(USAGE.list);
   const { plan, failures } = readPlan(root, now);
-  if (failures.length > 0) {
-    return { exitCode: 1, stdout: [], stderr: failures.map((line) => PREFIX + line) };
-  }
+  if (failures.length > 0) return failed(failures);
   const records = filterRecords(plan.records, filters);
   /** @type {string[]} */
   let stdout;
@@ -233,7 +244,7 @@ function list(args, root, now) {
   else if (json) stdout = JSON.stringify(records, null, 2).split("\n");
   else {
     stdout = records.map(
-      (r) => `${r.id ?? "(no id)"}\t${r.kind}\t${r.file}:${String(r.line)}\t${r.title}`
+      (r) => `${r.id ?? NO_ID_TEXT}\t${r.kind}\t${r.file}:${String(r.line)}\t${r.title}`
     );
   }
   return { exitCode: 0, stdout, stderr: [] };
@@ -247,26 +258,20 @@ function list(args, root, now) {
  */
 function check(args, root, now) {
   if (args.length > 0) return usageError(USAGE.check);
-  const { sources, failures } = readSources(root);
-  const plan = parsePlan(sources, { now });
+  const { plan, sources, failures } = readPlan(root, now);
   const problems = [
     ...failures,
-    ...plan.failures,
     ...plan.unclassified.map(
       (line) => `${line.file}:${String(line.line)} is unclassified: ${line.reason ?? ""}`
     ),
   ];
   if (problems.length > 0) {
-    return {
-      exitCode: 1,
-      stdout: [],
-      stderr: [
-        ...problems,
-        ...(plan.unclassified.length > 0
-          ? [plural(plan.unclassified.length, "unclassified line")]
-          : []),
-      ].map((line) => PREFIX + line),
-    };
+    return failed([
+      ...problems,
+      ...(plan.unclassified.length > 0
+        ? [plural(plan.unclassified.length, "unclassified line")]
+        : []),
+    ]);
   }
   return {
     exitCode: 0,

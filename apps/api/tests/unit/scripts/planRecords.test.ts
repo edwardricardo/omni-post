@@ -11,10 +11,12 @@
  *   plan text from factories, so the suite measures the grammar and never this repository's plan.
  * @layer infrastructure
  */
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 interface PlanSource {
   readonly file: string;
@@ -61,12 +63,19 @@ interface ParsedPlan {
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 interface RecordsModule {
   parsePlan: (sources: readonly PlanSource[], options?: { now?: Date }) => ParsedPlan;
+  filterRecords: (
+    records: readonly PlanRecord[],
+    filters: readonly { field: string; value: string }[]
+  ) => PlanRecord[];
+  findRecords: (records: readonly PlanRecord[], key: string) => PlanRecord[];
+  readSources: (root: string) => { sources: PlanSource[]; failures: string[] };
+  FILTER_FIELDS: Readonly<Record<string, { key: string; match: string }>>;
+  NO_ID_TEXT: string;
 }
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
-const { parsePlan } = (await import(
-  path.join(REPO_ROOT, "scripts/plan/plan-records.mjs")
-)) as RecordsModule;
+const { parsePlan, filterRecords, findRecords, readSources, FILTER_FIELDS, NO_ID_TEXT } =
+  (await import(path.join(REPO_ROOT, "scripts/plan/plan-records.mjs"))) as RecordsModule;
 
 const NOW = new Date("2026-11-26T12:00:00Z");
 const FILES = {
@@ -307,6 +316,33 @@ const recordOf = (parsed: ParsedPlan, id: string): PlanRecord | undefined =>
 
 const unclassifiedOf = (parsed: ParsedPlan): string[] =>
   parsed.unclassified.map((line) => `${line.file}:${String(line.line)}`);
+
+/** A record as the queries receive it, for the cases that need no plan text. */
+const makeRecord = (overrides: Partial<PlanRecord> = {}): PlanRecord => ({
+  kind: "item",
+  id: "DEF-29",
+  writtenId: "DEF-29",
+  file: FILES.chain,
+  line: 15,
+  title: "The workers cannot decrypt the channel credentials.",
+  owner: "Platform and operation",
+  list: "Attached (1)",
+  who: null,
+  today: null,
+  need: null,
+  dependsOn: null,
+  state: "open",
+  closedBy: null,
+  where: ["apps/api/src/security/EncryptionService.ts:99-101"],
+  done: "the workers read what the API writes.",
+  doneState: "stated",
+  tags: ["MP:636"],
+  mentions: [],
+  text: "The workers cannot decrypt the channel credentials.",
+  ...overrides,
+});
+
+const titlesOf = (records: readonly PlanRecord[]): string[] => records.map((r) => r.title);
 
 describe("plan-records", () => {
   let parsed: ParsedPlan;
@@ -559,6 +595,20 @@ describe("plan-records", () => {
         "apps/workers/src/dispatch.ts",
         "apps/workers/src/dispatch.ts:12-14,20",
       ]);
+    });
+
+    it("returns a null id and keeps the plan's text as the written id when an item is written **(no id)**", () => {
+      const chain = renderChain([
+        makeChainFeature({ attached: [itemLine(makeItem({ id: "(no id)", reference: null }))] }),
+      ]);
+
+      const item = parse({ chain }).records.find((record) => record.kind === "item");
+
+      expect({ id: item?.id, writtenId: item?.writtenId, constant: NO_ID_TEXT }).toEqual({
+        id: null,
+        writtenId: "(no id)",
+        constant: "(no id)",
+      });
     });
 
     it("returns absent as the done state when the item writes no done condition", () => {
@@ -945,6 +995,159 @@ describe("plan-records", () => {
       }).toEqual({
         idea: undefined,
         kinds: ["heading", "blank", "fenced", "fenced", "fenced", "fenced", "blank"],
+      });
+    });
+  });
+
+  describe("queries", () => {
+    it("returns only the record that holds a value with regular-expression metacharacters as literal text", () => {
+      const records = [
+        makeRecord({ title: "Retry (x2) [fast].*" }),
+        makeRecord({ title: "Retry xx2 fast" }),
+      ];
+
+      const found = filterRecords(records, [{ field: "title", value: "(x2) [fast].*" }]);
+
+      expect(titlesOf(found)).toEqual(["Retry (x2) [fast].*"]);
+    });
+
+    it("returns a record when one element of its where contains the value", () => {
+      const records = [
+        makeRecord({ title: "holds it", where: ["docs/a.md", "apps/api/src/outbox/relay.ts:89"] }),
+        makeRecord({ title: "holds another", where: ["apps/api/src/outbox/queue.ts"] }),
+      ];
+
+      const found = filterRecords(records, [{ field: "where", value: "outbox/relay.ts" }]);
+
+      expect(titlesOf(found)).toEqual(["holds it"]);
+    });
+
+    it("returns a record when one element of its tags equals the value and none when an element only contains it", () => {
+      const records = [makeRecord({ title: "tagged", tags: ["SMELL-4", "MP:636"] })];
+
+      const found = {
+        whole: titlesOf(filterRecords(records, [{ field: "tag", value: "MP:636" }])),
+        part: titlesOf(filterRecords(records, [{ field: "tag", value: "MP:63" }])),
+      };
+
+      expect(found).toEqual({ whole: ["tagged"], part: [] });
+    });
+
+    it("throws a RangeError that names the field and lists the accepted fields when a filter's field is unknown", () => {
+      const act = (): PlanRecord[] =>
+        filterRecords([makeRecord()], [{ field: "titel", value: "workers" }]);
+
+      expect(act).toThrow(RangeError);
+      expect(act).toThrow(
+        `filterRecords: unknown field "titel"; the fields it accepts are ${[
+          "kind",
+          "file",
+          ...Object.keys(FILTER_FIELDS),
+        ].join(", ")}`
+      );
+    });
+
+    it("returns the record whose canonical id or written id is the key", () => {
+      const records = [makeRecord({ kind: "feature", id: "A-TEAM-07", writtenId: "C-07" })];
+
+      const found = {
+        canonical: findRecords(records, "A-TEAM-07").map((r) => r.writtenId),
+        written: findRecords(records, "C-07").map((r) => r.id),
+      };
+
+      expect(found).toEqual({ canonical: ["C-07"], written: ["A-TEAM-07"] });
+    });
+
+    it.each([
+      ["plan", FILES.plan],
+      ["chain", FILES.chain],
+      ["areas", FILES.areas],
+      ["cross-cutting", FILES.crossCutting],
+      ["off-the-map", FILES.offTheMap],
+      ["parking", FILES.parking],
+    ])("returns the record that starts on the line when the key is %s:<line>", (name, file) => {
+      const records = Object.values(FILES).flatMap((each) => [
+        makeRecord({ file: each, line: 7, title: `${each} at 7` }),
+        makeRecord({ file: each, line: 8, title: `${each} at 8` }),
+      ]);
+
+      expect(titlesOf(findRecords(records, `${name}:7`))).toEqual([`${file} at 7`]);
+    });
+
+    it("returns no record when the name before the colon is no plan file", () => {
+      const records = [makeRecord({ file: FILES.chain, line: 7 })];
+
+      expect(findRecords(records, "nowhere:7")).toEqual([]);
+    });
+
+    it("freezes the filter fields and each of their rules and offers exactly the fields of the list command", () => {
+      expect({
+        frozen: Object.isFrozen(FILTER_FIELDS),
+        unfrozenRules: Object.entries(FILTER_FIELDS)
+          .filter(([, rule]) => !Object.isFrozen(rule))
+          .map(([name]) => name),
+        fields: Object.keys(FILTER_FIELDS),
+      }).toEqual({
+        frozen: true,
+        unfrozenRules: [],
+        fields: [
+          "id",
+          "written-id",
+          "title",
+          "owner",
+          "list",
+          "who",
+          "today",
+          "need",
+          "depends-on",
+          "state",
+          "closed-by",
+          "where",
+          "done",
+          "done-state",
+          "tag",
+          "mention",
+          "text",
+        ],
+      });
+    });
+  });
+
+  describe("readSources", () => {
+    let root: string;
+
+    beforeEach(() => {
+      root = mkdtempSync(path.join(tmpdir(), "plan-sources-"));
+      for (const source of makeSources()) {
+        mkdirSync(path.dirname(path.join(root, source.file)), { recursive: true });
+        writeFileSync(path.join(root, source.file), source.text);
+      }
+    });
+
+    afterEach(() => {
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it.each([
+      ["missing", (file: string): void => rmSync(file)],
+      [
+        "unreadable",
+        (file: string): void => {
+          rmSync(file);
+          mkdirSync(file);
+        },
+      ],
+    ])("returns a failure that names the file when a plan file is %s", (_case, breakFile) => {
+      breakFile(path.join(root, FILES.parking));
+
+      const read = readSources(root);
+
+      expect({
+        files: read.sources.map((source) => source.file),
+        failures: read.failures,
+      }).toEqual({
+        files: Object.values(FILES).filter((file) => file !== FILES.parking),
+        failures: [expect.stringContaining(`${FILES.parking} could not be read: `)],
       });
     });
   });

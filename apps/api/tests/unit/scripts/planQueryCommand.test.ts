@@ -139,6 +139,32 @@ const spawnCommand = (...argv: string[]): { status: number | null; stdout: strin
   return { status: result.status, stdout: result.stdout };
 };
 
+/** The command run as a script with its arguments exactly as given, `--root` placed by the case. */
+const spawnAsGiven = (...argv: string[]): { status: number | null; stdout: string } => {
+  const result = spawnSync(process.execPath, [COMMAND, ...argv], { encoding: "utf8" });
+  return { status: result.status, stdout: result.stdout };
+};
+
+/** Plans every file of which is readable but whose structure lacks a part. */
+const STRUCTURAL_BREAKS: Record<string, Partial<Record<FileKey, string>>> = {
+  "a chain table with no State column": { plan: PLAN_TEXT.replaceAll("| State  ", "| Status ") },
+  "an area table whose header is renamed": {
+    areas: AREAS_TEXT.replace("| Depends on |", "| Depends    |"),
+  },
+  "a chain row that no record holds": {
+    plan: PLAN_TEXT.replace(
+      "| F-02 | The next feature  | open   | —         |",
+      "| F-02 | The next feature  | open   | —         |\n| F-19 | A later feature   | open   | —         |"
+    ),
+  },
+};
+
+/** The lines `check` prints for the plan's failures, its unclassified lines left out. */
+const structuralFailuresOf = (outcome: Outcome): string[] =>
+  outcome.stderr.filter(
+    (line) => !line.includes(" is unclassified: ") && !/ unclassified lines?$/.test(line)
+  );
+
 const treeOf = (dir: string): string[] =>
   readdirSync(dir, { recursive: true, encoding: "utf8" }).sort();
 
@@ -267,6 +293,57 @@ describe("plan-query", () => {
         stdout: ["0"],
         stderr: [],
       });
+    });
+  });
+
+  describe("a structurally broken plan", () => {
+    it.each(
+      Object.entries(STRUCTURAL_BREAKS).flatMap(([name, overrides]) => [
+        ["show", name, overrides, ["show", "F-01"]] as const,
+        ["list", name, overrides, ["list", "--count"]] as const,
+      ])
+    )(
+      "exits 1 with nothing on stdout and names each failure when %s runs on %s",
+      (_command, _case, overrides, argv) => {
+        makeTree(overrides);
+        const failures = structuralFailuresOf(run("check"));
+
+        const outcome = run(...argv);
+
+        expect({ outcome, named: failures.length > 0 }).toEqual({
+          outcome: { exitCode: 1, stdout: [], stderr: failures },
+          named: true,
+        });
+      }
+    );
+
+    it.each([["show"], ["list"]])(
+      "says in the help of %s that a plan whose structure lacks a part exits 1",
+      (command) => {
+        expect(run(command, "--help").stdout).toContain(
+          "  Exit 1, each failure named on stderr and nothing on stdout, when a plan file cannot be"
+        );
+      }
+    );
+  });
+
+  describe("the root option", () => {
+    it("exits 2 when --root is given no directory", () => {
+      expect(spawnAsGiven("--root")).toEqual({ status: 2, stdout: "" });
+    });
+
+    it.each([
+      ["show", ["F-01"]],
+      ["list", ["--count"]],
+      ["check", []],
+    ])("exits 2 when --root is given after %s", (command, options) => {
+      expect(spawnAsGiven(command, ...options, "--root", root)).toEqual({ status: 2, stdout: "" });
+    });
+
+    it("says in its usage that --root stands before the command", () => {
+      expect(run("--help").stdout).toContain(
+        "  --root <dir> stands before the command; <dir> holds docs/product/, this repository by default"
+      );
     });
   });
 

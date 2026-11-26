@@ -74,15 +74,8 @@
  *   than a colon, followed by `: ` (`the role **SUPER_ADMIN**: every permission`). Such a line is
  *   reworded or its bold text put in a code span.
  *
- *   ONE READER. The fences, headings, tables, the chain table, a record's span, the code spans,
- *   the two forms that close an item and the walk of a record's span (its labels, entries, notes,
- *   continuations, refusals and item-shape scan) are read by `scripts/plan/plan-text.mjs`. The
- *   plan's records (`pnpm plan:check`, `pnpm plan:show`, `pnpm plan:list`) walk every chain record
- *   with the same walker, so inside a chain record a line this gate refuses fails
- *   `pnpm plan:check`, and a line it reads there as an item, a note or a continuation is read the
- *   same way by both. The records add rules of their own over all six files of the plan, so
- *   `pnpm plan:check` refuses lines this gate never reads or accepts. That module imports nothing
- *   beyond Node's own modules, as this one does.
+ *   ONE READER. This gate reads the plan through `scripts/plan/plan-text.mjs`, the reader the
+ *   plan's records share, and that module's header states what it reads and what the two agree on.
  *
  *   Usage: `node scripts/testing/plan-closure-gate.mjs [--root <dir>]`. The root defaults to the
  *   repository this file lives in, located from the script's own URL: no git, and nothing read from

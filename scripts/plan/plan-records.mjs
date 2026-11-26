@@ -32,7 +32,8 @@
  *   is only a line suffix names that line of the nearest path span before it, and is left out
  *   when none precedes it. `doneState` is `absent` with no `Done` segment, `not-stated` when that
  *   segment starts with `not stated` in any case, and `stated` otherwise; a chain feature's is
- *   read the same way from its `Proof of done`.
+ *   read the same way from its `Proof of done`. An item the plan writes as `**(no id)**` where its
+ *   id would stand ({@link NO_ID_TEXT}) has a null `id` and keeps that text as its `writtenId`.
  *
  *   TAGS AND MENTIONS. A record's tags are its own: every `MP:<n>` and old id (`SMELL-<n>`,
  *   `FN-<n>`, `DEF-<n>`) of an item's id and of the parenthesis after it, or of the parenthesis
@@ -172,6 +173,13 @@ const SPAN_REASONS = {
  */
 
 /**
+ * The text the plan writes in bold where an item's id would stand, `**(no id)**`, for an item that
+ *   has no id. Its record's `id` is `null` and its `writtenId` keeps this text; the list command
+ *   prints it for every record whose `id` is `null`.
+ */
+export const NO_ID_TEXT = "(no id)";
+
+/**
  * @typedef {object} Filter
  * @property {string} field A key of {@link FILTER_FIELDS}, or `kind` or `file`.
  * @property {string} value
@@ -180,27 +188,38 @@ const SPAN_REASONS = {
 /**
  * The fields a list may filter on, by the flag's name, with how a value matches: `equals` the
  *   whole field, `contains` a literal part of it, `element-equals` or `element-contains` one
- *   element of a list. No value is ever compiled as a regular expression.
+ *   element of a list. No value is ever compiled as a regular expression. The object and each of
+ *   its rules are frozen, so a script that imports the library cannot change how a field matches.
  */
 export const FILTER_FIELDS = Object.freeze({
-  id: { key: "id", match: "equals" },
-  "written-id": { key: "writtenId", match: "equals" },
-  title: { key: "title", match: "contains" },
-  owner: { key: "owner", match: "contains" },
-  list: { key: "list", match: "contains" },
-  who: { key: "who", match: "contains" },
-  today: { key: "today", match: "contains" },
-  need: { key: "need", match: "contains" },
-  "depends-on": { key: "dependsOn", match: "contains" },
-  state: { key: "state", match: "equals" },
-  "closed-by": { key: "closedBy", match: "equals" },
-  where: { key: "where", match: "element-contains" },
-  done: { key: "done", match: "contains" },
-  "done-state": { key: "doneState", match: "equals" },
-  tag: { key: "tags", match: "element-equals" },
-  mention: { key: "mentions", match: "element-equals" },
-  text: { key: "text", match: "contains" },
+  id: filterRule("id", "equals"),
+  "written-id": filterRule("writtenId", "equals"),
+  title: filterRule("title", "contains"),
+  owner: filterRule("owner", "contains"),
+  list: filterRule("list", "contains"),
+  who: filterRule("who", "contains"),
+  today: filterRule("today", "contains"),
+  need: filterRule("need", "contains"),
+  "depends-on": filterRule("dependsOn", "contains"),
+  state: filterRule("state", "equals"),
+  "closed-by": filterRule("closedBy", "equals"),
+  where: filterRule("where", "element-contains"),
+  done: filterRule("done", "contains"),
+  "done-state": filterRule("doneState", "equals"),
+  tag: filterRule("tags", "element-equals"),
+  mention: filterRule("mentions", "element-equals"),
+  text: filterRule("text", "contains"),
 });
+
+/**
+ * @description One frozen rule of {@link FILTER_FIELDS}.
+ * @param {string} key The record's property the field reads.
+ * @param {"equals" | "contains" | "element-equals" | "element-contains"} match
+ * @returns {Readonly<{ key: string, match: "equals" | "contains" | "element-equals" | "element-contains" }>}
+ */
+function filterRule(key, match) {
+  return Object.freeze({ key, match });
+}
 
 /**
  * @param {string} value
@@ -370,7 +389,7 @@ function itemRecord(draft, today) {
   const closed = closure.status === "closed";
   const rest = closed ? text.slice(closure.marker.length).replace(MARKER_TAIL, "") : text;
   const { title, where, done, dependsOn } = segmentsOf(rest);
-  const id = draft.writtenId === null || draft.writtenId === "(no id)" ? null : draft.writtenId;
+  const id = draft.writtenId === null || draft.writtenId === NO_ID_TEXT ? null : draft.writtenId;
   return {
     kind: "item",
     id,
@@ -1062,20 +1081,33 @@ function matches(record, { field, value }) {
 }
 
 /**
- * @description The records every filter matches, each value compared as literal text.
+ * @description The records every filter matches, each value compared as literal text. A field it
+ *   does not know is refused rather than matching nothing, so a misspelled field cannot read as a
+ *   query no record answers.
  * @param {PlanRecord[]} records
  * @param {Filter[]} filters `kind` compares the kind, `file` the file's path relative to the
  *   root, any other field as {@link FILTER_FIELDS} states.
  * @returns {PlanRecord[]}
+ * @throws {RangeError} When a filter's field is none of `kind`, `file` and the keys of
+ *   {@link FILTER_FIELDS}; the message names the field and lists those it accepts.
  */
 export function filterRecords(records, filters) {
+  const accepted = ["kind", "file", ...Object.keys(FILTER_FIELDS)];
+  const unknown = filters.find((filter) => !accepted.includes(filter.field));
+  if (unknown !== undefined) {
+    throw new RangeError(
+      `filterRecords: unknown field "${unknown.field}"; the fields it accepts are ${accepted.join(", ")}`
+    );
+  }
   return records.filter((record) => filters.every((filter) => matches(record, filter)));
 }
 
 /**
- * @description The records an id or a location names: `<name>:<line>`, `<name>` a key of
- *   `PLAN_FILES`, names the record that starts on that line; any other key names the records whose
- *   canonical id or id as written it is.
+ * @description The records an id or a location names. `<name>:<line>` names the record that
+ *   starts on that line of a plan file, `<name>` one of the six keys of `PLAN_FILES`, lower case
+ *   with hyphens: `plan`, `chain`, `areas`, `cross-cutting`, `off-the-map` and `parking`. Any
+ *   other key, an unknown name before a colon included, names the records whose canonical id or
+ *   id as written it is.
  * @param {PlanRecord[]} records
  * @param {string} key
  * @returns {PlanRecord[]}

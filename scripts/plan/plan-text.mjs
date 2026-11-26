@@ -7,8 +7,9 @@
  *   no other function reads, headings, tables and their cells, the chain table of `## The chain`,
  *   a record's span from its heading, inline code spans, the two forms that close an item, and
  *   {@link readRecordSpan}, the one walker of a chain record's span. The walker gives each line of
- *   the span its kind, reads the record's item lists, and names each line its grammar refuses;
- *   the gate judges a closed feature with it and the records read every chain record with it, so
+ *   the span its kind (a label, an item, a note, a continuation, prose or refused), reads the
+ *   record's item lists, names each line its grammar refuses, and scans every line no list reads
+ *   for an item's shape; the gate judges a closed feature with it and the records read every chain record with it, so
  *   a line inside a chain record that the gate refuses the records refuse too, and a line the gate
  *   reads as an item, a note or a continuation is read the same way by both. The records add
  *   rules of their own on top of it, which their header states.
@@ -495,7 +496,9 @@ function statusOf(text, today) {
  * @typedef {object} SpanLine
  * @property {number} index Zero-based line index.
  * @property {SpanLineKind} kind
- * @property {string | null} label A label line's name, else `null`.
+ * @property {string | null} label The name of the label a line opens: set on a label line, and
+ *   kept when the item-shape scan refuses that line, so a line of kind `refused` may carry one;
+ *   `null` on every other line.
  */
 
 /**
@@ -633,7 +636,8 @@ export function readRecordSpan(record, today) {
   }
 
   // An item written where no list reads it would otherwise pass unseen, open or not. A code span
-  // quotes the grammar rather than writes an item, so its contents are not scanned.
+  // quotes the grammar rather than writes an item, so its contents are not scanned. A refused line
+  // keeps the label it had: a label line written like an item still opens its list.
   for (const at of read) {
     const line = lines[at.index] ?? "";
     if (
