@@ -27,41 +27,46 @@ pnpm dev               # API (port 3000) and workers; pnpm dev:admin (3100), pnp
 
 ## Canon and architecture
 
-The four canon documents are loaded into every agent session by `CLAUDE.md`.
+The four canon documents are loaded by the `@`-imports of `CLAUDE.md`; the companion beside each, and the saga canon, are read as files.
 
-| Document                                                           | What it covers                                                                                                                                           |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Architecture Canon](architecture/ARCHITECTURE_CANON.md)           | Hexagonal, DDD, CQRS, Unit of Work, saga, dependency injection                                                                                           |
-| [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                                                                                                                       |
-| [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting                                                                                                    |
-| [Dependency Audit Record](security/DEPENDENCY_AUDIT_RECORD.md)     | CVE floors, ignored advisories, patches, holds (read as a file)                                                                                          |
-| [Fitness Functions](development/FITNESS_FUNCTIONS.md)              | The inventory and the block of every fitness check, by number (read as a file)                                                                           |
-| [Canon Enforcement](development/CANON_ENFORCEMENT.md)              | What each canon-exception scenario allows, the hot-patch record, the reviewer protocol, each tripwire's reason and the canon-check line (read as a file) |
-| [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                                                                                                              |
-| [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                                                                                                             |
-| [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match                                                                                                   |
-| [Schema Conventions](architecture/schema-conventions.md)           | Prisma schema conventions                                                                                                                                |
-| [Caching](architecture/caching.md)                                 | Why one cache port with two adapters; the HTTP response cache                                                                                            |
-| [Logging](architecture/logging.md)                                 | Logger threat model and redaction                                                                                                                        |
-| [Secrets and Environment](architecture/secrets-and-env.md)         | Typed env modules, test environment, secret handling rationale                                                                                           |
-| [OpenAPI Migration](architecture/openapi-migration.md)             | Route schemas to OpenAPI to the generated TypeScript types                                                                                               |
-| [Canon Research Index](architecture/CANON_RESEARCH_INDEX.md)       | The research sources behind each canon rule                                                                                                              |
-| [Service Level Objectives](observability/SLO.md)                   | SLOs and the Prometheus queries behind them                                                                                                              |
-| [React Standards](frontend/REACT_STANDARDS.md)                     | Story requirement and the map to the frontend rules                                                                                                      |
-| [Frontend Standards](standards/frontend-standards.md)              | Detailed rules for `apps/admin` and `apps/client`                                                                                                        |
+| Document                                                                     | What it covers                                                                                                                                           |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Architecture Canon](architecture/ARCHITECTURE_CANON.md)                     | Hexagonal, DDD, CQRS, Unit of Work, events, dependency injection                                                                                         |
+| [Architecture Canon Reference](architecture/ARCHITECTURE_CANON_REFERENCE.md) | The Unit of Work template, the dependency-injection reference and deviation, how to extend the architecture canon (read as a file)                       |
+| [Saga Canon](architecture/SAGA_CANON.md)                                     | The saga rules and their reference, read when a saga is written or changed                                                                               |
+| [Coding Standards](development/CODING_STANDARDS.md)                          | TypeScript, testing, naming, JSDoc                                                                                                                       |
+| [Coding Standards Reference](development/CODING_STANDARDS_REFERENCE.md)      | The lint rules behind the test rules, the backend test patterns, the `@layer` examples, how to extend the coding standards (read as a file)              |
+| [Security Canon](security/SECURITY_CANON.md)                                 | Secrets, environment, tenant isolation, rate limiting, literal security parameters                                                                       |
+| [Security Canon Reference](security/SECURITY_CANON_REFERENCE.md)             | The rate-limiting rationale, the dependency audit record's obligation, how to extend the security canon (read as a file)                                 |
+| [Dependency Audit Record](security/DEPENDENCY_AUDIT_RECORD.md)               | CVE floors, ignored advisories, patches, holds (read as a file)                                                                                          |
+| [Fitness Functions](development/FITNESS_FUNCTIONS.md)                        | The inventory and the block of every fitness check, by number (read as a file)                                                                           |
+| [Canon Enforcement](development/CANON_ENFORCEMENT.md)                        | What each canon-exception scenario allows, the hot-patch record, the reviewer protocol, each tripwire's reason and the canon-check line (read as a file) |
+| [Logging Canon](observability/LOGGING_CANON.md)                              | Logger factories, background tasks, caching                                                                                                              |
+| [Logging Canon Reference](observability/LOGGING_CANON_REFERENCE.md)          | What the background scheduler applies, how to extend the logging canon (read as a file)                                                                  |
+| [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)                         | The core packages and what each context owns                                                                                                             |
+| [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md)           | Ledger of admin and customer behaviour that must match                                                                                                   |
+| [Schema Conventions](architecture/schema-conventions.md)                     | Prisma schema conventions; the client regenerated after every migration                                                                                  |
+| [Caching](architecture/caching.md)                                           | Why one cache port with two adapters; the HTTP response cache                                                                                            |
+| [Logging](architecture/logging.md)                                           | Logger threat model and redaction                                                                                                                        |
+| [Secrets and Environment](architecture/secrets-and-env.md)                   | Typed env modules, test environment, secret handling rationale                                                                                           |
+| [OpenAPI Migration](architecture/openapi-migration.md)                       | Route schemas to OpenAPI to the generated TypeScript types                                                                                               |
+| [Canon Research Index](architecture/CANON_RESEARCH_INDEX.md)                 | The research sources behind each canon rule                                                                                                              |
+| [Service Level Objectives](observability/SLO.md)                             | SLOs and the Prometheus queries behind them                                                                                                              |
+| [React Standards](frontend/REACT_STANDARDS.md)                               | Component code, component JSDoc, the story requirement and the map to the frontend rules                                                                 |
+| [Frontend Standards](standards/frontend-standards.md)                        | Detailed rules for `apps/admin` and `apps/client`, the backend contract, MSW in client tests and the proxy smoke test                                    |
 
 ## Security
 
-| Document                                                                   | What it covers                                                                 |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Security Architecture](architecture/SECURITY.md)                          | Authentication, MFA, RBAC, encryption, rate limiting, audit                    |
-| [Authentication](security/AUTH.md)                                         | Cookie authentication for the admin and client apps                            |
-| [Multi-Tenant Guards](security/MULTI_TENANT_GUARDS.md)                     | Tenant guard, row level security and the tenant-scoped model list              |
-| [Multi-Tenant Audit 2026-05-27](security/MULTI_TENANT_AUDIT_2026-05-27.md) | Retrospective audit of the tenant-scoped adapters                              |
-| [Secrets](security/SECRETS.md)                                             | Where every secret lives, how to rotate it, the database-stored classes A to E |
-| [Secrets Rotation Runbook](security/T0A_SECRETS_ROTATION_RUNBOOK.md)       | The rotation procedure; not yet executed (SECRETS-ROTATION-GOLIVE)             |
-| [Dependency Audit Policy](security/dependency-audit-policy.md)             | When an advisory may be ignored                                                |
-| [Security Testing Framework](security/SECURITY_TESTING_FRAMEWORK.md)       | The `security/tests` suites; read its status note first                        |
+| Document                                                                   | What it covers                                                                                 |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [Security Architecture](architecture/SECURITY.md)                          | Authentication, MFA, RBAC, encryption, rate limiting, audit                                    |
+| [Authentication](security/AUTH.md)                                         | Cookie authentication for the admin and client apps                                            |
+| [Multi-Tenant Guards](security/MULTI_TENANT_GUARDS.md)                     | Tenant guard, row level security and the tenant-scoped model list                              |
+| [Multi-Tenant Audit 2026-05-27](security/MULTI_TENANT_AUDIT_2026-05-27.md) | Retrospective audit of the tenant-scoped adapters                                              |
+| [Secrets](security/SECRETS.md)                                             | Where every secret lives, how to rotate it, the database-stored classes A to E                 |
+| [Secrets Rotation Runbook](security/T0A_SECRETS_ROTATION_RUNBOOK.md)       | The rotation procedure; not yet executed (SECRETS-ROTATION-GOLIVE)                             |
+| [Dependency Audit Policy](security/dependency-audit-policy.md)             | When an advisory may be ignored; pinning a version, raising a CVE floor, patching a dependency |
+| [Security Testing Framework](security/SECURITY_TESTING_FRAMEWORK.md)       | The `security/tests` suites; read its status note first                                        |
 
 ## API
 
