@@ -392,6 +392,13 @@ grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
 # clause, because the `$` anchor refuses the carriage return before it (fail-
 # closed), while a child with CRLF line endings passes the **Owner:** clause,
 # whose pattern has no end anchor.
+# PINNED BY apps/api/tests/unit/scripts/canonChildDocsStep.test.ts, which reads
+# the step's `run: |` body from the workflow at test time and runs it as Actions
+# does, `bash -e` on a Linux runner (the suite fails if the step, its job or the
+# workflow gains anything that changes the shell, its environment or the
+# runner), in a temporary copy of the eight files: the clean copy, the `::error`
+# line of each clause, a case for each limit above and two for limit (5), its
+# CRLF companion failing and its CRLF child passing.
 for f in docs/architecture/ARCHITECTURE_CANON.md \
          docs/development/CODING_STANDARDS.md \
          docs/security/SECURITY_CANON.md \
