@@ -148,7 +148,7 @@ Pre-T4-L, `BranchManager` had `private branchCache = new Map<string, VersionBran
 
 T4-L preserves the existing behavior: when a `CachePort` is supplied, `cache.set` writes the branch; nothing reads it back. The migration does NOT add a read path that didn't exist before — that would be a behavior change disguised as a refactor.
 
-The dead read is open: should `getBranchByName`, `branchExists`, or `updateBranchHead` actually read the cache, or is the Map a residue from a pre-merge implementation?
+The dead read is open (the row BRANCH-CACHE-WRITE-IS-READ-BY-NOTHING of `docs/product/plan/cross-cutting.md`): should `getBranchByName`, `branchExists`, or `updateBranchHead` actually read the cache, or is the Map a residue from a pre-merge implementation?
 
 ---
 
@@ -162,7 +162,7 @@ T4-L deliberately did NOT ship them. Reasons:
 2. **Per-policy decisions.** Single-flight is right for expensive deterministic factories; SWR is right for caches where stale-by-N-seconds is acceptable; XFetch is right for very-hot keys with predictable-cost regeneration. One global policy fits none of these.
 3. **The cost of waiting is bounded.** Factory functions today are mostly DB lookups (~10ms) or HTTP fetches (~100ms). A small thundering herd lasts under a second; the cache is then warm. The real concern is the dozenth pod pile-on after a TTL expiry — and we'd see that in metrics first.
 
-Concurrent misses of one key each run the factory until then. When we add it, the port surface stays the same — stampede protection is a property of the adapter, not the contract.
+Until stampede protection is added (the row CACHE-STAMPEDE-PROTECTION of `docs/product/plan/parking.md`), concurrent misses of one key each run the factory. When it is added, the port surface stays the same — stampede protection is a property of the adapter, not the contract.
 
 ---
 

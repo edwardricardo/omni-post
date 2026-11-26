@@ -31,11 +31,11 @@ class (CVE-2025-59152 Litestar, CVE-2023-49952 Mastodon, CVE-2026-55501
 
 **What `request.url` keeps:** `request.url` keeps the query string, a fragment, percent-encoding and an absolute-form target, all of which reach the same handler, so a key or rule read from it lets each variant mint a fresh bucket or fall to the default rule.
 
-**What an ungoverned rule costs:** so a rule named after an endpoint that does not exist, or whose every route an earlier rule takes, caps nothing while it reads as protection. `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts` holds `STANDARD_ROUTE_RULES` and `EXPENSIVE_ENDPOINT_RULES` to the registered route table (the committed OpenAPI projection of `createApp()` that the CI API-types drift gate keeps current) and fails on either case.
+**What an ungoverned rule costs:** A rule's `path` is a prefix of the route pattern, not of a URL, so a rule named after an endpoint that does not exist, or whose every route an earlier rule takes, caps nothing while it reads as protection. `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts` holds `STANDARD_ROUTE_RULES` and `EXPENSIVE_ENDPOINT_RULES` to the registered route table (the committed OpenAPI projection of `createApp()` that the CI API-types drift gate keeps current) and fails on either case.
 
 ### Frontend client-IP relay
 
-**The attack through a directly reachable portal:** Otherwise, if a portal is directly reachable (or its front edge does not strip inbound XFF) while the backend runs `trusted-ranges`, an attacker forges XFF at the portal, the portal relays it verbatim, the backend sees a TRUSTED peer presenting a forged chain, and the selected entry becomes attacker-controlled — the same leftmost-spoof bypass the resolver exists to prevent.
+**The attack through a directly reachable portal:** If a portal is directly reachable (or its front edge does not strip inbound XFF) while the backend runs `trusted-ranges`, an attacker forges XFF at the portal, the portal relays it verbatim, the backend sees a TRUSTED peer presenting a forged chain, and the selected entry becomes attacker-controlled — the same leftmost-spoof bypass the resolver exists to prevent.
 
 ---
 
