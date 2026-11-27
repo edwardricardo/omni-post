@@ -80,7 +80,7 @@ closed feature's record with, so a line that check refuses fails `pnpm plan:chec
 | F-12 | The Organization has a Workspace (create, list, select)                           | PARTIAL                                    | 3              | open        | —         |
 | F-13 | A Channel is connected                                                            | WORKS                                      | 4              | open        | —         |
 | F-14 | A post is written and saved                                                       | PARTIAL                                    | 4              | open        | —         |
-| F-15 | A post is published now                                                           | PARTIAL                                    | 15             | open        | —         |
+| F-15 | A post is published now                                                           | PARTIAL                                    | 17             | open        | —         |
 | F-16 | A post is scheduled and published later                                           | PARTIAL                                    | 2              | open        | —         |
 | F-17 | The result is visible                                                             | PARTIAL                                    | 1              | open        | —         |
 | F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL                                    | 2              | open        | —         |
