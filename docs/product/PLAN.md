@@ -100,9 +100,9 @@ needs a media file, and takes video, so attaching a media file to a post comes b
 | A-AI AI assistance                                           | 17       | 6                | 26             | 1                  |
 | A-ANALYTICS Analytics and reports beyond the basic dashboard | 20       | 1                | 22             | 0                  |
 | A-ENGAGE Inbox and outside integrations                      | 22       | 2                | 33             | 0                  |
-| A-PLATFORMS The ten Platforms other than Bluesky             | 33       | 0                | 32             | 1                  |
+| A-PLATFORMS The ten Platforms other than Bluesky             | 33       | 0                | 33             | 1                  |
 | A-ADMIN-OPS Administrator operations outside the base        | 26       | 6                | 32             | 0                  |
-| Total                                                        | 207      | 27               | 246            |                    |
+| Total                                                        | 207      | 27               | 247            |                    |
 
 ## Order of the first slices
 
