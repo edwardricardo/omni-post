@@ -45,7 +45,7 @@
  *   only its global block. (2) Membership proves the ledger records the slice's deletion and its
  *   descent, never that the deletion explains the descent: the review of the deletion pull request
  *   reads that, since the tracker that compared the expected drop with the real one left the tree on
- *   2026-11-10 (ADR-0044). (3) The ledger is the committed one; that it matches the tree is
+ *   2026-11-11 (ADR-0044). (3) The ledger is the committed one; that it matches the tree is
  *   fitness #52's part.
  *
  *   Usage: `node scripts/testing/coverage-floor-gate.mjs`. `FITNESS_BASE_REF` names the base, by

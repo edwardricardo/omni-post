@@ -1,6 +1,6 @@
 # Testing Re-foundation — Measurements
 
-The toolchain-lag and OSV measurements of the Testing Re-foundation. The tracker left the tree on 2026-11-10 and is read at [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md); the decision ids (`D25`, `D35` and the others) and the slice ids written below are entries of its Decisions log and units of its fixed plan, which left the tree the same day.
+The toolchain-lag and OSV measurements of the Testing Re-foundation. The tracker left the tree on 2026-11-11 and is read at [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md); the decision ids (`D25`, `D35` and the others) and the slice ids written below are entries of its Decisions log and units of its fixed plan, which left the tree the same day.
 
 **Owner:** Platform engineering
 

@@ -43,7 +43,7 @@ did not exist (N-DOC-1 of the plan).
 
 ## Decision
 
-Two decisions by the Maintainer, applied by slice 0.22 (tracker D29; the `D` ids and the slice ids of this record are entries of the testing refoundation tracker's [Decisions log](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) and units of its fixed plan, both removed from the tree on 2026-11-10):
+Two decisions by the Maintainer, applied by slice 0.22 (tracker D29; the `D` ids and the slice ids of this record are entries of the testing refoundation tracker's [Decisions log](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) and units of its fixed plan, both removed from the tree on 2026-11-11):
 
 - **D29, 2026-10-02:** measure the Storybook, keep what runs, remove what does not, backfill a
   runnable story per component, and make stories part of creating UI ("the plan is not to remove

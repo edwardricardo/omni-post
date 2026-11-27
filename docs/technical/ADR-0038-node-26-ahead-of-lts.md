@@ -15,7 +15,7 @@
   `engines.node` floor moves to 26.13.1, the release both image stages run, and `@types/node` to
   26.6.6)
 - **Amends**: slice `0.16` of `openspec/changes/testing-refoundation/tasks.md` ("the runtime follows
-  LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51 (entries of the tracker's Decisions log, removed from the tree on 2026-11-10)
+  LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51 (entries of the tracker's Decisions log, removed from the tree on 2026-11-11)
 - **Related**: [ADR-0017](ADR-0017-production-build-bundler.md) (the image build model);
   [ADR-0018](ADR-0018-dependency-freshness-canon.md) (the 7-day maturity buffer);
   [ADR-0036](ADR-0036-dependency-update-cadence.md) (security floors immediate, the Tuesday window);
@@ -216,7 +216,7 @@ vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keep
   `docs/deployment/base-images.md` and `docs/deployment/LOCAL.md`; the stated runtime in
   `CLIENT-APP.md`, `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, the two standards documents, both
   investor documents, `TESTING_INFRASTRUCTURE.md` and the coverage note of
-  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md` and `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-10);
+  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md` and `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-11);
   the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
   `@tailwindcss/node` consumer named in the canon row `source-map-js`.
 

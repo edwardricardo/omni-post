@@ -2404,7 +2404,7 @@
 - **Source:** the native review of DEF-78 (`workstream/fix-def-78-dead-security-config`, `15636798`), finding `R2-002`.
 - **Location:** the DEF-78 entry of the plan.
 - **Suggestion:** split the closure into bullets: what was deleted, why the ZAP file is not a rules file, the search before and after, the documents it changed.
-- **Why deferred:** every closure note in §5.11 (DEF-37, DEF-49, DEF-63, DEF-67, DEF-68, DEF-70, DEF-72) is one paragraph appended to its entry; a bulleted form is a convention change for the whole queue, not for one entry.
+- **Why deferred:** every closure note of the defects found on 2026-10-04 and queued after N-TEST-1 (DEF-37, DEF-49, DEF-63, DEF-67, DEF-68, DEF-70, DEF-72) is one paragraph appended to its entry; a bulleted form is a convention change for the whole queue, not for one entry.
 - **To implement:** decide the closure-note format once and apply it to the closed entries as one docs change.
 - **Closed:** 2026-11-27, by the Product Owner's decision: the document it asks to correct is archived as it stands and nothing references it, so that correction is no longer wanted.
 

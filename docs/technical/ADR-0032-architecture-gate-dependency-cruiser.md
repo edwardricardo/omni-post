@@ -32,7 +32,7 @@ nothing; they are still in the config at PR #408.
 
 **madge did not see cycles across packages.** `check:circular` ran only in the `code-quality` job
 of CI. It read 2,839 of 6,237 import edges and skipped 422 imports, 421 of them through workspace
-aliases, so a planted `@core/domain` → `@core/accounts` cycle exited 0 (tracker D43 (e); the `D` ids of this record are entries of the testing refoundation tracker's [Decisions log](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log), which left the tree on 2026-11-10). madge
+aliases, so a planted `@core/domain` → `@core/accounts` cycle exited 0 (tracker D43 (e); the `D` ids of this record are entries of the testing refoundation tracker's [Decisions log](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log), which left the tree on 2026-11-11). madge
 8.0.0, the latest release, loses `module` and `moduleResolution` before its resolver runs.
 
 **eslint-plugin-boundaries was blind where most imports are, and stricter than the canon where it
@@ -255,7 +255,7 @@ decisions stand as written; these notes record where the code differs from their
 
 The dated red and green proofs of `pnpm check:architecture`, moved out of the Red proof cell of the
 Architecture row of `### Gates` in the [testing refoundation tracker](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md), which kept the
-current proof only until it left the tree on 2026-11-10. Oldest first; each bullet is the fact as it was recorded.
+current proof only until it left the tree on 2026-11-11. Oldest first; each bullet is the fact as it was recorded.
 
 - **2026-10-05, resolution control.** With `packages/shared/dist/` built the command still cruises
   7325 dependencies; a config copy without `webpackConfig` cruises 7252, the 73 `@shared/types` edges

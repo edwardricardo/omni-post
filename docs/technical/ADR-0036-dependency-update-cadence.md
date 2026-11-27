@@ -13,7 +13,7 @@
   hold" (`openspec/changes/testing-refoundation/specs/testing-toolchain-alignment/spec.md`)
 - **Related**: [ADR-0019](ADR-0019-pnpm-11-migration.md) (pnpm's `minimumReleaseAge`, which the
   follow-up unit adopts); tracker decisions D20, D25, D45 and D50 in the
-  [Decisions log of TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) (removed from the tree on 2026-11-10)
+  [Decisions log of TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) (removed from the tree on 2026-11-11)
 
 ## Context
 
