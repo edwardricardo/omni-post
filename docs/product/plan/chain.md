@@ -32,6 +32,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-01 The platform starts from an empty database
 
 - **Who:** the operator.
+- **Need:** Mandatory
 - **Depends on:** nothing.
 - **Today:** WORKS, as read against the code on 2026-11-17. `pnpm start:platform` (`scripts/start/platform-start.mjs`) takes a clean checkout, with an empty database, through a generated environment file, Postgres and Redis from `docker-compose.yml` and the migration, to the API answering `/health`, the workers answering `/health/ready` and both portals answering `/api/health`, `/en/login` and `/api/backend/health` through the run's API, and it prints one line for the API or the workers when its detailed report gives a dependency as not healthy. The CI job `Platform Start` (`.github/workflows/ci.yml`, job `platform-start`) repeats it on a clean runner and fails if any table but `_prisma_migrations` holds a row after the start. `.github/rulesets/main.json` names `Platform Start` and the four `Container Security` jobs among the 25 contexts required to merge (#953); the live branch protection takes that list in the step after that merge, by the Maintainer's authorization of 2026-11-20. The deployment documentation (`docs/deployment/DEPLOYMENT_CHECKLIST.md` §Start procedure, and `docs/deployment/ENVIRONMENT_VARIABLES.md`, held to the four environment schemas by `apps/api/tests/unit/scripts/environmentVariablesPage.test.ts`) and the developers' (`docs/development/getting-started.md` §Quick Start) describe that sequence. Before this slice nothing started Postgres and Redis (`pnpm db:up` only checked an external host until #952, which made it start them), every start path needed a root environment file a clean checkout does not have, and the portals answered 500 on a clean checkout (DEF-85). The feature was closed by #916 on its proof of done, with 24 items of this record open. By the Product Owner's decision of 2026-11-20 it is in progress again, and closes again when each of those items is resolved or closed by a recorded decision.
 - **To build:** one documented start sequence that a clean checkout can follow, and a CI job that repeats it.
@@ -80,6 +81,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-02 The first administrator comes to exist
 
 - **Who:** the operator.
+- **Need:** Mandatory
 - **Depends on:** F-01.
 - **Today:** WORKS, as read against the code on 2026-11-24. An operator command creates the first administrator (its entry, function and proof are in the last sentences of this line), and an administrator whose password is marked to be changed (`mustChangePassword`) is made to change it before any session exists. Both password sign-ins that authenticate an administrator refuse a marked administrator once every check, the second factor included, has passed, and open no session: `POST /admin/auth/login` (`AdminAuthService.login`, `apps/api/src/admin/auth/AdminAuthService.ts:101`, the refusal at `:117-125`) answers 403 `PASSWORD_CHANGE_REQUIRED` (`apps/api/src/admin/auth/adminAuthRoutes.ts:54-57`), and `POST /auth/login` (`AuthServiceCore.login`, `apps/api/src/auth/authServiceCore.ts:159`, the refusal at `:327-342`) answers the same code with 403 (`apps/api/src/auth/authRoutes.ts:83`). Each leaves one audit row for the refusal. The password is then replaced with no session by `POST /admin/auth/password/change-required` (route `apps/api/src/admin/auth/adminAuthRoutes.ts:678`, handler `:168`), which calls `AdminAuthService.changeRequiredPassword` (`apps/api/src/admin/auth/AdminAuthService.ts:187`): it runs the sign-in's checks on the e-mail and the current password (`verifySignIn`, `:264`), requires the mark (`:213`), and replaces the password and clears the mark in one write guarded by the row as it was read (`PasswordService.replaceRequiredPassword`, `apps/api/src/admin/auth/PasswordService.ts:194`, the write at `:214-230`); it opens no session and revokes every session of the administrator (`:236`). The administration portal has the page for the change. `loginAction` (`apps/admin/app/actions/auth.ts:63`) opens no session for the sign-in's `PASSWORD_CHANGE_REQUIRED` answer, which the backend client reads as `password_change_required` (`apps/admin/lib/auth/backend-client.ts:214-216`), and redirects to `/<locale>/login/change-password` with nothing in the URL (`apps/admin/app/actions/auth.ts:99-100`, `:117`). The page (`apps/admin/app/[locale]/(auth)/login/change-password/page.tsx`) holds `RequiredPasswordChangeForm` (`apps/admin/app/[locale]/(auth)/login/change-password/RequiredPasswordChangeForm.tsx:91`), which asks for the e-mail, the current password, the new password and its confirmation, and for the second factor's code once the API asks for it. It posts to `changeRequiredPasswordAction` (`apps/admin/app/actions/auth.ts:149`), which refuses a confirmation that differs before it calls the API, calls `POST /admin/auth/password/change-required` through `changeRequiredPassword` (`apps/admin/lib/auth/backend-client.ts:248`) and, once the password is changed, redirects to the sign-in with `passwordChanged=1` (`apps/admin/app/actions/auth.ts:181`), where the new password signs in normally. Both forms show the catalog message of the API's code, under `adminAuthErrors` (`apps/admin/lib/auth/types.ts:121`). The feature's documentation exists, each document named in the **Documentation** line below. The journey across the command, the API and the portal is proven in a browser: a Playwright spec creates the administrator with the command, signs in with the single-use password, changes it on the page of the required change and signs in with the new one, and the job `Platform Start` runs it (`apps/admin/e2e/first-administrator/first-administrator-journey.spec.ts:88`, `.github/workflows/ci.yml:1111`; FIRST-ADMINISTRATOR-JOURNEY-HAS-NO-PROOF-ACROSS-THE-APPLICATIONS, closed by #959). The feature is built and documented, and #980 closes it: the Product Owner decided on 2026-11-20 that no feature closes with open items. Of the 22 items this record held that day, 14 are repaired by #948, 6 are closed by a decision, 1 is closed by #959 (FIRST-ADMINISTRATOR-JOURNEY-HAS-NO-PROOF-ACROSS-THE-APPLICATIONS) and 1 is built by #965 (FIRST-ADMIN-COMMAND-FAILURES-NAME-NO-REASON); of the items found since, REISSUE-REACHES-ANY-ADMINISTRATOR-WHO-NEVER-SIGNED-IN is closed by the Product Owner's decision of 2026-11-20 and INTEGRATION-SUITES-EMPTY-THEIR-DATABASE-BY-A-HAND-LIST by #958, and SEED-ROLE-SUITE-FOURTH-CASE-DOES-NOT-GUARD-ITS-PREMISE, found by the review of the seed role suite's repair, is closed by the Maintainer's decision of 2026-11-20. No item is open, and fitness #56 (#947) is the check that refuses a feature marked closed while an item under its record is open. The development seed is the other path. It runs only when `NODE_ENV` is `development` or `test`, or is unset (`infra/prisma/src/seedGuard.ts:59-65`, asked at `infra/prisma/seed.ts:32-36`, once the seed has loaded its env file at `:25` and before it loads its database client, so an environment is refused whether the process or the env file sets it). Since 2026-11-18 it takes no default password: it refuses when `ADMIN_PASSWORD` is absent or blank (`infra/prisma/src/seedGuard.ts:96-102`, asked at `infra/prisma/seed.ts:40-46`; L-546 is closed). The one definition of the `SUPER_ADMIN` role, which the seed writes, holds every value of the `Permission` enum since 2026-11-19, held to it by a test (`infra/prisma/src/adminSystemRoles.ts:22-53`, `apps/api/tests/unit/adminSystemRoles.test.ts:42-47`). Since 2026-11-19 the persistence the command needs exists, each piece joining an open Unit of Work: whether any administrator exists, active or not (`AdminUserRepositoryPort.existsAny`, `packages/core/domain/src/repositories/AdminUserRepository.ts:166`, adapter `apps/api/src/infrastructure/repositories/PrismaAdminUserRepository.ts:220`); an optional `mustChangePassword` on the administrator's creation input (`packages/core/domain/src/repositories/AdminUserRepository.ts:29`, written at `apps/api/src/infrastructure/repositories/PrismaAdminUserRepository.ts:248-249`); and the write of a system role with its permission rows in one nested operation (`SystemRoleRepository.save`, `packages/core/domain/src/repositories/SystemRoleRepository.ts:109`, adapter `apps/api/src/infrastructure/repositories/PrismaSystemRoleRepository.ts:58`), whose two failures are `RepositoryFailureError` (`packages/core/domain/src/errors/RepositoryFailureError.ts:28`) and `SystemRoleConflictError` (`packages/core/domain/src/repositories/SystemRoleRepository.ts:56`). Since 2026-11-19 the use case that calls them exists, `CreateFirstAdministratorUseCase` (`packages/core/auth/src/CreateFirstAdministratorUseCase.ts:92`), with its two ports, `SingleUsePasswordGenerator` (`packages/ports/src/SingleUsePasswordGenerator.ts:11`) and `AdministratorSignInAddressRule` (`packages/ports/src/AdministratorSignInAddressRule.ts:11`), whose adapters are `NodeCryptoSingleUsePasswordGenerator` (`apps/api/src/infrastructure/adapters/NodeCryptoSingleUsePasswordGenerator.ts:41`) and `ZodAdministratorSignInAddressRule` (`apps/api/src/infrastructure/adapters/ZodAdministratorSignInAddressRule.ts:24`). Since 2026-11-19 the executable exists: the entry `apps/api/src/cli/createFirstAdministrator.ts:15` hands its arguments and streams to `runFirstAdministratorCommand` (`apps/api/src/cli/firstAdministratorCommand.ts:386`) and loads the command's own composition root, `openFirstAdministratorCommand` (`apps/api/src/infrastructure/container/firstAdministratorProcess.ts:28`, wiring in `apps/api/src/infrastructure/container/firstAdministratorComposition.ts:47` and `:69`), only once its arguments and terminal are right. It runs as `pnpm --silent create-first-admin --email <address>` (script `create-first-admin`, `apps/api/package.json:17`) or, from the built tree, as `create-first-admin:dist` (`apps/api/package.json:18`). It takes `--email` and, optionally, `--reissue` (`apps/api/src/cli/firstAdministratorCommand.ts:157-164`) and refuses when standard output is not a terminal (`:399-406`). Without `--reissue` it refuses when an administrator exists (`packages/core/auth/src/CreateFirstAdministratorUseCase.ts:180-182`) and otherwise creates the administrator and prints the single-use password once, telling the operator to sign in and change it at once (`createdBlock`, `apps/api/src/cli/firstAdministratorCommand.ts:282`). With `--reissue --email <address>` it re-issues the single-use password of an administrator who exists, has never signed in and must still change the password (`ReissueAdministratorPasswordUseCase`, `packages/core/auth/src/ReissueAdministratorPasswordUseCase.ts:80`). It refuses, and writes nothing, when no administrator has the e-mail (`:146-148`), when the administrator has signed in (`:149-151`), when its password is not marked to be changed (`:152-154`) or when the administrator is deactivated (`:155-157`). Otherwise one transaction replaces the hash that was read and clears a pending password reset in one guarded write (`replaceSingleUsePassword`, `apps/api/src/infrastructure/repositories/PrismaAdminUserRepository.ts:310-336`), ends every session of the administrator (`packages/core/auth/src/ReissueAdministratorPasswordUseCase.ts:193-196`) and writes the audit row, and the command prints the new password once, then one line saying that a lock set by failed sign-ins ends by itself within 30 minutes (`reissuedBlock`, `apps/api/src/cli/firstAdministratorCommand.ts:305`). The guarded write names the reset token as it was read, so an administrator who requested a password reset between the read and the write makes the re-issue lose (`packages/core/auth/src/ReissueAdministratorPasswordUseCase.ts:175`), and the operator runs the re-issue again. Both modes leave one audit row inside their transaction, with a system actor, the administrator as the resource and the task as the only detail, never the e-mail, a password or a hash (`recordSystemAction`, `packages/core/auth/src/singleUsePassword.ts:138-156`; the creation's `FIRST_ADMINISTRATOR_CREATED`, `packages/core/auth/src/CreateFirstAdministratorUseCase.ts:40`; the re-issue's `ADMINISTRATOR_PASSWORD_REISSUED`, `packages/core/auth/src/ReissueAdministratorPasswordUseCase.ts:38`). Its proof runs on a database of its own, created and migrated from empty by the test (`apps/api/tests/integration/firstAdministratorCommand.integration.test.ts:448`); the proof of done below names each test and the job that runs it.
 - **Decided (2026-11-10):** a one-time operator command. It refuses when an administrator exists, takes only the e-mail, generates a random single-use password shown once, and the first sign-in forces a new password. The development seed refuses to run in production and loses its default password.
@@ -126,6 +128,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-03 An administrator signs in, stays signed in and signs out
 
 - **Who:** an administrator.
+- **Need:** Mandatory
 - **Depends on:** F-02.
 - **Today:** WORKS from page to data as read. No route-level test covers sign-in, refresh or sign-out, and the four administrator browser specs are quarantined (`packages/test-contracts/quarantine.json`: `a11y`, `auth`, `content-flow` and `smoke`, counted on 2026-11-20) and visit pages that do not exist; none of them names the page of the required password change, which has unit and component cases only.
 - **Wrong as read:** sign-out without the all-sessions flag revokes nothing; a deactivated administrator can keep refreshing; 'revoke all sessions' revokes one; a role change or a deactivation reaches a request only at the next refresh.
@@ -170,6 +173,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-04 An administrator recovers a password
 
 - **Who:** an administrator, for their own account or for another administrator.
+- **Need:** Necessary
 - **Depends on:** F-03.
 - **Today:** PARTIAL. Another administrator can start a reset. The e-mailed link has no locale and an anonymous visitor is sent to the sign-in page, which drops the token. No page requests a reset for oneself.
 - **Proof of done:** a browser test follows the e-mailed link while signed out and sets a new password that works.
@@ -191,6 +195,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-05 Administrators and their roles are managed
 
 - **Who:** a super administrator.
+- **Need:** Necessary
 - **Depends on:** F-03.
 - **Today:** WORKS through the users and security pages (create, edit, activate, deactivate, roles, permission grid). Three roles are seeded: SUPER_ADMIN, ADMIN, SUPPORT.
 - **Decided (2026-11-10):** the 'accounts' area means Organizations. The 13 routes of `/admin/accounts` that manage administrators are deleted with their tests; administrators are managed in one place.
@@ -223,6 +228,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-06 What an administrator configures takes effect
 
 - **Who:** a super administrator.
+- **Need:** Mandatory
 - **Depends on:** F-03.
 - **Today:** PARTIAL. The settings page saves, masks and tests 18 credential groups; 3 are read by running code. Payments, e-mail, storage and every Platform's application registration are read from the environment instead.
 - **Decided (ADR-0034, 2026-10-06):** the credentials an operator provisions are read at run time from what the administrator saves; the environment keeps only the boot secrets.
@@ -254,6 +260,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-07 The price catalog decides what an Organization pays and gets
 
 - **Who:** a super administrator.
+- **Need:** Mandatory
 - **Depends on:** F-03, F-06 (the payment gateway credentials). Blocks: F-08.
 - **Today:** PARTIAL. Tiers and bundles are saved. Registration reads no price and writes fixed trial values; the customer app shows an earlier price list.
 - **Decided (ADR-0024 to ADR-0031, 2026-10-04):** the price unit is the connected Channel, with a tier by the Workspace's Channel count, a volume multiplier by the Organization's Workspace count and a term multiplier; there are no plans. A new Organization gets a 14-day trial, no card by default, every feature with caps (3 Workspaces, 10 Channels, 3 Members, 20,000 AI tokens, 1 GB) and goes read-only when the trial ends unpaid.
@@ -277,6 +284,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-08 An Organization comes to exist
 
 - **Who:** a customer, by registering.
+- **Need:** Mandatory
 - **Depends on:** F-06 (e-mail), F-07 (the trial entitlement).
 - **Today:** WORKS for self-registration (Organization, 14-day trial and owner Member in one transaction). As read: the Workspace cap is 1 while the trial row says 3; there is no e-mail verification; the sign-up form links to terms and privacy pages that do not exist.
 - **Decided (2026-11-10):** an Organization comes to exist by self-registration only. Creation by an administrator is parked until a sales team needs it.
@@ -291,6 +299,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-09 An administrator manages an Organization
 
 - **Who:** an administrator.
+- **Need:** Necessary
 - **Depends on:** F-08.
 - **Today:** PARTIAL. Works: status, subscription, trial, billing view, force-disable multi-factor, force re-authorisation of Channels. Not possible: reset a Member's password, list or revoke a Member's sessions. The Organization's active flag is stored and enforced by nothing.
 - **To build:** the page's buttons point to routes that act on Organizations and Members; the buttons with nothing behind them leave the page.
@@ -315,6 +324,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-10 A Member signs in, stays signed in and signs out
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-08.
 - **Today:** WORKS from page to data as read. The sign-in form, the second-factor step, the refresh and the sign-out each reach their route and logic (`apps/client/app/actions/auth.ts:101-169,181-247`; `apps/api/src/auth/customerAuthRoutes.ts:620,633,656,644`). Route-level tests exist for sign-in with a second factor, for refresh and for the reset flow (`customerLoginMfa.integration.test.ts`, `customerPasswordReset.integration.test.ts`); none names the sign-out or the "who am I" route, and all five client browser specs are quarantined (`packages/test-contracts/quarantine.json:40-65`).
 - **Wrong as read:**
@@ -341,6 +351,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-11 A Member recovers or changes a password
 
 - **Who:** a Member.
+- **Need:** Commonplace
 - **Depends on:** F-10, F-06 (the e-mail settings).
 - **Today:** PARTIAL. The API side of recovery works: a request route that answers the same text for every address, a reset route that claims the token in one statement, and a test that goes through both and signs in (`apps/api/src/auth/customerAuthRoutes.ts:459,514,667,681`; `packages/core/customer-auth/src/RequestPasswordResetUseCase.ts:93-141`; `packages/core/customer-auth/src/ResetPasswordUseCase.ts:65-73`; `customerPasswordReset.integration.test.ts`). No page exists for either step, and no route lets a signed-in Member change a password.
 - **Wrong as read:**
@@ -364,6 +375,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 ### F-12 The Organization has a Workspace (create, list, select)
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-10, F-08 (the entitlement that sets the Workspace cap).
 - **Today:** PARTIAL, and it is the first step of the chain that stops a new Member. The create and list routes work (`apps/api/src/projects/projectRoutes.ts:107,251,839-860`), tested by `projectAccountScope.integration.test.ts`. No page creates a Workspace and the list the dashboard reads always comes back empty, so a new Member sees "No projects found" and no dashboard page renders (`apps/client/providers/ProjectProvider.tsx:211-215,271-290`).
 - **Wrong as read:**
@@ -395,6 +407,7 @@ The feature is for a Channel of any Platform. Its thin version is proven first w
 that works end to end today; F-18 proves it with a Platform that connects by authorization.
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-12.
 - **Today:** WORKS as read for Bluesky once a Workspace exists; MISSING for the other ten Platforms. The dialog takes a handle and an App Password, the route logs in to Bluesky, encrypts `{ identifier, appPassword }` and writes the `Channel` row; the list and the disconnect reach their routes and data (`apps/client/app/[locale]/dashboard/channels/components/ConnectProviderDialog.tsx:41-75`; `apps/api/src/channels/channelRoutes.ts:450-517,336,418`). The workers read the same envelope with the channel id as bound data (`apps/workers/src/services/channelCredentialsDecryptor.ts:55-60`), and the Bluesky adapter reads exactly the two stored fields (`packages/providers/bluesky/src/BlueskyAdapter.ts:40`). `channelTenantIsolation.integration.test.ts` reaches the route, but its Bluesky login is a double; no test connects an account successfully.
 - **Wrong as read:**
@@ -419,6 +432,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 ### F-14 A post is written and saved
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-12.
 - **Today:** PARTIAL. The back end saves a draft: the saga in `draft` mode runs the validate and create steps and writes `Post` (DRAFT) and `PostContent` through `CreatePostUseCase` (`apps/api/src/saga/SagaIntegration.ts:163-196,359-482`; `packages/shared/src/saga.ts:518-690`; `apps/api/src/cqrs/handlers/PostCommandHandlers.ts:88-150`), and `PATCH /posts/:id` updates one (`apps/api/src/posts/postRoutes.ts:54-64,656-661`). Three breaks in the page keep a Member from saving a draft at all.
 - **Wrong as read:**
@@ -444,6 +458,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 ### F-15 A post is published now
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-13, F-14, F-01 (the workers start with the same key ring as the API: DEF-29).
 - **Today:** PARTIAL. Everything between the button and the queue exists: the post page starts a `publish-now` saga with the chosen Channels (`apps/client/app/[locale]/dashboard/posts/[id]/page.tsx:113-157`); the route checks that the Workspace is the caller's, that every Channel is in it and that the post is a draft (`apps/api/src/saga/SagaIntegration.ts:359-470`); the pivot step enqueues one job per Channel on queue `publish` (`packages/shared/src/saga.ts:737-848`; `apps/api/src/saga/SagaIntegration.ts:285-331`; `packages/adapters/queue-bullmq/src/queue-adapter.ts:93-95`); the worker writes a `RUNNING` log, calls the adapter, writes `OK` or `ERR` and notifies the saga (`apps/workers/src/publishHandler.ts:726-805,300-420`); the last step moves the post to Published (`packages/shared/src/saga.ts:979-1070`; `sagaPublishNowPromotion.integration.test.ts` proves that step with a harness). Two defects in the middle stop the first publish from ever reaching Bluesky, and no test runs the chain from page to Platform.
 - **Wrong as read:**
@@ -480,6 +495,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 ### F-16 A post is scheduled and published later
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-15.
 - **Today:** PARTIAL. The controls exist (the editor's schedule picker and the post page's schedule box, `apps/client/components/editor/ClientContentEditor.tsx:206-265`; `apps/client/app/[locale]/dashboard/posts/[id]/page.tsx:160-193`), the saga's `schedule` mode enqueues one delayed job per Channel (`packages/shared/src/saga.ts:737-848`; `packages/adapters/queue-bullmq/src/queue-adapter.ts:93-95`; `apps/api/src/saga/SagaIntegration.ts:296-306`) and the worker releases it at the time. Nothing in between records that the post is scheduled, and nothing after the send records that it is published.
 - **Decided:** ADR-0016 says the schedule path is `SchedulePostUseCase(channelIds)` into the post-publishing saga, one delayed job per Channel, the provider derived from the Channel. The saga as written never calls the use case: its only callers are the Zapier, Make, recurring and bulk paths.
@@ -508,6 +524,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 ### F-17 The result is visible
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-15, F-16, F-14 (the list a Member finds a post in).
 - **Today:** PARTIAL. A post's status is shown on its page from `GET /posts/:id` (`apps/api/src/posts/postRoutes.ts:251-300`; `apps/client/app/[locale]/dashboard/posts/[id]/page.tsx:221-235`), and it reads Published after a publish-now. The route that returns a Workspace's publish log exists (`apps/api/src/projects/projectRoutes.ts:374-415,873`) and no page calls it. The dashboard route answers, and its engagement numbers come from a table nothing live writes.
 - **Wrong as read:**
@@ -532,6 +549,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 ### F-18 A Channel of a Platform that connects by authorization is connected and publishes
 
 - **Who:** a Member.
+- **Need:** Mandatory
 - **Depends on:** F-13, F-15, F-17; F-06 (the Platform's application registration, saved by the administrator).
 - **Today:** PARTIAL. The API has the authorization start and callback routes for eight Platforms (`apps/api/src/auth/providerOAuth.ts`), and no page starts one: the connect dialog sends a request for Bluesky only and closes for the others (`apps/client/app/[locale]/dashboard/channels/components/ConnectProviderDialog.tsx:216-228`).
 - **Decided (2026-11-10):** the chain is proven with both ways of connecting before it closes. The first Platform that connects by authorization is X. After it, in this order: Facebook, YouTube, Instagram, TikTok; then, by rising complexity, Telegram, LinkedIn, Threads, Pinterest, Snapchat. ADR-0034 decides where the credentials live; ADR-0016 that the publish job takes the Platform from the Channel.
