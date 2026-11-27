@@ -21,7 +21,7 @@
 | **"AI + analytics" differentiator** | **Predis.ai / Vista Social**  | Predis already predicts pre-publish performance; Vista Social trains AI on a knowledge base + per-client brand voice. They erode the internal docs' "defensible differentiator" |
 | **Enterprise incumbent**            | **Sprout Social / Hootsuite** | Only if OmniPost moves up to the tertiary segment (SSO, listening, CX)                                                                                                          |
 
-**Key finding:** the claim in [INVESTOR_ES.md](INVESTOR_ES.md) that "no competitor connects analytics + generative AI + multi-platform adaptation" was valid ~2 years ago. In 2026 **Predis.ai** (pre-publication engagement prediction), **Vista Social** (AI trained on a knowledge base + brand voice) and **ContentStudio** (Agentic AI over content discovery) already offer variants of that connection. OmniPost's real advantage today is: **(a)** platform depth (native Snapchat/Telegram/Bluesky), **(b)** a native multi-tenant architecture for agencies, **(c)** per-platform pricing (not per-seat), and **(d)** autonomous features integrated in a single platform. "Data-informed AI" is no longer enough as the only differentiator.
+**Key finding:** the claim in [INVESTOR_ES.md](../product/INVESTOR_ES.md) that "no competitor connects analytics + generative AI + multi-platform adaptation" was valid ~2 years ago. In 2026 **Predis.ai** (pre-publication engagement prediction), **Vista Social** (AI trained on a knowledge base + brand voice) and **ContentStudio** (Agentic AI over content discovery) already offer variants of that connection. OmniPost's real advantage today is: **(a)** platform depth (native Snapchat/Telegram/Bluesky), **(b)** a native multi-tenant architecture for agencies, **(c)** per-platform pricing (not per-seat), and **(d)** autonomous features integrated in a single platform. "Data-informed AI" is no longer enough as the only differentiator.
 
 ---
 
@@ -187,7 +187,7 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 
 ## 5. Strategic conclusions for OmniPost
 
-1. **The investor doc leaves out Metricool and Sendible** — the two competitors most like OmniPost in business model and market. An investor who knows the sector will notice. Recommendation: add both to the comparison in [INVESTOR_ES.md](INVESTOR_ES.md).
+1. **The investor doc leaves out Metricool and Sendible** — the two competitors most like OmniPost in business model and market. An investor who knows the sector will notice. Recommendation: add both to the comparison in [INVESTOR_ES.md](../product/INVESTOR_ES.md).
 
 2. **The "defensible differentiator" needs rewording.** "AI connected to analytics" is already offered by Predis.ai (pre-publish prediction), Vista Social (knowledge base) and ContentStudio (Agentic AI). OmniPost's real defensible differentiator is the **simultaneous combination**: 10-12 native platforms (Snapchat/Telegram/Bluesky) + native multi-tenancy + multi-LLM AI with routing + autonomous features + CRM + SSO **at a per-platform price**. No competitor brings all 6 together — that is the message, not "AI + analytics" alone.
 
