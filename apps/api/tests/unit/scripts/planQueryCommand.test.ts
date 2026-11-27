@@ -12,18 +12,8 @@
  *   repository's plan.
  * @layer infrastructure
  */
-import { execFileSync, spawnSync } from "node:child_process";
-import {
-  closeSync,
-  constants,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  openSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -157,28 +147,31 @@ const spawnAsGiven = (...argv: string[]): { status: number | null; stdout: strin
 };
 
 /**
- * The command run as a script whose standard output is a pipe its reader has already closed, as
- * `| head` leaves it once it has read what it wants: its first write fails with EPIPE every run,
- * because the read end is closed before the command starts.
+ * The command run as a script whose standard output its reader has already closed, as `| head`
+ * leaves it once it has read what it wants. The suite holds the only end that reads the stream
+ * Node creates for the child's standard output, and destroys it in the same turn that spawns the
+ * child. The command's first write meets no reader, and fails with EPIPE, because the child's
+ * start, which loads Node and then the command, takes longer than the rest of that turn: the
+ * order rests on that, and the code does not enforce it.
  */
-const spawnWithClosedOutput = (...argv: string[]): { status: number | null; stderr: string } => {
-  const dir = mkdtempSync(path.join(tmpdir(), "plan-query-pipe-"));
-  const fifo = path.join(dir, "stdout");
-  execFileSync("mkfifo", [fifo]);
-  const reader = openSync(fifo, constants.O_RDONLY | constants.O_NONBLOCK);
-  const writer = openSync(fifo, constants.O_WRONLY | constants.O_NONBLOCK);
-  closeSync(reader);
-  try {
-    const result = spawnSync(process.execPath, [COMMAND, "--root", root, ...argv], {
-      stdio: ["ignore", writer, "pipe"],
-      encoding: "utf8",
+const spawnWithClosedOutput = (
+  ...argv: string[]
+): Promise<{ status: number | null; stderr: string }> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [COMMAND, "--root", root, ...argv], {
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    return { status: result.status, stderr: result.stderr };
-  } finally {
-    closeSync(writer);
-    rmSync(dir, { recursive: true, force: true });
-  }
-};
+    child.stdout.destroy();
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (status) => {
+      resolve({ status, stderr });
+    });
+  });
 
 /** Plans every file of which is readable but whose structure lacks a part. */
 const STRUCTURAL_BREAKS: Record<string, Partial<Record<FileKey, string>>> = {
@@ -756,8 +749,11 @@ describe("plan-query", () => {
       ["check", ["check"]],
     ])(
       "exits 0 with nothing on stderr when %s writes to a pipe its reader has closed",
-      (_command, argv) => {
-        expect(spawnWithClosedOutput(...argv)).toEqual({ status: 0, stderr: "" });
+      async (_command, argv) => {
+        expect({
+          printsWhenOpen: spawnCommand(...argv).stdout !== "",
+          closed: await spawnWithClosedOutput(...argv),
+        }).toEqual({ printsWhenOpen: true, closed: { status: 0, stderr: "" } });
       }
     );
   });
