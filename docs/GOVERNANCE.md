@@ -64,9 +64,13 @@ the Maintainer issues grants").
 
 ## Deleting code
 
-No code is deleted without the Maintainer's explicit validation. That nothing consumes a piece of
-code does not prove it dead: before any destructive action the code is classified in one of four
-classes, and only `DEAD_CODE` that the Maintainer confirms is deleted.
+Removing something from the product takes two steps and two roles. The Product Owner decides
+whether it is part of the product: it is implemented, or it is removed. The Maintainer validates the
+deletion itself: when and how the code leaves. Neither step stands in for the other; a validation of
+the Maintainer recorded before the Product Owner's decision waits for it.
+
+That nothing consumes a piece of code does not prove it dead: before any destructive action the code
+is classified in one of four classes, and only `DEAD_CODE` that the Maintainer confirms is deleted.
 
 - **`PLANNED`**: code built for an intentional future feature.
 - **`INFRASTRUCTURE_READY`**: infrastructure waiting for its integration or wiring.
@@ -78,12 +82,12 @@ backups, one-off debug scripts, superseded configurations, and commented-out blo
 git keeps.
 
 A deletion unit (DC-1 to DC-14, rows of [the plan](product/PLAN.md)) is one pull request of about
-400 lines of code, split by module group when it exceeds them. In the same pull request it updates
-its rows of `docs/reports/UNUSED_CODE_INVENTORY.md` and passes `pnpm lint` with no warning,
-`pnpm exec tsc -b --force`, `node scripts/knip-ratchet.mjs` (with `--write` to shrink the ledger),
-`pnpm check:duplicates`, `apps/api/scripts/typecheck-tests-ratchet.mjs`, `pnpm check:architecture`
-and the suites of each package it touches; a unit that touches the schema runs `pnpm db:up` first
-and passes its migration and the RLS coverage gate. A unit that takes `apps/api` below
-`TEST_FILE_FLOOR` lowers it in the same change and writes why. Units with disjoint files run in
-parallel; DC-13 edits `apps/api/src/index.ts`, as DC-2 does, and the schema, as DC-7, DC-8 and DC-9
-do, so it runs in series with them.
+400 lines of code, a size that is a heuristic and not a rule, split by module group when it exceeds
+them. In the same pull request it updates its rows of `docs/reports/UNUSED_CODE_INVENTORY.md` and
+passes `pnpm lint` with no warning, `pnpm exec tsc -b --force`, `node scripts/knip-ratchet.mjs`
+(with `--write` to shrink the ledger), `pnpm check:duplicates`,
+`apps/api/scripts/typecheck-tests-ratchet.mjs`, `pnpm check:architecture` and the suites of each
+package it touches; a unit that touches the schema runs `pnpm db:up` first and passes its migration
+and the RLS coverage gate. Lowering the `TEST_FILE_FLOOR` of `apps/api` requires its written reason.
+Units with disjoint files can run in parallel; DC-13 edits `apps/api/src/index.ts`, as DC-2 does,
+and the schema, as DC-7, DC-8 and DC-9 do, so it runs in series with them.

@@ -16,11 +16,12 @@
  *   order and with exit 0, or with `--json` those records as a JSON array and the lines on
  *   stderr. An item the plan writes with no id is named by its place, `the item at
  *   <file>:<line>`. `list` prints the records every filter matches, one line each (id, kind,
- *   location, title), or as JSON with `--json`, or their number with `--count`. `check` fails while a line of the plan is unclassified, a file cannot be read
- *   or the plan's structure lacks a part `plan-records.mjs` names as a failure. Each takes
- *   `--help`. While a file cannot be read or the structure lacks a part, `show` and `list` exit 1
- *   with each failure on stderr and nothing on stdout, whatever record they are asked for: a query
- *   over a plan that does not parse whole could miss records in silence.
+ *   location, title), or as JSON with `--json`, or their number with `--count`. `check` fails while
+ *   a line of the plan is unclassified, a file cannot be read or the plan's structure lacks a part
+ *   `plan-records.mjs` names as a failure. Each takes `--help`. While a file cannot be read or the
+ *   structure lacks a part, `show` and `list` exit 1 with each failure on stderr and nothing on
+ *   stdout, whatever record they are asked for: a query over a plan that does not parse whole could
+ *   miss records in silence.
  *
  *   An argument is data: no shell runs and nothing is evaluated. `--file` takes one of the plan's
  *   fixed names and refuses every other value, a path or a traversal included, before anything is

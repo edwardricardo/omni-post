@@ -406,9 +406,9 @@ Only three methods are externally unreachable: `getEndpointStats:303`, `getRecen
 
 ---
 
-### 2.20 `FEATURE_TRACE_MATRIX.md §7` counts tables as shipped capabilities
+### 2.20 The feature matrix the plan absorbed counts tables as shipped capabilities in its section on capabilities not on the competitors' list
 
-**Where:** `docs/product/FEATURE_TRACE_MATRIX.md` §7, the rows "Git-like template versioning", "Native A/B testing", "Instagram Stories as a project", "Video processing/segmentation" and "Transactional Saga / Outbox, idempotent consumers", and the section's conclusion
+**Where:** the feature matrix the plan absorbed, its section on the capabilities in the code that were not on the competitors' list, the rows "Git-like template versioning", "Native A/B testing", "Instagram Stories as a project", "Video processing/segmentation" and "Transactional Saga / Outbox, idempotent consumers", and the section's conclusion
 **Class:** DANGEROUS · **Intent:** LEGACY
 
 Not code — and worth including because it is where this whole class of error becomes externally visible. §7 is titled _"Capabilities in the code that were NOT on the competitors' list"_ and its conclusion recommends putting the findings into **`INVESTOR_ES.md`**.
@@ -420,6 +420,8 @@ Not code — and worth including because it is where this whole class of error b
 **Who is misled.** An investor, or the person writing the deck.
 
 **The fix.** **PRODUCT-OWNER-DECIDES — correct the doc before it reaches a deck.** Split the evidence column into "table exists" vs "code path exists"; that single change reclassifies the affected rows. Two of the five promoted items need to come off the list until their write path exists.
+
+**Closed by the Product Owner's decision of 2026-11-27.** The document it asks to correct is archived as it stands and nothing references it, so that correction is no longer wanted. The two capabilities it names, Git-like template versioning and native A/B testing, appear in neither `docs/product/INVESTOR_EN.md` nor `docs/product/INVESTOR_ES.md` on 2026-11-27.
 
 ---
 
@@ -881,7 +883,7 @@ Six questions. Answering them settles ~28,000 LOC; nothing in engineering can an
 
 Two more that are already awaiting the Product Owner and should not be re-adjudicated: the **video pipeline** (whole `apps/api/src/video/` directory, 7 files, test-only consumers, plus `VideoProcessingJob`/`VideoSegment`) is FN-022 **NEEDS_PRODUCT_OWNER**; **`OutboxInbox`** was built, shipped, and deliberately deleted with recorded sign-off — the only open piece is the deferred drop migration, and "wire it" is the variant that was explicitly rejected for causing silent data loss.
 
-One correction to make **before** any of this reaches an audience: `docs/product/FEATURE_TRACE_MATRIX.md §7` recommends promoting these to the investor narrative. Verification narrowed the exposure from six rows to **two** — Git-like template versioning and native A/B testing are the only promoted items that are schema-without-code-path. Fix those two rows; the panic about six fabricated differentiators does not hold.
+One correction to make **before** any of this reaches an audience: the feature matrix the plan absorbed, in its section on the capabilities in the code that were not on the competitors' list, recommends promoting these to the investor narrative. Verification narrowed the exposure from six rows to **two** — Git-like template versioning and native A/B testing are the only promoted items that are schema-without-code-path. Fix those two rows; the panic about six fabricated differentiators does not hold. Closed by the Product Owner's decision of 2026-11-27 (finding 2.20): the matrix is archived as it stands and nothing references it, and neither investor document names the two capabilities.
 
 ### 8.4 One item to hold, not act on
 
