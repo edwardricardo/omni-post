@@ -61,3 +61,18 @@ the Maintainer issues grants").
    `GRANT_ISSUER` to the incoming holder's identity. That edit touches `.claude/hooks-py/**`, a
    sensitive path, so the pull request needs a `sensitive-edit` grant, which the outgoing holder
    issues while still the Maintainer.
+
+## Deleting code
+
+No code is deleted without the Maintainer's explicit validation. That nothing consumes a piece of
+code does not prove it dead: before any destructive action the code is classified in one of four
+classes, and only `DEAD_CODE` that the Maintainer confirms is deleted.
+
+- **`PLANNED`**: code built for an intentional future feature.
+- **`INFRASTRUCTURE_READY`**: infrastructure waiting for its integration or wiring.
+- **`LEGACY`**: code that had consumers, lost them, and remains for a gradual migration.
+- **`DEAD_CODE`**: code with no use and no plan, confirmed as such by the Maintainer.
+
+Exempt from the Maintainer's validation, though never deleted automatically: `.bak` and `.old`
+backups, one-off debug scripts, superseded configurations, and commented-out blocks whose history
+git keeps.

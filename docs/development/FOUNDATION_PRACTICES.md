@@ -33,6 +33,7 @@ It is read by whoever starts the next application, by whoever writes that prompt
 | FP-031 | Testing              | A migration inserts no application row; a test fails on any that it finds     | construction and gate |
 | FP-035 | Testing              | Every application runs its stories from its first component, on one preview   | construction and gate |
 | FP-040 | Testing              | A browser test that types a secret asserts by values; lint bars page matchers | construction and gate |
+| FP-052 | Testing              | An atomic or single-use operation is tested in the staggered interleaving too | construction          |
 | FP-003 | CI and gates         | A gate fails closed on a missing scope, an empty scan or no measurement       | construction and gate |
 | FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit              | construction and gate |
 | FP-008 | CI and gates         | Every root config a package extends is part of the build cache key            | gate                  |
@@ -52,6 +53,7 @@ It is read by whoever starts the next application, by whoever writes that prompt
 | FP-046 | CI and gates         | A guard changes only toward strictness, proven on the commands it judged      | construction          |
 | FP-047 | CI and gates         | A document is indexed and queried, never handed whole to an agent             | construction and gate |
 | FP-049 | CI and gates         | A gate inline in a workflow has a test that runs the step's own body          | construction          |
+| FP-051 | CI and gates         | A counting gate is measured against the real sites it must catch              | construction          |
 | FP-007 | Security and tenancy | Tenant isolation fails closed from the first tenant-bearing model             | construction and gate |
 | FP-014 | Security and tenancy | A response cache keys each authenticated route by caller, held at boot        | construction and gate |
 | FP-020 | Security and tenancy | Every telemetry SDK strips what it must not send, proven on its payload       | construction and gate |
@@ -68,6 +70,7 @@ It is read by whoever starts the next application, by whoever writes that prompt
 | FP-036 | Documentation        | A feature closes only when no item under it is open, held by a gate           | construction and gate |
 | FP-048 | Documentation        | Loaded rules leave their reasons to a companion; their route is measured      | construction and gate |
 | FP-050 | Documentation        | One parser reads a structured document; its checks and queries share it       | construction and gate |
+| FP-053 | Documentation        | A fixed or closed verdict names its ref, and only main closes                 | construction          |
 
 ## How to use this document
 
@@ -223,6 +226,13 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Day-one enforcement:** construction and gate. Construction: the first browser test that types a secret lands in a directory of its own, with its own configuration holding the settings above and the header that states the limits, and the lint rule for that directory lands in the same commit. Gate: the lint rule runs in the repository's lint, in the local battery and in CI, with its red path shown on a planted page matcher in the directory (lint exits non-zero with the rule's message); the test's red path is shown once by hand on the configuration, by removing the snapshot setting, failing a locator step and finding the typed value in the error-context file, because no check can fail a test on purpose. Carry-over: omni-post's lint block and configuration, generalized to the new application's test framework and the secrets its tests type.
 - **Loosen if:** the framework offers a setting that masks or omits input values in its failure snapshot, and the removal probe above shows no typed value in any file of a run that fails a locator step with the rule off; the rule is then replaced by that setting. Never because a test's secret "is only a test value": the value a journey types is a real credential of a real database for the length of the run.
 
+### FP-052 — A test that certifies an operation as atomic or single-use runs the staggered interleaving besides the simultaneous one
+
+- **Practice:** A test that certifies an operation as atomic or single-use runs the staggered interleaving, where the second call starts after the first has read and before it writes, besides the simultaneous one.
+- **Why:** A test that fires both calls at once through `Promise.all` certifies the simultaneous window alone. omni-post's backup-code consumption passed such a test and stayed open to a stagger of 5 to 30 ms.
+- **Day-one enforcement:** construction. Construction: the test kit offers a helper that holds the second call between the first call's read and its write, and every test of an atomic or single-use operation runs both interleavings through it.
+- **Loosen if:** never: an interleaving a test does not run is a window it does not certify.
+
 ## CI and gates
 
 ### FP-003 — A gate fails closed when its scope path is missing, its scan read nothing or its measurement returned no result
@@ -238,6 +248,13 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Why:** An `::error` annotation alone leaves the job green and proves nothing (step 3 of "Extending the suite" in [FITNESS_FUNCTIONS.md](FITNESS_FUNCTIONS.md); fitness #34 pairs every annotation with an exit in the same step). omni-post's fitness #28, in its old form, required the numeric hop-count spelling of `trustProxy` that a framework release had made dangerous; measured, a `trustProxy: 2` planted in the entry file returned count 0 and passed cleanly, while `trustProxy: true` was caught. A gate that mandates the defect it exists to prevent is worse than no gate. An inline rule has no suite to hold its red: omni-post's fitness #37 was a node heredoc written twice, byte for byte, in its canon block and its workflow step, so every change edited both copies and proved its red by hand on the extracted step, nothing pinned the rule between those changes, and checking a coverage marker's slice against the committed test ledger needed one more hand proof per case ([ADR-0039](../technical/ADR-0039-decorative-demolition-coverage-exception.md) Decision 4).
 - **Day-one enforcement:** construction and gate. Construction: every gate is a script with its own test suite, and that suite holds at least one planted violation that must exit non-zero, so the red path is proven again on every run instead of once in a pull request. Gate: a check pairs every error annotation in a workflow with an exit in the same step. The generated skeleton is accepted as the template only when every gate it carries shows this red. Carry-over: generalized gate, the self-tested script form of fitness #30, #36, #37 and #44 to #48 plus fitness #34.
 - **Loosen if:** never: a gate whose red was never observed is an assertion nobody measured.
+
+### FP-051 — A gate that counts a pattern is measured against the real sites it must catch before anything relies on it
+
+- **Practice:** A gate that counts a pattern is measured against the real sites it must catch before any item that relies on it closes: its count is compared with a reading of the code, and a gate that matches none of the real sites is broken however green it is. A planted violation written in the gate's own form proves the red path, not the reach.
+- **Why:** FP-004 proves that a gate can fail, not that it sees the class it was written for. omni-post's fitness #23 saw only four untyped calls, all in excepted files, while raw-SQL sites stood outside its exception list.
+- **Day-one enforcement:** construction. Construction: the pull request that lands or changes a counting gate states the count the gate reads beside the count a reading of the code finds, and the gate's suite holds a case copied from a real site of the class beside its planted violation.
+- **Loosen if:** never: a count nobody compared with the code is an assertion nobody measured.
 
 ### FP-045 — An exit code carries one meaning, none of them the runtime's own, and a scheduled alarm tells its own failure from its signal and retries only what a retry can change
 
@@ -481,3 +498,10 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Why:** omni-post's plan is six files of about 837 KB, and work that rewrites hundreds of its rows was estimated at 6 to 8 million tokens with whole files handed to agents, and at 1 to 1.5 million with a parser (FP-047). Two readers of the same lines disagree about a row: one reads an item where the other reads prose, so a check passes on a record a query cannot read, or the reverse. omni-post's plan-closure check (fitness #56) and the plan's records ([`scripts/plan/plan-records.mjs`](../../scripts/plan/plan-records.mjs)) import [`scripts/plan/plan-text.mjs`](../../scripts/plan/plan-text.mjs) and walk a chain record with its one walker, and [`planReadersAgree.test.ts`](../../apps/api/tests/unit/scripts/planReadersAgree.test.ts) holds the two to one verdict on a record in one direction: a line the check refuses there fails `pnpm plan:check`, and every line the records read there as an item, a note or a continuation, the check reads the same way. The records refuse more than the check does: an item line that holds a second item-shaped text, or a field written twice, is unclassified for the records and still an item for the check. The records' completeness check fails as well when an area's feature table or heading changes shape, or a row of the chain table and its record lose each other, so a feature cannot leave the records in silence; its suites are [`planRecords.test.ts`](../../apps/api/tests/unit/scripts/planRecords.test.ts) and [`planQueryCommand.test.ts`](../../apps/api/tests/unit/scripts/planQueryCommand.test.ts).
 - **Day-one enforcement:** construction and gate. Construction: the document's parser lands with the document's first version and with the first check that judges it, as one shared module, and the instructions say to query the document rather than read it. Gate: the parser's completeness check fails on a line that fits no shape; omni-post's is `pnpm plan:check`, run on demand and not yet a step of CI or the local battery (FP-023). Carry-over: the shared reader, the per-line classification and the query command's refusals.
 - **Loosen if:** never for the one parser, because a second reader of the same lines is how a check and a query come to disagree about one row; a line that fits no shape is accepted only by naming its shape in the parser, with a case in its suite.
+
+### FP-053 — Every verdict that something is fixed or closed names the ref it was verified against, and only `main` closes it
+
+- **Practice:** Every verdict that something is fixed or closed names the ref it was verified against. A verdict verified on a ref other than `main` or the branch about to merge closes nothing: it records only that a fix exists somewhere.
+- **Why:** Such a verdict reads as true and silences its finding. In omni-post a critical cross-account read stayed silent for seven weeks because an assessment verified on an unmerged branch declared it fixed.
+- **Day-one enforcement:** construction. Construction: the closing form of a plan item carries the ref, and a fix counts as landed only when its commit is an ancestor of `main` (`git merge-base --is-ancestor <sha> main` exits 0).
+- **Loosen if:** never: a verdict that does not name its ref cannot be told from a true one.

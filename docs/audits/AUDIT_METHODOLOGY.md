@@ -33,6 +33,7 @@ The F5 audit answers that question as an **evidence-first inventory**, not as a 
 4. **Conservative default.** The default verdict is `VALID`. DEAD / REDUNDANT / FORGOTTEN-FEATURE / MISMATCH is marked only when there is clear mechanical evidence.
 5. **Historical memory preserved.** Before deleting obsolete documentation (REMEDIATION_ROADMAP, POST_BACKLOG, 130 closed sprint reports), the non-obvious facts are captured in the assistant's persistent memory, so the audit does not re-classify as dead code what is intentional scaffolding, reversible deletions, monetizable features in flight, or dependencies the Maintainer explicitly declined.
 6. **Iteration by surface.** A surface is inventoried completely before moving on to the next. It avoids context switching and allows rules to be cross-validated as they are applied.
+7. **Reading the file is the source of truth.** A text search locates candidates or cross-checks a reading; it never by itself classifies code, decides whether a middleware runs, or supports a claim that something occurs zero times.
 
 ## 3. Prerequisites before starting
 
@@ -272,6 +273,7 @@ The 5 `inventory-*.md` files are **inputs**. `INVENTORY_SUMMARY.md` is the **dig
 3. **Tests can hide real usage.** A class used only in tests is NOT VALID in production — it is FORGOTTEN-FEATURE or DEAD. Filter `rg` with `--type-not test` when it matters.
 4. **Worker queues can have producers in sagas.** Not only in routes. Also check `apps/api/src/saga/**` when a queue looks orphaned.
 5. **Feature flags turn callers on and off.** A caller wrapped in `if (env.FEATURE_X)` can be dormant. This requires reviewing `apps/api/src/config/env.ts` for the feature flag values in each deployment.
+6. **`fd -H` still honours `.gitignore`.** `fd -H` shows hidden files but skips ignored ones; an ignored file needs `fd -H -I`. A "does not exist" read from `fd -H` over an ignored path is a false negative.
 
 ## 13. Reproducibility
 
