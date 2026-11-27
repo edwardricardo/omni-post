@@ -23,9 +23,9 @@
    the acceptable-use and cookie policies would each have to be written from scratch, with no record
    of how the application works.
 2. **Its place on the route.** The Product Owner approved the register on 2026-10-04 and on
-   2026-10-05 placed it exactly after the Testing Refoundation (N-TEST-1), coupled to the Master Plan:
+   2026-10-05 placed it exactly after the Testing Refoundation (N-TEST-1):
    "That one does go exactly after the TR, because it is extremely necessary to start modelling it
-   right now." It is first in the queue, before Master Plan §5.9 and §5.11, and §5.15 follows it on
+   right now." It is first in the queue, before the payments and media storage decisions and the defects found on 2026-10-04, and the support documentation follows it on
    the route, sharing the form of its gate (LEGAL-3 ↔ SUP-3) and the edits of the templates
    (LEGAL-2 ↔ SUP-2).
 3. **When the method was set.** Phase 0 of N-TEST-1 closed on 2026-10-06, and the work started on
@@ -37,7 +37,7 @@
    how the application works, from which the documents of Context 1 are drafted later without
    starting from scratch. Each fact cites its source (an ADR or a code path) and the date it was
    verified.
-2. **The method** (2026-10-07), shared with the support documentation of Master Plan §5.15, in five
+2. **The method** (2026-10-07), shared with the support documentation, in five
    rules:
    1. **Mechanics first.** One mechanics slice: the generators of LEGAL-4 (personal data from the
       Prisma schema; external SDKs and subprocessors, from the manifests and the lockfile; OAuth
@@ -51,7 +51,7 @@
       has no phase: what already exists enters through the generators, without revisiting closed
       units.
    3. **The narrative of what is already closed is revisited once, guided by the retro-documentation
-      ledger** of Master Plan §5.10. One retro pass, in batches of at most 400 lines of evidence,
+      ledger**. One retro pass, in batches of at most 400 lines of evidence,
       prioritized by exposure (credentials, OAuth, billing, mention and analytics ingestion, AI
       subprocessors); each item is read once and feeds both registers, the legal facts and the support
       page. The ledger goes by state, not by position in the phase: what was done before the gate gets
@@ -61,7 +61,7 @@
       the frameworks beyond the GDPR and the language of the register are the Product Owner's
       decisions: their columns are marked "pending decision" and are closed in short sessions when
       their turn comes. LEGAL-5 waits for the inventory of purposes of LEGAL-1.
-   5. **Sequence:** L-0 (this method and the ledger, in the Master Plan since 2026-10-07) → L-1
+   5. **Sequence:** L-0 (this method and the ledger) → L-1
       (generators and the register's skeleton) → L-2 (gate) → L-3 (templates) → the retro pass by
       batches → LEGAL-5.
 3. **What enters the ledger** (2026-10-07). Items of pure process or documentation (templates, gates,
@@ -143,7 +143,5 @@ variable, external account or post-deployment check is added, changed or retired
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN.md) §5.10, where these decisions were first recorded, at
-  [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - [docs/legal/README.md](../legal/README.md): the register's conventions and its pending decisions
 - GDPR art. 30: the record of processing activities the register's sections follow

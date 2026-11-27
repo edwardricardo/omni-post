@@ -101,7 +101,7 @@ package state on 2026-10-28.
 - **The floor is what CI installs.** 26.11.1 is the latest mature 26.x and what `setup-node`
   resolves for `"26"`, so CI, local work and the build stage run the same release, and the floor
   admits nothing older. It also carries nodejs/node#66273, released in 26.11.0: the node:test parser
-  no longer crashes on child stdout that mimics a V8 frame, the class of DEF-83 in `MASTER_PLAN.md`.
+  no longer crashes on child stdout that mimics a V8 frame, the class of DEF-83 in the plan.
   Since 2026-10-22 the floor is 26.12.1, the security release CI and both image stages run.
 - **The release asset, not npm.** pnpm 12's npm package is a launcher whose install step places the
   same native executable from its `@pnpm/exe.<platform>` optional dependencies, so both routes run

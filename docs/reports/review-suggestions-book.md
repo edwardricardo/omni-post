@@ -175,11 +175,11 @@
 | SB-154 | same                                                                                  | R4-003                                                           | `apps/api/scripts/run-tests.sh` (refusal order)                                                                                             | diagnostics                  | closed: every pre-flight failure of `run-tests.sh` exits before any suite with its own message; the order changes neither outcome nor diagnosis                 |
 | SB-155 | same                                                                                  | R3-list-requires-live-suffix-tree                                | `apps/api/scripts/run-tests.sh` (`--list`)                                                                                                  | scope                        | closed: `--list` lists the whole tree by design; the tree holds 18 `*.live.test.ts` files                                                                       |
 | SB-156 | Phase 1 U8 (`workstream/phase1-u8-3`, a3dac768)                                       | R3-suffix-regex-missed-cases                                     | `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts` (saga files)                                                                | test scope                   | implemented (R3, 00572779)                                                                                                                                      |
-| SB-157 | Fix DEF-83 (`workstream/fix-def-83-test-stdout`, 20ccdebb)                            | R3-no-regression-assertion                                       | `docs/development/TESTING_INFRASTRUCTURE.md` (the stderr rule)                                                                              | regression guard             | deferred: Master Plan DEF-83 follow-up 2, a lint rule or fitness check                                                                                          |
+| SB-157 | Fix DEF-83 (`workstream/fix-def-83-test-stdout`, 20ccdebb)                            | R3-no-regression-assertion                                       | `docs/development/TESTING_INFRASTRUCTURE.md` (the stderr rule)                                                                              | regression guard             | deferred: a lint rule or fitness check for the stderr rule, a follow-up of DEF-83                                                                               |
 | SB-158 | same                                                                                  | R3-remaining-stdout-warn (WARNING)                               | `apps/api/tests/providerRegistry.live.test.ts:49`                                                                                           | stream choice                | closed: justified — `console.warn` writes to stderr (measured: 0 bytes on stdout, 12 on stderr)                                                                 |
 | SB-159 | Turbopack dev (`workstream/dev-turbopack`, bb5b6f2e)                                  | R3-001                                                           | `apps/admin/next.config.mjs`, `apps/client/next.config.mjs` (`agentRules`)                                                                  | regression guard             | deferred: DEF-88's proposed gate on stray `.md` files under `apps/` and `packages/`                                                                             |
 | SB-160 | same                                                                                  | R3-002                                                           | `apps/admin/package.json`, `apps/client/package.json` (`dev`)                                                                               | dev memory                   | deferred: no dev-memory gate exists; measured one-off on 2026-10-10                                                                                             |
-| SB-161 | same                                                                                  | R3-003                                                           | `docs/product/MASTER_PLAN.md` (DEF-86)                                                                                                      | observability                | deferred: DEF-86 (high priority), whose next step measures a Turbopack production build                                                                         |
+| SB-161 | same                                                                                  | R3-003                                                           | `docs/product/plan/cross-cutting.md` (DEF-86)                                                                                               | observability                | deferred: DEF-86 (high priority), whose next step measures a Turbopack production build                                                                         |
 | SB-162 | DEF-82 C1 (`workstream/fix-def-82-saga-terminal`, dfbe4530)                           | R3-create-after-missing-is-not-atomic-with-the-existence-check   | `apps/api/src/saga/SagaManagerExecution.ts` (`persistSagaInstance`, create path)                                                            | concurrency                  | deferred: SMELL-73 (row claims); a first-start collision raises P2002, it overwrites nothing                                                                    |
 | SB-163 | same                                                                                  | R3-walk-defensive-transition-refuses-failed-rows                 | `apps/api/src/saga/SagaManagerExecution.ts` (`walkCompensation` entry)                                                                      | contract guard               | deferred: a direct walk on FAILED ends in a typed 409, logged and counted                                                                                       |
 | SB-164 | DEF-82 C4 (`workstream/fix-def-82-saga-terminal`, 0776c818)                           | R4-001 (WARNING)                                                 | `.github/workflows/ci.yml` (`!cancelled()` on the API, workers and live steps)                                                              | evidence after failure       | closed: justified — parity with `e1dc24f0` run-tests.sh:446-459, which ran the live tier after a failed one                                                     |
@@ -1309,7 +1309,7 @@
 - **Source:** review `review-f1691ed852d066ae` of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`; log `itemv3a2d`), readability lens, finding `R2-data-retention-doc-references-test`.
 - **Location:** `packages/core/compliance/src/DataRetentionService.ts:7-12`, the header paragraph, which names `apps/api/tests/unit/compliance/DataRetentionService.test.ts` at `:10`.
 - **Suggestion:** state the invariant where it lives — each run's counts reach `auditEmitter.emit({ action: "DATA_RETENTION_CLEANUP" })`, and the application layer logs WARN and ERROR only — without naming a test file, which can move and leave the comment stale.
-- **Why deferred:** comment wording; the path is right today, and that suite's case `emits cleanup summary via AuditEmitterPort` (`:198-219`) pins the counts on the audit entry. The two rounds pull in opposite directions: `bd4e9376` put the audit call and the suite in the header to answer the round before, whose WARNING `R2-dataretention-doc-mismatch` (`review-d48267d0d8a7d331`) asked for a code reference. DEF-17 of `docs/product/MASTER_PLAN.md` §5.11 changes what the sweep records on a failure, and with it this header.
+- **Why deferred:** comment wording; the path is right today, and that suite's case `emits cleanup summary via AuditEmitterPort` (`:198-219`) pins the counts on the audit entry. The two rounds pull in opposite directions: `bd4e9376` put the audit call and the suite in the header to answer the round before, whose WARNING `R2-dataretention-doc-mismatch` (`review-d48267d0d8a7d331`) asked for a code reference. DEF-17 of the plan changes what the sweep records on a failure, and with it this header.
 - **To implement:** keep the audit call and drop or shorten the suite's path, in the change that takes DEF-17.
 
 ### SB-065 — the DLQ archival service does not say why only one of its two methods logs
@@ -1317,7 +1317,7 @@
 - **Source:** two reviews of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`), readability lens: `review-0266f5fe272cd583` (log `itemv3a2`), finding `R2-dlq-archive-silent-sweep`, and `review-f1691ed852d066ae` (log `itemv3a2d`), finding `R2-dlq-archival-asymmetric-logging`, which asks for the first one's pointer at the class level.
 - **Location:** `packages/core/webhooks/src/DlqArchivalService.ts`, the file header (`:1-10`) and the two method comments (`:21-25`, `:35-38`).
 - **Suggestion:** say at the class level that `archiveResolvedEvents` returns its count and logs nothing while `flagStaleEvents` warns, because stale unresolved events need an operator, so a reader takes neither the silent sweep for a lost call nor the constructor's `LoggerPort` for half used.
-- **Why deferred:** comment wording; the archive method's comment already says "The count is returned, not logged: a routine sweep asks nothing of an operator" (`:24`). DEF-18 of `docs/product/MASTER_PLAN.md` §5.11 queues the failure side of that silence — both methods turn a port failure into `0` or `[]` — and its fix changes what the comment has to say.
+- **Why deferred:** comment wording; the archive method's comment already says "The count is returned, not logged: a routine sweep asks nothing of an operator" (`:24`). DEF-18 of the plan queues the failure side of that silence — both methods turn a port failure into `0` or `[]` — and its fix changes what the comment has to say.
 - **To implement:** one class-level sentence, written in the change that takes DEF-18.
 
 ### SB-066 — `ComplianceService` takes nine positional parameters, the logger last
@@ -1606,13 +1606,13 @@
 - **Source:** the same review, finding `R3-002`.
 - **Location:** `apps/admin/package.json` and `apps/client/package.json`, the `dev` scripts.
 - **Suggestion:** add a dev-boot probe or an RSS check, so a regression to the 2026-06-19 out-of-memory profile is caught.
-- **Why deferred:** no gate measures dev-server memory today, with either bundler; `next dev` runs in no CI job or battery step. The measurement of 2026-10-10 (admin 985 MiB, client 1149 MiB on the first page, on an 18 GB box) is recorded in SMELL-52 and the Master Plan.
+- **Why deferred:** no gate measures dev-server memory today, with either bundler; `next dev` runs in no CI job or battery step. The measurement of 2026-10-10 (admin 985 MiB, client 1149 MiB on the first page, on an 18 GB box) belongs to SMELL-52.
 - **To implement:** a dev-boot probe, if dev memory becomes a recurring problem again.
 
 ### SB-161 — the Sentry initialization of a Turbopack build is not asserted
 
 - **Source:** the same review, finding `R3-003`.
-- **Location:** `docs/product/MASTER_PLAN.md`, DEF-86.
+- **Location:** DEF-86 of the plan.
 - **Suggestion:** add a production-build boot check or a Sentry-init test.
 - **Why deferred:** it is DEF-86, registered with high priority in this same unit; its next step measures whether Sentry initializes in a Turbopack production build, which already ran on Turbopack before this change.
 - **To implement:** DEF-86.
@@ -1780,7 +1780,7 @@
 ### SB-182 — the N-CI-5 bullet is one paragraph
 
 - **Source:** the same review, finding `R2-003`.
-- **Location:** `docs/product/MASTER_PLAN.md`, the N-CI-5 bullet.
+- **Location:** the N-CI-5 bullet of the plan.
 - **Suggestion:** labelled lines for the measurement, the decision, the wiring and the renumbering.
 - **Why deferred:** the plan's bullets are prose by convention, and the counts N-CI-6 depends on are repeated in N-CI-6 itself.
 - **To implement:** the labelled lines, in the next edit of that bullet.
@@ -2155,7 +2155,7 @@
 - **Source:** review `review-088f335c47c5ebd3` of item (v) PR v-e2 (`workstream/item-v-cheap-queue`, `33476917`; log `itemv3b2`), reliability lens, finding `R3-002`.
 - **Location:** `apps/api/tests/unit/queueRoutes.test.ts:105`, `getJobs: vi.fn(async () => [storedJob])`, which the three listing cases read (`:188-226`).
 - **Suggestion:** answer per state and offset, and assert that the response items follow what the queue returned, so the listing cases prove more than the arguments the route forwards.
-- **Why deferred:** test precision. What the route decides is the state filter and the range defaults, and the cases pin both through the arguments it forwards (`:203`, `:214`, `:225`), while the first case's `items[0]` pins how a job becomes an item. That case's `total` assertion (`:197`) reads the page length the route returns, which DEF-26 of `docs/product/MASTER_PLAN.md` §5.11 queues; fixing that defect rewrites the case.
+- **Why deferred:** test precision. What the route decides is the state filter and the range defaults, and the cases pin both through the arguments it forwards (`:203`, `:214`, `:225`), while the first case's `items[0]` pins how a job becomes an item. That case's `total` assertion (`:197`) reads the page length the route returns, which DEF-26 of the plan queues; fixing that defect rewrites the case.
 - **To implement:** a `getJobs` double keyed by state and offset, with the listing cases asserting the items they get back; take it with DEF-26.
 
 ### SB-080 — nothing asserts that the catalog's `vitest`, `@vitest/browser` and `@vitest/browser-playwright` share a version
@@ -2391,7 +2391,7 @@
 ### SB-133 — DEF-78's closure note is one long paragraph
 
 - **Source:** the native review of DEF-78 (`workstream/fix-def-78-dead-security-config`, `15636798`), finding `R2-002`.
-- **Location:** `docs/product/MASTER_PLAN.md`, the DEF-78 entry of §5.11.
+- **Location:** the DEF-78 entry of the plan.
 - **Suggestion:** split the closure into bullets: what was deleted, why the ZAP file is not a rules file, the search before and after, the documents it changed.
 - **Why deferred:** every closure note in §5.11 (DEF-37, DEF-49, DEF-63, DEF-67, DEF-68, DEF-70, DEF-72) is one paragraph appended to its entry; a bulleted form is a convention change for the whole queue, not for one entry.
 - **To implement:** decide the closure-note format once and apply it to the closed entries as one docs change.
@@ -2585,7 +2585,7 @@
 - **Source:** the native review of the DEF-83 fix (`workstream/fix-def-83-test-stdout`, `20ccdebb`), finding `R3-no-regression-assertion`.
 - **Location:** `docs/development/TESTING_INFRASTRUCTURE.md`, the stderr rule, and the suites that import `apps/api/tests/setup.ts`.
 - **Suggestion:** add a lint rule or fitness check so a non-ASCII-leading `console.log` cannot return to a file node:test runs.
-- **Why deferred:** it is DEF-83's follow-up 2 in the Master Plan, decided on 2026-10-10 with its own unit; Node 24.20.0 and later also parse the frame correctly.
+- **Why deferred:** it is a follow-up of DEF-83, decided on 2026-10-10 with its own unit; Node 24.20.0 and later also parse the frame correctly.
 - **To implement:** the guard named in that follow-up, with its red path proved.
 
 ### SB-158 — a `console.warn` with a non-ASCII prefix stays in `providerRegistry.live`

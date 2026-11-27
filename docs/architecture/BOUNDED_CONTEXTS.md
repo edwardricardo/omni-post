@@ -139,4 +139,4 @@ moved file, use `git log --follow <new-path>`.
 - `.dependency-cruiser.cjs` — the `no-cross-bounded-context` rule blocks at
   CI / pre-commit time.
 - §5.1 of the normalization roadmap, [at its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md) — the workstream
-  that performed the extraction; the roadmap folded into Master Plan §5.2 on 2026-10-28.
+  that performed the extraction.

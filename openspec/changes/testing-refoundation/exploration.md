@@ -210,7 +210,7 @@ Two real defects: `PORT=3001` (`:42`) collides with Grafana in the homelab, whic
 - **Shared tooling** — `packages/vitest-shared/src/index.ts` (five contracts converge here), new `packages/test-utils/{domain,wire,persistence}`, new `packages/eslint-plugin-testing/`, `apps/api/tests/unit/helpers/**` (14 files, 3,419 lines), `apps/api/tests/integration/helpers/**`, `apps/api/tests/support/` (new home for the route-app builder).
 - **Verdict** — `.github/workflows/{ci,production-ci,nightly,performance,security-testing,audit,fitness,chaos,eval}.yml`, new `.github/rulesets/main.json`, fitness #44-#49.
 - **Environment** — new `scripts/test-env.sh` absorbing `scripts/ci-setup-test-env.sh`, `.env.test.example`, `turbo.json`, `infra/prisma/seed-e2e.ts` (new), the Telegram `apiClient` base-URL seam (the workstream's only production change).
-- **Canon and docs** — `CLAUDE.md` §Automated Compliance Checks, `docs/development/CODING_STANDARDS.md` §Testing, new `docs/development/TESTING_REFOUNDATION.md`, ADR-0025, `MASTER_PLAN.md` ficha N-TEST-1, `NORMALIZATION_ROADMAP.md` §2.3, eight docs to adjudicate.
+- **Canon and docs** — `CLAUDE.md` §Automated Compliance Checks, `docs/development/CODING_STANDARDS.md` §Testing, new `docs/development/TESTING_REFOUNDATION.md`, ADR-0025, ficha N-TEST-1, `NORMALIZATION_ROADMAP.md` §2.3, eight docs to adjudicate.
 
 ## 5. Approaches compared, and the chosen one
 
@@ -266,7 +266,7 @@ Three amendments the reading produced:
 
 ## 9. Risks
 
-- **R1 — Scope.** Roughly 130 work units and 150-250 PRs across ten phases, with Phase 6.N alone estimated at 40-70. Sized by C2's measurement, not by guess, but it is the largest workstream in the repository and it blocks nothing while it runs, so it competes with the Master Plan for attention over months.
+- **R1 — Scope.** Roughly 130 work units and 150-250 PRs across ten phases, with Phase 6.N alone estimated at 40-70. Sized by C2's measurement, not by guess, but it is the largest workstream in the repository and it blocks nothing while it runs, so it competes with the rest of the plan for attention over months.
 - **R2 — The coverage ratchet fights the demolition.** Deleting decorative tests lowers execution coverage. The ADR-0025 escape is correct but every api block slice must carry a marker, and a slice that forgets it goes red on #37 for the right reason at the wrong time.
 - **R3 — The heuristic classifier is an upper bound.** The 272 decorative blocks include false positives (`toBeTruthy` over a computed boolean). The hard probe samples, the 5% BEHAVIOURAL calibration measures the false-negative rate, and mutation answers at scale — but between Phase 2 and Phase 7 the ledger's precision is estimated, not known. Nothing is deleted without a listed row and Edward's approval, which is the mitigation.
 - **R4 — Two reds are expected, not hypothetical.** The `security/tests` SSRF case is likely a real product defect, and "schedule → the worker publishes" is red today because of N-COR-9, not because of the tests. Both need a pre-agreed landing place (a SMELL/N-SEC row, a declared gap owned by N-COR-8/9) or a slice will stall on a red it is not allowed to commit and not able to fix.

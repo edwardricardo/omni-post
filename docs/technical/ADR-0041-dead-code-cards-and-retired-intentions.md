@@ -11,7 +11,7 @@
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [UNUSED_CODE_INVENTORY.md](../reports/UNUSED_CODE_INVENTORY.md) (the inventory the
-  cards decide on); [Master Plan](../product/MASTER_PLAN.md) §5.13 (the deletion units DC-1 to
+  cards decide on); [the plan](../product/PLAN.md) (the deletion units DC-1 to
   DC-14 that carry these decisions out); [ADR-0034](ADR-0034-credential-model.md) decision 11 (the
   customer `ApiKey` slice, deleted by DC-13); [ADR-0029](ADR-0029-media-upload-limits.md) (type, size,
   format and duration of uploads; no ADR named malware scanning before PREG-7)
@@ -34,7 +34,7 @@
    published, because the workers did not decrypt the credentials the API writes (DEF-29; its PR 1
    merged that day as #429). Since that merge only Bluesky publishes, because the OAuth flow stores
    three generic fields and each adapter requires fields of its own network (DEF-36, whose redesign
-   the Product Owner placed on 2026-10-05 as slice 1 of Master Plan §2F, CRED-14 of §5.14). Analytics
+   the Product Owner placed on 2026-10-05 as CRED-14 of the plan). Analytics
    ingestion persists nothing for any network (DEF-32). The provider code card C8 retires was never
    part of that engine: it is its unbuilt second half (deep analytics, in-network moderation, direct
    messages, stories, media processing, trends).
@@ -45,25 +45,25 @@
    `TikTokAdapter.ts` removes a hashtag path that does nothing as deployed and a promoted-content stub
    that only throws `NOT_IMPLEMENTED`: no behaviour change.
 5. **Findings.** Crossing the cards and checking their leads found DEF-30 to DEF-38, defects of the
-   code that runs, recorded in Master Plan §5.11. F5 and F6 (DEF-34 and DEF-35) amend the premise of
-   C6 that ApiMetrics is a fed source; that is why §4.2.b (Master Plan §5.2) adds OBS-1 to OBS-4.
-6. **The credential model.** On 2026-10-06, with the credential model (ADR-0034, Master Plan §5.14),
+   code that runs, recorded in the plan. F5 and F6 (DEF-34 and DEF-35) amend the premise of
+   C6 that ApiMetrics is a fed source; that is why the plan adds OBS-1 to OBS-4.
+6. **The credential model.** On 2026-10-06, with the credential model (ADR-0034),
    the Maintainer also decided to delete the customer `ApiKey` slice, which adds the unit DC-13.
 
 ## Decision
 
 1. **The condition before any deletion** (Product Owner, 2026-10-05). Every intention of the code is
-   crossed with the Master Plan, so the idea is safe and only its correct, up-to-date implementation
+   crossed with the plan, so the idea is safe and only its correct, up-to-date implementation
    is left to do. In the Product Owner's words: "What I want to keep is the essence of what was being
-   attempted." The mapping, with the rows it added to the rest of the Master Plan, completes the
-   cross: each intention is served by cited live code, by a Master Plan row or by an open question,
+   attempted." The mapping, with the rows it added to the rest of the plan, completes the
+   cross: each intention is served by cited live code, by a row of the plan or by an open question,
    which is never decided by omission.
-2. **The cards.** Under the taxonomy of Master Plan §0.3, C1 to C7 are DEAD_CODE, confirmed by the
+2. **The cards.** Under the audit taxonomy (PLANNED, INFRASTRUCTURE_READY, LEGACY, DEAD_CODE), C1 to C7 are DEAD_CODE, confirmed by the
    Maintainer; C8, C9, C11 and C12 have their intention mapped and wait for the confirmation of the
-   Product Owner and the Maintainer; C10 is PLANNED and is finished as BILL-30 (Master Plan §5.9). No
+   Product Owner and the Maintainer; C10 is PLANNED and is finished as BILL-30. No
    deletion unit starts before these decisions are on `main`, and the units of C8, C9, C11 and C12
-   also wait for that explicit approval, given on Master Plan §5.13. Line counts are source / test,
-   as the cards measured them; § numbers and row IDs refer to the Master Plan.
+   also wait for that explicit approval, given in the plan. Line counts are source / test,
+   as the cards measured them; row IDs refer to the plan.
 
    | Card                                                    | What is retired                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Decision                                                                                                                                               | Where each intention lives                                                                                                                                                                                                                                                                                                                                                                                                         |
    | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -80,7 +80,7 @@
    | C11 — backend and packages with no consumer nor promise | `posts/optimizedPostsRoutes.ts`, `analytics/engagementPredictor*.ts` (4), `infrastructure/billing/paymentAdapterFactory.ts` (already decided by BILL-5), `content/SyncScheduler.ts`, `packages/adapters/db-prisma/src/cached.ts`, `providers/instagram/src/schedulingService.ts`, `providerConstraintValidator.ts`, `providerCapabilityManager.ts`, 10 of the 12 exports of `packages/api-common/src/schemas.ts` (`IdSchema` stays), 4 of the 7 helpers of `providers/shared/src/helpers.ts`, `playlistAnalyticsHelpers.ts` and the 6 events of `Campaign.ts`; `InMemoryTokenBucketRateLimiter` moves to the tests; ~4650 / ~3150     | intention mapped; waits for the approval of the Product Owner and the Maintainer (recommendation: A)                                                   | PROVIDER-CAPS-DRIFT (SMELL-23); BILL-5; N-COR-13 (campaign events); ARCH-20; FN-009, FN-023, FN-025; the canon declines the per-network scheduler and the accessors (§0.4; ARCHITECTURE_CANON §Dependency Injection); live code: `postRoutes` with `autoCachePlugin`, `PredictOptimalTimingUseCase`, `SyncEngineBase`, `CachePort`, the saga with `publishWorker`, the client's per-network limits and `providerConfig.ts`; PREG-9 |
    | C12 — frontend and configuration leftovers              | in `apps/client`, `analyticsClient.ts` and 5 facade methods, `addPostMedia`, `createPostThread` and `getPostThread`, `useSagaStatus` and `useStartPostPublishingSaga`, and the menu link to `/dashboard/queue`; in `apps/admin`, `assignPermission` and `revokePermission` of `rbacClient`, `authClient.ts`, `healthClient.ts`, `getAccountProjects`, the RBAC read trio, `notificationStore.ts`, `useContentLibrary.ts` and the page `/security/rbac`; the job `cleanup-preview-environments`, `.markdownlint.json`, `zod-to-json-schema` (`@fastify/websocket` already left, see DC-12); ~550 + ~70 of configuration + 1 dependency | intention mapped; waits for the approval of the Product Owner and the Maintainer (recommendation: A)                                                   | FE-BE-CONTRACT-BREAKS; SMELL-45/46; F2-CLI-3; F2-CLI-5; SETTINGS-HUB (§5.3), which the settings link points to instead of being deleted; N-AUTH-1; §6.2 (§5.2); live code: `setRolePermissions`, the login Server Action, `/health/*`, `/auth/permissions`, `RbacManager`, Prettier with lychee, and `fastify-type-provider-zod`; PREG-10                                                                                          |
 
-3. **The ledger: retired code → intention → where it lives**, as the Master Plan recorded it at
+3. **The ledger: retired code → intention → where it lives**, as recorded at
    `32e38081`; "live" names code that already serves the intention.
 
    | Retired code (card)                                                       | Intention                                                                                                                               | Where it lives                                                                                                          |
@@ -89,10 +89,10 @@
    | hook `auditPlugin` (C1; not retired, repaired separately)                 | an audit row per authenticated request                                                                                                  | DEF-30                                                                                                                  |
    | `roleBasedRateLimit` (C2)                                                 | quotas per role                                                                                                                         | AUTH-RL-1 (closes L-26)                                                                                                 |
    | `auditPermissionAccess` (C2)                                              | audit of permission checks                                                                                                              | DEF-30                                                                                                                  |
-   | `requireContextPermission` (C2)                                           | permission per context or project                                                                                                       | N-AUTH-3, N-SEC-3.b, `FEATURE_TRACE_MATRIX.md`, row `Per-project members with granular roles`                           |
+   | `requireContextPermission` (C2)                                           | permission per context or project                                                                                                       | N-AUTH-3, N-SEC-3.b                                                                                                     |
    | `debugPermissions` (C2)                                                   | see the effective permissions                                                                                                           | live: `GET /auth/permissions`                                                                                           |
    | `recordLoginAttempt` (C2)                                                 | record of login attempts                                                                                                                | live: `RedisBruteForceAdapter` and `AuditLog`; AUTH-AUDIT-1 (customer)                                                  |
-   | OpenAPI scheme `X-API-Key` (C2)                                           | machine authentication by key                                                                                                           | PUBAPI-1 and PUBAPI-2 (PREG-1); `FEATURE_TRACE_MATRIX.md`, Level 3 row `Public API / MCP`; F2-API-9; DEF-7              |
+   | OpenAPI scheme `X-API-Key` (C2)                                           | machine authentication by key                                                                                                           | PUBAPI-1 and PUBAPI-2 (PREG-1); F2-API-9; DEF-7                                                                         |
    | 6 keys of `adminAuthConfig` (C3)                                          | lockout, login quota, sessions, MFA per role                                                                                            | live: brute force and `maxConcurrentSessions`; AUTH-RL-1; N-SEC-5.b                                                     |
    | `OAUTH_ENCRYPTION_KEY` (C3)                                               | a key-encryption key of its own for the OAuth tokens                                                                                    | SEC-KEK-1                                                                                                               |
    | `secureSchemas.ts` except the password (C3)                               | a Zod security catalogue; restricted URLs                                                                                               | live: `inputValidation.ts`; API-TYPES-1; SEC-SSRF-1                                                                     |
@@ -149,64 +149,64 @@
      up to 7 days, and immediate revocation; and OAuth 2.1 for third-party applications once a
      consumer exists. The scheduled rotation is replaced by the expiry at creation, the grace window
      is the overlap, and the per-key limits are the quota of stage 2 of AUTH-RL-1. → PUBAPI-1 and
-     PUBAPI-2 (Master Plan §3); the customer `ApiKey` slice is deleted with DC-13 (decision D4 of the
-     credential model, Master Plan §5.14).
+     PUBAPI-2; the customer `ApiKey` slice is deleted with DC-13 (decision D4 of the
+     credential model).
    - **PREG-2 — risk-based login** (option B). A known-device cookie, email verification of a new
      device, a notice of every new sign-in, and MFA that the account owner can require for the whole team,
-     with no risk-scoring engine. → AUTH-RISK-1 (Master Plan §5.1).
+     with no risk-scoring engine. → AUTH-RISK-1.
    - **PREG-3 — per-administrator permissions with expiry** (option B). The roles stay, and time
      bounds apply where they protect something: a support grant to a tenant's data, and watched
      emergency accounts, with just-in-time elevation recorded for later. → SUPPORT-ACCESS-1,
-     BREAKGLASS-1 and ADM-JIT-1 (Master Plan §5.1).
+     BREAKGLASS-1 and ADM-JIT-1.
    - **PREG-4 — whether an edit after approval reopens the approval.** An edit after the approval
      requires a new approval; the approval is bound to the version of the content. The Product Owner
-     decided it without market research (engram 1309). → APPROVAL-1 (Master Plan §5.3).
+     decided it without market research (engram 1309). → APPROVAL-1.
    - **PREG-5 — product analytics** (option B). Product events of our own, emitted from the server
      (feature adoption, journeys, usage retention), with no SDK in the browser, and cookieless
      analytics on the marketing site; the legal basis is set in LEGAL-1 and LEGAL-3 before the first
-     event. → PROD-ANALYTICS-1 (Master Plan §5.13).
+     event. → PROD-ANALYTICS-1.
    - **PREG-6 — consent capture** (option B). Consent is decided inside the legal flow: LEGAL-1 first
      inventories the purposes and their legal bases; the acceptance of the terms, the privacy notice
      and the DPA is recorded per version as contractual evidence, not as consent; and `ConsentRecord`
-     stays only if a purpose based on consent exists. → LEGAL-5 (Master Plan §5.10).
+     stays only if a purpose based on consent exists. → LEGAL-5.
    - **PREG-7 — malware scanning and quarantine of uploads.** Option B as the default behaviour —
      ClamAV over the uploaded documents inside `verifyUpload`, and images re-encoded without
      metadata — plus a neutral scanning port with the cloud adapters written now, "the same way as the
      KMS" (decision D3 of the credential model): a switch validated at boot, ClamAV as the real
      adapter in docker-compose, and the AWS and Azure adapters written from their official
      documentation, marked uncertified until their first live run. Never the public VirusTotal API,
-     whose terms forbid commercial use. → STOR-14 and STOR-15 (Master Plan §5.9).
+     whose terms forbid commercial use. → STOR-14 and STOR-15.
    - **PREG-8 — an emergency mode of the limiter** (option B). There is no emergency mode of the
-     limiter inside the application, which goes to the "Never" line (Master Plan §4); the answer to an
+     limiter inside the application, which goes to the "Never" line; the answer to an
      attack is an edge runbook (WAF, or the CDN's under-attack mode, once one exists) plus the
-     per-route switch and the shadow launch inside AUTH-RL-1. → AUTH-RL-1 (Master Plan §5.1) and the
+     per-route switch and the shadow launch inside AUTH-RL-1. → AUTH-RL-1 and the
      "Never" line (§4).
    - **PREG-9 — recommending networks for a piece of content, and optimizing YouTube playlists.** Yes,
      both, at low priority, in Phase 3. The Product Owner decided it without market research (engram
      1309). → F3-API-13
-     and F3-API-14 (Master Plan §4).
+     and F3-API-14.
    - **PREG-10 — Admin surfaces** (option B): a notification centre (already open as question 4 of
      `ADMIN_CUSTOMER_PARITY.md` §7) and a content library over the tenants' posts (a cross-tenant
      read through `withSystemContext` with audit, question 6 of the same section). Admin gains a
      notification centre, and there is no cross-tenant content library: staff see a tenant's content
-     only with the support grant of PREG-3. → ADM-NOTIF-1 (Master Plan §5.3) and SUPPORT-ACCESS-1
+     only with the support grant of PREG-3. → ADM-NOTIF-1 and SUPPORT-ACCESS-1
      (§5.1); it closes questions 4 and 6 of `ADMIN_CUSTOMER_PARITY.md` §7.
    - **PREG-11 — card C8's "Never" proposal for Facebook events** (create, edit, cancel, invite and
      manage attendance) (option A). Facebook events go to the "Never (unless the ICP pivots)" line,
-     with its review condition. → the "Never" line (Master Plan §4).
+     with its review condition. → the "Never" line.
 
    The questions as they were asked, with the facts each one stood on:
    - PREG-1: the customer `ApiKey` slice stores per key `permissions`, `rateLimit` and a
      `rotationSchedule` in cron format (`schema.prisma:1060-1065`) that nothing applies (F9: the API
      accepts and stores `rotationSchedule`, `apiKeyRoutes.ts:39,137`); the live machine path is
      `IntegrationApiKey` (`zap_`/`mak_`) for Zapier and Make; the canon of the public API and of MCP is
-     OAuth 2.1 (`FEATURE_TRACE_MATRIX.md`, row `Public API + MCP`). It asked for the credential and, with it, the
+     OAuth 2.1 (PUBAPI-2). It asked for the credential and, with it, the
      scheduled rotation, a grace window on rotation and the per-key limits. Card C2 had already sent
-     the `ApiKey` slice (~869 lines) to the product-pass gate (Master Plan §2).
+     the `ApiKey` slice (~869 lines) to the product-pass gate.
    - PREG-2: risk scoring, geolocation and new-device detection; today there are counters, lockout, a
      CAPTCHA signal and audit.
    - PREG-3: time-bound elevation and emergency access beyond the roles; customers already have a
-     per-project permission planned (`FEATURE_TRACE_MATRIX.md`, row `Per-project members with granular roles`), administrators only roles.
+     per-project permission planned, administrators only roles.
    - PREG-4: an approval bound to a version; `ContentVersion.approvedBy` is inert too (F7).
    - PREG-5: feature adoption, user journeys and usage retention, and on which legal basis or consent;
      it relates to LEGAL-1 and LEGAL-3 (a new SDK and new cookies).
@@ -219,7 +219,7 @@
      intention of C8 with no owner, decided together with that card's approval.
 
 5. **Still open outside this mapping, unchanged:** FN-023 and FN-025 (engagement prediction and the
-   AI quality fields, Master Plan §5.3), the quota figures per role or plan that stage 2 of AUTH-RL-1
+   AI quality fields), the quota figures per role or plan that stage 2 of AUTH-RL-1
    needs (`docs/features/auth-rate-limit-integrity/design.md:379`), and the KPI set of BI-KPI-1.
 
 ## Rationale
@@ -291,15 +291,15 @@
 - **PREG-8, an in-application emergency mode of the limiter.** Rejected: it goes to the "Never" line.
 - **PREG-10, a cross-tenant content library in Admin.** Rejected: staff see a tenant's content only
   with the support grant of PREG-3.
-- **C11, a per-network scheduler and accessors.** Declined by the canon (Master Plan §0.4;
+- **C11, a per-network scheduler and accessors.** Declined by the canon (
   ARCHITECTURE_CANON §Dependency Injection).
 
 ## Consequences
 
 **Positive**
 
-- Each retired intention has one named home: live code, a Master Plan row or an open question.
-- The deletion units of Master Plan §5.13 (DC-1 to DC-14) carry out these decisions; each updates its
+- Each retired intention has one named home: live code, a row of the plan or an open question.
+- The deletion units DC-1 to DC-14 of the plan carry out these decisions; each updates its
   rows of `docs/reports/UNUSED_CODE_INVENTORY.md` in the same pull request.
 
 **Negative / costs**
@@ -341,7 +341,7 @@ lists the paths these decisions touch`
 
 ## Revisit if
 
-- The cards C8, C9, C11 and C12 receive their approval on Master Plan §5.13, or are refused: their
+- The cards C8, C9, C11 and C12 receive their approval in the plan, or are refused: their
   deletion units follow that decision.
 - A third-party consumer of the public API exists: the OAuth 2.1 tier of PREG-1 is built then.
 
@@ -351,13 +351,11 @@ lists the paths these decisions touch`
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | A deletion drops an intention nobody mapped | Decision 1: every intention is served by live code, a row or an open question first                                                    |
 | Live behaviour changes with a deletion      | Context 4: the HTTP series are replaced, the Redis list is unread, and the Redis `KEYS` call runs against a cache that is switched off |
-| An undecided card is deleted early          | Its unit waits for explicit approval on Master Plan §5.13                                                                              |
+| An undecided card is deleted early          | Its unit waits for explicit approval in the plan                                                                                       |
 | A product question is decided by omission   | Decision 4: each question was decided explicitly, nine of them after research                                                          |
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN.md) §5.13, where these decisions were first recorded, at
-  [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - [UNUSED_CODE_INVENTORY.md](../reports/UNUSED_CODE_INVENTORY.md): the inventory the cards decide on
 - The cards `dead-code-decisions.md` and the mappings `c8-c10-intent-coverage.md` and
   `c1-c7-c11-c12-intent-coverage.md` (`/root/.claude/omnipost-tools/research-2026-10-05/`, outside

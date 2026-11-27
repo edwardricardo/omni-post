@@ -207,7 +207,7 @@ that `packages/ports` carries says otherwise.
 - **Nine defects found by the sizing and its verification are queued, not fixed here**:
   rows DEF-7 to DEF-15 of [the plan](../product/PLAN.md) ([areas.md](../product/plan/areas.md) and
   [chain.md](../product/plan/chain.md)), which
-  carry SMELL-194 to SMELL-202 (resolved in [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11).
+  carry SMELL-194 to SMELL-202.
 
 ## Revisit if
 
@@ -335,8 +335,8 @@ task's error without its `taskId` or `err`.
   [LOGGING_CANON.md](../observability/LOGGING_CANON.md) §Logging & Observability,
   [CODING_STANDARDS.md](../development/CODING_STANDARDS.md) §@layer Standard Values,
   [CLAUDE.md](../../CLAUDE.md) fitness #40 and #43.
-- Plan: [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11 and §5.12;
-  [DEF-7 to DEF-15 of §5.11](../product/MASTER_PLAN.md#511-defects-found-on-2026-10-04--queued-after-n-test-1), which carry SMELL-194 to
+- Plan: [the plan](../product/PLAN.md), SMELL-183;
+  [DEF-7 to DEF-15](../product/PLAN.md), which carry SMELL-194 to
   SMELL-202; [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) D49 (a decision of its Decisions log; the tracker left the tree on 2026-11-10).
 - Code: `apps/api/src/index.ts:279-280,543,659`; `apps/api/src/types/fastify.d.ts:62`;
   `apps/api/src/infrastructure/container/Container.ts:86`; `apps/api/src/health/healthRoutes.ts:38-75`;

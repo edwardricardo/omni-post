@@ -12,7 +12,7 @@
 - **Superseded by**: —
 - **Related**: [docs/support/README.md](../support/README.md) (the generated index) and
   [\_TEMPLATE.md](../support/_TEMPLATE.md) (the page template);
-  [Master Plan](../product/MASTER_PLAN.md) §5.15 (SUP-1 to SUP-7);
+  [the plan](../product/PLAN.md) (SUP-1 to SUP-7);
   [ADR-0042](ADR-0042-legal-facts-register-method.md) (the method and the ledger this flow shares)
 
 ## Context
@@ -20,8 +20,8 @@
 1. **The request** (Product Owner, 2026-10-06): a flow like the legal one, but for the technical
    documentation — record how each feature works, so that the support operators know how it works and
    where or what to look at when a ticket is opened — and, in the same flow, keep `docs/product/`
-   current, except the Master Plan.
-2. **Its place on the route.** It goes right after the legal facts register (Master Plan §5.10), with
+   current, except the plan.
+2. **Its place on the route.** It goes right after the legal facts register, with
    which it shares the gate machinery.
 
 ## Decision
@@ -137,8 +137,6 @@ account or post-deployment check is added, changed or retired`
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN.md) §5.15, where these decisions were first recorded, at
-  [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - The full plan `support-docs-flow-plan.md` (`/root/.claude/omnipost-tools/research-2026-10-06/`,
   outside the repository; engram 1310 to 1313, 1315 and 1316)
 - [ADR-0042](ADR-0042-legal-facts-register-method.md): the shared method and ledger

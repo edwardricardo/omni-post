@@ -151,6 +151,6 @@
     "subject": "apps/api/src/posts/optimizedPostsRoutes.ts",
     "search": "      query: GetOptimizedPostsQuerySchema,\n    });\n\n    if (!validated.ok) {",
     "replace": "      query: GetOptimizedPostsQuerySchema,\n    });\n\n    if (validated.ok) {",
-    "note": "The block's verdict, that a valid optimized-posts request answers with the success envelope, comes from getOptimizedPosts in optimizedPostsRoutes.ts. The handler inverts its validation check, so a valid request is refused. No composition root registers registerOptimizedPostsRoutes, and Master Plan row DC-11 deletes the module (FN-009) with its test."
+    "note": "The block's verdict, that a valid optimized-posts request answers with the success envelope, comes from getOptimizedPosts in optimizedPostsRoutes.ts. The handler inverts its validation check, so a valid request is refused. No composition root registers registerOptimizedPostsRoutes, and the plan's DC-11 deletes the module (FN-009) with its test."
   }
 ]
