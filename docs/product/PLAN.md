@@ -23,7 +23,7 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
 | [plan/chain.md](plan/chain.md)                 | Features F-01 to F-18, full records                                              |
 | [plan/areas.md](plan/areas.md)                 | Nine areas outside the chain, one line per feature until their turn              |
 | [plan/cross-cutting.md](plan/cross-cutting.md) | Work of no feature: CI, gates, dependencies, the test system, the security slice |
-| [plan/off-the-map.md](plan/off-the-map.md)     | Rows the code already shows as done, to close                                    |
+| [plan/off-the-map.md](plan/off-the-map.md)     | Rows the code already shows as done, closed                                      |
 | [plan/parking.md](plan/parking.md)             | Ideas with no slice                                                              |
 
 ## How the plan is queried

@@ -54,7 +54,7 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 25. `2026-10-10T04:04:04Z` — **12**: `secretlint` and its preset 13.0.6 → 13.0.7 (**14** before).
 26. `2026-10-10T04:13:21Z` — **11**: `turbo` 2.11.4 → 2.11.7, mature at `2026-10-09T14:58Z` (**12** before); the root `turbo.json` sets `"agentGuidance": false`.
 27. `2026-10-11T09:39:34Z` — **11**: `jsdom` 30.1.1 → 30.1.2, mature at `2026-10-11T09:15Z` with no row, which turned `main` red until the bump (**12** before); population 49 → 50 with `eslint-plugin-jsdoc`.
-28. `2026-10-11T19:01:28Z` — **11**: the `@typescript-eslint` pair 8.71.0 → 8.71.1, about 22 h before its maturity, on Edward's instruction (maturity watchlist).
+28. `2026-10-11T19:01:28Z` — **11**: the `@typescript-eslint` pair 8.71.0 → 8.71.1, about 22 h before its maturity, on the Maintainer's instruction (maturity watchlist).
 29. `2026-10-14T00:46:40Z` — **12**: `isomorphic-dompurify` 4.4.0 → 4.5.0, mature at `2026-10-13T09:29Z` with no row, which turned `main` red until the bump; `knip` 6.40.0 matured under its row at `2026-10-13T16:07Z`.
 30. `2026-10-14T04:03:49Z` — **12**: no version moved; pre-registered rows for `@playwright/test` and `playwright` 1.64.0 and for `size-limit` and its preset 14.2.0.
 31. `2026-10-14T18:27:49Z` — **12**: `knip` 6.39.0 → 6.40.0 (**13** before); `eslint-plugin-jsdoc` 65.2.0 matured under its row at `2026-10-14T08:22Z`.
@@ -268,7 +268,7 @@ from a published manifest or from this tree, not inferred.
      take 6.0.2 while `request`'s chain keeps the floor.
 2. **`typescript` 6.0.3 → 7.0.2 — HOLD; there is no Phase 0 slice for it, and that is correct.**
    `@typescript-eslint/parser@8.71.1` and `@typescript-eslint/eslint-plugin@8.71.1` — installed since
-   2026-10-11, taken about 22 hours before their `2026-10-12T17:08Z` / `17:09Z` maturity on Edward's
+   2026-10-11, taken about 22 hours before their `2026-10-12T17:08Z` / `17:09Z` maturity on the Maintainer's
    instruction and tracked in `scripts/testing/maturity-watchlist.json`, as 8.71.0 was on 2026-10-05 — still
    peer `typescript: ">=4.8.4 <6.1.0"`, byte-identical to 8.70.0's, 8.70.1's and 8.71.0's, and so do the
    8.71.2 alphas. TypeScript 7 is therefore not
