@@ -36,7 +36,7 @@ is therefore classed `PADDLE`, and `findByGatewayCustomerId`, which filters on t
 Stripe `payment.failed` and `payment.succeeded` events are never recorded. The sniff cannot work for
 Paddle either: Paddle subscription ids also start with `sub_`. The unit fixture invents
 `subscription_id: "sub_abc"` (`apps/api/tests/unit/billing/dunning.test.ts:232`), which is why the
-suite stays green. The master plan already tracks the symptom as N-COR-4 (`BILLING-DUNNING-DEAD`:
+suite stays green. The plan already tracks the symptom as N-COR-4 (`BILLING-DUNNING-DEAD`:
 the service re-derives the provider from the payload); F13 is its measured mechanism, recorded as
 SMELL-184, the plan row [BILL-3](../product/PLAN.md).
 

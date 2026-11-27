@@ -216,8 +216,8 @@ vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keep
   `docs/deployment/base-images.md` and `docs/deployment/LOCAL.md`; the stated runtime in
   `CLIENT-APP.md`, `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, the two standards documents, both
   investor documents, `TESTING_INFRASTRUCTURE.md` and the coverage note of
-  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-10) and
-  `MASTER_PLAN.md`; the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
+  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md` and `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-10);
+  the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
   `@tailwindcss/node` consumer named in the canon row `source-map-js`.
 
 ## Amendment of 2026-10-22: Node 26.12.1

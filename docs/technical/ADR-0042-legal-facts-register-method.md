@@ -12,8 +12,8 @@
 - **Superseded by**: —
 - **Related**: [docs/legal/README.md](../legal/README.md) and
   [REGISTER.md](../legal/REGISTER.md) (the register this method builds);
-  [Master Plan](../product/MASTER_PLAN.md) §5.10 (LEGAL-1 to LEGAL-5 and the retro-documentation
-  ledger) and §5.15 (the support documentation, which shares this method);
+  [the plan](../product/PLAN.md) (the open items of the register, LEGAL-1 and LEGAL-5, and of the
+  support documentation, which shares this method, SUP-1 and SUP-3 to SUP-5);
   [ADR-0043](ADR-0043-support-documentation-register.md) (the support register)
 
 ## Context
@@ -66,8 +66,11 @@
       batches → LEGAL-5.
 3. **What enters the ledger** (2026-10-07). Items of pure process or documentation (templates, gates,
    plan edits) do not enter the ledger, and the rule also applies to the rows already listed. The
-   ledger itself, with its entry, marking and Pre-Phase rules, stays in Master Plan §5.10, where
-   [docs/legal/README.md](../legal/README.md) points to it.
+   ledger itself, with its entry, marking and Pre-Phase rules, is absorbed into the plan with the
+   planning document that held it, which nothing in the tree references
+   ([ADR-0044](ADR-0044-feature-ordered-plan.md), as amended on 2026-11-27): the legal facts of a
+   feature are answered in its legal line when the feature closes in the plan, as
+   [docs/legal/README.md](../legal/README.md) states.
 
 ## Rationale
 

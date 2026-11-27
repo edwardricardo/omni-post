@@ -151,7 +151,7 @@ that `packages/ports` carries says otherwise.
 4. **Primitives into the use case keep construction in one place.** HTTP, the workers and any later
    delivery mechanism build the same value objects the same way (ADR-0002's shared core).
 5. **Staging keeps the route the Product Owner fixed** — the Testing Refoundation, then the legal register,
-   then the master plan in its order. The full migration is about 17,000 CODE lines; doing it now
+   then the plan in its order. The full migration is about 17,000 CODE lines; doing it now
    would displace N-TEST-1. The gate and its baseline stop the debt from growing meanwhile.
 
 ## Alternatives Considered
@@ -167,7 +167,7 @@ that `packages/ports` carries says otherwise.
 - **Keep `createLogger` in the core, as ADR-0013 chose.** Rejected: the factory returns a
   `pino.Logger`, so the core names an outer ring's type.
 - **Migrate every route module now.** Rejected: about 17,000 CODE lines is some 54 slices of up to
-  400; that belongs in the master plan's queue, not inside the Testing Refoundation.
+  400; that belongs in the plan's queue (ARCH-20), not inside the Testing Refoundation.
 - **Relabel `packages/ports` as `@layer application`.** Not chosen: the gate already enforces the
   ownership through its rule, and the relabel would touch 24 files with no effect the gate does not
   have.

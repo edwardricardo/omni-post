@@ -58,7 +58,7 @@
    register, which covers seven documents.
 6. **Q5 — thresholds.** A page fails with 5 commits on its `paths` after its stamp, or at 90 days,
    and warns from the first commit, or at 60 days. A product document's header fails at 60 days, or
-   when it predates the last change of the Master Plan rows it cites. The numbers are reviewed three
+   when it predates the last change of the plan rows it cites. The numbers are reviewed three
    months after the gates land, with the measured trigger counts.
 7. **The method and ledger of the legal register** (2026-10-07). This flow follows the method of
    ADR-0042 and its retro-documentation ledger: the retro pass reads each closed item once and, in that

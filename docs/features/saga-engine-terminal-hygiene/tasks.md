@@ -241,8 +241,8 @@ Every later "the tests pass" claim in this change depends on this PR.
       residual open and pointing at PR2/PR3/PR4.
       **Done**; residuals 1-4 and the whole terminal-hygiene carry list are untouched. The paired
       backlog entry **SMELL-72** moved `PENDING → RESOLVED` in the same PR (one cell, one changed
-      line after prettier; the backlog was folded into the Master Plan on 2026-10-29, where SMELL-72
-      sits in the §7 closure ledger) — leaving it PENDING would have been the same doc-drift class
+      line after prettier; SMELL-72 resolves in the plan, `docs/product/plan/cross-cutting.md`) —
+      leaving it PENDING would have been the same doc-drift class
       this slice exists to close. SMELL-71 and
       SMELL-73 stay PENDING.
 - [x] 2.3 **0-defect gate (PR1)**: `tsc -b apps/api` = 0; `eslint --max-warnings 0` on touched
