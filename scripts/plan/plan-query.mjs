@@ -7,7 +7,10 @@
  *
  *   `show <id | <name>:<line>>` prints the one record that carries the id (a feature's canonical
  *   id or any record's id as written) or that starts on that line of the named file; an id that
- *   several records carry is refused with each location. `list` prints the records every filter
+ *   several records carry is refused with each location. When no record carries the id as its
+ *   own, the item that carries it as another name (an old id written in the parenthesis after the
+ *   item's id) is printed after a first line that says so; with `--json` that line goes to stderr
+ *   and stdout holds the record's JSON alone. `list` prints the records every filter
  *   matches, one line each (id, kind, location, title), or as JSON with `--json`, or their number
  *   with `--count`. `check` fails while a line of the plan is unclassified, a file cannot be read
  *   or the plan's structure lacks a part `plan-records.mjs` names as a failure. Each takes
@@ -23,7 +26,9 @@
  *   Usage: `node scripts/plan/plan-query.mjs [--root <dir>] <show|list|check> [options]`. `--root`
  *   stands before the command, and anywhere else it is a usage error. The root defaults to the
  *   repository this file lives in, located from the script's own URL. Exit 0 on success, 1 when a
- *   record is not found, the plan cannot be read whole or the check fails, 2 on a usage error.
+ *   record is not found, the plan cannot be read whole or the check fails, 2 on a usage error. A
+ *   reader that closes standard output early, as `| head` does, cuts the output and changes
+ *   neither the exit code nor standard error.
  * @layer infrastructure
  */
 import { realpathSync } from "node:fs";
@@ -32,6 +37,7 @@ import {
   FILTER_FIELDS,
   NO_ID_TEXT,
   filterRecords,
+  findByOtherName,
   findRecords,
   parsePlan,
   readSources,
@@ -71,6 +77,8 @@ const USAGE = {
   show: [
     "usage: pnpm plan:show <id | <file>:<line>> [--json]",
     "  <id> is a feature's canonical id (F-02, A-TEAM-03) or any record's id as written;",
+    "  an old id an item writes in the parenthesis after its id (SMELL-184) is another name of",
+    "  that item, and show says so first, on stderr with --json;",
     `  <file>:<line> names the record that starts there, <file> one of ${NAMES_TEXT}.`,
     "  Exit 0 when one record is found, 1 when none or several are, 2 on a usage error.",
     ...BROKEN_PLAN_USAGE,
@@ -174,7 +182,8 @@ function show(args, root, now) {
   }
   const { plan, failures } = readPlan(root, now);
   if (failures.length > 0) return failed(failures);
-  const found = findRecords(plan.records, key);
+  const own = findRecords(plan.records, key);
+  const found = own.length > 0 ? own : findByOtherName(plan.records, key);
   const record = found[0];
   if (record === undefined) return failed([`no record carries the id "${key}"`]);
   if (found.length > 1) {
@@ -184,11 +193,17 @@ function show(args, root, now) {
         `location, <file>:<line>, the file one of ${NAMES_TEXT}`,
     ]);
   }
-  return {
-    exitCode: 0,
-    stdout: json ? JSON.stringify(record, null, 2).split("\n") : recordLines(record),
-    stderr: [],
-  };
+  // A record found by another name says so first, so its own id is not taken for the key; with
+  // --json the note goes to stderr and stdout stays the record's JSON alone.
+  const note = own.length > 0 ? [] : [`${key} is another name of ${record.id ?? NO_ID_TEXT}`];
+  if (json) {
+    return {
+      exitCode: 0,
+      stdout: JSON.stringify(record, null, 2).split("\n"),
+      stderr: note.map((line) => PREFIX + line),
+    };
+  }
+  return { exitCode: 0, stdout: [...note, ...recordLines(record)], stderr: [] };
 }
 
 /**
@@ -320,6 +335,17 @@ function rootOf(argv) {
 }
 
 /**
+ * Whether a write failed because the pipe's reader closed it, as `| head` does once it has read
+ * what it wants.
+ *
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isClosedPipe(error) {
+  return error instanceof Error && "code" in error && error.code === "EPIPE";
+}
+
+/**
  * True only when this file is the process entry point, so the suite's import runs nothing.
  *
  * @returns {boolean}
@@ -337,6 +363,11 @@ function invokedAsScript() {
 if (invokedAsScript()) {
   const input = rootOf(process.argv.slice(2));
   const outcome = input === null ? usageError(USAGE.general) : runQuery(input);
+  // A reader that closes the pipe has read all it wants: the write that fails then is no failure
+  // of the command, which keeps its outcome's exit code. Any other write error still raises.
+  process.stdout.on("error", (error) => {
+    if (!isClosedPipe(error)) throw error;
+  });
   for (const line of outcome.stdout) process.stdout.write(`${line}\n`);
   for (const line of outcome.stderr) process.stderr.write(`${line}\n`);
   process.exitCode = outcome.exitCode;

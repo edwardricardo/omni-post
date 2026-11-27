@@ -96,7 +96,7 @@ interface ItemFixture {
 
 const makeItem = (overrides: Partial<ItemFixture> = {}): ItemFixture => ({
   id: "DEF-29",
-  reference: "MP:636",
+  reference: "SMELL-636",
   text:
     "The workers cannot decrypt the channel credentials. Where: " +
     "`apps/api/src/security/EncryptionService.ts:99-101`, `apps/workers/src/crypto.ts`. " +
@@ -224,7 +224,7 @@ const makeArea = (overrides: Partial<AreaFixture> = {}): AreaFixture => ({
     itemLine(
       makeItem({
         id: "DEF-9",
-        reference: "MP:607",
+        reference: "SMELL-607",
         text: "The OIDC state is kept in a module map. Where: `apps/api/src/auth/oidcRoutes.ts:63`. Done: not stated.",
       })
     ),
@@ -264,7 +264,7 @@ const CROSS_CUTTING = [
   "",
   "### Architecture / quality",
   "",
-  "- **SAGA-UNIT-TESTS** (MP:355): The saga suites tolerate a failed saga. Where: `packages/core/saga.ts`. Done: not stated.",
+  "- **SAGA-UNIT-TESTS** (SMELL-355): The saga suites tolerate a failed saga. Where: `packages/core/saga.ts`. Done: not stated.",
   "",
   "## Testing refoundation units (1)",
   "",
@@ -281,7 +281,7 @@ const OFF_THE_MAP = [
   "",
   "## Off the map: deletion candidates (1 old rows)",
   "",
-  "- **STOR-1** (MP:525): Delete the package. Where: `packages/adapters/storage-cloudinary`. Done: not stated.",
+  "- **STOR-1** (SMELL-525): Delete the package. Where: `packages/adapters/storage-cloudinary`. Done: not stated.",
   "",
 ].join("\n");
 
@@ -336,7 +336,7 @@ const makeRecord = (overrides: Partial<PlanRecord> = {}): PlanRecord => ({
   where: ["apps/api/src/security/EncryptionService.ts:99-101"],
   done: "the workers read what the API writes.",
   doneState: "stated",
-  tags: ["MP:636"],
+  tags: ["SMELL-636"],
   mentions: [],
   text: "The workers cannot decrypt the channel credentials.",
   ...overrides,
@@ -384,7 +384,7 @@ describe("plan-records", () => {
         parse({
           chain: renderChain([
             makeChainFeature({
-              who: "the operator (MP:131), as DEF-163 says.",
+              who: "the operator (SMELL-131), as DEF-163 says.",
               extra: [
                 "- **Cut (confirmed by the Product Owner on 2026-11-16):** DEF-85 and DEF-97.",
               ],
@@ -396,7 +396,7 @@ describe("plan-records", () => {
 
       expect({ tags: feature?.tags, mentions: feature?.mentions }).toEqual({
         tags: ["4b.1", "6.E2"],
-        mentions: ["MP:131", "DEF-163", "DEF-85", "DEF-97"],
+        mentions: ["SMELL-131", "DEF-163", "DEF-85", "DEF-97"],
       });
     });
 
@@ -630,7 +630,7 @@ describe("plan-records", () => {
           attached: [
             itemLine(
               makeItem({
-                text: "The change path of DEF-163 (MP:909) and of SMELL-3 and FN-023. Done: one.",
+                text: "The change path of DEF-163 and of SMELL-3 and FN-023. Done: one.",
               })
             ),
           ],
@@ -640,9 +640,77 @@ describe("plan-records", () => {
       const item = recordOf(parse({ chain }), "DEF-29");
 
       expect({ tags: item?.tags, mentions: item?.mentions }).toEqual({
-        tags: ["MP:636", "DEF-29"],
-        mentions: ["MP:909", "DEF-163", "SMELL-3", "FN-023"],
+        tags: ["DEF-29", "SMELL-636"],
+        mentions: ["DEF-163", "SMELL-3", "FN-023"],
       });
+    });
+
+    it("returns no tag and no mention for an MP:<n> an item writes in its reference and its text", () => {
+      const chain = renderChain([
+        makeChainFeature({
+          attached: [
+            itemLine(
+              makeItem({ reference: "MP:636", text: "The change path of MP:909. Done: one." })
+            ),
+          ],
+        }),
+      ]);
+
+      const item = recordOf(parse({ chain }), "DEF-29");
+
+      expect({ tags: item?.tags, mentions: item?.mentions }).toEqual({
+        tags: ["DEF-29"],
+        mentions: [],
+      });
+    });
+
+    it.each([
+      [
+        "a Today, read on sentence",
+        "The probe reads every account. Today, read on the tree of 2026-11-26, it reads one. " +
+          "Where: `apps/api/src/health/probe.ts`. Done: one row.",
+      ],
+      [
+        "an Open decision of the sentence",
+        "The probe reads every account. Open decision of the Maintainer: which account is read? " +
+          "Done: one row.",
+      ],
+      [
+        "a Found by sentence",
+        "The probe reads every account. Found by: the review of the probe (2026-11-26). Done: one row.",
+      ],
+    ])(
+      "returns a title that ends before %s the item writes after its description",
+      (_case, text) => {
+        const chain = renderChain([makeChainFeature({ attached: [itemLine(makeItem({ text }))] })]);
+
+        expect(recordOf(parse({ chain }), "DEF-29")?.title).toBe("The probe reads every account.");
+      }
+    );
+
+    it.each([
+      [
+        "its where before a Today, read on sentence",
+        "The probe reads every account. Where: `apps/api/src/health/probe.ts`. Today, read on the " +
+          "tree of 2026-11-26, it reads `apps/api/src/health/accounts.ts`.",
+        { where: ["apps/api/src/health/probe.ts"] },
+      ],
+      [
+        "its done before an Open decision of the sentence",
+        "The probe reads every account. Done: one row. Open decision of the Maintainer: which " +
+          "account is read?",
+        { done: "one row." },
+      ],
+      [
+        "its depends on before a Found by sentence",
+        "The probe reads every account. Depends on: F-01. Found by: the review of the probe " +
+          "(2026-11-26).",
+        { dependsOn: "F-01." },
+      ],
+    ])("returns %s the item writes after it, the sentence left out", (_case, text, field) => {
+      const chain = renderChain([makeChainFeature({ attached: [itemLine(makeItem({ text }))] })]);
+
+      expect(recordOf(parse({ chain }), "DEF-29")).toMatchObject(field);
     });
 
     it("returns the id as a unit tag when the item is under the testing refoundation units", () => {
@@ -660,7 +728,7 @@ describe("plan-records", () => {
         owner: "A-TEAM",
         list: "Items attached to this area (1)",
         where: ["apps/api/src/auth/oidcRoutes.ts:63"],
-        tags: ["MP:607", "DEF-9"],
+        tags: ["DEF-9", "SMELL-607"],
       });
     });
 
@@ -668,7 +736,7 @@ describe("plan-records", () => {
       expect(recordOf(parsed, "SAGA-UNIT-TESTS")).toMatchObject({
         owner: "Work by subject (1)",
         list: "Architecture / quality",
-        tags: ["MP:355"],
+        tags: ["SMELL-355"],
       });
     });
 
@@ -932,8 +1000,105 @@ describe("plan-records", () => {
         },
         `${FILES.chain}:14`,
       ],
+      [
+        "an area's item list that opens on a label other than Items attached",
+        {
+          areas: renderAreas([makeArea()]).replace(
+            "Items attached to this area (1):",
+            "Old plan rows attached to this area (1):"
+          ),
+        },
+        `${FILES.areas}:17`,
+      ],
+      [
+        "an item line that holds a second item-shaped text",
+        {
+          areas: renderAreas([
+            makeArea({
+              attached: [
+                "**DEF-9**: The OIDC state is kept in a module map. Where: " +
+                  "`apps/api/src/auth/oidcRoutes.ts:63`. - **DEF-10**: A second item. Done: one row.",
+              ],
+            }),
+          ]),
+        },
+        `${FILES.areas}:17`,
+      ],
+      [
+        "an item whose text writes its Done field twice",
+        {
+          areas: renderAreas([
+            makeArea({
+              attached: [
+                "**DEF-9**: The OIDC state is kept in a module map. Done: one row. Where: " +
+                  "`apps/api/src/auth/oidcRoutes.ts:63`. Done: not stated.",
+              ],
+            }),
+          ]),
+        },
+        `${FILES.areas}:17`,
+      ],
+      [
+        "an item of a chain record whose continuation writes its Where field again",
+        {
+          chain: renderChain([
+            makeChainFeature({
+              attached: [itemLine(makeItem()), "    Where: `apps/workers/src/keys.ts`."],
+            }),
+          ]).replace("- **Attached (2):**", "- **Attached (1):**"),
+        },
+        `${FILES.chain}:15`,
+      ],
+      [
+        "an item whose text writes its Depends on field twice",
+        {
+          crossCutting: CROSS_CUTTING.replace(
+            "Done: not stated.",
+            "Depends on: F-01. Done: not stated. Depends on: F-02."
+          ),
+        },
+        `${FILES.crossCutting}:7`,
+      ],
+      [
+        "an item whose text writes its Found by field twice",
+        {
+          parking:
+            "# Parking\n\n- **IDEA-1**: An idea. Found by: the review. Found by: the battery.\n",
+        },
+        `${FILES.parking}:3`,
+      ],
     ])("reports %s as unclassified with its file and line", (_case, overrides, location) => {
       expect(unclassifiedOf(parse(overrides))).toEqual([location]);
+    });
+
+    it("classifies an item that names a field inside a code span and writes that field once", () => {
+      const parking =
+        "# Parking\n\n- **IDEA-1**: The rows quote ` Done: ` as their field. Done: one row.\n";
+
+      expect(unclassifiedOf(parse({ parking }))).toEqual([]);
+    });
+
+    it("returns the record of an item as read when its line is unclassified for a field written twice", () => {
+      const areas = renderAreas([
+        makeArea({
+          attached: [
+            "**DEF-9**: The OIDC state is kept in a map. Done: one row. Done: not stated.",
+          ],
+        }),
+      ]);
+
+      const read = parse({ areas });
+
+      expect({
+        refused: read.unclassified.map((line) => [
+          `${line.file}:${String(line.line)}`,
+          line.reason,
+        ]),
+        record: recordOf(read, "DEF-9"),
+      }).toMatchObject({
+        refused: [[`${FILES.areas}:17`, expect.stringContaining("`Done:`")]],
+        record: { title: "The OIDC state is kept in a map.", done: "one row. Done: not stated." },
+      });
     });
 
     it("returns a third-level heading as unclassified when its section holds a feature record and it is no record heading", () => {
@@ -1023,11 +1188,11 @@ describe("plan-records", () => {
     });
 
     it("returns a record when one element of its tags equals the value and none when an element only contains it", () => {
-      const records = [makeRecord({ title: "tagged", tags: ["SMELL-4", "MP:636"] })];
+      const records = [makeRecord({ title: "tagged", tags: ["SMELL-4", "FN-636"] })];
 
       const found = {
-        whole: titlesOf(filterRecords(records, [{ field: "tag", value: "MP:636" }])),
-        part: titlesOf(filterRecords(records, [{ field: "tag", value: "MP:63" }])),
+        whole: titlesOf(filterRecords(records, [{ field: "tag", value: "FN-636" }])),
+        part: titlesOf(filterRecords(records, [{ field: "tag", value: "FN-63" }])),
       };
 
       expect(found).toEqual({ whole: ["tagged"], part: [] });
