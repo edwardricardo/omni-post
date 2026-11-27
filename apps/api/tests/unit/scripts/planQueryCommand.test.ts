@@ -467,7 +467,15 @@ describe("plan-query", () => {
     it("prints no record and exits 0 when list is given --tag with the MP:<n> reference an item writes after its id", () => {
       makeTree({ areas: AREAS_TEXT.replace("- **DEF-9** (SMELL-607):", "- **DEF-9** (MP:607):") });
 
-      expect(run("list", "--tag", "MP:607")).toEqual({ exitCode: 0, stdout: [], stderr: [] });
+      expect({
+        byOwnId: run("list", "--tag", "DEF-9").stdout,
+        byFormerReference: run("list", "--tag", "SMELL-607").stdout,
+        byReference: run("list", "--tag", "MP:607"),
+      }).toEqual({
+        byOwnId: [`DEF-9\titem\t${FILES.areas}:12\tThe OIDC state is kept in a map.`],
+        byFormerReference: [],
+        byReference: { exitCode: 0, stdout: [], stderr: [] },
+      });
     });
 
     it("lists the records that every filter matches when list is given several", () => {
