@@ -16,61 +16,61 @@ It is read by whoever starts the next application, by whoever writes that prompt
 
 ## Entries at a glance
 
-| ID     | Area                 | Practice                                                                      | Kind                  |
-| ------ | -------------------- | ----------------------------------------------------------------------------- | --------------------- |
-| FP-005 | Architecture         | One composition root from the first route; routes never see the container     | construction and gate |
-| FP-037 | Architecture         | A health probe reads no table; a degraded dependency still serves             | construction          |
-| FP-043 | Architecture         | One error registry, one error body, and a lint rule against in-place errors   | construction and gate |
-| FP-001 | Testing              | Each test file has exactly one collector, run by a required check             | construction and gate |
-| FP-002 | Testing              | A test run that collects zero tests fails                                     | gate                  |
-| FP-011 | Testing              | An error double carries the shape measured on the real dependency             | construction          |
-| FP-012 | Testing              | A command double answers only the inputs its test planned, refuses the rest   | construction          |
-| FP-015 | Testing              | A test waits on the result it asserts; a lint rule rejects every fixed wait   | construction and gate |
-| FP-016 | Testing              | A unit test starts no process; code that spawns receives its runner           | construction and gate |
-| FP-017 | Testing              | The integration tier runs nightly in seeded random order on fresh services    | construction and gate |
-| FP-018 | Testing              | A test stays far below its timeout in CI; a passing test near it fails        | gate                  |
-| FP-021 | Testing              | A test block that cannot fail is a lint error; suppressions only shrink       | gate                  |
-| FP-031 | Testing              | A migration inserts no application row; a test fails on any that it finds     | construction and gate |
-| FP-035 | Testing              | Every application runs its stories from its first component, on one preview   | construction and gate |
-| FP-040 | Testing              | A browser test that types a secret asserts by values; lint bars page matchers | construction and gate |
-| FP-052 | Testing              | An atomic or single-use operation is tested in the staggered interleaving too | construction          |
-| FP-003 | CI and gates         | A gate fails closed on a missing scope, an empty scan or no measurement       | construction and gate |
-| FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit              | construction and gate |
-| FP-008 | CI and gates         | Every root config a package extends is part of the build cache key            | gate                  |
-| FP-013 | CI and gates         | One shared CI setup step; the runtime version comes from one file             | construction and gate |
-| FP-019 | CI and gates         | A workflow merges after each job runs green once, on provisioned inputs       | construction and gate |
-| FP-023 | CI and gates         | A check lands wired to CI and the local battery, or it does not land          | construction and gate |
-| FP-026 | CI and gates         | A deleted or rewritten test block lands only with its measured mutation       | construction and gate |
-| FP-027 | CI and gates         | A gate class or exemption ships with its retire condition, enforced apart     | construction and gate |
-| FP-030 | CI and gates         | A gate that lets a change through by a named remedy is probed with it         | construction and gate |
-| FP-032 | CI and gates         | A CI job repeats the documented start; the database stays empty after it      | gate                  |
-| FP-034 | CI and gates         | A check that must block runs on an event that can block, and blocks on itself | construction and gate |
-| FP-038 | CI and gates         | A required check pulls nothing from an unmirrored registry, mirror red shown  | construction          |
-| FP-039 | CI and gates         | A word-reading check exempts only the data a tool quotes, by its line grammar | construction          |
-| FP-041 | CI and gates         | A default-branch build restores its cache on an exact match only              | construction          |
-| FP-044 | CI and gates         | Only the default branch saves a CI cache; one scope per image of a matrix     | construction          |
-| FP-045 | CI and gates         | An exit code has one meaning; an alarm tells its own fault from its signal    | construction          |
-| FP-046 | CI and gates         | A guard changes only toward strictness, proven on the commands it judged      | construction          |
-| FP-047 | CI and gates         | A document is indexed and queried, never handed whole to an agent             | construction and gate |
-| FP-049 | CI and gates         | A gate inline in a workflow has a test that runs the step's own body          | construction          |
-| FP-051 | CI and gates         | A counting gate is measured against the real sites it must catch              | construction          |
-| FP-007 | Security and tenancy | Tenant isolation fails closed from the first tenant-bearing model             | construction and gate |
-| FP-014 | Security and tenancy | A response cache keys each authenticated route by caller, held at boot        | construction and gate |
-| FP-020 | Security and tenancy | Every telemetry SDK strips what it must not send, proven on its payload       | construction and gate |
-| FP-024 | Security and tenancy | The API document is off unless a typed flag opts in; relative server          | construction and gate |
-| FP-009 | Dependencies         | A dependency check reads a checked list for what the fields cannot say        | construction and gate |
-| FP-010 | Dependencies         | A freshness gate covers every tool in the manifests, families in lockstep     | gate                  |
-| FP-022 | Dependencies         | Every dependency proves its use with real sites or an owner's decision        | gate                  |
-| FP-042 | Dependencies         | An image's runtime is held to its vendor's security releases by its own gate  | gate                  |
-| FP-006 | Documentation        | Method-level documentation is enforced on every in-scope file from commit 1   | gate and hook         |
-| FP-025 | Documentation        | One artifact language and role names from the first commit, held by a gate    | construction and gate |
-| FP-028 | Documentation        | One plan ordered by feature and dependency; a stray finding joins its feature | construction          |
-| FP-029 | Documentation        | A count that claims everything was moved is run against the source by id      | construction          |
-| FP-033 | Documentation        | The loaded instruction context holds rules, read records and a byte budget    | construction and gate |
-| FP-036 | Documentation        | A feature closes only when no item under it is open, held by a gate           | construction and gate |
-| FP-048 | Documentation        | Loaded rules leave their reasons to a companion; their route is measured      | construction and gate |
-| FP-050 | Documentation        | One parser reads a structured document; its checks and queries share it       | construction and gate |
-| FP-053 | Documentation        | A fixed or closed verdict names its ref, and only main closes                 | construction          |
+| ID     | Area                 | Practice                                                                              | Kind                  |
+| ------ | -------------------- | ------------------------------------------------------------------------------------- | --------------------- |
+| FP-005 | Architecture         | One composition root from the first route; routes never see the container             | construction and gate |
+| FP-037 | Architecture         | A health probe reads no table; a degraded dependency still serves                     | construction          |
+| FP-043 | Architecture         | One error registry, one error body, and a lint rule against in-place errors           | construction and gate |
+| FP-001 | Testing              | Each test file has exactly one collector, run by a required check                     | construction and gate |
+| FP-002 | Testing              | A test run that collects zero tests fails                                             | gate                  |
+| FP-011 | Testing              | An error double carries the shape measured on the real dependency                     | construction          |
+| FP-012 | Testing              | A command double answers only the inputs its test planned, refuses the rest           | construction          |
+| FP-015 | Testing              | A test waits on the result it asserts; a lint rule rejects every fixed wait           | construction and gate |
+| FP-016 | Testing              | A unit test starts no process; code that spawns receives its runner                   | construction and gate |
+| FP-017 | Testing              | The integration tier runs nightly in seeded random order on fresh services            | construction and gate |
+| FP-018 | Testing              | A test stays far below its timeout in CI; a passing test near it fails                | gate                  |
+| FP-021 | Testing              | A test block that cannot fail is a lint error; suppressions only shrink               | gate                  |
+| FP-031 | Testing              | A migration inserts no application row; a test fails on any that it finds             | construction and gate |
+| FP-035 | Testing              | Every application runs its stories from its first component, on one preview           | construction and gate |
+| FP-040 | Testing              | A browser test that types a secret asserts by values; lint bars page matchers         | construction and gate |
+| FP-052 | Testing              | An atomic operation is tested in the staggered interleaving, not the simultaneous one | construction          |
+| FP-003 | CI and gates         | A gate fails closed on a missing scope, an empty scan or no measurement               | construction and gate |
+| FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit                      | construction and gate |
+| FP-008 | CI and gates         | Every root config a package extends is part of the build cache key                    | gate                  |
+| FP-013 | CI and gates         | One shared CI setup step; the runtime version comes from one file                     | construction and gate |
+| FP-019 | CI and gates         | A workflow merges after each job runs green once, on provisioned inputs               | construction and gate |
+| FP-023 | CI and gates         | A check lands wired to CI and the local battery, or it does not land                  | construction and gate |
+| FP-026 | CI and gates         | A deleted or rewritten test block lands only with its measured mutation               | construction and gate |
+| FP-027 | CI and gates         | A gate class or exemption ships with its retire condition, enforced apart             | construction and gate |
+| FP-030 | CI and gates         | A gate that lets a change through by a named remedy is probed with it                 | construction and gate |
+| FP-032 | CI and gates         | A CI job repeats the documented start; the database stays empty after it              | gate                  |
+| FP-034 | CI and gates         | A check that must block runs on an event that can block, and blocks on itself         | construction and gate |
+| FP-038 | CI and gates         | A required check pulls nothing from an unmirrored registry, mirror red shown          | construction          |
+| FP-039 | CI and gates         | A word-reading check exempts only the data a tool quotes, by its line grammar         | construction          |
+| FP-041 | CI and gates         | A default-branch build restores its cache on an exact match only                      | construction          |
+| FP-044 | CI and gates         | Only the default branch saves a CI cache; one scope per image of a matrix             | construction          |
+| FP-045 | CI and gates         | An exit code has one meaning; an alarm tells its own fault from its signal            | construction          |
+| FP-046 | CI and gates         | A guard changes only toward strictness, proven on the commands it judged              | construction          |
+| FP-047 | CI and gates         | A document is indexed and queried, never handed whole to an agent                     | construction and gate |
+| FP-049 | CI and gates         | A gate inline in a workflow has a test that runs the step's own body                  | construction          |
+| FP-051 | CI and gates         | A counting gate is measured against the real sites it must catch                      | construction          |
+| FP-007 | Security and tenancy | Tenant isolation fails closed from the first tenant-bearing model                     | construction and gate |
+| FP-014 | Security and tenancy | A response cache keys each authenticated route by caller, held at boot                | construction and gate |
+| FP-020 | Security and tenancy | Every telemetry SDK strips what it must not send, proven on its payload               | construction and gate |
+| FP-024 | Security and tenancy | The API document is off unless a typed flag opts in; relative server                  | construction and gate |
+| FP-009 | Dependencies         | A dependency check reads a checked list for what the fields cannot say                | construction and gate |
+| FP-010 | Dependencies         | A freshness gate covers every tool in the manifests, families in lockstep             | gate                  |
+| FP-022 | Dependencies         | Every dependency proves its use with real sites or an owner's decision                | gate                  |
+| FP-042 | Dependencies         | An image's runtime is held to its vendor's security releases by its own gate          | gate                  |
+| FP-006 | Documentation        | Method-level documentation is enforced on every in-scope file from commit 1           | gate and hook         |
+| FP-025 | Documentation        | One artifact language and role names from the first commit, held by a gate            | construction and gate |
+| FP-028 | Documentation        | One plan ordered by feature and dependency; a stray finding joins its feature         | construction          |
+| FP-029 | Documentation        | A count that claims everything was moved is run against the source by id              | construction          |
+| FP-033 | Documentation        | The loaded instruction context holds rules, read records and a byte budget            | construction and gate |
+| FP-036 | Documentation        | A feature closes only when no item under it is open, held by a gate                   | construction and gate |
+| FP-048 | Documentation        | Loaded rules leave their reasons to a companion; their route is measured              | construction and gate |
+| FP-050 | Documentation        | One parser reads a structured document; its checks and queries share it               | construction and gate |
+| FP-053 | Documentation        | A fixed or closed verdict names its ref, and only an ancestor of main closes          | construction          |
 
 ## How to use this document
 
@@ -226,11 +226,11 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Day-one enforcement:** construction and gate. Construction: the first browser test that types a secret lands in a directory of its own, with its own configuration holding the settings above and the header that states the limits, and the lint rule for that directory lands in the same commit. Gate: the lint rule runs in the repository's lint, in the local battery and in CI, with its red path shown on a planted page matcher in the directory (lint exits non-zero with the rule's message); the test's red path is shown once by hand on the configuration, by removing the snapshot setting, failing a locator step and finding the typed value in the error-context file, because no check can fail a test on purpose. Carry-over: omni-post's lint block and configuration, generalized to the new application's test framework and the secrets its tests type.
 - **Loosen if:** the framework offers a setting that masks or omits input values in its failure snapshot, and the removal probe above shows no typed value in any file of a run that fails a locator step with the rule off; the rule is then replaced by that setting. Never because a test's secret "is only a test value": the value a journey types is a real credential of a real database for the length of the run.
 
-### FP-052 — A test that certifies an operation as atomic or single-use runs the staggered interleaving besides the simultaneous one
+### FP-052 — A test that certifies an operation as atomic runs the staggered interleaving, not the simultaneous one
 
-- **Practice:** A test that certifies an operation as atomic or single-use runs the staggered interleaving, where the second call starts after the first has read and before it writes, besides the simultaneous one.
-- **Why:** A test that fires both calls at once through `Promise.all` certifies the simultaneous window alone. omni-post's backup-code consumption passed such a test and stayed open to a stagger of 5 to 30 ms.
-- **Day-one enforcement:** construction. Construction: the test kit offers a helper that holds the second call between the first call's read and its write, and every test of an atomic or single-use operation runs both interleavings through it.
+- **Practice:** A test that certifies an operation as atomic runs the staggered interleaving, where the second call starts after the first has read and before it writes, not the simultaneous one.
+- **Why:** A test that fires both calls at once through `Promise.all` certifies the simultaneous window alone. omni-post's backup-code consumption passed such a test and stayed open to a staggered call.
+- **Day-one enforcement:** construction. Construction: the test kit offers a helper that holds the second call between the first call's read and its write, and every test of an atomic operation runs the staggered interleaving through it.
 - **Loosen if:** never: an interleaving a test does not run is a window it does not certify.
 
 ## CI and gates
@@ -499,9 +499,9 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Day-one enforcement:** construction and gate. Construction: the document's parser lands with the document's first version and with the first check that judges it, as one shared module, and the instructions say to query the document rather than read it. Gate: the parser's completeness check fails on a line that fits no shape; omni-post's is `pnpm plan:check`, run on demand and not yet a step of CI or the local battery (FP-023). Carry-over: the shared reader, the per-line classification and the query command's refusals.
 - **Loosen if:** never for the one parser, because a second reader of the same lines is how a check and a query come to disagree about one row; a line that fits no shape is accepted only by naming its shape in the parser, with a case in its suite.
 
-### FP-053 — Every verdict that something is fixed or closed names the ref it was verified against, and only `main` closes it
+### FP-053 — Every verdict that something is fixed or closed names the ref it was verified against, and only a commit that is an ancestor of `main` closes it
 
-- **Practice:** Every verdict that something is fixed or closed names the ref it was verified against. A verdict verified on a ref other than `main` or the branch about to merge closes nothing: it records only that a fix exists somewhere.
+- **Practice:** Every verdict that something is fixed or closed names the ref it was verified against, and it counts only when the fixing commit is an ancestor of `main` (`git merge-base --is-ancestor <sha> main` exits 0). A verdict verified on another ref closes nothing: it records only that a fix exists somewhere, and its item stays open until the fix reaches `main`.
 - **Why:** Such a verdict reads as true and silences its finding. In omni-post a critical cross-account read stayed silent for seven weeks because an assessment verified on an unmerged branch declared it fixed.
 - **Day-one enforcement:** construction. Construction: the closing form of a plan item carries the ref, and a fix counts as landed only when its commit is an ancestor of `main` (`git merge-base --is-ancestor <sha> main` exits 0).
 - **Loosen if:** never: a verdict that does not name its ref cannot be told from a true one.

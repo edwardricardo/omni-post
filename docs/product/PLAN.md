@@ -10,8 +10,8 @@ each application, what is built, in which order, and when it is finished. Nothin
 plan does not hold. What it does not contemplate is added to it first, with its
 [level of need](#the-level-of-need) and its place.
 
-Every status in it comes from reading the code at `main` `a72e0525` on 2026-11-10; nothing was run. A feature's
-record is read again against the code when the feature opens.
+Every status comes from reading the code, on the date its record gives, and at `main` `a72e0525` on 2026-11-10
+where it gives none; nothing was run. A feature's record is read again against the code when the feature opens.
 
 The rules of `CLAUDE.md` send
 cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)).
@@ -60,13 +60,15 @@ comparison of May 2026 repeated on 2026-11-26 with a source and a date for every
   enterprise plan.
 - 3 or 4: Nice to have.
 - 1 or 2: Interesting.
-- None: the Product Owner decides the level, feature by feature.
+- None of the ten: Interesting or the lowest level, which the Product Owner decides feature by feature; where
+  competitors offer a part of the need, the Product Owner may give the level of that part, as decided on
+  2026-11-27.
 
 A feature no product publishes, because it serves the operator, takes the first rule that fits:
 
 1. An operator action that stands in for a customer feature takes that feature's level.
 2. A legal obligation is Mandatory.
-3. What the product cannot start or be operated without is Mandatory.
+3. What the product cannot start without is Mandatory.
 4. The rest is measured against the primary sources of its domain, such as a security standard.
 
 A level is revised by repeating the comparison, never by hand: each product is looked up again,
@@ -80,8 +82,9 @@ same way.
   application at a time, and it closes when a proof that crosses the seam between applications passes and its
   four documentation lines (legal, support, developers, deployment) are answered. "Not applicable", with its
   reason, is an answer.
-- A slice is delivered in pull requests of about 400 changed lines of code, a planning heuristic and not a cap; a
-  row whose estimate is larger names in its done condition the chain of pull requests it splits into.
+- A slice of the credential model ([ADR-0034](../technical/ADR-0034-credential-model.md)) is sized in lines of
+  code, and one of more than about 400 is split: its row names in its done condition the chain of pull requests
+  it splits into.
 - A proof starts from the state the earlier features leave. It writes no row directly.
 - Order: dependency first. Among features that do not depend on each other: on the main journey, then the one
   that unblocks more, then the one closest to done. A tie is the Product Owner's call.
@@ -127,6 +130,25 @@ same way.
   the id and each other part takes a new one.
 - Vocabulary (ADR-0031): Organization, Workspace, Member, Channel, Platform.
 
+## What the product does not build
+
+Unless the ideal customer profile changes, the product builds none of these and no item is opened for them:
+
+- AI voiceover.
+- A meme generator.
+- Influencer marketing.
+- Blog to video.
+- Full ad management, a separate product category that includes campaign optimization recommendations and branded
+  hashtag challenges.
+- Shops and catalogues on the networks: catalogues, products, variants, collections, sections and product tagging
+  in Facebook and Instagram Shops posts.
+- Facebook events (create, edit, cancel, invite, manage attendance), revisited if Meta reopens page-event
+  management to third-party applications with a documented create operation or permission.
+- An in-application emergency mode of the limiter (decision PREG-8, recorded in AUTH-RL-1 of
+  [cross-cutting](plan/cross-cutting.md)): the answer to an attack is at the edge with its runbook and, inside the
+  application, the per-route switch and shadow launch of AUTH-RL-1. Revisited if the production edge has no attack
+  mode or overload incidents appear that the edge does not see.
+
 ## The chain
 
 | #    | Feature                                                                           | Today   | Items attached | State       | Closed by |
@@ -161,13 +183,13 @@ needs a media file, and takes video, so attaching a media file to a post comes b
 | A-TEAM Members, roles and access                             | 26       | 1                | 21             | 0                  |
 | A-BILLING An Organization's billing                          | 25       | 8                | 24             | 0                  |
 | A-CONTENT Content tools                                      | 28       | 1                | 46             | 0                  |
-| A-SCHEDULING Scheduling beyond one post                      | 16       | 2                | 19             | 0                  |
-| A-AI AI assistance                                           | 24       | 6                | 29             | 1                  |
-| A-ANALYTICS Analytics and reports beyond the basic dashboard | 23       | 1                | 24             | 0                  |
-| A-ENGAGE Inbox and outside integrations                      | 30       | 2                | 37             | 0                  |
+| A-SCHEDULING Scheduling beyond one post                      | 16       | 2                | 20             | 0                  |
+| A-AI AI assistance                                           | 21       | 6                | 32             | 1                  |
+| A-ANALYTICS Analytics and reports beyond the basic dashboard | 22       | 1                | 24             | 0                  |
+| A-ENGAGE Inbox and outside integrations                      | 30       | 2                | 39             | 0                  |
 | A-PLATFORMS The ten Platforms other than Bluesky             | 34       | 0                | 33             | 1                  |
 | A-ADMIN-OPS Administrator operations outside the base        | 26       | 6                | 39             | 0                  |
-| Total                                                        | 232      | 27               | 272            |                    |
+| Total                                                        | 228      | 27               | 278            |                    |
 
 ## Order of the first slices
 

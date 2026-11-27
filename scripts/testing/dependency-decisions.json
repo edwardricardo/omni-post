@@ -29,7 +29,7 @@
       "utility": "No file imports it: the declaration satisfies the @opentelemetry/core peer of auto-instrumentations-node and is the catalog pin that holds the GHSA-8988-4f7v-96qf floor (DEPENDENCY_AUDIT_RECORD CVE-floor row). The stack that loads it starts only when TRACING_ENABLED is on, which defaults to false.",
       "replacement": "Dropping the declaration was weighed, since sdk-node, both exporters and resources depend on core 2.8.0 exactly; the floor it holds only rises.",
       "decidedOn": "2026-11-13",
-      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884), which depends on DEF-148, DEF-149 and DEF-150, describes the stack it serves. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry through the otel catalog."
+      "note": "OTEL-IN-EVERY-APPLICATION of docs/product/plan/cross-cutting.md, which depends on DEF-148, DEF-149 and DEF-150, describes the stack it serves. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry through the otel catalog."
     },
     "@tiptap/core": {
       "status": "kept",
@@ -309,7 +309,7 @@
       "utility": "FastifyOtelInstrumentation emits the API's request, handler and hook spans from createTelemetryInstrumentations. It runs only when an operator sets TRACING_ENABLED, which defaults to false (apps/api/src/config/env.ts:168) and which no workflow, compose file or Dockerfile sets.",
       "replacement": "None: the API imports fastify before the SDK starts, so a module-patching Fastify instrumentation would never see it; tracing through Sentry's SDK alone is a product decision not taken here.",
       "decidedOn": "2026-11-13",
-      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
+      "note": "OTEL-IN-EVERY-APPLICATION of docs/product/plan/cross-cutting.md and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@fastify/swagger": {
       "status": "kept",
@@ -373,7 +373,7 @@
       "utility": "getNodeAutoInstrumentations() returns the bundle of library instrumentations the NodeSDK enables (http, fs, ioredis, pg and others). It runs only when TRACING_ENABLED is on, which defaults to false.",
       "replacement": "Eight to eleven explicit instrumentations as direct declarations were weighed (67 packages would leave the lockfile); that change needs its own decision and a span test for ioredis, pg, pino and openai first.",
       "decidedOn": "2026-11-13",
-      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-148, DEF-149 and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
+      "note": "OTEL-IN-EVERY-APPLICATION of docs/product/plan/cross-cutting.md and DEF-148, DEF-149 and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/exporter-prometheus": {
       "status": "kept",
@@ -389,7 +389,7 @@
       "utility": "The NodeSDK's trace exporter, which posts spans as OTLP to the configured endpoint (http://localhost:4318 by default). It runs only when TRACING_ENABLED is on, which defaults to false and which no workflow, compose file or Dockerfile sets.",
       "replacement": "Dropping the declaration was weighed: sdk-node depends on the same exporter itself, so no package would leave, and the export would need its own endpoint mapping.",
       "decidedOn": "2026-11-13",
-      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-148 and DEF-149, the trace backend's gaps on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
+      "note": "OTEL-IN-EVERY-APPLICATION of docs/product/plan/cross-cutting.md and DEF-148 and DEF-149, the trace backend's gaps on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/resources": {
       "status": "kept",
@@ -397,7 +397,7 @@
       "utility": "resourceFromAttributes builds, once, the NodeSDK resource (service name, version, environment and the caller's attributes). It runs only when TRACING_ENABLED is on, which defaults to false.",
       "replacement": "The resources namespace sdk-node re-exports was weighed: it keeps the same Resource type and no package would leave the lockfile.",
       "decidedOn": "2026-11-13",
-      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
+      "note": "OTEL-IN-EVERY-APPLICATION of docs/product/plan/cross-cutting.md and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/sdk-node": {
       "status": "kept",
@@ -405,7 +405,7 @@
       "utility": "NodeSDK, which SocialMediaTelemetry builds with the resource, the instrumentations, the OTLP trace exporter and the Prometheus metric reader, then starts and shuts down. The API and the workers start it only when TRACING_ENABLED is on, which defaults to false.",
       "replacement": "None: a hand-wired SDK (sdk-trace-node, sdk-metrics, propagators) is more code and more declared packages; tracing through Sentry's SDK alone is a product decision not taken here.",
       "decidedOn": "2026-11-13",
-      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
+      "note": "OTEL-IN-EVERY-APPLICATION of docs/product/plan/cross-cutting.md and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@paddle/paddle-node-sdk": {
       "status": "kept",

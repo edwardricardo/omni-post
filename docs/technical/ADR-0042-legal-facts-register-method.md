@@ -65,11 +65,12 @@
       (generators and the register's skeleton) → L-2 (gate) → L-3 (templates) → the retro pass by
       batches → LEGAL-5.
 3. **What enters the ledger** (2026-10-07). Items of pure process or documentation (templates, gates,
-   plan edits) do not enter the ledger, and the rule also applies to the rows already listed. The
-   ledger itself, with its entry, marking and Pre-Phase rules, is absorbed into the plan with the
-   planning document that held it, which nothing in the tree references
-   ([ADR-0044](ADR-0044-feature-ordered-plan.md), as amended on 2026-11-27): the legal facts of a
-   feature are answered in its legal line when the feature closes in the plan, as
+   plan edits) do not enter the ledger, and the rule also applies to the rows already listed. Work
+   closed before the documentation gates existed owes its legal facts and its support page as open
+   rows of the plan, under the headings of the legal facts register and of the technical support
+   documentation in `docs/product/plan/cross-cutting.md`, or as a sentence on the record that is the
+   item; a row that is an edit of the plan itself owes nothing; a feature closed after the gates
+   answers its legal facts in its legal line when it closes, as
    [docs/legal/README.md](../legal/README.md) states.
 
 ## Rationale

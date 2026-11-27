@@ -1,11 +1,8 @@
-# Off the map, and rows already done
+# Rows the code already shows as done
 
 Part of [the plan](../PLAN.md).
 
-Each area also holds code no feature uses (pages, routes, queues, data models, packages). It is listed here when
-the area is scheduled.
-
-## Already done in the code (12 rows, to close)
+## Already done in the code (15 rows, to close)
 
 - **FND-1**: The foundation-practices document with its eight seed entries, the flow paragraph in `CLAUDE.md` and the row of the `docs/README.md` index. Where: `docs/development/FOUNDATION_PRACTICES.md`, `CLAUDE.md` §Documentation Policy, `docs/README.md:86`. Done: On `main`. Today, read on 2026-11-27: `docs/development/FOUNDATION_PRACTICES.md` holds 51 headings that begin with `FP-`, the foundation practices flow paragraph is at `CLAUDE.md:128`, and the index row is at `docs/README.md:86`.
 - **ALR-U1**: The convention: ADR-0040, `docs/GOVERNANCE.md`, the language, roles, option (b) and plan-closure rules in `CLAUDE.md` §Documentation Policy, the MADR fields in the ADR template, and the canon documents' `**Owner:**` value. Where: `docs/technical/ADR-0040-artifact-language-and-role-attribution.md`, `docs/GOVERNANCE.md`, `CLAUDE.md` §Documentation Policy. Done: Not stated beyond the list of artifacts.
@@ -19,3 +16,6 @@ the area is scheduled.
 - **(no id)**: Head "CQRSIntegration dead-route": The dead `CQRSIntegration.ts` was removed. It was never wired in any composition root, and PR #128 removed it on 2026-07-19. PR #128 is not `N-SEC-3`, which is the guard for `projectId`-only models; the two are distinct items and must not be confused. Where: `apps/api/src/cqrs/CQRSIntegration.ts` (gone). Done: not stated.
 - **(no id)**: Head "Dependency/hygiene batch, campaign 2026-07-20 to 21": A batch of dependency and CVE updates (#134 to #141) with the F-1 ioredis timeout fix. #136 also fixed F-1: `ioredis` treats `commandTimeout: 0` as a real 0 ms timer, so every subscriber connection is made through `duplicateForSubscriber` (`apps/api/src/lib/redis.ts:90`), which has four production callers today. `eslint` stays held at 9; `pnpm-workspace.yaml:149` records why. Where: `apps/api/src/lib/redis.ts`, `pnpm-workspace.yaml`. Done: not stated. Today, read on 2026-11-27: `pnpm-workspace.yaml:149` holds `eslint` at `9.39.5`, the last release of the 9 line, because one peer, `eslint-plugin-jsx-a11y@6.10.2`, admits eslint only up to `^9` since `eslint-plugin-react` was removed on 2026-10-25.
 - **L-1 MFA-DUALITY**: MFA duality was promoted to `N-SEC-5`. The Maintainer decided to use the new argon2 MFA wired through dependency injection and to retire the old one. Where: not stated. Done: not stated.
+- **FN-004**: Two paths renewed expired trials: the `SubscriptionService` of the API and a duplicate `autoRenewalWorker` in `apps/workers`, a dual-write and double-charge risk. Where: `apps/api/src/index.ts`. Commit `0718334c` keeps one canonical path, the daily `auto-renewal` task the API schedules (`apps/api/src/index.ts:1016-1034`), and deletes the duplicate worker. The change is the commit `0718334c`, which reached main without a pull request.
+- **FN-033**: The Admin and client apps each kept a copy of the notification store. Where: `apps/admin/lib/stores/notificationStore.ts`, `apps/client/lib/stores/notificationStore.ts`, `packages/shared/src/stores/notificationStore.ts`. Commit `1dc014e9` extracts `notificationStore` to `packages/shared`. What remains is not this de-duplication: the Admin's 7-line re-export has only its own test as an importer, because the Admin has no notification UI. The change is the commit `1dc014e9`, which reached main without a pull request.
+- **SMELL-35**: Brute-force protection had three divergent implementations: the Admin's on Prisma, the customer's rate limit alone, and an orphan one on Redis. Where: `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (not in the tree on 2026-11-27), `docs/technical/ADR-0015-brute-force-protection-port-canon.md`. Commit `f2467a55` records the homologation in ADR-0015 and closes the finding. The change is the commit `f2467a55`, which reached main without a pull request.

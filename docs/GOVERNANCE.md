@@ -76,3 +76,14 @@ classes, and only `DEAD_CODE` that the Maintainer confirms is deleted.
 Exempt from the Maintainer's validation, though never deleted automatically: `.bak` and `.old`
 backups, one-off debug scripts, superseded configurations, and commented-out blocks whose history
 git keeps.
+
+A deletion unit (DC-1 to DC-14, rows of [the plan](product/PLAN.md)) is one pull request of about
+400 lines of code, split by module group when it exceeds them. In the same pull request it updates
+its rows of `docs/reports/UNUSED_CODE_INVENTORY.md` and passes `pnpm lint` with no warning,
+`pnpm exec tsc -b --force`, `node scripts/knip-ratchet.mjs` (with `--write` to shrink the ledger),
+`pnpm check:duplicates`, `apps/api/scripts/typecheck-tests-ratchet.mjs`, `pnpm check:architecture`
+and the suites of each package it touches; a unit that touches the schema runs `pnpm db:up` first
+and passes its migration and the RLS coverage gate. A unit that takes `apps/api` below
+`TEST_FILE_FLOOR` lowers it in the same change and writes why. Units with disjoint files run in
+parallel; DC-13 edits `apps/api/src/index.ts`, as DC-2 does, and the schema, as DC-7, DC-8 and DC-9
+do, so it runs in series with them.
