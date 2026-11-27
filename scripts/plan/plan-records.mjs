@@ -22,7 +22,7 @@
  *
  *   ITEMS. In a chain record, the items the walker reads in its `Attached (<n>)` and `Findings`
  *   lists, each with its continuations. In `areas.md`, the bullets under a paragraph that starts
- *   with `Old plan rows` or `Findings` and ends with a colon. In `cross-cutting.md`,
+ *   with `Items attached` or `Findings` and ends with a colon. In `cross-cutting.md`,
  *   `off-the-map.md` and `parking.md`, every top-level bullet. Outside a chain record a bullet
  *   continues on lines indented two spaces or more. An item's state is `open`,
  *   `closed-by-pull-request` or `closed-by-decision`, by the gate's two closing forms read on the
@@ -86,7 +86,7 @@ const RAW_HTML = /^\s*<(?:!--|\/?[A-Za-z][A-Za-z0-9-]*(?:\s|\/?>|$))/;
 const CHAIN_FEATURE = /^(F-\d+)(?:\s+(.*))?$/;
 const AREA = /^A-([A-Z][A-Z-]*)(?:\s+(.*))?$/;
 const AREA_FEATURE = /^([A-Z][A-Z-]*-(\d+)\.?|(\d+)\.)(?:\s+\(([^)]*)\))?\s+(\S.*)$/;
-const ITEM_LIST_INTRO = /^(?:Old plan rows|Findings)\b.*:$/;
+const ITEM_LIST_INTRO = /^(?:Items attached|Findings)\b.*:$/;
 const UNITS_SECTION = /^Testing refoundation units\b/;
 const UNIT = /^\d+[a-z]?\.[A-Z]?\d+[a-z]?$/;
 const MP_TAG = /MP:\d+/g;

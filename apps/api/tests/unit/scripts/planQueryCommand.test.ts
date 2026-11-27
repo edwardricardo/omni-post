@@ -91,7 +91,7 @@ const AREAS_TEXT = [
   "| A-TEAM-01 A Member sees the Organization  | any Member | PARTIAL | F-02       |",
   "| A-TEAM-02 A person accepts an invitation  | invitee    | DEAD    | A-TEAM-01  |",
   "",
-  "Old plan rows attached to this area (1):",
+  "Items attached to this area (1):",
   "",
   "- **DEF-9** (MP:607): The OIDC state is kept in a map. Done: not stated.",
   "",

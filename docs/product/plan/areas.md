@@ -43,7 +43,7 @@ Main findings:
 | A-TEAM-23 A Member sees the Workspace's Members while scheduling                                              | any Member                                                     | PARTIAL      | F-10, A-TEAM-01                               |
 | A-TEAM-24 A Member edits their own profile (name, e-mail)                                                     | any Member                                                     | DEAD         | F-10                                          |
 
-Old plan rows attached to this area (21):
+Items attached to this area (21):
 
 - **DEF-9** (MP:607): The OIDC PKCE state is kept in a module `Map`, so with more than one pod a login that returns through another pod fails. Where: `apps/api/src/auth/oidcRoutes.ts:63` (comment `:59-60`). Done: The state moves to Redis with the `OAuthFlowStore` pattern and an atomic consume (ADR-0034 decision 7, CRED-3). Depends on: ARCH-17, CRED-3 (§5.14), ADR-0034.
 - **DEF-10** (MP:608): Updating notification preferences runs one `upsert` per preference outside a Unit of Work, so a failure midway leaves some applied. Where: `apps/api/src/notifications/notificationRoutes.ts:291-293`. Done: not stated. Depends on: ARCH-14.
@@ -105,7 +105,7 @@ Main findings:
 | 24. An administrator upgrades up to 50 Organizations at once                                                                                      | An administrator                                                                                      | PARTIAL      | F-03, F-05             |
 | 25. The platform reminds and then suspends an Organization that has not finished a gateway switch                                                 | The platform (queue `gateway-switch`)                                                                 | PARTIAL      | rows 6, 8, F-06        |
 
-Old plan rows attached to this area (24):
+Items attached to this area (24):
 
 - **N-COR-4** (MP:113): Billing dunning is dead: it re-derives `provider` from the payload and sets an irreversible `processed=true`, so a Stripe webhook failure is swallowed. Where: not stated (service `handlePaymentFailed/Succeeded`). Done: Pass the route's `provider` to the service; a failed-webhook test that verifies the dunning runs.
 - **BILL-1** (MP:491): `PaymentEvent` in the `PaymentAdapter` port and a Stripe translator tested with a real `2026-03-25.dahlia` payload. Where: not stated (`PaymentAdapter` port). Done: Not stated beyond the change (ADR-0026).
@@ -170,7 +170,7 @@ Main findings:
 | C-24 A Member keeps versions of a post's content, syncs it between channels and adapts the text to each Platform's format            | Member                                   | PARTIAL      | F-14 (a saved post to version)                                                                                               |
 | C-25 A Member prepares images and videos for Instagram in the browser (upload zone, split, batch select, "create stories")           | Member                                   | UI-ONLY      | C-07 (a place to put the files); A-PLATFORMS                                                                                 |
 
-Old plan rows attached to this area (41):
+Items attached to this area (41):
 
 - **F1-API-4** (MP:188): Canva Connect OAuth backend. No Canva code exists in the tree (the only `canva` matches are `canvas`). Where: not stated. Done: OAuth 2.0 Auth Code with PKCE (S256), confidential client, exchange in the backend, tokens encrypted at rest, server-side `state`, single-use refresh with rotation. Depends on: B3; OAUTH-REFRESH-UNWIRED.
 - **F1-CLI-5** (MP:189): Canva embed in the composer. Where: not stated. Done: Not stated. Depends on: F1-API-4.
@@ -242,7 +242,7 @@ Main findings:
 | A Member reads, creates, renames and switches scheduling rules (limits per day and hour, blackout times)       | Member                   | PARTIAL      | F-12                                                |
 | A Member sees what is waiting to be published, in a queue view                                                 | Member                   | DEAD         | F-15                                                |
 
-Old plan rows attached to this area (15):
+Items attached to this area (15):
 
 - **N-COR-6** (MP:115): Scheduling ignores timezone and DST: `computeNextRun` runs at the server's time. Still so: `RecurringPost` calls it with only the cron text and `now`. Where: `packages/core/domain/src/entities/RecurringPost.ts:276,380,408`. Done: `cron-parser` with the `tz` option fed by the entity's IANA timezone; a test with a DST crossing.
 - **F1-CLI-4** (MP:187): CSV upload UI with a per-row report; blocked by the per-Platform targeting error of the bulk schedule (ADR-0016); the stack is now `/parse` plus `/confirm`. Where: not stated (`apps/api/src/bulk-scheduling`). Done: Validate the CSV upfront (Zod per row), `addBulk`/FlowProducer with `continueParentOnFailure`, DLQ and per-row manifest. Depends on: F1-API-3; the targeting redesign.
@@ -290,7 +290,7 @@ Main findings:
 | AI-16 A caller reads trend analysis, viral content, opportunities, predictions and a trend report                                                    | Member (API caller)   | DEAD         | none                      |
 | AI-17 A Member generates a content calendar with AI                                                                                                  | Member                | DEAD         | none                      |
 
-Old plan rows attached to this area (26):
+Items attached to this area (26):
 
 - **N-SEC-4** (MP:101): The AI response cache key `ai:${type}:${sha256(...)}` omits `accountId`; BYOK and pool share one `CachePort`, so answers cross tenants and `tokensUsed=0` on hits skews billing. Where: `apps/api/src/ai/orchestrator.ts:220`. Done: An `accountId` segment, or a byok-versus-pool scope, in both keys.
 - **TREND-PREDICTIONS-JSDOC-STALE** (MP:356): The JSDoc of `generateTrendPredictions` says mock data with threshold scoring while the body returns `[]` behind the circuit breaker. Where: `apps/api/src/trends/trendAnalysisService.ts:131-136`. Done: The comment says what the body does, or goes with DEF-12's decision. Depends on: DEF-12.
@@ -360,7 +360,7 @@ Main findings:
 | A-ANALYTICS-19. A Member sees the sentiment (positive, neutral, negative) of each mention and filters by it                                                                            | a Member                                                       | UI-ONLY      | row 16                                                                                                        |
 | A-ANALYTICS-20. The platform records a mention that Facebook or Instagram pushes by webhook (a "fetch" job on `mention-ingest`)                                                        | the operator (an incoming webhook; no person)                  | DEAD         | F-13 (a Facebook or Instagram Channel; the chain connects Bluesky only), A-PLATFORMS for the OAuth connection |
 
-Old plan rows attached to this area (22):
+Items attached to this area (22):
 
 - **DEF-7** (MP:605): Two customer routes read `request.user`, which their guard never sets, so every call answers 401: `apiKeyRoutes.ts:86` and `customReportRoutes.ts:333`; no portal or test uses them. Statically verified, not run. SMELL-194. Where: `apps/api/src/auth/apiKeyRoutes.ts:86`, `apps/api/src/custom-reports/customReportRoutes.ts:333`, `apps/api/src/auth/customerAuthMiddleware.ts:59`, `integrationAuthMiddleware.ts:175`. Done: The `apiKeyRoutes` half closes by deletion with DC-13; the `customReportRoutes` half remains (not stated how). Depends on: ARCH-17, ARCH-18; DC-13.
 - **DEF-32** (MP:642): Analytics ingestion persists nothing for any of the 11 networks and marks healthy channels for reconnection (array/object shape mismatch, credentials trimmed to five fields, Threads foreign key). Where: `packages/core/analytics/src/IngestChannelAnalyticsUseCase.ts:144`, `:181-188`, `apps/api/src/infrastructure/repositories/PrismaChannelRepository.ts:53-61`, `apps/api/src/analytics/analyticsIngestConsumer.ts:97`, `:107`, `packages/ports/src/ProviderAdapter.ts:162-165`. Done: The projection keeps each network's own fields, the `fetchAnalytics` contract is typed (F2-API-12), an integration test joins the real adapter, the loaded credentials and the use case, and a projection defect never marks `needsReauth`. Depends on: F2-API-12, DEF-36, DEF-37, DEF-38.
@@ -421,7 +421,7 @@ Main findings:
 | E-21 A Member reads the in-app notifications: bell list, unread count, mark one or all as read, live stream                                        | Member                                      | END-TO-END   | F-10                                                                      |
 | E-22 A Member is notified when something concerns them (an @mention in a note, comment or task; an inbox event)                                    | Member                                      | PARTIAL      | E-06; A-CONTENT (comments, tasks); A-TEAM (preferences)                   |
 
-Old plan rows attached to this area (33):
+Items attached to this area (33):
 
 - **N-COR-11** (MP:120): No per-customer notification medium preference, order or interval; N-COR-8 delivers only a per-event toggle (in-app plus e-mail). Where: not stated. Done: A per-customer preference model (admitted media, order, interval) resolved in the core, with the impossible-retraction alert as first consumer. Depends on: N-COR-8.
 - **N-COR-12** (MP:121): An SMS medium: needs a provider decision and capture and verification of the customer's phone, which nothing asks for today. Where: not stated. Done: A provider adjudicated by ADR, phone capture and verification, an adapter behind the notification port, a bounded cost and rate limit. Depends on: N-COR-11.
@@ -506,7 +506,7 @@ Main findings:
 | AP-32 A Member publishes a YouTube Short                                         | Member | DEAD         | AP-30, AP-31                                                                                                                                                            |
 | AP-33 A Member starts a YouTube live stream                                      | Member | DEAD         | AP-30, AP-31                                                                                                                                                            |
 
-Old plan rows attached to this area (32):
+Items attached to this area (32):
 
 - **N-COR-10** (MP:119): An interrupted thread loses the published ids and a retry resends the whole thread; fragments are not retracted. Where: not stated (`THREAD_INTERRUPTED` from X; `publishThread` in 6 providers). Done: A retraction port with per-Platform adapters and a capability table, a compensation step in the worker, `publishThread` returning what went out on the error path. Depends on: N-COR-8.
 - **PROV-SANDBOX-1** (MP:386): Provider tests run against mocks; no sandbox test exists and no workflow runs one (the template's sandbox test left with WU-2.6a). Where: `packages/providers/_template/tests/integration/sandbox.template.test.ts` (gone), `docs/runbooks/provider-contract-failure.md`, the testing refoundation tracker ([last version](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#declared-gaps), Declared gaps). Done: A sandbox app per provider provisioned by the Maintainer, real assertions in each `sandbox.test.ts`, and a nightly workflow that alerts on a failure.
@@ -582,7 +582,7 @@ Main findings:
 | 25. An administrator reads one administrator's or one resource's audit trail, writes an audit entry by hand, reads their own entries, and purges old entries           | administrator holding `AUDIT_READ`, `AUDIT_EXPORT` or `SYSTEM_CONFIGURE` | BACKEND-ONLY | F-03                                                                                                                |
 | 26. An administrator sees API performance and rate-limit telemetry                                                                                                     | administrator                                                            | DEAD         | none (nobody can reach it)                                                                                          |
 
-Old plan rows attached to this area (32):
+Items attached to this area (32):
 
 - **N-AUTH-2** (MP:156): `GET /activity-feed` returns the whole `AuditLog` to any authenticated customer, including id, name and e-mail of administrators; the `accountId` query parameter is not a tenant filter. Where: `apps/api/src/audit/activityFeedRoutes.ts:79`, `apps/api/src/audit/activityFeedService.ts:148-149,165-168`. Done: Rebuild as `GET /account/activity` scoped by `where.accountId`, gated by `audit:read` (not buildable while customer RBAC is enforced nowhere), with the write path storing `accountId`, and correct `MULTI_TENANT_GUARDS.md` AuditLog note 2; the rebuilt endpoint has no frontend consumer. Depends on: customer RBAC enforcement (PARITY-D11).
 - **GDPR-1** (MP:387): The data subject access export is whatever the operator types as `exportUrl`; nothing serializes the requester's data. Where: `apps/api/src/compliance/complianceRoutes.ts:153`, `complianceSchemas.ts:76`. Done: A background job serializes every tenant-scoped table for the account, uploads the dump and sets `exportUrl` with a 7-day expiry, with an end-to-end test.

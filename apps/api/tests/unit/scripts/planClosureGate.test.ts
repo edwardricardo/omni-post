@@ -76,7 +76,7 @@ const renderPlan = (rows: readonly Row[]): string =>
     "",
     "## The chain",
     "",
-    "| #    | Feature          | Today | Old rows attached | State       | Closed by |",
+    "| #    | Feature          | Today | Items attached    | State       | Closed by |",
     "| ---- | ---------------- | ----- | ----------------- | ----------- | --------- |",
     ...rows.map(
       (row) =>

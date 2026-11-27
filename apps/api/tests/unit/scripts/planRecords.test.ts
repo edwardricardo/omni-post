@@ -4,7 +4,7 @@
  *   into records: each chain feature of `chain.md` with the state of the chain table of
  *   `PLAN.md`, each feature row of the area tables of `areas.md` with its id as written and its
  *   canonical `A-<AREA>-<n>` id, and each item (the entries of a chain record's item lists, an
- *   area's old rows and findings, the bullets of `cross-cutting.md`, `off-the-map.md` and
+ *   area's attached items and findings, the bullets of `cross-cutting.md`, `off-the-map.md` and
  *   `parking.md`) with its owner, state, done condition, evidence paths and tags. It also pins
  *   completeness: every line outside fenced code gets a kind, and a line that fits no shape is
  *   returned as unclassified with its file and line, never skipped. Every case builds its own
@@ -194,7 +194,7 @@ const renderPlan = (rows: readonly ChainRowFixture[]): string =>
     "",
     "## The chain",
     "",
-    "| #    | Feature   | Today | Old rows attached | State | Closed by |",
+    "| #    | Feature   | Today | Items attached    | State | Closed by |",
     "| ---- | --------- | ----- | ----------------- | ----- | --------- |",
     ...rows.map((row) => `| ${row.id} | A feature | WORKS | 1 | ${row.state} | ${row.closedBy} |`),
     "",
@@ -211,7 +211,7 @@ interface AreaFixture {
   readonly title: string;
   readonly header: readonly string[];
   readonly rows: readonly (readonly string[])[];
-  readonly oldRows: readonly string[];
+  readonly attached: readonly string[];
   readonly mainFindings: readonly string[];
 }
 
@@ -220,7 +220,7 @@ const makeArea = (overrides: Partial<AreaFixture> = {}): AreaFixture => ({
   title: "Members, roles and access",
   header: ["Feature", "Who", "Today", "Depends on"],
   rows: [["A-TEAM-01 A Member sees who is in the Organization", "any Member", "PARTIAL", "F-10"]],
-  oldRows: [
+  attached: [
     itemLine(
       makeItem({
         id: "DEF-9",
@@ -248,9 +248,9 @@ const renderArea = (area: AreaFixture): string[] => [
   tableLine(area.header.map(() => "---")),
   ...area.rows.map(tableLine),
   "",
-  `Old plan rows attached to this area (${String(area.oldRows.length)}):`,
+  `Items attached to this area (${String(area.attached.length)}):`,
   "",
-  ...area.oldRows.map((row) => `- ${row}`),
+  ...area.attached.map((row) => `- ${row}`),
   "",
 ];
 
@@ -260,9 +260,9 @@ const renderAreas = (areas: readonly AreaFixture[]): string =>
 const CROSS_CUTTING = [
   "# Cross-cutting work",
   "",
-  "## Old plan rows (1)",
+  "## Work by subject (1)",
   "",
-  "### From: 5.1 Architecture / quality",
+  "### Architecture / quality",
   "",
   "- **SAGA-UNIT-TESTS** (MP:355): The saga suites tolerate a failed saga. Where: `packages/core/saga.ts`. Done: not stated.",
   "",
@@ -653,12 +653,12 @@ describe("plan-records", () => {
       });
     });
 
-    it("returns the old rows attached to an area as items owned by that area", () => {
+    it("returns the items attached to an area as items owned by that area", () => {
       expect(recordOf(parsed, "DEF-9")).toMatchObject({
         kind: "item",
         file: FILES.areas,
         owner: "A-TEAM",
-        list: "Old plan rows attached to this area (1)",
+        list: "Items attached to this area (1)",
         where: ["apps/api/src/auth/oidcRoutes.ts:63"],
         tags: ["MP:607", "DEF-9"],
       });
@@ -666,8 +666,8 @@ describe("plan-records", () => {
 
     it("returns an item of cross-cutting owned by its section and listed under its sub-heading", () => {
       expect(recordOf(parsed, "SAGA-UNIT-TESTS")).toMatchObject({
-        owner: "Old plan rows (1)",
-        list: "From: 5.1 Architecture / quality",
+        owner: "Work by subject (1)",
+        list: "Architecture / quality",
         tags: ["MP:355"],
       });
     });
