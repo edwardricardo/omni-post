@@ -60,9 +60,9 @@ interface RecordFixture {
 }
 
 const closedByPullRequest = (id: string, pr = 901): string =>
-  `**${id}** (MP:11): Closed by #${String(pr)}. The start needed a file a clean checkout lacks.`;
+  `**${id}** (SMELL-11): Closed by #${String(pr)}. The start needed a file a clean checkout lacks.`;
 const openItem = (id: string): string =>
-  `**${id}** (MP:12): The health probe reads every account. Where: \`src/health.ts:4\`. Done: one row.`;
+  `**${id}** (SMELL-12): The health probe reads every account. Where: \`src/health.ts:4\`. Done: one row.`;
 const closedByDecision = (id: string, role = "Product Owner", date = "2026-11-20"): string =>
   `**${id}**: Closed by decision of the ${role} on ${date}: it waits for the move to production.`;
 
@@ -133,7 +133,7 @@ const AREAS_TEXT = [
   "",
   "## A-TEAM Members, roles and access",
   "",
-  "- **DEF-9** (MP:607): An open row of an area, which no feature of the chain holds.",
+  "- **DEF-9** (SMELL-607): An open row of an area, which no feature of the chain holds.",
   "",
 ].join("\n");
 
@@ -499,7 +499,7 @@ describe("the shape of a closed feature's record", () => {
     ],
     [
       "at the top level of the record",
-      ["- **Attached (0):**", "- **B** (MP:1): The page answers 404."],
+      ["- **Attached (0):**", "- **B** (SMELL-1): The page answers 404."],
       8,
     ],
     [
@@ -545,7 +545,7 @@ describe("the shape of a closed feature's record", () => {
 
   it.each([
     ["an item", "    **DEF-2**: The endpoint still answers 404."],
-    ["an item with its reference", "    **DEF-2** (MP:12): The endpoint still answers 404."],
+    ["an item with its reference", "    **DEF-2** (SMELL-12): The endpoint still answers 404."],
   ])("exits 3 on the continuation of a closed entry that starts like %s", (_what, continuation) => {
     plantBody(["- **Attached (1):**", "  - **DEF-1**: Closed by #916. Fixed.", continuation]);
 
@@ -852,13 +852,13 @@ describe("fail-closed", () => {
     plantBody([
       "- **Attached (2):**",
       "  - **DEF-29**: The endpoint answers 404.",
-      "  - DEF-30 (MP:13): No bold id.",
+      "  - DEF-30 (SMELL-13): No bold id.",
     ]);
 
     expect(failure(scan())).toEqual({
       exitCode: 3,
       stderr: [
-        `plan-closure-gate: ${CHAIN}:9, in "Attached (2)" of F-01, reads "  - DEF-30 (MP:13): No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
+        `plan-closure-gate: ${CHAIN}:9, in "Attached (2)" of F-01, reads "  - DEF-30 (SMELL-13): No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
         `plan-closure-gate: F-01 is closed (${PLAN}:11) and its record holds an open item: DEF-29 (${CHAIN}:8, in "Attached (2)"); ${GRAMMAR_HINT}`,
       ],
     });
@@ -975,7 +975,7 @@ describe("fail-closed", () => {
       [
         {
           id: "F-01",
-          attached: [closedByPullRequest("DEF-1"), "DEF-2 (MP:13): Closed by #903. No bold id."],
+          attached: [closedByPullRequest("DEF-1"), "DEF-2 (SMELL-13): Closed by #903. No bold id."],
         },
       ]
     );
@@ -983,7 +983,7 @@ describe("fail-closed", () => {
     expect(failure(scan())).toEqual({
       exitCode: 3,
       stderr: [
-        `plan-closure-gate: ${CHAIN}:13, in "Attached (2)" of F-01, reads "  - DEF-2 (MP:13): Closed by #903. No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
+        `plan-closure-gate: ${CHAIN}:13, in "Attached (2)" of F-01, reads "  - DEF-2 (SMELL-13): Closed by #903. No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
       ],
     });
   });

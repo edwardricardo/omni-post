@@ -187,6 +187,24 @@ describe("the plan's readers", () => {
     });
   });
 
+  it("returns success from the gate and a failure that names the line from the check when a closed record's item writes Found by twice", () => {
+    writeTree(
+      makeClosedRecord({
+        attached: [
+          "  - **DEF-1** (SMELL-768): Closed by #900. The start passes. Found by: one review. " +
+            "Found by: another review.",
+        ],
+      })
+    );
+
+    expect(verdictsOf(`${FILES.chain}:14`)).toEqual({
+      gate: 0,
+      check: 1,
+      gateNames: false,
+      checkNames: true,
+    });
+  });
+
   it.each([
     [
       "an item-shaped bullet in the To build prose list",

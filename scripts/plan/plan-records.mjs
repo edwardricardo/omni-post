@@ -30,8 +30,9 @@
  *   `closed-by-pull-request` or `closed-by-decision`, by the gate's two closing forms read on the
  *   item's own line; its title is its text before the first of its segments (` Where: `,
  *   ` Done: `, ` Depends on: `) and of the sentences a row writes after them (` Today, read on `,
- *   ` Open decision of the `, ` Found by: `), the closing form left out, and each segment ends
- *   the same way at the next of them. `where` holds the path-shaped code spans of its
+ *   ` Open decision of the `, ` Found by: `, none of them inside a code span), the closing form
+ *   left out, and each segment ends the same way at the next of them. `where` holds the
+ *   path-shaped code spans of its
  *   `Where` segment (a `/` or a file extension, with an optional `:<line>` suffix); a span that
  *   is only a line suffix names that line of the nearest path span before it, and is left out
  *   when none precedes it. `doneState` is `absent` with no `Done` segment, `not-stated` when that
@@ -41,11 +42,12 @@
  *
  *   TAGS AND MENTIONS. A record's tags are its own: every old id (`SMELL-<n>`, `FN-<n>`,
  *   `DEF-<n>`) of an item's id and of the parenthesis after it, or of the parenthesis after an
- *   area feature's id; the units of the testing refoundation tracker it carries (the leading token
- *   of each entry of a chain record's `Proof base`, and the id of an item under a heading that
- *   starts with `Testing refoundation units`). Its mentions are the old ids its other text names,
- *   its fields and prose included, its tags left out. An old id written in the parenthesis after
- *   an item's id, and not in the id itself, is another name of the item ({@link findByOtherName}).
+ *   area feature's id; the units of the testing refoundation it carries (the leading token of each
+ *   entry of a chain record's `Proof base`, and the id of an item under a heading that starts with
+ *   `Testing refoundation units`). Its mentions are the old ids its other text names, its fields
+ *   and prose included, its tags left out. An old id written in the parenthesis after an item's
+ *   id, and not in the id itself, is another name of the item ({@link findByOtherName}); an old id
+ *   among a record's mentions or its tags is one the record names ({@link findNamingRecords}).
  *
  *   UNCLASSIFIED. A line a chain record's walk refuses; an item-shaped text (a bold text, then
  *   `: `, outside a code span) on any line that is neither an item's own line nor its
@@ -56,11 +58,11 @@
  *   continues no bullet outside a chain record; a nested bullet under an item outside the chain;
  *   a table line with no separator row of its cell count under it, or a row whose cells are not
  *   its header's; a table of `areas.md` whose header is not the feature header, or a feature
- *   table outside any area; a `## ` heading of `areas.md` that names no area; a heading of `chain.md` or `areas.md`
- *   that names a chain feature (`F-<n>`) other than the `### F-<n>` heading of its record; a
- *   third-level heading of `chain.md` that is not a `### F-<n> <title>` record heading and either
- *   begins like a feature id (`F-` or `F`, then a digit) or sits in a second-level section that
- *   holds a feature record; the opening line of a fence nothing closes.
+ *   table outside any area; a `## ` heading of `areas.md` that names no area; a heading of
+ *   `chain.md` or `areas.md` that names a chain feature (`F-<n>`) other than the `### F-<n>`
+ *   heading of its record; a third-level heading of `chain.md` that is not a `### F-<n> <title>`
+ *   record heading and either begins like a feature id (`F-` or `F`, then a digit) or sits in a
+ *   second-level section that holds a feature record; the opening line of a fence nothing closes.
  *
  *   FAILURES. A file or the chain table that cannot be read; a row of the chain table that no
  *   chain record holds, and a chain record no row lists; a chain record with no `Attached (<n>)`
@@ -78,6 +80,7 @@ import {
   PLAN_FILES,
   TABLE_ROW,
   closureOf,
+  codeSpansOf,
   readChainTable,
   readRecordSpan,
   readTable,
@@ -343,7 +346,8 @@ function sectionsWithRecords(text) {
  * @description An item's title and its `Where`, `Done` and `Depends on` segments, each split at
  *   its first occurrence. The title and each segment end at the next segment or at the next
  *   sentence a row writes after them ({@link TAIL}), so neither runs on into a `Today`, an open
- *   decision or a `Found by`.
+ *   decision or a `Found by`. A tail mark inside a code span is quoted, not written, and ends
+ *   nothing.
  * @param {string} text
  * @returns {{ title: string, where: string | null, done: string | null, dependsOn: string | null }}
  */
@@ -355,7 +359,10 @@ function segmentsOf(text) {
     if (markers.some((marker) => marker.name === name)) continue;
     markers.push({ name, start: match.index, end: match.index + match[0].length });
   }
-  const tails = [...text.matchAll(TAIL)].map((match) => match.index);
+  const spans = codeSpansOf(text);
+  const tails = [...text.matchAll(TAIL)]
+    .map((match) => match.index)
+    .filter((at) => !spans.some(([start, end]) => at >= start && at < end));
   const ends = [...markers.map((marker) => marker.start), ...tails];
   /** @type {(from: number) => number} */
   const endAfter = (from) => Math.min(text.length, ...ends.filter((at) => at >= from));
@@ -1173,7 +1180,16 @@ export function findRecords(records, key) {
 function otherNamesOf(record) {
   if (record.kind !== "item") return [];
   const own = matchesOf(OLD_ID, [record.writtenId ?? ""]);
-  return record.tags.filter((tag) => !own.includes(tag) && matchesOf(OLD_ID, [tag]).includes(tag));
+  return record.tags.filter((tag) => !own.includes(tag) && isOldId(tag));
+}
+
+/**
+ * @description Whether a text is one old id (`SMELL-<n>`, `FN-<n>`, `DEF-<n>`) and nothing else.
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isOldId(text) {
+  return matchesOf(OLD_ID, [text]).includes(text);
 }
 
 /**
@@ -1187,4 +1203,21 @@ function otherNamesOf(record) {
  */
 export function findByOtherName(records, key) {
   return records.filter((record) => otherNamesOf(record).includes(key));
+}
+
+/**
+ * @description The records that name an old id in their text: among their mentions, or among the
+ *   old ids of an item's line, its written id and the parenthesis after it included. A unit a
+ *   chain feature lists in its proof base names nothing here. The records come in the plan's
+ *   order: its files in the order they are read, then by line.
+ * @param {PlanRecord[]} records
+ * @param {string} key
+ * @returns {PlanRecord[]}
+ */
+export function findNamingRecords(records, key) {
+  if (!isOldId(key)) return [];
+  const files = Object.values(PLAN_FILES);
+  return records
+    .filter((record) => record.mentions.includes(key) || record.tags.includes(key))
+    .sort((a, b) => files.indexOf(a.file) - files.indexOf(b.file) || a.line - b.line);
 }

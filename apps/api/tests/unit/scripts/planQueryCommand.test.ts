@@ -2,8 +2,9 @@
  * @file planQueryCommand.test.ts
  * @description Pins `scripts/plan/plan-query.mjs`, the command behind `pnpm plan:show`,
  *   `pnpm plan:list` and `pnpm plan:check`: `show` prints one record by its id, by another name
- *   an item carries or by its location, `list` filters the records by kind, by file and by any field and prints them as lines, as
- *   JSON or as a count, and `check` fails while a line of the plan is unclassified. Exit 0 is
+ *   an item carries or by its location, or names each record that only names the id; `list`
+ *   filters the records by kind, by file and by any field and prints them as lines, as JSON or as
+ *   a count; and `check` fails while a line of the plan is unclassified. Exit 0 is
  *   success, 1 a record not found or a failed check, 2 a usage error. The security view is pinned
  *   too: an argument is data, never a shell command or a regular expression, the file filter
  *   names one of the plan's fixed files and nothing else, and nothing is written to disk. Every
@@ -269,31 +270,129 @@ describe("plan-query", () => {
       });
     });
 
+    it("prints the record whose own id is the key, with no note, when another item carries the key as another name", () => {
+      makeTree({
+        offTheMap:
+          `${OFF_THE_MAP_TEXT}- **SMELL-184**: The own row.\n` +
+          "- **BILL-3** (SMELL-184): The invoice total is read twice.\n",
+      });
+
+      const shown = run("show", "SMELL-184");
+
+      expect({
+        exitCode: shown.exitCode,
+        head: shown.stdout.slice(0, 1),
+        stderr: shown.stderr,
+      }).toEqual({
+        exitCode: 0,
+        head: ["id: SMELL-184"],
+        stderr: [],
+      });
+    });
+
+    it("prints the record that carries the id as another name when other records only name it", () => {
+      makeTree({
+        offTheMap:
+          `${OFF_THE_MAP_TEXT}- **BILL-3** (SMELL-184): The invoice total is read twice.\n` +
+          "- **BILL-4**: The change path of SMELL-184.\n",
+      });
+
+      const shown = run("show", "SMELL-184");
+
+      expect({ exitCode: shown.exitCode, head: shown.stdout.slice(0, 2) }).toEqual({
+        exitCode: 0,
+        head: ["SMELL-184 is another name of BILL-3", "id: BILL-3"],
+      });
+    });
+
+    it("prints one line per record that names the id, in the plan's order, when show is given an id records only name", () => {
+      makeTree({
+        chain: CHAIN_TEXT.replace(
+          "The command asks nothing. Done: one prompt.",
+          "The command asks nothing, as SMELL-41 says. Done: one prompt."
+        ),
+        areas: AREAS_TEXT.replace("| DEAD    | A-TEAM-01  |", "| DEAD    | SMELL-41   |"),
+        offTheMap: `${OFF_THE_MAP_TEXT}- **DEF-40 (with SMELL-41)**: Two findings in one row.\n`,
+      });
+      const named = [
+        `SMELL-41 is named by DEF-2 (${FILES.chain}:17)`,
+        `SMELL-41 is named by A-TEAM-02 (${FILES.areas}:8)`,
+        `SMELL-41 is named by DEF-40 (with SMELL-41) (${FILES.offTheMap}:6)`,
+      ];
+
+      const text = run("show", "SMELL-41");
+      const json = run("show", "SMELL-41", "--json");
+
+      expect({
+        text,
+        json: {
+          exitCode: json.exitCode,
+          ids: (JSON.parse(json.stdout.join("\n")) as { id: string }[]).map((record) => record.id),
+          stderr: json.stderr,
+        },
+      }).toEqual({
+        text: { exitCode: 0, stdout: named, stderr: [] },
+        json: {
+          exitCode: 0,
+          ids: ["DEF-2", "A-TEAM-02", "DEF-40 (with SMELL-41)"],
+          stderr: named.map((line) => `plan-query: ${line}`),
+        },
+      });
+    });
+
     it.each([
       [
-        "a unit a chain feature lists in its proof base",
-        {
-          chain: CHAIN_TEXT.replace(
-            "- **Today:** WORKS.",
-            "- **Today:** WORKS.\n- **Proof base:** 4b.1 the start proof (not started)."
-          ),
-        },
-        "4b.1",
+        "carries the id as another name",
+        "- **(no id)** (SMELL-96): A row the plan writes with no id.\n",
+        "SMELL-96",
+        `SMELL-96 is another name of the item at ${FILES.offTheMap}:6`,
       ],
       [
-        "an old id written inside another item's own id",
-        {
-          offTheMap: `${OFF_THE_MAP_TEXT}- **DEF-40 (with SMELL-41)**: Two findings in one row.\n`,
-        },
-        "SMELL-41",
+        "names the id in its text",
+        "- **(no id)**: The change path of SMELL-97.\n",
+        "SMELL-97",
+        `SMELL-97 is named by the item at ${FILES.offTheMap}:6`,
       ],
-    ])("exits 1 and names the id when show is given %s", (_case, overrides, key) => {
-      makeTree(overrides);
+    ])("names an item written with no id by its place when it %s", (_case, item, key, first) => {
+      makeTree({ offTheMap: `${OFF_THE_MAP_TEXT}${item}` });
 
-      expect(run("show", key)).toEqual({
+      const shown = run("show", key);
+
+      expect({ exitCode: shown.exitCode, first: shown.stdout[0] }).toEqual({
+        exitCode: 0,
+        first,
+      });
+    });
+
+    it("exits 1 and says the id is another name of each record when two records carry it as another name", () => {
+      makeTree({
+        offTheMap:
+          `${OFF_THE_MAP_TEXT}- **BILL-3** (SMELL-184): The invoice total is read twice.\n` +
+          "- **BILL-4** (SMELL-184): The invoice date is read twice.\n",
+      });
+
+      expect(run("show", "SMELL-184")).toEqual({
         exitCode: 1,
         stdout: [],
-        stderr: [`plan-query: no record carries the id "${key}"`],
+        stderr: [
+          `plan-query: 2 records carry "SMELL-184" as another name (${FILES.offTheMap}:6, ` +
+            `${FILES.offTheMap}:7); show one by its location`,
+        ],
+      });
+    });
+
+    it("exits 1 and names the id when show is given a unit a chain feature lists in its proof base", () => {
+      makeTree({
+        chain: CHAIN_TEXT.replace(
+          "- **Today:** WORKS.",
+          "- **Today:** WORKS.\n- **Proof base:** 4b.1 the start proof (not started)."
+        ),
+      });
+
+      expect(run("show", "4b.1")).toEqual({
+        exitCode: 1,
+        stdout: [],
+        stderr: ['plan-query: no record carries the id "4b.1"'],
       });
     });
 

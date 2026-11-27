@@ -666,27 +666,43 @@ export function readRecordSpan(record, today) {
 }
 
 /**
- * @description The line without its inline code spans, whose contents quote text rather than
- *   write it. A span counts only when every backtick run of the line pairs with a later run of the
- *   same length; a line with a run left unpaired is returned whole, so a stray backtick cannot
- *   take an item-shaped text out of the scan.
+ * @description The inline code spans of a line, each as its start and the index after its closing
+ *   backticks. A span counts only when every backtick run of the line pairs with a later run of
+ *   the same length; a line with a run left unpaired holds no span, so a stray backtick cannot
+ *   take text out of a scan.
  * @param {string} line
- * @returns {string}
+ * @returns {[number, number][]}
  */
-export function withoutCodeSpans(line) {
+export function codeSpansOf(line) {
   const runs = [...line.matchAll(BACKTICK_RUN)];
-  let kept = "";
-  let from = 0;
+  /** @type {[number, number][]} */
+  const spans = [];
   for (let open = 0; open < runs.length;) {
     const opening = runs[open];
     const close = runs.findIndex(
       (run, at) => at > open && run[0].length === (opening?.[0] ?? "").length
     );
     const closing = runs[close];
-    if (opening === undefined || closing === undefined) return line;
-    kept += line.slice(from, opening.index);
-    from = closing.index + closing[0].length;
+    if (opening === undefined || closing === undefined) return [];
+    spans.push([opening.index, closing.index + closing[0].length]);
     open = close + 1;
+  }
+  return spans;
+}
+
+/**
+ * @description The line without its inline code spans ({@link codeSpansOf}), whose contents quote
+ *   text rather than write it; a line with a backtick run left unpaired is returned whole, so a
+ *   stray backtick cannot take an item-shaped text out of the scan.
+ * @param {string} line
+ * @returns {string}
+ */
+export function withoutCodeSpans(line) {
+  let kept = "";
+  let from = 0;
+  for (const [start, end] of codeSpansOf(line)) {
+    kept += line.slice(from, start);
+    from = end;
   }
   return kept + line.slice(from);
 }

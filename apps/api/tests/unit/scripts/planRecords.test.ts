@@ -713,6 +713,23 @@ describe("plan-records", () => {
       expect(recordOf(parse({ chain }), "DEF-29")).toMatchObject(field);
     });
 
+    it.each([
+      [
+        "its whole title when the title quotes a Found by mark",
+        "The rows write ` Found by: ` after their text. Done: one row.",
+        { title: "The rows write ` Found by: ` after their text." },
+      ],
+      [
+        "its whole done when the done quotes a Today, read on mark",
+        "The probe reads every account. Done: the rows read ` Today, read on ` as one phrase.",
+        { done: "the rows read ` Today, read on ` as one phrase." },
+      ],
+    ])("returns %s inside a code span", (_case, text, field) => {
+      const chain = renderChain([makeChainFeature({ attached: [itemLine(makeItem({ text }))] })]);
+
+      expect(recordOf(parse({ chain }), "DEF-29")).toMatchObject(field);
+    });
+
     it("returns the id as a unit tag when the item is under the testing refoundation units", () => {
       expect(recordOf(parsed, "6.E2")).toMatchObject({
         owner: "Testing refoundation units (1)",
