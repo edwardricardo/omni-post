@@ -1,6 +1,6 @@
 # Off the map, and rows already done
 
-Part of [the plan](../PLAN.md). `MP:<n>` is line `<n>` of the Master Plan as it stood at commit `a72e0525`: [MASTER_PLAN.md at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/product/MASTER_PLAN.md). Unit ids such as `6.E2` are units of the [testing refoundation tracker at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md).
+Part of [the plan](../PLAN.md).
 
 ## Off the map: deletion candidates (33 old rows)
 

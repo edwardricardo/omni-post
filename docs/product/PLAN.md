@@ -6,12 +6,7 @@ application, what is built, in which order, and when it is finished.
 Every status in it comes from reading the code at `main` `a72e0525` on 2026-11-10; nothing was run. A feature's
 record is read again against the code when the feature opens.
 
-This plan replaces [MASTER_PLAN.md](MASTER_PLAN.md), the testing refoundation tracker and its fixed plan. The Master
-Plan stays in the tree as an archive that takes no new row; the tracker
-([TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md))
-and its fixed plan
-([TESTING_REFOUNDATION_PLAN.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION_PLAN.md))
-left the tree on 2026-11-10 and are read at those permanent links. Since 2026-11-10 the rules of `CLAUDE.md` send
+The rules of `CLAUDE.md` send
 cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)).
 
 ## How it is organised
@@ -69,26 +64,26 @@ closed feature's record with, so a line that check refuses fails `pnpm plan:chec
 
 ## The chain
 
-| #    | Feature                                                                           | Today                                      | Old rows attached | State       | Closed by |
-| ---- | --------------------------------------------------------------------------------- | ------------------------------------------ | ----------------- | ----------- | --------- |
-| F-01 | The platform starts from an empty database                                        | WORKS                                      | 20                | in progress | —         |
-| F-02 | The first administrator comes to exist                                            | WORKS                                      | 1                 | closed      | #980      |
-| F-03 | An administrator signs in, stays signed in and signs out                          | WORKS from page to data                    | 15                | open        | —         |
-| F-04 | An administrator recovers a password                                              | PARTIAL                                    | 5                 | open        | —         |
-| F-05 | Administrators and their roles are managed                                        | WORKS through the users and security pages | 10                | open        | —         |
-| F-06 | What an administrator configures takes effect                                     | PARTIAL                                    | 18                | open        | —         |
-| F-07 | The price catalog decides what an Organization pays and gets                      | PARTIAL                                    | 11                | open        | —         |
-| F-08 | An Organization comes to exist                                                    | WORKS for self-registration                | 2                 | open        | —         |
-| F-09 | An administrator manages an Organization                                          | PARTIAL                                    | 10                | open        | —         |
-| F-10 | A Member signs in, stays signed in and signs out                                  | WORKS from page to data                    | 5                 | open        | —         |
-| F-11 | A Member recovers or changes a password                                           | PARTIAL                                    | 2                 | open        | —         |
-| F-12 | The Organization has a Workspace (create, list, select)                           | PARTIAL                                    | 3                 | open        | —         |
-| F-13 | A Channel is connected                                                            | WORKS                                      | 4                 | open        | —         |
-| F-14 | A post is written and saved                                                       | PARTIAL                                    | 4                 | open        | —         |
-| F-15 | A post is published now                                                           | PARTIAL                                    | 15                | open        | —         |
-| F-16 | A post is scheduled and published later                                           | PARTIAL                                    | 2                 | open        | —         |
-| F-17 | The result is visible                                                             | PARTIAL                                    | 1                 | open        | —         |
-| F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL                                    | 2                 | open        | —         |
+| #    | Feature                                                                           | Today                                      | Items attached | State       | Closed by |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------ | -------------- | ----------- | --------- |
+| F-01 | The platform starts from an empty database                                        | WORKS                                      | 20             | in progress | —         |
+| F-02 | The first administrator comes to exist                                            | WORKS                                      | 1              | closed      | #980      |
+| F-03 | An administrator signs in, stays signed in and signs out                          | WORKS from page to data                    | 15             | open        | —         |
+| F-04 | An administrator recovers a password                                              | PARTIAL                                    | 5              | open        | —         |
+| F-05 | Administrators and their roles are managed                                        | WORKS through the users and security pages | 10             | open        | —         |
+| F-06 | What an administrator configures takes effect                                     | PARTIAL                                    | 18             | open        | —         |
+| F-07 | The price catalog decides what an Organization pays and gets                      | PARTIAL                                    | 11             | open        | —         |
+| F-08 | An Organization comes to exist                                                    | WORKS for self-registration                | 2              | open        | —         |
+| F-09 | An administrator manages an Organization                                          | PARTIAL                                    | 10             | open        | —         |
+| F-10 | A Member signs in, stays signed in and signs out                                  | WORKS from page to data                    | 5              | open        | —         |
+| F-11 | A Member recovers or changes a password                                           | PARTIAL                                    | 2              | open        | —         |
+| F-12 | The Organization has a Workspace (create, list, select)                           | PARTIAL                                    | 3              | open        | —         |
+| F-13 | A Channel is connected                                                            | WORKS                                      | 4              | open        | —         |
+| F-14 | A post is written and saved                                                       | PARTIAL                                    | 4              | open        | —         |
+| F-15 | A post is published now                                                           | PARTIAL                                    | 15             | open        | —         |
+| F-16 | A post is scheduled and published later                                           | PARTIAL                                    | 2              | open        | —         |
+| F-17 | The result is visible                                                             | PARTIAL                                    | 1              | open        | —         |
+| F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL                                    | 2              | open        | —         |
 
 The order of the Platforms: Bluesky proves the chain first, then X (F-18), Facebook, YouTube, Instagram, TikTok,
 and then, by rising complexity, Telegram, LinkedIn, Threads, Pinterest, Snapchat. YouTube is the first that
@@ -96,31 +91,18 @@ needs a media file, and takes video, so attaching a media file to a post comes b
 
 ## Areas outside the chain
 
-| Area                                                         | Features | End to end today | Old rows attached | Refoundation units |
-| ------------------------------------------------------------ | -------- | ---------------- | ----------------- | ------------------ |
-| A-TEAM Members, roles and access                             | 24       | 1                | 21                | 0                  |
-| A-BILLING An Organization's billing                          | 25       | 8                | 24                | 0                  |
-| A-CONTENT Content tools                                      | 25       | 1                | 41                | 0                  |
-| A-SCHEDULING Scheduling beyond one post                      | 15       | 2                | 15                | 0                  |
-| A-AI AI assistance                                           | 17       | 6                | 26                | 1                  |
-| A-ANALYTICS Analytics and reports beyond the basic dashboard | 20       | 1                | 22                | 0                  |
-| A-ENGAGE Inbox and outside integrations                      | 22       | 2                | 33                | 0                  |
-| A-PLATFORMS The ten Platforms other than Bluesky             | 33       | 0                | 32                | 1                  |
-| A-ADMIN-OPS Administrator operations outside the base        | 26       | 6                | 32                | 0                  |
-| Total                                                        | 207      | 27               | 246               |                    |
-
-## Where the old plans went
-
-| Source                     | Live items | Chain | Areas | Cross-cutting | Off the map | Already done |
-| -------------------------- | ---------- | ----- | ----- | ------------- | ----------- | ------------ |
-| Master Plan rows           | 562        | 130   | 246   | 141           | 33          | 12           |
-| Testing refoundation units | 110        | 27    | 2     | 81            | 0           | 0            |
-
-A live item is a row or a task its source does not mark closed. In the Master Plan that is every open or
-partial checkbox row and every bullet row or task that carries no checkbox. Twenty-eight more of its lines are
-notes of rows counted here (inputs, amendments, recorded choices); they are read through the row's link.
-
-`MP:<n>` is line `<n>` of the Master Plan as it stood at commit `a72e0525`: [MASTER_PLAN.md at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/product/MASTER_PLAN.md). Unit ids such as `6.E2` are units of the [testing refoundation tracker at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md).
+| Area                                                         | Features | End to end today | Items attached | Refoundation units |
+| ------------------------------------------------------------ | -------- | ---------------- | -------------- | ------------------ |
+| A-TEAM Members, roles and access                             | 24       | 1                | 21             | 0                  |
+| A-BILLING An Organization's billing                          | 25       | 8                | 24             | 0                  |
+| A-CONTENT Content tools                                      | 25       | 1                | 41             | 0                  |
+| A-SCHEDULING Scheduling beyond one post                      | 15       | 2                | 15             | 0                  |
+| A-AI AI assistance                                           | 17       | 6                | 26             | 1                  |
+| A-ANALYTICS Analytics and reports beyond the basic dashboard | 20       | 1                | 22             | 0                  |
+| A-ENGAGE Inbox and outside integrations                      | 22       | 2                | 33             | 0                  |
+| A-PLATFORMS The ten Platforms other than Bluesky             | 33       | 0                | 32             | 1                  |
+| A-ADMIN-OPS Administrator operations outside the base        | 26       | 6                | 32             | 0                  |
+| Total                                                        | 207      | 27               | 246            |                    |
 
 ## Order of the first slices
 

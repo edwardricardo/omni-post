@@ -11,9 +11,9 @@ Part of [the plan](../PLAN.md). Every status comes from reading the code at `mai
 - "Governed by" lists the accepted decision records under `docs/technical/`. A feature cites them and never
   reopens them.
 - "Proof base" lists the testing refoundation units the proof needs.
-- "Attached" lists the rows of the old Master Plan that belong to the feature, and each "Findings" list the
+- "Attached" lists the items that belong to the feature, and each "Findings" list the
   findings attached to it since; each item is condensed to what is wrong, where, and what done means, and stays
-  in its list once closed. An old row's viability is decided when the feature opens.
+  in its list once closed. An item's viability is decided when the feature opens.
 - The items of a record are the entries of its `Attached (<n>)` list and of every list whose bold label starts with
   `Findings`, each one `  - **<id>**: <text>`. The count in `Attached (<n>)` equals the items under it. An item is
   closed when its text starts with `Closed by #<n>` or with
@@ -22,7 +22,7 @@ Part of [the plan](../PLAN.md). Every status comes from reading the code at `mai
   A feature whose `State` is `closed` in [the chain table](../PLAN.md) holds no open item, and fitness #56
   (`pnpm check:plan-closure`) fails otherwise.
 - Status words: WORKS, PARTIAL, MISSING.
-- `MP:<n>` is line `<n>` of the Master Plan as it stood at commit `a72e0525`: [MASTER_PLAN.md at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/product/MASTER_PLAN.md). Unit ids such as `6.E2` are units of the [testing refoundation tracker at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md).
+- A unit id such as `6.E2` names a unit of the testing refoundation, an item under `## Testing refoundation units` of [cross-cutting.md](cross-cutting.md).
 
 Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), Member (`CustomerUser` plus
 `ProjectMember`), Channel, Platform (the `Provider` enum).
@@ -318,7 +318,7 @@ Vocabulary (ADR-0031): Organization (`Account` in code), Workspace (`Project`), 
 - **Depends on:** F-08.
 - **Today:** WORKS from page to data as read. The sign-in form, the second-factor step, the refresh and the sign-out each reach their route and logic (`apps/client/app/actions/auth.ts:101-169,181-247`; `apps/api/src/auth/customerAuthRoutes.ts:620,633,656,644`). Route-level tests exist for sign-in with a second factor, for refresh and for the reset flow (`customerLoginMfa.integration.test.ts`, `customerPasswordReset.integration.test.ts`); none names the sign-out or the "who am I" route, and all five client browser specs are quarantined (`packages/test-contracts/quarantine.json:40-65`).
 - **Wrong as read:**
-  - A Member who returns after 15 minutes is sent to the sign-in page although a 7-day refresh cookie exists: the gate reads only the `customer-session` cookie (`apps/client/proxy.ts:44`, lifetimes at `apps/client/lib/auth/sessionCookie.ts:29-35`), and renewal runs only from a 12-minute timer inside an open tab (`apps/client/lib/auth/authContext.tsx:98-108`). The old row asks to verify this (DEF-147); it was read, not run.
+  - A Member who returns after 15 minutes is sent to the sign-in page although a 7-day refresh cookie exists: the gate reads only the `customer-session` cookie (`apps/client/proxy.ts:44`, lifetimes at `apps/client/lib/auth/sessionCookie.ts:29-35`), and renewal runs only from a 12-minute timer inside an open tab (`apps/client/lib/auth/authContext.tsx:98-108`). The item DEF-147 asks to verify this; it was read, not run.
   - The gate adds `?redirect=<path>` and no page reads it, so there is no return to the page the Member wanted (`apps/client/proxy.ts:57-61`).
   - Sign-out ends the refresh session only: `requireClientAuth` does not read the revocation key, so the access token lives to its expiry (`apps/api/src/auth/customerAuthMiddleware.ts:40-73`; `packages/core/customer-auth/src/LogoutCustomerUseCase.ts:47-80`). An expired access token is refused before the handler runs, so nothing is revoked while the proxy still clears the cookies (`apps/api/src/auth/customerAuthRoutes.ts:644`; `apps/client/app/api/backend/[...path]/route.ts:164-172`).
   - A refresh issues a new pair and leaves the old refresh token valid (`packages/core/customer-auth/src/RefreshCustomerTokenUseCase.ts:56-83`).
@@ -537,7 +537,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 - **Decided (2026-11-10):** the chain is proven with both ways of connecting before it closes. The first Platform that connects by authorization is X. After it, in this order: Facebook, YouTube, Instagram, TikTok; then, by rising complexity, Telegram, LinkedIn, Threads, Pinterest, Snapchat. ADR-0034 decides where the credentials live; ADR-0016 that the publish job takes the Platform from the Channel.
 - **Wrong as read (area A-PLATFORMS):** the callback stores `accessToken`, `refreshToken` and `expiresAt` (`apps/api/src/auth/providerOAuthFlow.ts:192`), and each adapter requires more (X: `apiKey`, `apiSecret`, `bearerToken`), so a publish answers an authentication error; the application keys are read from the API environment, against ADR-0034; nothing calls the token refresher; the customer app's proxy follows the redirect instead of handing it to the browser.
 - **To build:**
-  - API: the callback stores what the X adapter needs, in the per-Platform shape of ADR-0034 (old rows DEF-36 and CRED-14); the application registration is read from what the administrator saved (F-06).
+  - API: the callback stores what the X adapter needs, in the per-Platform shape of ADR-0034 (items DEF-36 and CRED-14); the application registration is read from what the administrator saved (F-06).
   - Workers: nothing beyond F-15, since the Platform comes from the Channel.
   - Customer web app: the connect dialog starts the authorization for X and returns to the Channels page with the Channel listed.
 - **Later, not in the thin version:** token refresh; a disconnect that revokes (DEF-33); the other Platforms, each as its own feature in the order above. Facebook publishes a post of text, so it follows X directly. YouTube, Instagram and TikTok refuse a post of text alone, and YouTube is the first of them, so attaching a media file to a post, video included (area A-CONTENT, ADR-0028 and ADR-0029), comes before them.
@@ -546,7 +546,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 - **Governed by:** ADR-0034 (Credential model); ADR-0016 (Channel-canonical post targeting); ADR-0031 (Domain vocabulary).
 - **Proof base:** 6.E3a Provider base-URL seam and 6.E3b Fake-provider sidecar (not started; written for Telegram, to be applied to each Platform in its turn).
 - **Attached (2):**
-  - Note: the old rows DEF-36 and CRED-14, placed under the area A-PLATFORMS, are this feature's.
+  - Note: the items DEF-36 and CRED-14, placed under the area A-PLATFORMS, are this feature's.
   - **prov-x-media-auth-context-02**: The bearer-only `XApiClient` ignores OAuth1.0a, so every post with media fails at upload. Where: `packages/providers/x/src/apiClient.ts:117,240`, `packages/providers/x/src/XAdapter.ts:43`. Done: Align `REQUIRED_FIELDS`. Today, read on 2026-11-27: `packages/providers/x/src/apiClient.ts:21-23` declares `apiSecret`, `accessToken` and `accessTokenSecret`, but line 117 builds the client from `credentials.bearerToken` alone and line 240 uploads media through `twitterApi.v1.uploadMedia`. `REQUIRED_FIELDS` at `packages/providers/x/src/XAdapter.ts:43` lists only `apiKey`, `apiSecret` and `bearerToken`; no upload was run.
   - **THREAD-BOUNDARY-UNDER-LIMIT**: The X adapter renders a 275 to 280 character body, which fits its declared 280, as a thread of 2, and no kept test says whether the margin is deliberate. The rendering was measured at both ends of that range on 2026-11-06. The test at `XAdapter.test.ts:173` is titled for a body of exactly 280 characters but runs 274. Where: `packages/providers/x/tests/XAdapter.test.ts:173`. Done: The Product Owner decides whether such a body stays a single post; either way a test pins the boundary and the title says what it runs. Found by: the testing refoundation (2026-11-06).
 
@@ -555,7 +555,7 @@ that works end to end today; F-18 proves it with a Platform that connects by aut
 - Envelope: the two customer saga routes answer `{ success: true, data }` and every other customer route answers `{ ok: true, data }`. One change in the API, with the client reading it, unblocks F-14, F-15 and F-16 at once; it belongs to F-14 and the others cite it.
 - Provider choice: the job carries no provider and the worker defaults to X (`apps/workers/src/publishHandler.ts:724`). One change in the workers, cited by F-15, F-16 and F-17. The Bluesky-only claim of ADR-0041 (context, item 3) is not what the code shows today.
 - The testing refoundation's publish proof (6.E3a to 6.E5b) is written for a Telegram Channel that the seed writes; this portion's thin chain is Bluesky and its proofs may write no row. The units need either a Bluesky seam or a new decision (decision 4).
-- Old rows touching these features that the placement put elsewhere: DEF-36 and CRED-14 (OAuth connect and the per-Platform credential shape, A-PLATFORMS); DEF-33 (disconnect does not revoke, A-PLATFORMS); DEF-79 (cancel and reschedule leave the job, A-SCHEDULING); DEF-29 (workers cannot decrypt Channel credentials, F-01); DEF-100 (the `CLIENT_URL` fallbacks the reset link uses, F-01); N-SEC-6 (the customer recovery flow, F-08, stale in part, see F-11); DEF-169 (`z.coerce.boolean` on query flags, X-CUT); ARCH-4 (client analytics routes, A-ANALYTICS).
+- Items touching these features that the placement put elsewhere: DEF-36 and CRED-14 (OAuth connect and the per-Platform credential shape, A-PLATFORMS); DEF-33 (disconnect does not revoke, A-PLATFORMS); DEF-79 (cancel and reschedule leave the job, A-SCHEDULING); DEF-29 (workers cannot decrypt Channel credentials, F-01); DEF-100 (the `CLIENT_URL` fallbacks the reset link uses, F-01); N-SEC-6 (the customer recovery flow, F-08, stale in part, see F-11); DEF-169 (`z.coerce.boolean` on query flags, X-CUT); ARCH-4 (client analytics routes, A-ANALYTICS).
 - Hook comment without code: `apps/client/lib/hooks/useSchedulePostViaSaga.ts:27` documents a five-minute and one-year rule on a scheduled time that no code enforces.
 
 ## Decisions

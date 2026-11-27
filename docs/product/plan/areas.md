@@ -1,6 +1,6 @@
 # Areas outside the chain
 
-Part of [the plan](../PLAN.md). `MP:<n>` is line `<n>` of the Master Plan as it stood at commit `a72e0525`: [MASTER_PLAN.md at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/product/MASTER_PLAN.md). Unit ids such as `6.E2` are units of the [testing refoundation tracker at that commit](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md).
+Part of [the plan](../PLAN.md). A unit id such as `6.E2` names a unit of the testing refoundation, an item under `## Testing refoundation units` of [cross-cutting.md](cross-cutting.md).
 
 One line per feature until the area's turn comes. A feature gets its full record (what to build, proof of
 done, documentation lines) when it is scheduled. Verdict words: END-TO-END, PARTIAL, BACKEND-ONLY, UI-ONLY,
