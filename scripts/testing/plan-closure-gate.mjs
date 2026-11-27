@@ -74,6 +74,9 @@
  *   than a colon, followed by `: ` (`the role **SUPER_ADMIN**: every permission`). Such a line is
  *   reworded or its bold text put in a code span.
  *
+ *   ONE READER. This gate reads the plan through `scripts/plan/plan-text.mjs`, the reader the
+ *   plan's records share, and that module's header states what it reads and what the two agree on.
+ *
  *   Usage: `node scripts/testing/plan-closure-gate.mjs [--root <dir>]`. The root defaults to the
  *   repository this file lives in, located from the script's own URL: no git, and nothing read from
  *   the working directory. Exit 0 when no closed feature holds an open item, 1 when one does, 2 on
@@ -83,60 +86,31 @@
 import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  PLAN_FILE,
+  PLAN_FILES,
+  plural,
+  readChainTable,
+  readRecordSpan,
+  recordsOf,
+  textOf,
+} from "../plan/plan-text.mjs";
 
 /** The plan whose chain table holds every feature's state, relative to the root. */
-export const PLAN = "docs/product/PLAN.md";
+export const PLAN = PLAN_FILE;
 /** The files that hold the features' records, relative to the root, in the order they are read. */
-export const RECORDS = ["docs/product/plan/chain.md", "docs/product/plan/areas.md"];
+export const RECORDS = [PLAN_FILES.chain, PLAN_FILES.areas];
 
 const DEFAULT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const PREFIX = "plan-closure-gate: ";
 const USAGE = "usage: node scripts/testing/plan-closure-gate.mjs [--root <dir>]";
-const CHAIN_SECTION = "The chain";
-const STATES = ["open", "in progress", "closed"];
 const CLOSED = "closed";
 const HINT =
   'start its text with "Closed by #<n>" or "Closed by decision of the <Product Owner|Maintainer> ' +
   'on <YYYY-MM-DD>: <the decision>", or set the feature back to "in progress"';
 
-const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
-const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
-const HEADING = /^(#{1,6})\s+(.*?)\s*$/;
-const TABLE_ROW = /^\s*\|/;
-const SEPARATOR_CELL = /^:?-{3,}:?$/;
-/** A top-level bullet whose bold label ends with a colon: `- **Attached (20):**`. */
-const LABEL = /^- \*\*([^*]+?):\*\*/;
-const ATTACHED = /^Attached \((\d+)\)$/;
-const FINDINGS = /^Findings(?:\s|$)/;
-/** An entry of an item list: exactly two spaces, then the list marker. */
-const ENTRY = /^ {2}- (.*)$/;
-/** A list entry nested under an entry: four spaces or more, then a bullet or an ordered marker. */
-const NESTED = /^\s{4,}(?:[-*+]|\d+[.)])(?:\s|$)/;
-/** A line that continues the entry above it, indented four spaces or more. */
-const CONTINUATION = /^ {4,}\S/;
-/** A continuation whose text starts like an item: a bold id, an optional reference, a colon. */
-const CONTINUATION_ITEM = /^ {4,}\*\*[^*]*[^*:\s]\*\*(?: \([^)]*\))?:(?:\s|$)/;
-const ITEM = /^\*\*([^*]+)\*\*(?: \([^)]*\))?: (\S.*)$/;
-/**
- * Anything shaped like an item, anywhere on a line: a bold text that does not end with a colon or
- * a space, an optional reference, then `: `. A label (`**Who:**`) does not match.
- */
-const ITEM_SHAPED = /\*\*[^*]*[^*:\s]\*\*(?: \([^)]*\))?: /;
-const BACKTICK_RUN = /`+/g;
-const NOTE = /^Note: \S/;
-const CLOSED_BY_PULL_REQUEST = /^Closed by #[1-9]\d*(?!\w)/;
-const CLOSED_BY_DECISION =
-  /^Closed by decision of the (?:Product Owner|Maintainer) on (\d{4})-(\d{2})-(\d{2}): (.*)$/;
-/** A word the decision must hold: three letters or more, so `a.` or `x` records no decision. */
-const WORD = /\p{L}{3,}/u;
-const CLOSURE_LOOKALIKE = /^closed by\b/i;
-
-/**
- * @typedef {object} Row
- * @property {string} id
- * @property {string} state
- * @property {number} line One-based line in the plan.
- */
+/** @typedef {import("../plan/plan-text.mjs").Text} Text */
+/** @typedef {import("../plan/plan-text.mjs").RecordSpan} RecordSpan */
 
 /**
  * @typedef {object} Item
@@ -147,39 +121,8 @@ const CLOSURE_LOOKALIKE = /^closed by\b/i;
  */
 
 /**
- * @typedef {object} Text
- * @property {string} file The file, relative to the root.
- * @property {string[]} lines
- * @property {boolean[]} fenced Per line: inside a fenced code block, its fences included.
- * @property {number | null} unclosed The index of a fence's opening line when the fence is still
- *   open at the end of the file, else `null`.
- */
-
-/**
- * @typedef {object} Heading
- * @property {number} index Zero-based line index.
- * @property {number} level The number of `#`.
- * @property {string} text
- */
-
-/**
- * @typedef {object} RecordSpan
- * @property {Text} text The file that holds the record.
- * @property {number} start The index of the record's heading.
- * @property {number} end The index of the next heading of its level or above, or the line count.
- */
-
-/**
- * @typedef {object} ItemList
- * @property {string} label
- * @property {number} line One-based line of the label.
- * @property {number | null} count The count an `Attached (<n>)` label states, else `null`.
- * @property {number} items
- * @property {number} unreadable Entries of the list that were refused.
- */
-
-/**
- * The message for an entry line an item list refuses, from its file, index, list, feature and text.
+ * The message for a line of a record the walker refuses, from its file, index, list, feature and
+ * text.
  *
  * @typedef {(file: string, index: number, label: string, id: string, line: string) => string} Refusal
  */
@@ -190,223 +133,6 @@ const CLOSURE_LOOKALIKE = /^closed by\b/i;
  * @property {string[]} stdout The lines written to standard output.
  * @property {string[]} stderr The lines written to standard error.
  */
-
-/**
- * @param {number} count
- * @param {string} noun
- * @returns {string}
- */
-function plural(count, noun) {
-  return `${String(count)} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-/**
- * The lines of a text, each marked when a fenced code block holds it: an example written in a
- * fence is never a table, a heading or an item.
- *
- * @param {string} file
- * @param {string} text
- * @returns {Text}
- */
-function textOf(file, text) {
-  const lines = text.split(/\r?\n/);
-  /** @type {string | null} */
-  let fence = null;
-  let opened = 0;
-  const fenced = lines.map((line, index) => {
-    if (fence !== null) {
-      const close = FENCE_CLOSE.exec(line)?.[1] ?? "";
-      if (close.startsWith(fence[0] ?? "") && close.length >= fence.length) fence = null;
-      return true;
-    }
-    const open = FENCE_OPEN.exec(line);
-    if (open !== null) {
-      fence = open[1] ?? "";
-      opened = index;
-    }
-    return open !== null;
-  });
-  return { file, lines, fenced, unclosed: fence === null ? null : opened };
-}
-
-/**
- * The headings of a text outside its fenced code blocks, each with its level and its line index.
- *
- * @param {Text} text
- * @returns {Heading[]}
- */
-function headingsOf({ lines, fenced }) {
-  return lines.flatMap((line, index) => {
-    const heading = fenced[index] === true ? null : HEADING.exec(line);
-    return heading === null
-      ? []
-      : [{ index, level: (heading[1] ?? "").length, text: heading[2] ?? "" }];
-  });
-}
-
-/**
- * The cells of a Markdown table row, split on every pipe not escaped by a backslash.
- *
- * @param {string} line
- * @returns {string[]}
- */
-function cellsOf(line) {
-  return line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/(?<!\\)\|$/, "")
-    .split(/(?<!\\)\|/)
-    .map((cell) => cell.trim());
-}
-
-/**
- * @description The rows of the chain table, or the reasons it cannot be read.
- * @param {Text} plan
- * @returns {{ rows: Row[], failures: string[] }}
- */
-function readChainTable(plan) {
-  const { lines, fenced } = plan;
-  /** @type {(index: number) => boolean} */
-  const tableRow = (index) => fenced[index] !== true && TABLE_ROW.test(lines[index] ?? "");
-  const headings = headingsOf(plan);
-  const sections = headings.filter((h) => h.level === 2 && h.text === CHAIN_SECTION);
-  const none = { rows: [], failures: [] };
-  if (sections.length !== 1) {
-    return {
-      ...none,
-      failures: [
-        sections.length === 0
-          ? `${PLAN} has no "## ${CHAIN_SECTION}" section, so no feature's state was read`
-          : `${PLAN} opens "## ${CHAIN_SECTION}" ${String(sections.length)} times (lines ` +
-            `${sections.map((h) => String(h.index + 1)).join(", ")}), so which one holds the ` +
-            "chain table is ambiguous",
-      ],
-    };
-  }
-  const start = (sections[0]?.index ?? 0) + 1;
-  const end = headings.find((h) => h.index >= start && h.level <= 2)?.index ?? lines.length;
-  const noTable = {
-    ...none,
-    failures: [
-      `the "## ${CHAIN_SECTION}" section of ${PLAN} holds no table, so no feature's state was read`,
-    ],
-  };
-  let headerIndex = start;
-  while (headerIndex < end && !tableRow(headerIndex)) headerIndex += 1;
-  if (headerIndex >= end) return noTable;
-  // A table is its header line and, under it, a separator row; without one the lines are prose.
-  const separatorIndex = headerIndex + 1;
-  if (
-    !tableRow(separatorIndex) ||
-    !cellsOf(lines[separatorIndex] ?? "").every((cell) => SEPARATOR_CELL.test(cell))
-  ) {
-    return noTable;
-  }
-
-  const header = cellsOf(lines[headerIndex] ?? "");
-  const missing = ["#", "State"].filter((column) => !header.includes(column));
-  if (missing.length > 0) {
-    return {
-      ...none,
-      failures: missing.map(
-        (column) =>
-          `the chain table of ${PLAN}:${String(headerIndex + 1)} has no "${column}" column, so ` +
-          "no feature's state was read"
-      ),
-    };
-  }
-  const idColumn = header.indexOf("#");
-  const stateColumn = header.indexOf("State");
-
-  /** @type {Row[]} */
-  const rows = [];
-  /** @type {string[]} */
-  const failures = [];
-  for (let index = headerIndex + 2; index < end && tableRow(index); index += 1) {
-    const at = `${PLAN}:${String(index + 1)}`;
-    const cells = cellsOf(lines[index] ?? "");
-    if (cells.length !== header.length) {
-      failures.push(
-        `${at} holds ${plural(cells.length, "cell")} where the chain table's header holds ` +
-          `${String(header.length)}, so its state cannot be read`
-      );
-      continue;
-    }
-    const id = cells[idColumn] ?? "";
-    const state = cells[stateColumn] ?? "";
-    if (id === "") {
-      failures.push(`${at} is a row of the chain table with no feature id`);
-      continue;
-    }
-    if (!STATES.includes(state)) {
-      failures.push(
-        `${at} gives ${id} the state "${state}", which is none of open, in progress and closed`
-      );
-      continue;
-    }
-    const twin = rows.find((row) => row.id === id);
-    if (twin !== undefined) {
-      failures.push(
-        `${at} lists ${id}, which line ${String(twin.line)} lists too, so its state is ambiguous`
-      );
-      continue;
-    }
-    rows.push({ id, state, line: index + 1 });
-  }
-  if (rows.length === 0 && failures.length === 0) {
-    failures.push(
-      `the chain table of ${PLAN} holds no feature row, so no feature's state was read`
-    );
-  }
-  return { rows, failures };
-}
-
-/**
- * @description Where the record of a feature is opened: every heading, in every record file,
- *   whose text is the id alone or the id followed by a space.
- * @param {string} id
- * @param {Text[]} records
- * @returns {RecordSpan[]}
- */
-function recordsOf(id, records) {
-  return records.flatMap((text) => {
-    const headings = headingsOf(text);
-    return headings
-      .filter((h) => h.text === id || h.text.startsWith(`${id} `))
-      .map((h) => ({
-        text,
-        start: h.index,
-        end:
-          headings.find((next) => next.index > h.index && next.level <= h.level)?.index ??
-          text.lines.length,
-      }));
-  });
-}
-
-/**
- * @description Whether an item's text closes it, opens it, or starts like a closure in neither
- *   form. A decision's date must be a calendar date no later than `today`, so `2026-02-30` and a
- *   date to come close nothing, and its decision must hold a word of three letters or more, so
- *   `: .` and `: a.` close nothing.
- * @param {string} text The item's text, after its id.
- * @param {string} today The day the check runs, `YYYY-MM-DD` in UTC.
- * @returns {Item["status"]}
- */
-function statusOf(text, today) {
-  if (CLOSED_BY_PULL_REQUEST.test(text)) return "closed";
-  const decision = CLOSED_BY_DECISION.exec(text);
-  if (decision !== null) {
-    const [year, month, day] = [decision[1], decision[2], decision[3]].map(Number);
-    const date = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day ?? 0));
-    const calendar =
-      date.getUTCFullYear() === year &&
-      date.getUTCMonth() + 1 === month &&
-      date.getUTCDate() === day;
-    const written = `${decision[1] ?? ""}-${decision[2] ?? ""}-${decision[3] ?? ""}`;
-    if (calendar && written <= today && WORD.test(decision[4] ?? "")) return "closed";
-  }
-  return CLOSURE_LOOKALIKE.test(text) ? "lookalike" : "open";
-}
 
 /**
  * @param {string} file
@@ -472,31 +198,16 @@ function itemAsContinuation(file, index, label, id, line) {
 }
 
 /**
- * The line without its inline code spans, whose contents quote text rather than write it. A span
- * counts only when every backtick run of the line pairs with a later run of the same length; a
- * line with a run left unpaired is returned whole, so a stray backtick cannot take an item-shaped
- * text out of the scan.
+ * The message for each line the walker of a record's span refuses, by the rule that refused it.
  *
- * @param {string} line
- * @returns {string}
+ * @type {Record<import("../plan/plan-text.mjs").RefusalRule, Refusal>}
  */
-function withoutCodeSpans(line) {
-  const runs = [...line.matchAll(BACKTICK_RUN)];
-  let kept = "";
-  let from = 0;
-  for (let open = 0; open < runs.length;) {
-    const opening = runs[open];
-    const close = runs.findIndex(
-      (run, at) => at > open && run[0].length === (opening?.[0] ?? "").length
-    );
-    const closing = runs[close];
-    if (opening === undefined || closing === undefined) return line;
-    kept += line.slice(from, opening.index);
-    from = closing.index + closing[0].length;
-    open = close + 1;
-  }
-  return kept + line.slice(from);
-}
+const REFUSALS = {
+  "unreadable-entry": unreadableEntry,
+  "nested-entry": nestedEntry,
+  "item-as-continuation": itemAsContinuation,
+  "unlisted-item": (file, index, _label, id, line) => unlistedItem(file, index, id, line),
+};
 
 /**
  * @description The items of a record's item lists, or the reasons the record cannot be read.
@@ -507,94 +218,23 @@ function withoutCodeSpans(line) {
  *   true when the record opens the file's unclosed fence and has named it.
  */
 function readItems(id, record, today) {
-  const { file, lines, fenced, unclosed } = record.text;
+  const { file, lines, unclosed } = record.text;
+  const span = readRecordSpan(record, today);
   /** @type {Item[]} */
-  const items = [];
+  const items = span.items.map((item) => ({
+    id: item.id,
+    status: item.status,
+    line: item.line,
+    list: item.list,
+  }));
   /** @type {string[]} */
-  const failures = [];
-  /** The lines read as items or as an entry's text, or refused, which the item-shape scan skips. */
-  const accounted = new Set();
-  /** @type {ItemList | null} */
-  let list = null;
-  /** @type {ItemList[]} */
-  const attached = [];
-  let entryOpen = false;
-  /** @type {(index: number, line: string, current: ItemList, why: Refusal) => void} */
-  const refuse = (index, line, current, why) => {
-    failures.push(why(file, index, current.label, id, line));
-    accounted.add(index);
-    current.unreadable += 1;
-  };
-
-  for (let index = record.start + 1; index < record.end; index += 1) {
-    const line = lines[index] ?? "";
-    if (fenced[index] === true || line.trim() === "") continue;
-    const label = LABEL.exec(line);
-    if (label !== null) {
-      const name = label[1] ?? "";
-      const count = ATTACHED.exec(name);
-      list =
-        count !== null || FINDINGS.test(name)
-          ? {
-              label: name,
-              line: index + 1,
-              count: count === null ? null : Number(count[1]),
-              items: 0,
-              unreadable: 0,
-            }
-          : null;
-      if (list !== null && list.count !== null) attached.push(list);
-      entryOpen = false;
-      continue;
-    }
-    if (!/^\s/.test(line)) {
-      list = null;
-      entryOpen = false;
-      continue;
-    }
-    if (list === null) continue;
-    const entry = ENTRY.exec(line);
-    if (entry === null) {
-      // A continuation is the entry's own text, unless it starts like an item: written there, an
-      // open item would read as the closed entry above it.
-      if (NESTED.test(line)) refuse(index, line, list, nestedEntry);
-      else if (!entryOpen || !CONTINUATION.test(line)) refuse(index, line, list, unreadableEntry);
-      else if (CONTINUATION_ITEM.test(line)) refuse(index, line, list, itemAsContinuation);
-      else accounted.add(index);
-      continue;
-    }
-    const content = entry[1] ?? "";
-    const item = ITEM.exec(content);
-    if (item !== null) {
-      items.push({
-        id: (item[1] ?? "").trim(),
-        status: statusOf(item[2] ?? "", today),
-        line: index + 1,
-        list: list.label,
-      });
-      accounted.add(index);
-      list.items += 1;
-      entryOpen = true;
-    } else if (NOTE.test(content)) {
-      entryOpen = true;
-    } else {
-      refuse(index, line, list, unreadableEntry);
-      entryOpen = false;
-    }
-  }
-
-  // An item written where no list reads it would otherwise pass unseen, open or not. A code span
-  // quotes the grammar rather than writes an item, so its contents are not scanned.
-  for (let index = record.start + 1; index < record.end; index += 1) {
-    const line = lines[index] ?? "";
-    const written = withoutCodeSpans(line);
-    if (fenced[index] !== true && !accounted.has(index) && ITEM_SHAPED.test(written)) {
-      failures.push(unlistedItem(file, index, id, line));
-    }
-  }
+  const failures = span.refusals.map(({ index, rule, list }) =>
+    REFUSALS[rule](file, index, list ?? "", id, lines[index] ?? "")
+  );
+  const attached = span.attached;
 
   // A fence the record opens and nothing closes hides every line after it, a list included.
-  const fenceReported = unclosed !== null && unclosed > record.start && unclosed < record.end;
+  const fenceReported = span.opensUnclosedFence;
   if (fenceReported) {
     failures.push(
       `the record of ${id} (${file}:${String(record.start + 1)}) opens a fenced code block at ` +
@@ -609,15 +249,12 @@ function readItems(id, record, today) {
         "list, so whether it holds an open item cannot be read"
     );
   }
-  // A list that holds an unreadable entry is already named by it; its count would only repeat it.
-  for (const stated of attached) {
-    if (stated.unreadable === 0 && stated.count !== stated.items) {
-      failures.push(
-        `the record of ${id} (${file}:${String(stated.line)}) states "${stated.label}" and ` +
-          `${plural(stated.items, "item")} ${stated.items === 1 ? "was" : "were"} read under it, so ` +
-          "an item is written where the gate cannot read it"
-      );
-    }
+  for (const stated of span.miscounted) {
+    failures.push(
+      `the record of ${id} (${file}:${String(stated.line)}) states "${stated.label}" and ` +
+        `${plural(stated.items, "item")} ${stated.items === 1 ? "was" : "were"} read under it, so ` +
+        "an item is written where the gate cannot read it"
+    );
   }
   return { items, failures, fenceReported };
 }

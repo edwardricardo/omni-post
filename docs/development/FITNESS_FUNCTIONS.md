@@ -2351,8 +2351,11 @@ node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line
 # than the day the check runs (UTC) and the decision holding at least one word of three letters or
 # more. Every other item is open. Only the chain table holds a state.
 # WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing: the gate reads
-# three Markdown files and imports nothing beyond Node's own modules, which is why it keeps its own
+# three Markdown files and imports nothing beyond Node's own modules and scripts/plan/plan-text.mjs,
+# the plan's reader, which imports nothing beyond them either. That is why the gate keeps its own
 # entry-point check rather than importing lib/record-helpers.mjs, a module that imports prettier.
+# The reader's header states what it reads and what the gate and the plan's records agree on
+# (apps/api/tests/unit/scripts/planReadersAgree.test.ts).
 # The battery runs it through its alias, `pnpm check:plan-closure`, as its static step
 # `plan-closure`.
 # WHAT FAILS, exit 1, each on stderr as `plan-closure-gate: <problem>`: an open item under a closed

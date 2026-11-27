@@ -24,6 +24,17 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
 | [plan/off-the-map.md](plan/off-the-map.md)     | Deletion candidates, and old rows the code already shows as done                 |
 | [plan/parking.md](plan/parking.md)             | Ideas with no slice                                                              |
 
+## How the plan is queried
+
+The plan's files are read by one parser, run on demand and never stored: every feature and every item is a record
+with its id, file, line, title, owner, who, today, need, dependencies, state, evidence, done condition, tags and
+mentions. `pnpm plan:show <id>` prints one record, `pnpm plan:list` lists records by kind, file and any field (`--json`,
+`--count`), and `pnpm plan:check` fails while a line of these files fits no shape or a part of their structure is
+missing. A comparison, a copy, a count or a
+filter over the plan runs on these records, and a reader is given the rows it must judge, never a whole file. The
+parser is `scripts/plan/plan-records.mjs`. It walks each chain record with the walker the plan-closure check walks a
+closed feature's record with, so a line that check refuses fails `pnpm plan:check` too.
+
 ## Rules
 
 - A feature is something a person does. A slice is one thin feature in full: its steps go bottom-up, one

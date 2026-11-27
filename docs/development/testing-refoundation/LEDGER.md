@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1286  |
+| Files                   | 1289  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1114  |
+| KEEP                    | 1117  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1274  |
+| Machine rows            | 1277  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16180 |
+| Blocks                  | 16258 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1021,6 +1021,9 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planClosureGate.test.ts`                                                 | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/planQueryCommand.test.ts`                                                | test             | 34     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/planReadersAgree.test.ts`                                                | test             | 3      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/planRecords.test.ts`                                                     | test             | 41     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 176    | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                         | behavioural          |
