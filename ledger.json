@@ -27,7 +27,7 @@
       "total": 1289
     },
     "blocks": {
-      "total": 16273,
+      "total": 16275,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15962
+        "BEHAVIOURAL": 15964
       }
     },
     "deleted": {
@@ -82679,7 +82679,7 @@
           "line": 851,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "2961781c8ddc3487726b4a1084933ccdd7c10a4017a5e156d47f01d351b9f40f"
+          "bodyHash": "35074059b5791ec46aa401e2136593bb838ce21b5c72b63f9cf83669982b4fb0"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits 3 when the chain section holds no table",
@@ -82742,7 +82742,7 @@
           "line": 972,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "9e899e191d9fc8ad905e9f15b67e8860bff378e25437db6de404f445e98bb5eb"
+          "bodyHash": "f4608641b4bf34b6e21fd525a5d741c491cd8677a691a707350f4102a81fe528"
         },
         {
           "id": "apps/api/tests/unit/scripts/planClosureGate.test.ts::exits with the verdict's code and writes each line to its stream",
@@ -82780,7 +82780,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 42,
+      "blockCount": 44,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record of one feature and exits 0 when show is given its id",
@@ -82797,281 +82797,295 @@
           "bodyHash": "79946118165d96dd1f58565e7b989a3168825e1d3b4be42658e5a09a61b8500d"
         },
         {
-          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record that carries the id as another name, and says so first, when show is given that name",
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the item's own id as its only tag when show is given --json for an item that writes an MP:<n> reference after its id",
           "line": 244,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cb5eff50001e80ab9fe90d5bccbc409e389de381b89ffbfbbde37ff3d04b1b58"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record that carries the id as another name, and says so first, when show is given that name",
+          "line": 255,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20cb1ecde29ac7cb7dc6bfed71f657366bf02f675b67d4b1178f85223943fc0a"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record whose own id is the key, with no note, when another item carries the key as another name",
-          "line": 273,
+          "line": 284,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40b43411815bd796982877f34e321c31fd26b1b10ccbac70a2328212443060c9"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record that carries the id as another name when other records only name it",
-          "line": 293,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f789b7193ca0b4c31694425f1a35e83b91a85ce6efcd4a9cb205e6487aa0e98"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints one line per record that names the id, in the plan's order, when show is given an id records only name",
-          "line": 308,
+          "line": 319,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d387fea06e619d9f4327d905e17f08168f06ca3bc394a5850530b13d0b94b0e3"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::names an item written with no id by its place when it %s",
-          "line": 343,
+          "line": 354,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "22240eb66843c760e19e38899ab8a997b009cd923274d269e1422f1238ef63ac"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and says the id is another name of each record when two records carry it as another name",
-          "line": 367,
+          "line": 378,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb9cb71122a4f046f67cb10ef3044b71c952923ad9a0a26e25e19cf1d7d8891e"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the id when show is given a unit a chain feature lists in its proof base",
-          "line": 384,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5db6739bce68744d1d2a75327abcdde368a38a2ab32dbdddb539b154790101c"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the id when show is given an id no record carries",
-          "line": 399,
+          "line": 410,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "254afb3d935b4c1512424eca6af3ad96c4d95b153ff69363d68c99c7b0b2fc60"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names every location when show is given an id two records carry",
-          "line": 407,
+          "line": 418,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8eba98500c99357c4639d3f237b46f329d53991be2de6987340e55e52ea38d3b"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record at a location when show is given <file>:<line>",
-          "line": 419,
+          "line": 430,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51844b71f365f9dea9a15c9b545db398e8ee5fef04ad70d51bb352730502a036"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the number of features and exits 0 when list is given --kind feature --count",
-          "line": 425,
+          "line": 436,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4701c48fb4af1c73339d95ba9c33c26e150c21178fe7abe65937599ab3e6adef"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints one line per record with its id, kind, location and title",
-          "line": 433,
+          "line": 444,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1758a793ded490ddd8ca29c8192cd020d3b9e9928df31be3de06f5a2481600f0"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::lists only the records of one file when list is given --file",
-          "line": 440,
+          "line": 451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ffc4b0a984d2cf46836724a7fb02cf59f258ac89a37256a728b6f231a282099"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::lists the records whose field holds the value when list is given a field filter",
-          "line": 446,
+          "line": 457,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb7af84b4e0bc8f69ba3bd51fe76059370118fc63dce0be34493c8e0d915c15a"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::lists the records that carry a tag when list is given --tag",
-          "line": 450,
+          "line": 461,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "212110ce9e1bda3b2631481634dae67b597f21a5183a3dbecd4f7fdfd57b3085"
         },
         {
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints no record and exits 0 when list is given --tag with the MP:<n> reference an item writes after its id",
+          "line": 467,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1e5db674626590f29864baabaee4e46a0d6938b498c3cb0fe4e703ab0abad0f6"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::lists the records that every filter matches when list is given several",
-          "line": 456,
+          "line": 473,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5e19c45683da7bda4c7797aaf5031eb566a64253ca1477eed46aeed6a96f00f"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the records as a JSON array when list is given --json",
-          "line": 462,
+          "line": 479,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4002e0082efb7c05e6b21ed0d43481be3a60353789d6f4bb2ce5ba0d023bfaa"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints 0 and exits 0 when no record matches the filters",
-          "line": 472,
+          "line": 489,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd8e58105141609659b6f0b761ccfde9e091cfbb68942469f35e06bf8f12c586"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints 0 and exits 0 when list is given a filter value of 120,000 characters",
-          "line": 480,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "073547d84399457bfe7c7753f2c57531e32bcace5f594ac19c569c79bfa4a21d"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 with nothing on stdout and names each failure when %s runs on %s",
-          "line": 490,
+          "line": 507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a252de5b320eb0b6922b074654f38d3ee1115cdd98a9a1829d9a79e96062d299"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::says in the help of %s that a plan whose structure lacks a part exits 1",
-          "line": 510,
+          "line": 527,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9a124877da16344fe4759d35e7ee8696b694050597624e9f2b32e2d8a2d1aab"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 2 when --root is given no directory",
-          "line": 521,
+          "line": 538,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6f906a7987f31d5957144b493f384f3f25dcf0cdf90e2364537a19e4bbad8929"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 2 when --root is given after %s",
-          "line": 525,
+          "line": 542,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5e41bf04dadf5843b36ca3acab9e956ef7e459831388ad3ee45538df17ded10d"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::says in its usage that --root stands before the command",
-          "line": 533,
+          "line": 550,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38577907ee3b6266cc727557c245a46c709b93d234058889e067d9b8cc7e7a75"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the file when %s runs on a plan file that cannot be read",
-          "line": 541,
+          "line": 558,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25431a8c3019aa32bc1f56ac3f32f92bdfe546ee78e34a7ccbd9d177861446a0"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 0 and says every line is classified when check reads a plan whose lines all fit",
-          "line": 560,
+          "line": 577,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3268ed26de6bc7d38c472fec8b65826af2aa8e66e623f621732f4ba405034ae"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names file:line when check finds an unclassified line",
-          "line": 569,
+          "line": 586,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5a26964b74d4ec69423be099d2f7fce3b79be4016e3afb88135758cc7c9d8846"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the file when a plan file cannot be read",
-          "line": 581,
+          "line": 598,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "16affcae30ddfd9dc025907fd1fe96e438daa59540cd723e59538fcb8297ea19"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the missing column when check reads a chain table with no State column",
-          "line": 592,
+          "line": 609,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de91cfdc1b6ac1c1553207a54ba411ee47cb645c005aeb1a79f429e0a0313c4e"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the header when check reads an area table whose Depends on column is renamed",
-          "line": 605,
+          "line": 622,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df8cbf3c14684ba085d328d14a7af18839cf3b3085c554ac38f996e96b720df9"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the feature when check reads a chain row that no record holds",
-          "line": 618,
+          "line": 635,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bf1f5d0dd0ce6af1379f7f4ce6624280b7e7fdd0ee149b1ba1d750e50b2aa55f"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the usage of %s and exits 0 when it is given --help",
-          "line": 634,
+          "line": 651,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "753f6dffa6000f55425c4977c48c2f6ff1bb9fd274f2e82b5a076a7d0599adac"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the commands and exits 0 when it is given --help alone",
-          "line": 650,
+          "line": 667,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5007d99c04610accab9dd3e9a07f7c4cf631f661737c5b7e331f0498059dbe00"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 2 when it is given %s",
-          "line": 654,
+          "line": 671,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e52f18b8df478991c62f8cebc1fabe5c1f61b76413fc093910837a38a55cb229"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 2 and reads nothing when --file is %s",
-          "line": 674,
+          "line": 691,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "140bb2a5c99aeff49e1e324ce52cf50508a59176eacc725318b6ed15f5f04cf0"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::matches a filter value as literal text, never as a regular expression",
-          "line": 690,
+          "line": 707,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a417637b9b518fff5e696c9d35b94ca00f552be91f2f3283b97ed6562276c62c"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::runs nothing a value names when the value holds shell syntax",
-          "line": 699,
+          "line": 716,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a81d063982fcf6741b51f82e922849a41fdca331ba8dcbcdeffd2ef9a06f0382"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::writes nothing to disk when show, list and check run",
-          "line": 709,
+          "line": 726,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1c194f8c17e86843c22b171717dd27ae93cb731753277d45b66c0bb468ff733"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits with the outcome's code and prints its lines when it runs as a script",
-          "line": 721,
+          "line": 738,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5710207b2ef48a4156c954498e9d5e4061aaf0c9d640f65c3a1545b07d95909"
         },
         {
           "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 0 with nothing on stderr when %s writes to a pipe its reader has closed",
-          "line": 728,
+          "line": 745,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df23e67c794630677e2dcba95a4d6bc5bb71732da23d269fb50ebdf6f169f536"
@@ -83105,7 +83119,7 @@
           "line": 171,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "99598c5478d4fff7b63bd0118ead96fc0e13435261ac829a3acc68a126b3180d"
+          "bodyHash": "c6921947b7a9ebf7d823a88d1a93be90d32829900aba07345b577cf3e76fcaea"
         },
         {
           "id": "apps/api/tests/unit/scripts/planReadersAgree.test.ts::returns success from the gate and a failure that names the line from the check when a closed record's item writes Found by twice",
@@ -83423,7 +83437,7 @@
           "line": 1207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ea1d9a1d78ffc6a74fad0a0b5574fbd4c81a0758a8f8ce2c1b37ea8761d55825"
+          "bodyHash": "fe86018e66d281c6d3a741e5adf85cce950f7bc079a63a42f311a2d8c21c6a9f"
         },
         {
           "id": "apps/api/tests/unit/scripts/planRecords.test.ts::throws a RangeError that names the field and lists the accepted fields when a filter's field is unknown",

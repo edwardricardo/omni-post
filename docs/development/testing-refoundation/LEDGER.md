@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1277  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16273 |
+| Blocks                  | 16275 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1021,7 +1021,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planClosureGate.test.ts`                                                 | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/scripts/planQueryCommand.test.ts`                                                | test             | 42     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/planQueryCommand.test.ts`                                                | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planReadersAgree.test.ts`                                                | test             | 4      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planRecords.test.ts`                                                     | test             | 47     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 176    | 0          | KEEP       | machine                         | behavioural          |

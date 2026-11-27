@@ -1205,11 +1205,11 @@ describe("plan-records", () => {
     });
 
     it("returns a record when one element of its tags equals the value and none when an element only contains it", () => {
-      const records = [makeRecord({ title: "tagged", tags: ["SMELL-4", "FN-636"] })];
+      const records = [makeRecord({ title: "tagged", tags: ["SMELL-4", "MP:636"] })];
 
       const found = {
-        whole: titlesOf(filterRecords(records, [{ field: "tag", value: "FN-636" }])),
-        part: titlesOf(filterRecords(records, [{ field: "tag", value: "FN-63" }])),
+        whole: titlesOf(filterRecords(records, [{ field: "tag", value: "MP:636" }])),
+        part: titlesOf(filterRecords(records, [{ field: "tag", value: "MP:63" }])),
       };
 
       expect(found).toEqual({ whole: ["tagged"], part: [] });

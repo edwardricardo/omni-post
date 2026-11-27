@@ -852,13 +852,13 @@ describe("fail-closed", () => {
     plantBody([
       "- **Attached (2):**",
       "  - **DEF-29**: The endpoint answers 404.",
-      "  - DEF-30 (SMELL-13): No bold id.",
+      "  - DEF-30 (MP:13): No bold id.",
     ]);
 
     expect(failure(scan())).toEqual({
       exitCode: 3,
       stderr: [
-        `plan-closure-gate: ${CHAIN}:9, in "Attached (2)" of F-01, reads "  - DEF-30 (SMELL-13): No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
+        `plan-closure-gate: ${CHAIN}:9, in "Attached (2)" of F-01, reads "  - DEF-30 (MP:13): No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
         `plan-closure-gate: F-01 is closed (${PLAN}:11) and its record holds an open item: DEF-29 (${CHAIN}:8, in "Attached (2)"); ${GRAMMAR_HINT}`,
       ],
     });
@@ -975,7 +975,7 @@ describe("fail-closed", () => {
       [
         {
           id: "F-01",
-          attached: [closedByPullRequest("DEF-1"), "DEF-2 (SMELL-13): Closed by #903. No bold id."],
+          attached: [closedByPullRequest("DEF-1"), "DEF-2 (MP:13): Closed by #903. No bold id."],
         },
       ]
     );
@@ -983,7 +983,7 @@ describe("fail-closed", () => {
     expect(failure(scan())).toEqual({
       exitCode: 3,
       stderr: [
-        `plan-closure-gate: ${CHAIN}:13, in "Attached (2)" of F-01, reads "  - DEF-2 (SMELL-13): Closed by #903. No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
+        `plan-closure-gate: ${CHAIN}:13, in "Attached (2)" of F-01, reads "  - DEF-2 (MP:13): Closed by #903. No bold id.", which is neither an item ("  - **<id>**: <text>", with an optional "(<reference>)" after the id) nor a note ("  - Note: <text>")`,
       ],
     });
   });

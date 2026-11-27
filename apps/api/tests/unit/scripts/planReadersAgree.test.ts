@@ -172,7 +172,7 @@ describe("the plan's readers", () => {
     writeTree(
       makeClosedRecord({
         attached: [
-          "  - **DEF-1** (SMELL-768): Closed by #900. The start passes.",
+          "  - **DEF-1** (MP:768): Closed by #900. The start passes.",
           "",
           "    The entry goes on after a blank line.",
         ],
