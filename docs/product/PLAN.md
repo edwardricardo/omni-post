@@ -167,7 +167,7 @@ Unless the ideal customer profile changes, the product builds none of these and 
 | F-12 | The Organization has a Workspace (create, list, select)                           | PARTIAL | 3              | open        | —         |
 | F-13 | A Channel is connected                                                            | PARTIAL | 4              | open        | —         |
 | F-14 | A post is written and saved                                                       | PARTIAL | 5              | open        | —         |
-| F-15 | A post is published now                                                           | PARTIAL | 17             | open        | —         |
+| F-15 | A post is published now                                                           | PARTIAL | 20             | open        | —         |
 | F-16 | A post is scheduled and published later                                           | PARTIAL | 3              | open        | —         |
 | F-17 | The result is visible                                                             | PARTIAL | 1              | open        | —         |
 | F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL | 2              | open        | —         |
@@ -184,12 +184,12 @@ needs a media file, and takes video, so attaching a media file to a post comes b
 | A-BILLING An Organization's billing                          | 25       | 8                | 24             | 0                  |
 | A-CONTENT Content tools                                      | 28       | 1                | 46             | 0                  |
 | A-SCHEDULING Scheduling beyond one post                      | 16       | 2                | 20             | 0                  |
-| A-AI AI assistance                                           | 21       | 6                | 32             | 1                  |
+| A-AI AI assistance                                           | 22       | 6                | 32             | 1                  |
 | A-ANALYTICS Analytics and reports beyond the basic dashboard | 22       | 1                | 24             | 0                  |
-| A-ENGAGE Inbox and outside integrations                      | 30       | 2                | 39             | 0                  |
+| A-ENGAGE Inbox and outside integrations                      | 30       | 2                | 41             | 0                  |
 | A-PLATFORMS The ten Platforms other than Bluesky             | 34       | 0                | 33             | 1                  |
 | A-ADMIN-OPS Administrator operations outside the base        | 26       | 6                | 39             | 0                  |
-| Total                                                        | 228      | 27               | 278            |                    |
+| Total                                                        | 229      | 27               | 280            |                    |
 
 ## Order of the first slices
 

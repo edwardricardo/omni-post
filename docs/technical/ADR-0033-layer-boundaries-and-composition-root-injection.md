@@ -337,7 +337,7 @@ task's error without its `taskId` or `err`.
   [CLAUDE.md](../../CLAUDE.md) fitness #40 and #43.
 - Plan: [the plan](../product/PLAN.md), SMELL-183;
   [DEF-7 to DEF-15](../product/PLAN.md), which carry SMELL-194 to
-  SMELL-202; [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) D49 (a decision of its Decisions log; the tracker left the tree on 2026-11-10).
+  SMELL-202; [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) D49 (a decision of its Decisions log; the tracker left the tree on 2026-11-11).
 - Code: `apps/api/src/index.ts:279-280,543,659`; `apps/api/src/types/fastify.d.ts:62`;
   `apps/api/src/infrastructure/container/Container.ts:86`; `apps/api/src/health/healthRoutes.ts:38-75`;
   `apps/api/src/auth/providerOAuth.ts:25-35`; the five guards named in Context; the six services in

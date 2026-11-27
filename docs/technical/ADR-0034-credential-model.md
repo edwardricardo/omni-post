@@ -255,7 +255,7 @@ unification is decision 3 below, which PR 2 applies and cites instead of recordi
      enabled — in `docker-compose.yml` beside MinIO for local runs and as a `services:` entry of the CI integration job;
      a missing server FAILS the batch, it never skips it); **mocked SDK** for the three cloud adapters (vitest, every
      run, the client mocked to the documented request and response shapes); and **a live batch** for the cloud adapters
-     under its own `TIER=live-kms`, declared in the testing refoundation tracker ([read at its permanent link](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md); it left the tree on 2026-11-10) as unrun until credentials
+     under its own `TIER=live-kms`, declared in the testing refoundation tracker ([read at its permanent link](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md); it left the tree on 2026-11-11) as unrun until credentials
      exist, which FAILS when `TIER=live-kms` is set and no credentials are present — never a silent skip (fitness #30
      reachability by its `run_batch` line; fitness #32: no `.skip`).
 

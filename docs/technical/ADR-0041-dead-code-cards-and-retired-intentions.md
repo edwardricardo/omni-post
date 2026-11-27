@@ -182,7 +182,7 @@
      per-route switch and the shadow launch inside AUTH-RL-1. → AUTH-RL-1 and the
      "Never" line ([PLAN.md](../product/PLAN.md) §What the product does not build).
    - **PREG-9 — recommending networks for a piece of content, and optimizing YouTube playlists.** Yes,
-     both, at low priority, in Phase 3. The Product Owner decided it without market research (engram
+     both, at low priority, as differentiation work. The Product Owner decided it without market research (engram
      1309). → F3-API-13
      and F3-API-14.
    - **PREG-10 — Admin surfaces** (option B): a notification centre (already open as question 4 of

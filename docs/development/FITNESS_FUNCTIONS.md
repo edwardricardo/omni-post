@@ -520,7 +520,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # executes twice, under two environments, and its green says nothing about the tier it was written
 # for. A collector whose CI job is not a required check gates nothing. Measured at the baseline
 # commit of the testing refoundation tracker (its metric M5; the tracker left the tree on
-# 2026-11-10, ADR-0044): 23 orphan test files and at least 10 collected twice.
+# 2026-11-11, ADR-0044): 23 orphan test files and at least 10 collected twice.
 # WHAT IT RUNS: the base commit's quarantine read with `git show` into a file, then
 # `pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base <that file>`, the
 # reach engine packages/test-contracts/src/reach.ts, pinned by its own suites under
@@ -890,7 +890,7 @@ pnpm --filter @packages/test-contracts scopes   # expect exit 0 and:
 # membership proves the ledger records the slice's deletion and its descent, never
 # that the deletion explains the descent: the review of the deletion pull request reads
 # that, since the tracker that compared the expected drop with the real one left the
-# tree on 2026-11-10 (ADR-0044); (3) the ledger
+# tree on 2026-11-11 (ADR-0044); (3) the ledger
 # read is the committed one, and that it matches the tree is #52's part.
 # Hard-zero.
 node scripts/testing/coverage-floor-gate.mjs   # expect exit 0 and:

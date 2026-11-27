@@ -28,8 +28,8 @@
    right now." It is first in the queue, before the payments and media storage decisions and the defects found on 2026-10-04, and the support documentation follows it on
    the route, sharing the form of its gate (LEGAL-3 ↔ SUP-3) and the edits of the templates
    (LEGAL-2 ↔ SUP-2).
-3. **When the method was set.** Phase 0 of N-TEST-1 closed on 2026-10-06, and the work started on
-   2026-10-07 with the method below.
+3. **When the method was set.** The baseline, tracker and toolchain phase of N-TEST-1 closed on
+   2026-10-06, and the work started on 2026-10-07 with the method below.
 
 ## Decision
 

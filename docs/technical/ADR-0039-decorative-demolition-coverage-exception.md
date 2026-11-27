@@ -12,7 +12,7 @@
   [TESTING_REFOUNDATION_PLAN.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION_PLAN.md) premise 5 and WU-2.0;
   [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) decision D2 and metric M14. The `D` ids and the metric ids of this record are entries of the
   tracker's Decisions log and its metrics, and its `WU-` ids are units of the tracker's fixed plan, both removed
-  from the tree on 2026-11-10 and read at the permanent links above
+  from the tree on 2026-11-11 and read at the permanent links above
 
 ## Context
 
