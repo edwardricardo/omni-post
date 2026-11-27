@@ -406,12 +406,12 @@ Only three methods are externally unreachable: `getEndpointStats:303`, `getRecen
 
 ---
 
-### 2.20 The feature matrix the plan absorbed counts tables as shipped capabilities in its section on capabilities not on the competitors' list
+### 2.20 The feature matrix counted schema tables as shipped capabilities
 
 **Where:** the feature matrix the plan absorbed, its section on the capabilities in the code that were not on the competitors' list, the rows "Git-like template versioning", "Native A/B testing", "Instagram Stories as a project", "Video processing/segmentation" and "Transactional Saga / Outbox, idempotent consumers", and the section's conclusion
 **Class:** DANGEROUS · **Intent:** LEGACY
 
-Not code — and worth including because it is where this whole class of error becomes externally visible. §7 is titled _"Capabilities in the code that were NOT on the competitors' list"_ and its conclusion recommends putting the findings into **`INVESTOR_ES.md`**.
+Not code — and worth including because it is where this whole class of error becomes externally visible. That section is titled _"Capabilities in the code that were NOT on the competitors' list"_ and its conclusion recommends putting the findings into **`INVESTOR_ES.md`**.
 
 **What it actually does.** Several rows cite `schema.prisma` line numbers as their sole evidence — the audit that produced them counted tables, not code paths. Verified zero-writer rows among them: Git-like template versioning, native A/B testing, Instagram Stories as a project, video processing/segmentation. The row then titled "Transactional Saga / Outbox / **Inbox**" cited `SagaInstance` and `OutboxEvent` — both live — while the word "Inbox" had no support at all; `c9dede09` renamed it, and its English name is now "Transactional Saga / Outbox, idempotent consumers".
 
