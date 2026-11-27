@@ -178,7 +178,7 @@ Client already has `@import 'tw-animate-css'` at line 2 of `apps/client/app/glob
 
 ### 3.3 @source Directives -- FIXED, no action needed
 
-Both portals' line 6 read `@source '../../packages/ui/src/**/*.{ts,tsx}'` until 2026-10-06. Tailwind v4 resolves an `@source` path against the stylesheet, so from `apps/<app>/app/` it pointed at `apps/packages/ui/src`, a directory that does not exist, and neither portal scanned `packages/ui`: the classes only its components use were missing from both builds. The fix on `workstream/tailwind-ui-source-fix` (DEF-49 of `docs/product/MASTER_PLAN.md` §5.11) makes it `'../../../packages/ui/src/**/*.{ts,tsx}'` in both portals, and `tests/unit/styles/tailwindSources.test.ts` in each app fails on an `@source` directive that resolves to no existing path.
+Both portals' line 6 read `@source '../../packages/ui/src/**/*.{ts,tsx}'` until 2026-10-06. Tailwind v4 resolves an `@source` path against the stylesheet, so from `apps/<app>/app/` it pointed at `apps/packages/ui/src`, a directory that does not exist, and neither portal scanned `packages/ui`: the classes only its components use were missing from both builds. The fix on `workstream/tailwind-ui-source-fix` (DEF-49 of the plan) makes it `'../../../packages/ui/src/**/*.{ts,tsx}'` in both portals, and `tests/unit/styles/tailwindSources.test.ts` in each app fails on an `@source` directive that resolves to no existing path.
 
 ### 3.4 ui-safelist.ts -- NOT NEEDED
 

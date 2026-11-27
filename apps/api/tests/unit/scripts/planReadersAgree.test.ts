@@ -4,9 +4,11 @@
  *   plan-closure gate (`scripts/testing/plan-closure-gate.mjs`, fitness #56) and the completeness
  *   check of the plan's records (`scripts/plan/plan-query.mjs check`). Both read a chain record
  *   through the one walker of `scripts/plan/plan-text.mjs`, so a line the gate refuses inside the
- *   record fails the check, and a line the gate accepts there the check classifies. Each case
- *   writes one small plan tree, built from the same factory with one line changed, and runs both
- *   readers on it.
+ *   record fails the check. The agreement runs one way: the records are stricter than the gate,
+ *   so every line they read as an item there the gate reads as an item too, and an item line the
+ *   gate accepts may still fail the check by a rule of the records' own. Each case writes one
+ *   small plan tree, built from the same factory with one line changed, and runs both readers on
+ *   it.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -66,7 +68,7 @@ const makeClosedRecord = (overrides: Partial<ClosedRecordFixture> = {}): ClosedR
   toBuild: ["  - nothing is left to build."],
   paragraph: "The record reads as the operator ran it.",
   stated: 1,
-  attached: ["  - **DEF-1** (MP:768): Closed by #900. The start passes."],
+  attached: ["  - **DEF-1** (SMELL-768): Closed by #900. The start passes."],
   ...overrides,
 });
 
@@ -112,7 +114,7 @@ const TEXTS: Record<Exclude<FileKey, "chain">, string> = {
     "",
   ].join("\n"),
   crossCutting: "# Cross-cutting work\n\n## Findings\n\n- **X-1**: A finding.\n",
-  offTheMap: "# Off the map\n\n## Deletion candidates\n\n- **STOR-1** (MP:525): Delete it.\n",
+  offTheMap: "# Off the map\n\n## Deletion candidates\n\n- **STOR-1** (SMELL-525): Delete it.\n",
   parking: "# Parking\n\nIdeas with no slice.\n\n- An idea with no id.\n",
 };
 
@@ -182,6 +184,24 @@ describe("the plan's readers", () => {
       check: 0,
       gateNames: false,
       checkNames: false,
+    });
+  });
+
+  it("returns success from the gate and a failure that names the line from the check when a closed record's item writes Found by twice", () => {
+    writeTree(
+      makeClosedRecord({
+        attached: [
+          "  - **DEF-1** (SMELL-768): Closed by #900. The start passes. Found by: one review. " +
+            "Found by: another review.",
+        ],
+      })
+    );
+
+    expect(verdictsOf(`${FILES.chain}:14`)).toEqual({
+      gate: 0,
+      check: 1,
+      gateNames: false,
+      checkNames: true,
     });
   });
 

@@ -94,18 +94,18 @@
    the Product Owner's approval of that pull request approves the translation, which is then the
    contract. Product data, such as `es` locale text, is copied as is.
 5. **Plan closure.** Every tracked plan or tracker (a document whose purpose is to schedule or
-   track work: the Master Plan, a roadmap, a tracker) carries a fixed `## Closure` heading that
-   names where its state, decisions, rules, lessons and pending items go when it closes; one that
-   predates this rule gains the heading at its closure at the latest. When it closes, each of
+   track work: a roadmap, a tracker) carries a fixed `## Closure` heading that names where its
+   state, decisions, rules, lessons and pending items go when it closes; one that predates this
+   rule gains the heading at its closure at the latest. When it closes, each of
    them moves to the home its `## Closure` names, the file leaves the tree, and every place that
    cites it gets a permalink of the form
    `https://github.com/edwardricardo/omni-post/blob/<sha>/<path>`, where `<sha>` is a commit that
    still holds the file. Only what survives is translated. The Testing Refoundation tracker is the
    first to close this way: its state goes to `TESTING_INFRASTRUCTURE.md`, its binding decisions to
-   ADRs or the canon, its lessons to `FOUNDATION_PRACTICES.md` and its pending items to the Master
-   Plan. Amended on 2026-11-10 by [ADR-0044](ADR-0044-feature-ordered-plan.md): the tracker left
-   the tree, its state and decisions are read at their permanent link, and its live units went to
-   the plan.
+   ADRs or the canon, its lessons to `FOUNDATION_PRACTICES.md` and its pending items to the
+   one-file plan that ADR-0044 replaced. Amended on 2026-11-10 by
+   [ADR-0044](ADR-0044-feature-ordered-plan.md): the tracker left the tree, its state and
+   decisions are read at their permanent link, and its live units went to the plan.
 6. **A gate holds the debt.** The artifact-language gate counts, per tracked file, Spanish lines and
    personal-name mentions against a baseline that must equal the count in both directions: a file
    whose count rises fails, and a file whose count falls lowers its baseline in the same change. It

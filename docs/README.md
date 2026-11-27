@@ -136,9 +136,6 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 | Document                                                                    | What it covers                                                           |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [Plan](product/PLAN.md)                                                     | The plan: every feature in dependency order, and where each old row went |
-| [Master Plan](product/MASTER_PLAN.md)                                       | Archive, frozen on 2026-11-10: the consolidated plan up to that day      |
-| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX.md)                     | Each feature traced to the code that implements it                       |
-| [Competitive Analysis](product/COMPETITIVE_ANALYSIS.md)                     | OmniPost against the 2026 market                                         |
 | Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md)) | Investor overview                                                        |
 | Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))    | Marketing copy                                                           |
 | [Audit Methodology](audits/AUDIT_METHODOLOGY.md)                            | Method of the full-repository audits                                     |
@@ -152,7 +149,7 @@ Live ledgers, updated as work lands:
 | [Review Suggestions Book](reports/review-suggestions-book.md) | Review suggestions kept for later, with their status |
 | [Unused Code Inventory](reports/UNUSED_CODE_INVENTORY.md)     | Unused code, classified, with its disposition        |
 
-Dated evidence, cited by ADRs, fitness checks and the Master Plan:
+Dated evidence, cited by ADRs and fitness checks:
 
 | Document                                                           | What it records                                         |
 | ------------------------------------------------------------------ | ------------------------------------------------------- |

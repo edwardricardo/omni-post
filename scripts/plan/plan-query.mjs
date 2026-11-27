@@ -7,13 +7,21 @@
  *
  *   `show <id | <name>:<line>>` prints the one record that carries the id (a feature's canonical
  *   id or any record's id as written) or that starts on that line of the named file; an id that
- *   several records carry is refused with each location. `list` prints the records every filter
- *   matches, one line each (id, kind, location, title), or as JSON with `--json`, or their number
- *   with `--count`. `check` fails while a line of the plan is unclassified, a file cannot be read
- *   or the plan's structure lacks a part `plan-records.mjs` names as a failure. Each takes
- *   `--help`. While a file cannot be read or the structure lacks a part, `show` and `list` exit 1
- *   with each failure on stderr and nothing on stdout, whatever record they are asked for: a query
- *   over a plan that does not parse whole could miss records in silence.
+ *   several records carry is refused with each location. When no record carries the id as its
+ *   own, the item that carries it as another name (an old id written in the parenthesis after the
+ *   item's id) is printed after a first line that says so; with `--json` that line goes to stderr
+ *   and stdout holds the record's JSON alone. An id two items carry as another name is refused
+ *   with each location. When no record carries the id either way, `show` prints one line per
+ *   record that names it in its text, `<id> is named by <record> (<file>:<line>)`, in the plan's
+ *   order and with exit 0, or with `--json` those records as a JSON array and the lines on
+ *   stderr. An item the plan writes with no id is named by its place, `the item at
+ *   <file>:<line>`. `list` prints the records every filter matches, one line each (id, kind,
+ *   location, title), or as JSON with `--json`, or their number with `--count`. `check` fails while
+ *   a line of the plan is unclassified, a file cannot be read or the plan's structure lacks a part
+ *   `plan-records.mjs` names as a failure. Each takes `--help`. While a file cannot be read or the
+ *   structure lacks a part, `show` and `list` exit 1 with each failure on stderr and nothing on
+ *   stdout, whatever record they are asked for: a query over a plan that does not parse whole could
+ *   miss records in silence.
  *
  *   An argument is data: no shell runs and nothing is evaluated. `--file` takes one of the plan's
  *   fixed names and refuses every other value, a path or a traversal included, before anything is
@@ -23,7 +31,9 @@
  *   Usage: `node scripts/plan/plan-query.mjs [--root <dir>] <show|list|check> [options]`. `--root`
  *   stands before the command, and anywhere else it is a usage error. The root defaults to the
  *   repository this file lives in, located from the script's own URL. Exit 0 on success, 1 when a
- *   record is not found, the plan cannot be read whole or the check fails, 2 on a usage error.
+ *   record is not found, the plan cannot be read whole or the check fails, 2 on a usage error. A
+ *   reader that closes standard output early, as `| head` does, cuts the output and changes
+ *   neither the exit code nor standard error.
  * @layer infrastructure
  */
 import { realpathSync } from "node:fs";
@@ -32,6 +42,8 @@ import {
   FILTER_FIELDS,
   NO_ID_TEXT,
   filterRecords,
+  findByOtherName,
+  findNamingRecords,
   findRecords,
   parsePlan,
   readSources,
@@ -71,8 +83,12 @@ const USAGE = {
   show: [
     "usage: pnpm plan:show <id | <file>:<line>> [--json]",
     "  <id> is a feature's canonical id (F-02, A-TEAM-03) or any record's id as written;",
+    "  an old id an item writes in the parenthesis after its id (SMELL-184) is another name of",
+    "  that item, and show says so first, on stderr with --json; an old id records only name",
+    "  prints one line per record that names it, those records as JSON with --json;",
     `  <file>:<line> names the record that starts there, <file> one of ${NAMES_TEXT}.`,
-    "  Exit 0 when one record is found, 1 when none or several are, 2 on a usage error.",
+    "  Exit 0 when one record is found or records name the id, 1 when none does or several",
+    "  carry it, 2 on a usage error.",
     ...BROKEN_PLAN_USAGE,
   ],
   list: [
@@ -160,6 +176,47 @@ function readPlan(root, now) {
 }
 
 /**
+ * @param {PlanRecord} record
+ * @returns {string} The file and line the record starts on.
+ */
+function placeOf(record) {
+  return `${record.file}:${String(record.line)}`;
+}
+
+/**
+ * @param {PlanRecord} record
+ * @returns {string} The record's id, or its place for an item the plan writes with no id.
+ */
+function nameOf(record) {
+  return record.id ?? `the item at ${placeOf(record)}`;
+}
+
+/**
+ * @description What `show` prints for a key no record carries as its own id or another name: one
+ *   line per record that names it, or the not-found failure when none does.
+ * @param {string} key
+ * @param {PlanRecord[]} naming The records that name the key, in the plan's order.
+ * @param {boolean} json With it, stdout holds the records as a JSON array and the lines go to
+ *   stderr.
+ * @returns {Outcome}
+ */
+function namedBy(key, naming, json) {
+  if (naming.length === 0) return failed([`no record carries the id "${key}"`]);
+  // A record with no id is named by its place already, which the line does not repeat.
+  const lines = naming.map(
+    (r) => `${key} is named by ${r.id === null ? nameOf(r) : `${r.id} (${placeOf(r)})`}`
+  );
+  if (json) {
+    return {
+      exitCode: 0,
+      stdout: JSON.stringify(naming, null, 2).split("\n"),
+      stderr: lines.map((line) => PREFIX + line),
+    };
+  }
+  return { exitCode: 0, stdout: lines, stderr: [] };
+}
+
+/**
  * @param {string[]} args
  * @param {string} root
  * @param {Date} now
@@ -174,21 +231,31 @@ function show(args, root, now) {
   }
   const { plan, failures } = readPlan(root, now);
   if (failures.length > 0) return failed(failures);
-  const found = findRecords(plan.records, key);
+  const own = findRecords(plan.records, key);
+  const found = own.length > 0 ? own : findByOtherName(plan.records, key);
   const record = found[0];
-  if (record === undefined) return failed([`no record carries the id "${key}"`]);
+  if (record === undefined) return namedBy(key, findNamingRecords(plan.records, key), json);
   if (found.length > 1) {
+    const places = found.map(placeOf).join(", ");
     return failed([
-      `${String(found.length)} records carry the id "${key}" ` +
-        `(${found.map((r) => `${r.file}:${String(r.line)}`).join(", ")}); show one by its ` +
-        `location, <file>:<line>, the file one of ${NAMES_TEXT}`,
+      own.length > 0
+        ? `${String(found.length)} records carry the id "${key}" (${places}); show one by its ` +
+          `location, <file>:<line>, the file one of ${NAMES_TEXT}`
+        : `${String(found.length)} records carry "${key}" as another name (${places}); show one ` +
+          "by its location",
     ]);
   }
-  return {
-    exitCode: 0,
-    stdout: json ? JSON.stringify(record, null, 2).split("\n") : recordLines(record),
-    stderr: [],
-  };
+  // A record found by another name says so first, so its own id is not taken for the key; with
+  // --json the note goes to stderr and stdout stays the record's JSON alone.
+  const note = own.length > 0 ? [] : [`${key} is another name of ${nameOf(record)}`];
+  if (json) {
+    return {
+      exitCode: 0,
+      stdout: JSON.stringify(record, null, 2).split("\n"),
+      stderr: note.map((line) => PREFIX + line),
+    };
+  }
+  return { exitCode: 0, stdout: [...note, ...recordLines(record)], stderr: [] };
 }
 
 /**
@@ -320,6 +387,17 @@ function rootOf(argv) {
 }
 
 /**
+ * Whether a write failed because the pipe's reader closed it, as `| head` does once it has read
+ * what it wants.
+ *
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isClosedPipe(error) {
+  return error instanceof Error && "code" in error && error.code === "EPIPE";
+}
+
+/**
  * True only when this file is the process entry point, so the suite's import runs nothing.
  *
  * @returns {boolean}
@@ -337,6 +415,11 @@ function invokedAsScript() {
 if (invokedAsScript()) {
   const input = rootOf(process.argv.slice(2));
   const outcome = input === null ? usageError(USAGE.general) : runQuery(input);
+  // A reader that closes the pipe has read all it wants: the write that fails then is no failure
+  // of the command, which keeps its outcome's exit code. Any other write error still raises.
+  process.stdout.on("error", (error) => {
+    if (!isClosedPipe(error)) throw error;
+  });
   for (const line of outcome.stdout) process.stdout.write(`${line}\n`);
   for (const line of outcome.stderr) process.stderr.write(`${line}\n`);
   process.exitCode = outcome.exitCode;

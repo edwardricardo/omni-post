@@ -54,7 +54,7 @@ The executed runs left their output in the scratchpad of the session that measur
 | MSW                             | 2.15.0 since 2026-10-02 (slice `0.8`); 2.14.6 when this document was measured on 2026-09-27    | HTTP mocking. Declared by `apps/api`, `apps/client` and `packages/providers/shared`; no config wires it                                                                  | M     |
 | k6                              | `grafana/k6:latest` Docker image, unpinned                                                     | Load tests, 6 scenarios under `performance/k6/scenarios/`                                                                                                                | M     |
 | Jest 30                         | Absent since 2026-10-02 (slice `0.11`); `jest@30.4.2` in the store on 2026-09-27               | Left with `@storybook/test-runner`; only `jest-worker@27.5.1` remains — via `minimizer-webpack-plugin@5.13.0` since 2026-10-06, via `terser-webpack-plugin@5.6.1` before | P + M |
-| Mutation testing                | None since 2026-09-27 (removed by PRs #307, #310, #311; see MASTER_PLAN.md N-CI-4)             | No replacement chosen                                                                                                                                                    | F     |
+| Mutation testing                | None since 2026-09-27 (removed by PRs #307, #310, #311; see N-CI-4 in the plan)                | No replacement chosen                                                                                                                                                    | F     |
 
 Versions above come from `pnpm-workspace.yaml` (the catalog); the store entries from `eza -d node_modules/.pnpm/<name>@*`, and the Jest row's 2026-10-02 state from parsing `pnpm-lock.yaml` (no `jest@` key; `jest-worker@27.5.1` was then declared by `terser-webpack-plugin@5.6.1` — the 2026-10-02 parent, superseded by the re-parse that follows). Re-parsed on 2026-10-06, after the admin Storybook left with its webpack builder: `terser-webpack-plugin` is gone, and `jest-worker@27.5.1` has one parent, `minimizer-webpack-plugin@5.13.0`, the minimizer of `webpack@5.111.1`, which stays only as the peer of `@sentry/webpack-plugin@5.3.0` under `@sentry/nextjs`.
 
@@ -280,7 +280,7 @@ Seven files outside every pnpm workspace, resolved from the root manifest, same 
 | `injection-tests.xss-command.test.ts`              | 6     | 0    | 0    | 6    | vacuous |
 | `auth-security.test.ts`                            | 9     | 3    | 6    | 0    | red     |
 
-The six vacuous suites register a user through `POST /api/auth/register` (directly or via `injection-tests.test-helpers.ts`); the TAP records "Route POST:/api/auth/register not found", no token is obtained, `dbAvailable` becomes false, and every test skips with the message "Database not available" or "Database or auth not available" — while Postgres and Redis were up. `auth-security.test.ts` targets `POST /auth/register`, which does not exist either: `apps/api/src/auth/authRoutes.ts` registers `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/sessions` and `/auth/revoke-all`. Its first failure is `Weak password "123456" should be rejected (got 404)`; of its six failures, four receive 404 and two (the SQL and NoSQL injection-in-login cases) receive 429. The disposition of this suite is SMELL-83, owned by [N-TEST-1 in the Master Plan](../product/MASTER_PLAN.md#nc--regression-net-assurance).
+The six vacuous suites register a user through `POST /api/auth/register` (directly or via `injection-tests.test-helpers.ts`); the TAP records "Route POST:/api/auth/register not found", no token is obtained, `dbAvailable` becomes false, and every test skips with the message "Database not available" or "Database or auth not available" — while Postgres and Redis were up. `auth-security.test.ts` targets `POST /auth/register`, which does not exist either: `apps/api/src/auth/authRoutes.ts` registers `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/sessions` and `/auth/revoke-all`. Its first failure is `Weak password "123456" should be rejected (got 404)`; of its six failures, four receive 404 and two (the SQL and NoSQL injection-in-login cases) receive 429. The disposition of this suite is SMELL-83, owned by [N-TEST-1 in the plan](../product/PLAN.md).
 
 #### E2E, `apps/client`
 
@@ -464,7 +464,7 @@ Each entry states the evidence and the options seen. Choosing among them is the 
 
 **F-16 — `@apps/client`'s `test` script is `vitest` without `run`.** Evidence: the `Package Tests` exclusion comment against the local run completing. Options seen: make the script `vitest run` and drop the special case; keep the exclusion.
 
-**F-17 — Mutation testing has no replacement.** Evidence: the tooling table. The options are listed in the Master Plan entry N-CI-4.
+**F-17 — Mutation testing has no replacement.** Evidence: the tooling table. The options are in commit `d5b64af9`, which the plan entry N-CI-4 names.
 
 ## Not measured
 

@@ -46,11 +46,9 @@ Every qualitative item is a decision for the Product Owner, taken in short sessi
 | Frameworks beyond the GDPR; final language of the register | The whole register                                 |
 | The `pending` rows of each inventory                       | Its classification file, held by `pendingBaseline` |
 
-## Retro-documentation ledger
+## Work closed before the documentation gates
 
-The facts of work closed before the gate existed were to be collected through the retro-documentation ledger of the [Master Plan](../product/MASTER_PLAN.md), §5.10, shared with the support documentation of §5.15: one row per closed item, with `Legal`, `Soporte` and `Lote` columns that started empty. The Master Plan is an archive since 2026-11-10 and takes no new row ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)), so the ledger stays there as it stood. From that date the legal facts of a feature are answered in its legal line when the feature closes in [the plan](../product/PLAN.md).
-
-A retro batch was to take ledger rows in order of exposure (credentials, OAuth, billing, mention and analytics ingestion, AI subprocessors), at most 400 lines of evidence: read each item once, write its legal facts here and its support page under `docs/support/`, and mark the row with the batch's pull request number, or mark the item not applicable with its reason. No batch marks the archived ledger now: the same reading is done feature by feature, when a feature closes in the plan. Work closed after the gate documents itself in its own pull request, because the gate fails until it does.
+Work closed before the documentation gates existed owes its legal facts and its support page as open rows of [the plan](../product/PLAN.md), under the headings of the legal facts register and of the technical support documentation in [`docs/product/plan/cross-cutting.md`](../product/plan/cross-cutting.md), or as a sentence on the record that is the item. A row that is an edit of the plan itself owes nothing. A feature closed after the gates answers its legal facts in its legal line when it closes, and work closed after the gate documents itself in its own pull request, because the gate fails until it does.
 
 ## Conventions
 

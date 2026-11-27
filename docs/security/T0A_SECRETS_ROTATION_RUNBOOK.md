@@ -575,5 +575,5 @@ If something fails catastrophically during the rotation (DB unreachable, prod se
 
 ## Annex B — Cross-references
 
-- the plan rows `SECRETS-ROTATION-GOLIVE` (rotation + history purge at go-live) and `L-546` (ADMIN_PASSWORD fallback), both in `docs/product/plan/chain.md` · `L-623` password123 in CI = accepted-dev-fixture (closed; `docs/product/MASTER_PLAN.md` §5.7, the archive). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
+- the plan rows `SECRETS-ROTATION-GOLIVE` (rotation + history purge at go-live) and `L-546` (ADMIN_PASSWORD fallback), both in `docs/product/plan/chain.md` · `L-623` password123 in CI = accepted-dev-fixture (closed; in `docs/product/plan/cross-cutting.md`). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
 - CLAUDE.md — "Automated Compliance Checks" (fitness functions already wired in CI).

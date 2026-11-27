@@ -1,0 +1,232 @@
+{
+  "base": "8355cb38877d77637e50ec576efe1cc70a14dfd1",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a3268ed26de6bc7d38c472fec8b65826af2aa8e66e623f621732f4ba405034ae",
+            "head": "a3268ed26de6bc7d38c472fec8b65826af2aa8e66e623f621732f4ba405034ae"
+          },
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 0 and says every line is classified when check reads a plan whose lines all fit"
+        },
+        {
+          "bodyHash": {
+            "base": "5a26964b74d4ec69423be099d2f7fce3b79be4016e3afb88135758cc7c9d8846",
+            "head": "5a26964b74d4ec69423be099d2f7fce3b79be4016e3afb88135758cc7c9d8846"
+          },
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names file:line when check finds an unclassified line"
+        },
+        {
+          "bodyHash": {
+            "base": "de91cfdc1b6ac1c1553207a54ba411ee47cb645c005aeb1a79f429e0a0313c4e",
+            "head": "de91cfdc1b6ac1c1553207a54ba411ee47cb645c005aeb1a79f429e0a0313c4e"
+          },
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the missing column when check reads a chain table with no State column"
+        },
+        {
+          "bodyHash": {
+            "base": "7f7430b8057888c904ab7fad8265bd8f6bb8d5eaf166ed8bde8162e483d78621",
+            "head": "212110ce9e1bda3b2631481634dae67b597f21a5183a3dbecd4f7fdfd57b3085"
+          },
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::lists the records that carry a tag when list is given --tag"
+        },
+        {
+          "bodyHash": {
+            "base": "766d1fa13f66c83db5cc64dae514aaccbf738510ecbce2963ba79022e60b5df7",
+            "head": "79946118165d96dd1f58565e7b989a3168825e1d3b4be42658e5a09a61b8500d"
+          },
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record as JSON when show is given --json"
+        },
+        {
+          "bodyHash": {
+            "base": "d4002e0082efb7c05e6b21ed0d43481be3a60353789d6f4bb2ce5ba0d023bfaa",
+            "head": "d4002e0082efb7c05e6b21ed0d43481be3a60353789d6f4bb2ce5ba0d023bfaa"
+          },
+          "id": "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the records as a JSON array when list is given --json"
+        }
+      ],
+      "id": "plan-query-prints-old-ids-as-tags",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/planQueryCommand.test.ts::plan-query > check > exits 0 and says every line is classified when check reads a plan whose lines all fit",
+          "apps/api/tests/unit/scripts/planQueryCommand.test.ts::plan-query > check > exits 1 and names file:line when check finds an unclassified line",
+          "apps/api/tests/unit/scripts/planQueryCommand.test.ts::plan-query > check > exits 1 and names the missing column when check reads a chain table with no State column",
+          "apps/api/tests/unit/scripts/planQueryCommand.test.ts::plan-query > list > lists the records that carry a tag when list is given --tag",
+          "apps/api/tests/unit/scripts/planQueryCommand.test.ts::plan-query > list > prints the records as a JSON array when list is given --json",
+          "apps/api/tests/unit/scripts/planQueryCommand.test.ts::plan-query > show > prints the record as JSON when show is given --json"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/planQueryCommand.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/planQueryCommand.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6acf9ade0a32b6ff47c4e2a0cd6349e76f2f32cf74681a131cdc5f3e79fdf3f1",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns the old rows attached to an area as items owned by that area"
+        }
+      ],
+      "id": "plan-records-area-list-opens-on-items-attached",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > classifies every line of the plan when every line fits a shape",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a blockquote line as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a fenced code block that nothing closes as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a heading inside a chain record that names its feature again as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a nested entry under an entry of a chain item list as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a raw HTML line as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a second-level heading of the areas that names no area as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a table row whose cells are not the header's as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an area table whose header is not the feature header as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an entry of a chain item list that is neither an item nor a note as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an indented line after a paragraph as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item at the top level of a chain record as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped bullet in a prose list of a chain record as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped bullet in a prose list of an area as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped text in the middle of a paragraph as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped text in the middle of a paragraph of a chain record as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped text in the prose of the plan as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > returns a prose third-level heading as a heading when its section holds no feature record",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > returns a third-level heading as unclassified when it begins like a feature id and is no record heading",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > returns a third-level heading as unclassified when its section holds a feature record and it is no record heading",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > features > returns the units of the proof base as a feature's tags and the ids its prose names as mentions",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > joins a continuation written after a blank line to the item above it, as the gate reads it",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > reads no item inside a fenced code block of a chain item list, and counts the items around it",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > returns an item of cross-cutting owned by its section and listed under its sub-heading",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > returns its reference and its own id as tags and the ids its text names as mentions",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > returns the old rows attached to an area as items owned by that area"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/planRecords.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/planRecords.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "0d22f9bc97c80a6004b095b6450032322419af4f08a86439ef5cb7bc9a481d4a",
+            "head": "0d22f9bc97c80a6004b095b6450032322419af4f08a86439ef5cb7bc9a481d4a"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::classifies every line of the plan when every line fits a shape"
+        },
+        {
+          "bodyHash": {
+            "base": "7609d000e1afcb9f48fe6bf39a52b6ce20b46010b2ad75e3e112cc198a43a664",
+            "head": "7609d000e1afcb9f48fe6bf39a52b6ce20b46010b2ad75e3e112cc198a43a664"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::joins a continuation written after a blank line to the item above it, as the gate reads it"
+        },
+        {
+          "bodyHash": {
+            "base": "6c75ab5499c2d681a62bb48eb0e5aebb2791a5a3d7a304a28814c8868bbf6be3",
+            "head": "6c75ab5499c2d681a62bb48eb0e5aebb2791a5a3d7a304a28814c8868bbf6be3"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::reads no item inside a fenced code block of a chain item list, and counts the items around it"
+        },
+        {
+          "bodyHash": {
+            "base": "693561ec1063c6ba463b1ad37269aea5e0be0889e63288aedcbd67f465448c02",
+            "head": "693561ec1063c6ba463b1ad37269aea5e0be0889e63288aedcbd67f465448c02"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::reports %s as unclassified with its file and line"
+        },
+        {
+          "bodyHash": {
+            "base": "66324f4e95c9e646414c161fe8e3431382acefb1e499a0d3d028433392ab0d8d",
+            "head": "66324f4e95c9e646414c161fe8e3431382acefb1e499a0d3d028433392ab0d8d"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns a prose third-level heading as a heading when its section holds no feature record"
+        },
+        {
+          "bodyHash": {
+            "base": "00f1ad444d83e0f34e04b22b2a401e447018d7ba2a9a3ecd37d0925f186b6a8b",
+            "head": "00f1ad444d83e0f34e04b22b2a401e447018d7ba2a9a3ecd37d0925f186b6a8b"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns a third-level heading as unclassified when it begins like a feature id and is no record heading"
+        },
+        {
+          "bodyHash": {
+            "base": "8ad98e47611384e83fb0126585ea4ebfe9e2a9386838e00fe269dbaefe53ed09",
+            "head": "8ad98e47611384e83fb0126585ea4ebfe9e2a9386838e00fe269dbaefe53ed09"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns a third-level heading as unclassified when its section holds a feature record and it is no record heading"
+        },
+        {
+          "bodyHash": {
+            "base": "b9f4d3eee97480ac1b0b6aa4a3919528bd0fb435baa4673e2dc513fb9616c4d4",
+            "head": "c1d8b61622ffb82b961ca3f8d9689d61a4bc115bcc83fed5098ea325f7c1bc8a"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns an item of cross-cutting owned by its section and listed under its sub-heading"
+        },
+        {
+          "bodyHash": {
+            "base": "9983a39c66c52ad7c91acc07437bfcee879d059bd1f689e1a21d72971de8ed77",
+            "head": "e01fc6caa94883cbd518ce70a2a74eb6164abb197a25b714ce9c581cfebb9efe"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns its reference and its own id as tags and the ids its text names as mentions"
+        },
+        {
+          "bodyHash": {
+            "base": "e80adae8b3dd69ab09afdae20ac38de1925c0509d2fbcb6443d17e5982dec73a",
+            "head": "5fac0d64bc4e2684119e5a9a2c127f91df44e68e495e61c68950010665518f86"
+          },
+          "id": "apps/api/tests/unit/scripts/planRecords.test.ts::returns the units of the proof base as a feature's tags and the ids its prose names as mentions"
+        }
+      ],
+      "id": "plan-records-tags-hold-old-ids-only",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > classifies every line of the plan when every line fits a shape",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a blockquote line as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a fenced code block that nothing closes as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a heading inside a chain record that names its feature again as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a nested entry under an entry of a chain item list as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a raw HTML line as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a second-level heading of the areas that names no area as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports a table row whose cells are not the header's as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an area table whose header is not the feature header as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an entry of a chain item list that is neither an item nor a note as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an indented line after a paragraph as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item at the top level of a chain record as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped bullet in a prose list of a chain record as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped bullet in a prose list of an area as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped text in the middle of a paragraph as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped text in the middle of a paragraph of a chain record as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > reports an item-shaped text in the prose of the plan as unclassified with its file and line",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > returns a prose third-level heading as a heading when its section holds no feature record",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > returns a third-level heading as unclassified when it begins like a feature id and is no record heading",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > completeness > returns a third-level heading as unclassified when its section holds a feature record and it is no record heading",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > features > returns the units of the proof base as a feature's tags and the ids its prose names as mentions",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > joins a continuation written after a blank line to the item above it, as the gate reads it",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > reads no item inside a fenced code block of a chain item list, and counts the items around it",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > returns an item of cross-cutting owned by its section and listed under its sub-heading",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > returns its reference and its own id as tags and the ids its text names as mentions",
+          "apps/api/tests/unit/scripts/planRecords.test.ts::plan-records > items > returns the old rows attached to an area as items owned by that area"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/planRecords.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/planRecords.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

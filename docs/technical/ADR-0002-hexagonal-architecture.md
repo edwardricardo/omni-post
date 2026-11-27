@@ -109,12 +109,17 @@ controller,service,repository}.ts`). Rejected: collapses delivery into
 **Negative / costs**
 
 - **Higher cognitive overhead.** A trivial feature ("Posts") spreads
-  across ≥5 files in 4 directories. Documented in
-  Master Plan §5.2 ("What the architecture costs") as an acknowledged cost.
+  across ≥5 files in 4 directories, an acknowledged cost.
 - **Slower onboarding for devs unfamiliar with hexagonal/DDD.** Average
   TS dev expects modular Fastify; ramp-up is 2-3× longer.
 - **More DI wiring.** Each new port + adapter requires a TOKEN +
   composition-root registration (see ADR-0007).
+- **A radical pivot is expensive.** A mutating endpoint adds a Unit of
+  Work to its files and its DI wiring. The ports, the fitness functions,
+  the composition root and the saga engine protect the design and make
+  a radical pivot expensive. What pays this cost back is the documented
+  decisions (the ADRs), developer experience, tests, the tenant guards
+  and chaos testing.
 
 ## Revisit if
 

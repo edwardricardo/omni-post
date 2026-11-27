@@ -161,7 +161,7 @@ refactor with explicit trigger events.
 
 - 22 commits of the workstream: `git log workstream/application-services-to-core ^main` (now merged to main, ending at `1734890`)
 - OmniPost [`docs/architecture/APPLICATION_SERVICES_TO_CORE_ROADMAP_ES.md`](https://github.com/edwardricardo/omni-post/blob/f0f38adc34958966dcdb7718f682235f6399c709/docs/architecture/APPLICATION_SERVICES_TO_CORE_ROADMAP_ES.md) — workstream roadmap with phase breakdown (removed from the repository on 2026-10-17; git history keeps it, and the link is its last version)
-- OmniPost normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)) — successor doc capturing post-closure improvements; it folded into Master Plan §5.2 on 2026-10-28
+- OmniPost normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)) — successor doc capturing post-closure improvements; its items are the normalization records of `docs/product/plan/cross-cutting.md`
 - ADR-0002 — Hexagonal Architecture (the macro pattern this workstream realized)
 - ADR-0005 — Unit of Work (concrete adoption in S3.4c)
 - ADR-0009 — Permission enum promotion (S4.4)

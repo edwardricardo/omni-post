@@ -105,7 +105,7 @@ a clean zero.
 ### Requirement: vitest holds at 4.1.11 with its measured reason, and mutation runs only on vitest 4
 
 > **AMENDED 2026-10-14 (measured that day; [ADR-0036](../../../../../docs/technical/ADR-0036-dependency-update-cadence.md)).**
-> The runner named below left the tree on 2026-09-27 with mutation testing itself (MASTER_PLAN
+> The runner named below left the tree on 2026-09-27 with mutation testing itself (the plan's
 > N-CI-4, #307 → #310 → #311): `@stryker-mutator/vitest-runner` is declared in no manifest, and
 > nothing installed peer-blocks vitest 5 (`@storybook/addon-vitest` 10.6.1 peers `vitest ^5.0.0`).
 > The hold stands as a recorded decision: the 4 → 5 behavioural migration is its own change, and its

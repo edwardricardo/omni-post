@@ -1,0 +1,52 @@
+[
+  {
+    "id": "plan-query-prints-old-ids-as-tags",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/planQueryCommand.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/planQueryCommand.test.ts::lists the records that carry a tag when list is given --tag",
+      "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the record as JSON when show is given --json",
+      "apps/api/tests/unit/scripts/planQueryCommand.test.ts::prints the records as a JSON array when list is given --json",
+      "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 0 and says every line is classified when check reads a plan whose lines all fit",
+      "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names file:line when check finds an unclassified line",
+      "apps/api/tests/unit/scripts/planQueryCommand.test.ts::exits 1 and names the missing column when check reads a chain table with no State column"
+    ],
+    "subject": "scripts/plan/plan-records.mjs",
+    "search": "const OLD_ID = /(?<![\\w-])(?:SMELL|FN|DEF)-\\d+(?![\\w-])/g;",
+    "replace": "const OLD_ID = /(?<![\\w-])(?:(?:SMELL|FN|DEF)-|MP:)\\d+(?![\\w-])/g;",
+    "note": "`show --json` and `list --tag` print and filter the tags the records read, which are old ids alone (`SMELL-<n>`, `FN-<n>`, `DEF-<n>`), the item's own id first and the ids of the parenthesis after it next; a reference written `MP:<n>` is no tag. Two blocks are rewritten, the first two listed: the base body of `show --json` expects `MP:770` before `DEF-2` among the tags of DEF-2, and the base body of `list --tag` filters on `MP:607`, which no record carries. The other four are byte for byte the same at the head; they are listed because the base file fails on them too: its area fixture opens the area's item list on a label that starts neither with `Items attached` nor with `Findings`, the two labels the records open an area's list on, so on the new code that list opens nothing, DEF-9 is no record and its line (areas.md:12) is unclassified as an item in a prose list. Then `list --done-state not-stated --json` returns no record where the block expects DEF-9, `check` exits 1 on a plan the block expects classified, `check` names areas.md:12 first where the block expects parking.md:4, and the check of a chain table with no State column prints that unclassified line and its count after the one failure the block expects. The base `list --tag` block fails for that reason as well. At the head the fixture opens the list on `Items attached` and writes `SMELL-<n>` references, and all six pass. The suite runs `scripts/plan/plan-query.mjs`, which imports this subject, as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied: the verdict comes from the clean runs alone, the base clean run red on listed blocks only and the head clean run green."
+  },
+  {
+    "id": "plan-records-area-list-opens-on-items-attached",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/scripts/planRecords.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns the old rows attached to an area as items owned by that area"
+    ],
+    "subject": "scripts/plan/plan-records.mjs",
+    "search": "const ITEM_LIST_INTRO = /^(?:Items attached|Findings)\\b.*:$/;",
+    "replace": "const ITEM_LIST_INTRO = /^(?:Items attached|Old plan rows|Findings)\\b.*:$/;",
+    "note": "The records open an area's item list only on a paragraph that starts with `Items attached` or `Findings` and ends with a colon; a list opened on any other label is no item list, and an item-shaped bullet under it is unclassified. The deleted block's base body expects DEF-9 as an item of the area, listed under the label its base fixture writes, with `MP:607` among its tags; on the new code that label opens nothing and no record of DEF-9 exists, so the block fails. The head pins the same reading under the title `returns the items attached to an area as items owned by that area`, over the `Items attached` label its fixture writes, which the gate reads as an addition. The base file fails on other blocks too; each is listed by the rewrite case of this file over the same test, whose note says why. The verdict comes from the clean runs alone: the base clean run is red on listed blocks only and the head clean run is green. The mutation opens an area's list on the base fixture's label again; the verdict does not depend on it, and the tool reports no applied state for a case decided on its clean runs."
+  },
+  {
+    "id": "plan-records-tags-hold-old-ids-only",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/planRecords.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns the units of the proof base as a feature's tags and the ids its prose names as mentions",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns its reference and its own id as tags and the ids its text names as mentions",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns an item of cross-cutting owned by its section and listed under its sub-heading",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::classifies every line of the plan when every line fits a shape",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::reports %s as unclassified with its file and line",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns a third-level heading as unclassified when its section holds a feature record and it is no record heading",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns a third-level heading as unclassified when it begins like a feature id and is no record heading",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::returns a prose third-level heading as a heading when its section holds no feature record",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::joins a continuation written after a blank line to the item above it, as the gate reads it",
+      "apps/api/tests/unit/scripts/planRecords.test.ts::reads no item inside a fenced code block of a chain item list, and counts the items around it"
+    ],
+    "subject": "scripts/plan/plan-records.mjs",
+    "search": "const OLD_ID = /(?<![\\w-])(?:SMELL|FN|DEF)-\\d+(?![\\w-])/g;",
+    "replace": "const OLD_ID = /(?<![\\w-])(?:(?:SMELL|FN|DEF)-|MP:)\\d+(?![\\w-])/g;",
+    "note": "A record's tags and mentions are old ids alone (`SMELL-<n>`, `FN-<n>`, `DEF-<n>`) and the units of the testing refoundation it carries; a reference written `MP:<n>` is neither a tag nor a mention, and an item's tags hold its own id before the old ids of the parenthesis after it. Three blocks are rewritten, the first three listed, and each base body fails on that reading: the proof-base block expects `MP:131` among the feature's mentions, the reference block expects `MP:636` among the item's tags and `MP:909` among its mentions, and the cross-cutting block expects `MP:355` as the tag of an item to which the new code gives none. The other seven are byte for byte the same at the head; they are listed because the base file fails on them too: its area fixture opens the area's item list on a label that starts neither with `Items attached` nor with `Findings`, the two labels the records open an area's list on, so on the new code the area's item line (areas.md:17) is unclassified as an item in a prose list, and each of the seven expects an exact unclassified list without it: the completeness of a whole plan, every row of the table of single unclassified lines, the three blocks of third-level headings, the continuation after a blank line and the fenced code block of a chain item list. That label is the change the deletion case of this file measures. At the head the fixtures open the list on `Items attached` and write `SMELL-<n>` references, and all ten pass. The verdict comes from the clean runs alone: the base clean run is red on listed blocks only and the head clean run is green. The mutation reads `MP:<n>` as an old id again; the verdict does not depend on it, and the tool reports no applied state for a case decided on its clean runs."
+  }
+]

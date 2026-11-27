@@ -1,9 +1,10 @@
 /**
  * @file planQueryCommand.test.ts
  * @description Pins `scripts/plan/plan-query.mjs`, the command behind `pnpm plan:show`,
- *   `pnpm plan:list` and `pnpm plan:check`: `show` prints one record by its id or its location,
- *   `list` filters the records by kind, by file and by any field and prints them as lines, as
- *   JSON or as a count, and `check` fails while a line of the plan is unclassified. Exit 0 is
+ *   `pnpm plan:list` and `pnpm plan:check`: `show` prints one record by its id, by another name
+ *   an item carries or by its location, or names each record that only names the id; `list`
+ *   filters the records by kind, by file and by any field and prints them as lines, as JSON or as
+ *   a count; and `check` fails while a line of the plan is unclassified. Exit 0 is
  *   success, 1 a record not found or a failed check, 2 a usage error. The security view is pinned
  *   too: an argument is data, never a shell command or a regular expression, the file filter
  *   names one of the plan's fixed files and nothing else, and nothing is written to disk. Every
@@ -11,8 +12,18 @@
  *   repository's plan.
  * @layer infrastructure
  */
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  closeSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,10 +84,10 @@ const CHAIN_TEXT = [
   "## Platform and operation",
   "",
   ...chainRecord("F-01", "The platform starts from an empty database", [
-    "**DEF-1** (MP:768): Closed by #900. The start passes.",
+    "**DEF-1** (SMELL-768): Closed by #900. The start passes.",
   ]),
   ...chainRecord("F-02", "The first administrator comes to exist", [
-    "**DEF-2** (MP:770): The command asks nothing. Done: one prompt.",
+    "**DEF-2** (SMELL-770): The command asks nothing. Done: one prompt.",
     "**DUP-1**: Written twice on purpose.",
   ]),
 ].join("\n");
@@ -91,9 +102,9 @@ const AREAS_TEXT = [
   "| A-TEAM-01 A Member sees the Organization  | any Member | PARTIAL | F-02       |",
   "| A-TEAM-02 A person accepts an invitation  | invitee    | DEAD    | A-TEAM-01  |",
   "",
-  "Old plan rows attached to this area (1):",
+  "Items attached to this area (1):",
   "",
-  "- **DEF-9** (MP:607): The OIDC state is kept in a map. Done: not stated.",
+  "- **DEF-9** (SMELL-607): The OIDC state is kept in a map. Done: not stated.",
   "",
 ].join("\n");
 
@@ -108,7 +119,7 @@ const CROSS_CUTTING_TEXT = [
 ].join("\n");
 
 const OFF_THE_MAP_TEXT =
-  "# Off the map\n\n## Deletion candidates\n\n- **STOR-1** (MP:525): Delete it.\n";
+  "# Off the map\n\n## Deletion candidates\n\n- **STOR-1** (SMELL-525): Delete it.\n";
 const PARKING_TEXT = "# Parking\n\nIdeas with no slice.\n\n- An idea with no id.\n";
 
 let root = "";
@@ -143,6 +154,35 @@ const spawnCommand = (...argv: string[]): { status: number | null; stdout: strin
 const spawnAsGiven = (...argv: string[]): { status: number | null; stdout: string } => {
   const result = spawnSync(process.execPath, [COMMAND, ...argv], { encoding: "utf8" });
   return { status: result.status, stdout: result.stdout };
+};
+
+/**
+ * The command run as a script whose standard output is a pipe its reader has already closed, as
+ * `| head` leaves it once it has read what it wants. The named pipe is opened by its path once,
+ * for reading; its write end is opened through that descriptor (`/dev/fd/<n>`), which names the
+ * pipe the suite already holds whatever the path names by then, and which a write-only open
+ * without blocking accepts because a reader exists. The read end is then closed, before the
+ * command is spawned, so the pipe has no reader when the command starts and its first write fails
+ * with EPIPE. It needs a system that exposes a process's open descriptors under `/dev/fd`, as
+ * Linux does.
+ */
+const spawnWithClosedOutput = (...argv: string[]): { status: number | null; stderr: string } => {
+  const dir = mkdtempSync(path.join(tmpdir(), "plan-query-pipe-"));
+  const fifo = path.join(dir, "stdout");
+  execFileSync("mkfifo", [fifo]);
+  const reader = openSync(fifo, constants.O_RDONLY | constants.O_NONBLOCK);
+  const writer = openSync(`/dev/fd/${String(reader)}`, constants.O_WRONLY | constants.O_NONBLOCK);
+  closeSync(reader);
+  try {
+    const result = spawnSync(process.execPath, [COMMAND, "--root", root, ...argv], {
+      stdio: ["ignore", writer, "pipe"],
+      encoding: "utf8",
+    });
+    return { status: result.status, stderr: result.stderr };
+  } finally {
+    closeSync(writer);
+    rmSync(dir, { recursive: true, force: true });
+  }
 };
 
 /** Plans every file of which is readable but whose structure lacks a part. */
@@ -202,7 +242,173 @@ describe("plan-query", () => {
         id: "DEF-2",
         owner: "F-02",
         state: "open",
-        tags: ["MP:770", "DEF-2"],
+        tags: ["DEF-2", "SMELL-770"],
+      });
+    });
+
+    it("prints the item's own id as its only tag when show is given --json for an item that writes an MP:<n> reference after its id", () => {
+      makeTree({ areas: AREAS_TEXT.replace("- **DEF-9** (SMELL-607):", "- **DEF-9** (MP:607):") });
+
+      const outcome = run("show", "DEF-9", "--json");
+
+      expect({
+        exitCode: outcome.exitCode,
+        tags: (JSON.parse(outcome.stdout.join("\n")) as { tags: string[] }).tags,
+      }).toEqual({ exitCode: 0, tags: ["DEF-9"] });
+    });
+
+    it("prints the record that carries the id as another name, and says so first, when show is given that name", () => {
+      makeTree({
+        offTheMap: `${OFF_THE_MAP_TEXT}- **BILL-3** (SMELL-184): The invoice total is read twice.\n`,
+      });
+
+      const text = run("show", "SMELL-184");
+      const json = run("show", "SMELL-184", "--json");
+
+      expect({
+        text: { exitCode: text.exitCode, head: text.stdout.slice(0, 2), stderr: text.stderr },
+        json: {
+          exitCode: json.exitCode,
+          id: (JSON.parse(json.stdout.join("\n")) as { id: string }).id,
+          stderr: json.stderr,
+        },
+      }).toEqual({
+        text: {
+          exitCode: 0,
+          head: ["SMELL-184 is another name of BILL-3", "id: BILL-3"],
+          stderr: [],
+        },
+        json: {
+          exitCode: 0,
+          id: "BILL-3",
+          stderr: ["plan-query: SMELL-184 is another name of BILL-3"],
+        },
+      });
+    });
+
+    it("prints the record whose own id is the key, with no note, when another item carries the key as another name", () => {
+      makeTree({
+        offTheMap:
+          `${OFF_THE_MAP_TEXT}- **SMELL-184**: The own row.\n` +
+          "- **BILL-3** (SMELL-184): The invoice total is read twice.\n",
+      });
+
+      const shown = run("show", "SMELL-184");
+
+      expect({
+        exitCode: shown.exitCode,
+        head: shown.stdout.slice(0, 1),
+        stderr: shown.stderr,
+      }).toEqual({
+        exitCode: 0,
+        head: ["id: SMELL-184"],
+        stderr: [],
+      });
+    });
+
+    it("prints the record that carries the id as another name when other records only name it", () => {
+      makeTree({
+        offTheMap:
+          `${OFF_THE_MAP_TEXT}- **BILL-3** (SMELL-184): The invoice total is read twice.\n` +
+          "- **BILL-4**: The change path of SMELL-184.\n",
+      });
+
+      const shown = run("show", "SMELL-184");
+
+      expect({ exitCode: shown.exitCode, head: shown.stdout.slice(0, 2) }).toEqual({
+        exitCode: 0,
+        head: ["SMELL-184 is another name of BILL-3", "id: BILL-3"],
+      });
+    });
+
+    it("prints one line per record that names the id, in the plan's order, when show is given an id records only name", () => {
+      makeTree({
+        chain: CHAIN_TEXT.replace(
+          "The command asks nothing. Done: one prompt.",
+          "The command asks nothing, as SMELL-41 says. Done: one prompt."
+        ),
+        areas: AREAS_TEXT.replace("| DEAD    | A-TEAM-01  |", "| DEAD    | SMELL-41   |"),
+        offTheMap: `${OFF_THE_MAP_TEXT}- **DEF-40 (with SMELL-41)**: Two findings in one row.\n`,
+      });
+      const named = [
+        `SMELL-41 is named by DEF-2 (${FILES.chain}:17)`,
+        `SMELL-41 is named by A-TEAM-02 (${FILES.areas}:8)`,
+        `SMELL-41 is named by DEF-40 (with SMELL-41) (${FILES.offTheMap}:6)`,
+      ];
+
+      const text = run("show", "SMELL-41");
+      const json = run("show", "SMELL-41", "--json");
+
+      expect({
+        text,
+        json: {
+          exitCode: json.exitCode,
+          ids: (JSON.parse(json.stdout.join("\n")) as { id: string }[]).map((record) => record.id),
+          stderr: json.stderr,
+        },
+      }).toEqual({
+        text: { exitCode: 0, stdout: named, stderr: [] },
+        json: {
+          exitCode: 0,
+          ids: ["DEF-2", "A-TEAM-02", "DEF-40 (with SMELL-41)"],
+          stderr: named.map((line) => `plan-query: ${line}`),
+        },
+      });
+    });
+
+    it.each([
+      [
+        "carries the id as another name",
+        "- **(no id)** (SMELL-96): A row the plan writes with no id.\n",
+        "SMELL-96",
+        `SMELL-96 is another name of the item at ${FILES.offTheMap}:6`,
+      ],
+      [
+        "names the id in its text",
+        "- **(no id)**: The change path of SMELL-97.\n",
+        "SMELL-97",
+        `SMELL-97 is named by the item at ${FILES.offTheMap}:6`,
+      ],
+    ])("names an item written with no id by its place when it %s", (_case, item, key, first) => {
+      makeTree({ offTheMap: `${OFF_THE_MAP_TEXT}${item}` });
+
+      const shown = run("show", key);
+
+      expect({ exitCode: shown.exitCode, first: shown.stdout[0] }).toEqual({
+        exitCode: 0,
+        first,
+      });
+    });
+
+    it("exits 1 and says the id is another name of each record when two records carry it as another name", () => {
+      makeTree({
+        offTheMap:
+          `${OFF_THE_MAP_TEXT}- **BILL-3** (SMELL-184): The invoice total is read twice.\n` +
+          "- **BILL-4** (SMELL-184): The invoice date is read twice.\n",
+      });
+
+      expect(run("show", "SMELL-184")).toEqual({
+        exitCode: 1,
+        stdout: [],
+        stderr: [
+          `plan-query: 2 records carry "SMELL-184" as another name (${FILES.offTheMap}:6, ` +
+            `${FILES.offTheMap}:7); show one by its location`,
+        ],
+      });
+    });
+
+    it("exits 1 and names the id when show is given a unit a chain feature lists in its proof base", () => {
+      makeTree({
+        chain: CHAIN_TEXT.replace(
+          "- **Today:** WORKS.",
+          "- **Today:** WORKS.\n- **Proof base:** 4b.1 the start proof (not started)."
+        ),
+      });
+
+      expect(run("show", "4b.1")).toEqual({
+        exitCode: 1,
+        stdout: [],
+        stderr: ['plan-query: no record carries the id "4b.1"'],
       });
     });
 
@@ -258,9 +464,23 @@ describe("plan-query", () => {
     });
 
     it("lists the records that carry a tag when list is given --tag", () => {
-      expect(run("list", "--tag", "MP:607").stdout).toEqual([
+      expect(run("list", "--tag", "SMELL-607").stdout).toEqual([
         `DEF-9\titem\t${FILES.areas}:12\tThe OIDC state is kept in a map.`,
       ]);
+    });
+
+    it("prints no record and exits 0 when list is given --tag with the MP:<n> reference an item writes after its id", () => {
+      makeTree({ areas: AREAS_TEXT.replace("- **DEF-9** (SMELL-607):", "- **DEF-9** (MP:607):") });
+
+      expect({
+        byOwnId: run("list", "--tag", "DEF-9").stdout,
+        byFormerReference: run("list", "--tag", "SMELL-607").stdout,
+        byReference: run("list", "--tag", "MP:607"),
+      }).toEqual({
+        byOwnId: [`DEF-9\titem\t${FILES.areas}:12\tThe OIDC state is kept in a map.`],
+        byFormerReference: [],
+        byReference: { exitCode: 0, stdout: [], stderr: [] },
+      });
     });
 
     it("lists the records that every filter matches when list is given several", () => {
@@ -534,5 +754,19 @@ describe("plan-query", () => {
         stdout: "4\n",
       });
     });
+
+    it.each([
+      ["show", ["show", "F-01"]],
+      ["list", ["list", "--kind", "feature"]],
+      ["check", ["check"]],
+    ])(
+      "exits 0 with nothing on stderr when %s writes to a pipe its reader has closed",
+      (_command, argv) => {
+        expect({
+          printsWhenOpen: spawnCommand(...argv).stdout !== "",
+          closed: spawnWithClosedOutput(...argv),
+        }).toEqual({ printsWhenOpen: true, closed: { status: 0, stderr: "" } });
+      }
+    );
   });
 });

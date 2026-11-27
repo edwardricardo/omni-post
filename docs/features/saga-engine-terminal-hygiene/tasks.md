@@ -226,7 +226,7 @@ Every later "the tests pass" claim in this change depends on this PR.
 
 ## Phase 2: docs + PR1 gate
 
-- [x] 2.1 `docs/product/MASTER_PLAN.md` N-COR-2 (and the paired N-COR-7 card) — record N-COR-2(b) as
+- [x] 2.1 The plan's N-COR-2 (and the paired N-COR-7 card) — record N-COR-2(b) as
       CLOSED at main; the code and the planning record must stop disagreeing (delta requirement
       "the planning record states the closed item as closed").
       **Verified against the code before writing the correction**, never taken from the doc:
@@ -241,8 +241,8 @@ Every later "the tests pass" claim in this change depends on this PR.
       residual open and pointing at PR2/PR3/PR4.
       **Done**; residuals 1-4 and the whole terminal-hygiene carry list are untouched. The paired
       backlog entry **SMELL-72** moved `PENDING → RESOLVED` in the same PR (one cell, one changed
-      line after prettier; the backlog was folded into the Master Plan on 2026-10-29, where SMELL-72
-      sits in the §7 closure ledger) — leaving it PENDING would have been the same doc-drift class
+      line after prettier; SMELL-72 resolves in the plan, `docs/product/plan/cross-cutting.md`) —
+      leaving it PENDING would have been the same doc-drift class
       this slice exists to close. SMELL-71 and
       SMELL-73 stay PENDING.
 - [x] 2.3 **0-defect gate (PR1)**: `tsc -b apps/api` = 0; `eslint --max-warnings 0` on touched

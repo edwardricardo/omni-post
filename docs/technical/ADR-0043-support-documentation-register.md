@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-06 (the register and the answers Q1 to Q5, recorded in #433); 2026-10-07 (the
-  method and ledger shared with the legal register, and `EXCEPTIONS.md` retired)
+  method shared with the legal register, and `EXCEPTIONS.md` retired)
 - **Decision-makers**: Product Owner and Maintainer, held by one person ([GOVERNANCE.md](../GOVERNANCE.md)): the
   Product Owner for the register and the answers Q1 to Q4, the Maintainer for the thresholds of Q5
   and the gates
@@ -12,16 +12,17 @@
 - **Superseded by**: —
 - **Related**: [docs/support/README.md](../support/README.md) (the generated index) and
   [\_TEMPLATE.md](../support/_TEMPLATE.md) (the page template);
-  [Master Plan](../product/MASTER_PLAN.md) §5.15 (SUP-1 to SUP-7);
-  [ADR-0042](ADR-0042-legal-facts-register-method.md) (the method and the ledger this flow shares)
+  [the plan](../product/PLAN.md) (SUP-1 to SUP-7);
+  [ADR-0042](ADR-0042-legal-facts-register-method.md) (the method this flow shares, and what closed
+  work owes)
 
 ## Context
 
 1. **The request** (Product Owner, 2026-10-06): a flow like the legal one, but for the technical
    documentation — record how each feature works, so that the support operators know how it works and
    where or what to look at when a ticket is opened — and, in the same flow, keep `docs/product/`
-   current, except the Master Plan.
-2. **Its place on the route.** It goes right after the legal facts register (Master Plan §5.10), with
+   current, except the plan.
+2. **Its place on the route.** It goes right after the legal facts register, with
    which it shares the gate machinery.
 
 ## Decision
@@ -58,12 +59,13 @@
    register, which covers seven documents.
 6. **Q5 — thresholds.** A page fails with 5 commits on its `paths` after its stamp, or at 90 days,
    and warns from the first commit, or at 60 days. A product document's header fails at 60 days, or
-   when it predates the last change of the Master Plan rows it cites. The numbers are reviewed three
+   when it predates the last change of the plan rows it cites. The numbers are reviewed three
    months after the gates land, with the measured trigger counts.
-7. **The method and ledger of the legal register** (2026-10-07). This flow follows the method of
-   ADR-0042 and its retro-documentation ledger: the retro pass reads each closed item once and, in that
-   same read, fills its support page (the ledger's "Soporte" column) as well as its legal facts. SUP-2
-   reuses the sections of LEGAL-2 in the templates, and SUP-3 the form of the gate of LEGAL-3.
+7. **The method of the legal register** (2026-10-07). This flow follows the method of ADR-0042:
+   work closed before the documentation gates existed owes its legal facts and its support page as
+   open rows of the plan, and each closed item is read once and, in that same read, gets its
+   support page as well as its legal facts. SUP-2 reuses the sections of LEGAL-2 in the templates,
+   and SUP-3 the form of the gate of LEGAL-3.
 8. **No dated exceptions table** (2026-10-07). `EXCEPTIONS.md` is retired: `NON_FEATURES.md`, where
    every candidate of the tree is `documented`, `non-feature` with its reason, or `pending`, and the
    grammar of `## Support impact`, which declares `none for <feature> — <reason>` in each pull
@@ -137,8 +139,6 @@ account or post-deployment check is added, changed or retired`
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN.md) §5.15, where these decisions were first recorded, at
-  [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - The full plan `support-docs-flow-plan.md` (`/root/.claude/omnipost-tools/research-2026-10-06/`,
   outside the repository; engram 1310 to 1313, 1315 and 1316)
-- [ADR-0042](ADR-0042-legal-facts-register-method.md): the shared method and ledger
+- [ADR-0042](ADR-0042-legal-facts-register-method.md): the shared method, and what closed work owes

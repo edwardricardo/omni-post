@@ -316,5 +316,5 @@ modules, 7497 dependencies cruised)`, 124 known violations ignored, 0 unresolved
   and `boundaries-repair-sizing.md` (engram 1213), in the same directory.
 - Repository: `.dependency-cruiser.cjs`, `.dependency-cruiser-resolve.cjs`;
   [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) §Decisions log, D43 and D49;
-  [MASTER_PLAN.md §5.12, the card that names SMELL-183](../product/MASTER_PLAN.md#512-routes--use-cases-and-the-composition-root-adr-0033--queued-after-n-test-1);
+  [SMELL-183 of the plan](../product/PLAN.md);
   [SECURITY_CANON.md](../security/SECURITY_CANON.md) (the `dependency-cruiser` hold row).

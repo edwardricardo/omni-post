@@ -165,7 +165,7 @@ branch.
 
 ### Requirement: The workstream has one tracking entry, and the follow-ups it subsumes point at it
 
-The master plan MUST carry ONE entry for this workstream, with the measured findings, the signed points,
+The plan MUST carry ONE entry for this workstream, with the measured findings, the signed points,
 the definition of done, what it subsumes and what it depends on, and its sub-items mapped to the phases —
 while the STATE lives only in the tracker. Every roadmap follow-up this workstream subsumes MUST be
 marked as subsumed and MUST point at the single section that now owns it, so no follow-up is tracked in
@@ -173,7 +173,7 @@ two places.
 
 #### Scenario: Every subsumed follow-up points at its new owner [static]
 
-- **GIVEN** the master plan entry and the roadmap section
+- **GIVEN** the plan's entry and the roadmap section
 - **WHEN** each subsumed follow-up is read
 - **THEN** it is marked subsumed and names the section that owns it, and the canon-document check stays
   green

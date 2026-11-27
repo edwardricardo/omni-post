@@ -101,7 +101,7 @@ package state on 2026-10-28.
 - **The floor is what CI installs.** 26.11.1 is the latest mature 26.x and what `setup-node`
   resolves for `"26"`, so CI, local work and the build stage run the same release, and the floor
   admits nothing older. It also carries nodejs/node#66273, released in 26.11.0: the node:test parser
-  no longer crashes on child stdout that mimics a V8 frame, the class of DEF-83 in `MASTER_PLAN.md`.
+  no longer crashes on child stdout that mimics a V8 frame, the class of DEF-83 in the plan.
   Since 2026-10-22 the floor is 26.12.1, the security release CI and both image stages run.
 - **The release asset, not npm.** pnpm 12's npm package is a launcher whose install step places the
   same native executable from its `@pnpm/exe.<platform>` optional dependencies, so both routes run
@@ -216,8 +216,8 @@ vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keep
   `docs/deployment/base-images.md` and `docs/deployment/LOCAL.md`; the stated runtime in
   `CLIENT-APP.md`, `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, the two standards documents, both
   investor documents, `TESTING_INFRASTRUCTURE.md` and the coverage note of
-  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-10) and
-  `MASTER_PLAN.md`; the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
+  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md` and `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-10);
+  the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
   `@tailwindcss/node` consumer named in the canon row `source-map-js`.
 
 ## Amendment of 2026-10-22: Node 26.12.1
