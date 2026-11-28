@@ -20,7 +20,7 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
 
 | File                                           | What it holds                                                                    |
 | ---------------------------------------------- | -------------------------------------------------------------------------------- |
-| [plan/chain.md](plan/chain.md)                 | Features F-01 to F-18, full records                                              |
+| [plan/chain.md](plan/chain.md)                 | Features F-01 to F-19, full records                                              |
 | [plan/areas.md](plan/areas.md)                 | Nine areas outside the chain, one line per feature until their turn              |
 | [plan/cross-cutting.md](plan/cross-cutting.md) | Work of no feature: CI, gates, dependencies, the test system, the security slice |
 | [plan/off-the-map.md](plan/off-the-map.md)     | Rows the code already shows as done, closed                                      |
@@ -153,7 +153,7 @@ Unless the ideal customer profile changes, the product builds none of these and 
 
 | #    | Feature                                                                           | Today   | Items attached | State       | Closed by |
 | ---- | --------------------------------------------------------------------------------- | ------- | -------------- | ----------- | --------- |
-| F-01 | The platform starts from an empty database                                        | WORKS   | 20             | in progress | —         |
+| F-01 | The platform starts from an empty database                                        | WORKS   | 19             | in progress | —         |
 | F-02 | The first administrator comes to exist                                            | WORKS   | 1              | closed      | #980      |
 | F-03 | An administrator signs in, stays signed in and signs out                          | PARTIAL | 15             | open        | —         |
 | F-04 | An administrator recovers a password                                              | PARTIAL | 5              | open        | —         |
@@ -171,6 +171,7 @@ Unless the ideal customer profile changes, the product builds none of these and 
 | F-16 | A post is scheduled and published later                                           | PARTIAL | 3              | open        | —         |
 | F-17 | The result is visible                                                             | PARTIAL | 1              | open        | —         |
 | F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL | 2              | open        | —         |
+| F-19 | The platform runs in its hosting for the pilots                                   | MISSING | 3              | open        | —         |
 
 The order of the Platforms: Bluesky proves the chain first, then X (F-18), Facebook, YouTube, Instagram, TikTok,
 and then, by rising complexity, Telegram, LinkedIn, Threads, Pinterest, Snapchat. YouTube is the first that
