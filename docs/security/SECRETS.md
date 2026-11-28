@@ -61,17 +61,22 @@ Cross-references in tables use these short forms:
 
 ## 3. Master keys (cryptographic root)
 
-The platform's two cryptographic roots. Both are required at boot; the
-API and workers refuse to start without them. They protect every
+The platform's cryptographic root. It is required at boot; the API and
+the workers refuse to start without it. It protects every
 encrypted-at-rest credential downstream.
 
-| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                                                           |
-| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext`                                          |
-| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | No reader                                       | Nothing: no model has the `ProviderConnection` columns it was described as protecting                                                                            | NIST 1 year (KEK) | Required at boot (`apps/api/src/config/env.ts`), named in `secretCatalog.ts`; wiring or deleting it is the Maintainer's choice in `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16 |
+| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                  |
+| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext` |
 
-**Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`,
-`openssl rand -hex 32` for `OAUTH_ENCRYPTION_KEY`.
+`OAUTH_ENCRYPTION_KEY` is not a master key: nothing reads it, nothing
+replaced it, and the `ProviderConnection` columns it was described as
+protecting are not in the schema. The API refuses to boot while it is set,
+naming it and never its value (`REMOVED_VARIABLES` in
+`apps/api/src/config/env.ts`). The secret catalog that the rotation status
+reads (`packages/core/domain/src/security/secretCatalog.ts`) still lists it.
+
+**Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`.
 
 **Rotation procedure.** [T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--special-consideration)
 documents the special handling required (re-wrap of all DEKs, dual-key
@@ -171,7 +176,7 @@ validated at boot by `env.ts`; missing required values cause fail-fast.
 | Env var               | Required                      | Format                                              | Used by                      | Rotation cadence          | Notes                                                            |
 | --------------------- | ----------------------------- | --------------------------------------------------- | ---------------------------- | ------------------------- | ---------------------------------------------------------------- |
 | `DATABASE_URL`        | required                      | `postgresql://USER:PASS@HOST:PORT/DB?schema=public` | API, workers, Prisma migrate | NIST 1 year (DB password) | Embedded password is the credential; URL host/port may be public |
-| `SHADOW_DATABASE_URL` | required for `prisma migrate` | Same shape                                          | Prisma migration tool        | Same as above             | Used only for shadow database during schema diffing              |
+| `SHADOW_DATABASE_URL` | for `prisma migrate dev` only | Same shape                                          | Prisma migration tool        | Same as above             | Used only for shadow database during schema diffing              |
 
 Rotation procedure: [T0A §2.1](./T0A_SECRETS_ROTATION_RUNBOOK.md#21-database-postgresql).
 
@@ -346,7 +351,7 @@ in one of five classes:
 | `PlatformCredential.encryptedValue` + `.iv` + `.authTag` | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Generic platform-credential blob                                          |
 | `AccountCredential.encryptedValue` + `.iv` + `.authTag`  | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Per-account credential blob                                               |
 
-`OAUTH_ENCRYPTION_KEY` encrypts none of these: no code reads it, and the `ProviderConnection` model it was described as protecting is not in the schema (§3; `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16). Per-channel OAuth tokens live in `Channel.credentials`.
+`OAUTH_ENCRYPTION_KEY` encrypts none of these: no code reads it, the API refuses to boot while it is set, and the `ProviderConnection` model it was described as protecting is not in the schema (§3; `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16). Per-channel OAuth tokens live in `Channel.credentials`.
 
 Rotation = re-wrap with the new KEK version using the
 `*KeyVersion` discriminator. Procedure in
@@ -552,7 +557,7 @@ schedule template in
 
 | Category                                                                            | Cadence                        | Rotation method                                                           |
 | ----------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------- |
-| Symmetric encryption keys (KEK) — `PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY` | 1 year                         | Re-wrap of all dependent ciphertexts using the version discriminator      |
+| Symmetric encryption key (KEK) — `PLATFORM_ENCRYPTION_KEY`, with its prior versions | 1 year                         | Re-wrap of all dependent ciphertexts using the version discriminator      |
 | JWT signing keys — `JWT_*_SECRET`, `ADMIN_JWT_*_SECRET`, `CUSTOMER_JWT_SECRET`      | 90 days                        | Dual-key validity window; existing tokens stay valid until natural expiry |
 | Session / cookie secrets — `COOKIE_SECRET`                                          | 90 days                        | Same dual-key window                                                      |
 | Database password (embedded in `DATABASE_URL`)                                      | 1 year                         | Roll the DB role password, update env var, restart                        |
@@ -612,12 +617,12 @@ immediate steps, verification, communication.
 
 ### D.1 Master key compromise
 
-Signal: `PLATFORM_ENCRYPTION_KEY` or `OAUTH_ENCRYPTION_KEY` appears in
+Signal: `PLATFORM_ENCRYPTION_KEY` appears in
 logs, git history, screenshots, error messages, or external dump.
 
 Immediate steps:
 
-1. Generate a new key (`openssl rand -base64 32` / `openssl rand -hex 32`).
+1. Generate a new key (`openssl rand -base64 32`).
 2. Add it as the new active version (bump `keyVersion`); keep the
    compromised key in the prior-version map for the duration of re-wrap.
 3. Run the re-wrap campaign for every Class A column

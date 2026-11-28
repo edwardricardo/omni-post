@@ -410,7 +410,7 @@ DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 
 # Authentication
-JWT_SECRET=your-jwt-secret
+JWT_ACCESS_SECRET=your-jwt-access-secret
 ENCRYPTION_KEY=your-encryption-key
 
 # External Services

@@ -32,6 +32,7 @@ Every backend module imports `env` from `apps/api/src/config/env.ts`. The schema
 | **Optional with default** | Schema applies default if unset                       | `PORT=3000`, `NODE_ENV=development`, `LOG_LEVEL=info`                       |
 | **Optional**              | `undefined` is fine; consumer handles it              | `OPENAI_API_KEY` (AI feature auto-disables)                                 |
 | **Conditional**           | Required if a sibling toggle is set                   | `STRIPE_SECRET_KEY` required when `PAYMENT_PROVIDER=stripe`                 |
+| **Retired**               | Not declared; boot fails while it is set, naming it   | `OAUTH_ENCRYPTION_KEY`, `JWT_SECRET`, `TRUSTED_PROXY_HOP_COUNT`             |
 
 Conditional validation is enforced at the point of use (e.g. `paymentAdapterFactory.ts` throws if Stripe is selected but its secrets are unset), not in the Zod schema, because the schema can't easily express cross-field constraints without losing the simple "all-fields-optional or required" mental model.
 
@@ -78,7 +79,7 @@ The patterns prevented by this design are:
 
 1. **CWE-798 (Use of Hard-coded Credentials)** — `process.env.X || "dev-only-..."`, `process.env.X ?? ""`, `process.env.X || generated()`. Each lets the app boot with a known/empty/ephemeral secret, masking misconfiguration in dev and shipping insecurely if someone deploys without setting the var.
 2. **CWE-209 (Information Exposure Through Error Message)** — none of the validation errors leak secret values; only the variable name and the constraint that failed.
-3. **CWE-321 (Use of Hard-coded Cryptographic Key)** — encryption keys (`PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY`) declared as required at boot with `min(32)` constraint; absence fails the boot rather than silently falling back to a hardcoded default.
+3. **CWE-321 (Use of Hard-coded Cryptographic Key)** — the encryption key (`PLATFORM_ENCRYPTION_KEY`) is declared as required at boot with `min(32)` constraint; absence fails the boot rather than silently falling back to a hardcoded default.
 4. **CWE-256 (Plaintext Storage of a Password)** — DB passwords stored only in `.env`/KMS; user passwords never stored — only Argon2id hashes. Encryption uses AES-256-GCM (AEAD) with rotating IVs.
 5. **CWE-547 (Hard-coded Security-relevant Constants)** — covered by the broader env-var pattern: every config value is externalized to env, no in-source constants for secrets, providers, or feature toggles.
 
@@ -98,7 +99,7 @@ Secrets are not a single OWASP category — they thread through five:
 
 Threat coverage applied to each credential type vivo en el repo:
 
-| Threat                     | JWT signing keys                                                         | Encryption KEKs (PLATFORM_ENCRYPTION_KEY, OAUTH_ENCRYPTION_KEY) | OAuth client secrets (FACEBOOK_CLIENT_SECRET, etc.)      | DB passwords (DATABASE_URL)                | Per-tenant credentials (Channel.credentials)                       |
+| Threat                     | JWT signing keys                                                         | Encryption KEK (PLATFORM_ENCRYPTION_KEY and its prior versions) | OAuth client secrets (FACEBOOK_CLIENT_SECRET, etc.)      | DB passwords (DATABASE_URL)                | Per-tenant credentials (Channel.credentials)                       |
 | -------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
 | **Spoofing**               | Stolen secret → forge any user's token                                   | Stolen KEK → decrypt all rows                                   | Stolen → impersonate platform integration                | Stolen → full DB access                    | Per-row encryption isolates blast radius                           |
 | **Tampering**              | Modified `.env` → deploy with new key invalidates sessions (intentional) | Modified KEK → all reads fail (catches tampering loudly)        | Modified → OAuth handshake fails immediately             | DB writes monitored via audit log          | Tampering = ciphertext fails AES-GCM auth tag                      |
@@ -181,9 +182,9 @@ Production: separate runbook (`docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`) c
 
 ## Troubleshooting
 
-**"The environment was refused: these variables are missing or not valid: …"** — the schema rejected one or more values. The API's module raises the registry's `ENV_VARIABLES_REFUSED` (`environmentRefusal`, `apps/api/src/config/env.ts`), whose message names each refused variable and never a value. Its cause, **"Environment validation failed. Refusing to boot."**, lists every offending key with its constraint, and the API's start prints it under `[cause]`; the first-administrator command prints the names only, never the cause's text. The workers' module (`apps/workers/src/config/env.ts`) raises its own error, whose message is that cause's text. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port).
+**"The environment was refused: these variables are missing or not valid: …"** — the schema rejected one or more values. The API's module raises the registry's `ENV_VARIABLES_REFUSED` (`environmentRefusal`, `apps/api/src/config/env.ts`), whose message names each refused variable and never a value. Its cause, **"Environment validation failed. Refusing to boot."**, lists every offending key with its constraint, and the API's start prints it under `[cause]`; the first-administrator command prints the names only, never the cause's text. The workers' module (`apps/workers/src/config/env.ts`) raises its own error, whose message is that cause's text. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port), a retired name still set (`OAUTH_ENCRYPTION_KEY` or `JWT_SECRET`: delete it). One refusal names every cause at once: each variable its own schema refuses, each rule over the whole environment (the trusted-proxy pair, the key ring's contiguity and its active version) whose variables pass their own schema, and each retired name still set.
 
-**Test suite fails with the same error** — `.env.test` is missing a key the schema requires. Add it with a deterministic dummy value (`>= 32` chars).
+**Test suite fails with the same error** — `.env.test` is missing a key the schema requires, or still holds a retired one. Add a missing key with a deterministic dummy value (`>= 32` chars); delete a retired one.
 
 **Boot fails with `Missing required env var: X (STORAGE_PROVIDER=…)`** — the selected storage provider is missing variable `X`. See the storage paragraph under [Key categories](#key-categories).
 
