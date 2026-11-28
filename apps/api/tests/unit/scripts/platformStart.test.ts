@@ -140,10 +140,12 @@ const SECRETS = [
   "ADMIN_JWT_REFRESH_SECRET",
   "COOKIE_SECRET",
   "PLATFORM_ENCRYPTION_KEY",
-  "OAUTH_ENCRYPTION_KEY",
   "DELETION_NAME_DIGEST_KEY_RING",
   "ADMIN_PASSWORD",
 ];
+
+/** The variables a new file receives for the development tools, which the platform never reads. */
+const DEVELOPMENT_TOOL_KEYS = ["SHADOW_DATABASE_URL", "ADMIN_PASSWORD"];
 
 /** Lowercase hex of `bytes` random bytes: two characters per byte. */
 const hexOf = (bytes: number): RegExp => new RegExp(`^[0-9a-f]{${String(bytes * 2)}}$`);
@@ -173,7 +175,6 @@ const SECRET_SHAPES: ReadonlyArray<[string, SecretReading, RegExp]> = [
   ["ADMIN_JWT_REFRESH_SECRET", own("ADMIN_JWT_REFRESH_SECRET"), hexOf(32)],
   ["COOKIE_SECRET", own("COOKIE_SECRET"), hexOf(32)],
   ["PLATFORM_ENCRYPTION_KEY", own("PLATFORM_ENCRYPTION_KEY"), /^[A-Za-z0-9+/]{43}=$/],
-  ["OAUTH_ENCRYPTION_KEY", own("OAUTH_ENCRYPTION_KEY"), hexOf(32)],
   [
     "DELETION_NAME_DIGEST_KEY_RING",
     (values) =>
@@ -1024,16 +1025,29 @@ describe("the generated environment", () => {
   it("holds what the platform requires and, besides it, what the development tools need", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
 
-    expect(core.REQUIRED_KEYS).not.toContain("ADMIN_PASSWORD");
-    expect(Object.keys(values).sort()).toEqual([...core.REQUIRED_KEYS, "ADMIN_PASSWORD"].sort());
+    expect(core.REQUIRED_KEYS.filter((key) => DEVELOPMENT_TOOL_KEYS.includes(key))).toEqual([]);
+    expect(Object.keys(values).sort()).toEqual(
+      [...core.REQUIRED_KEYS, ...DEVELOPMENT_TOOL_KEYS].sort()
+    );
   });
 
   it("requires nothing of an existing file that only the development tools read", () => {
     const values = Object.fromEntries(
-      core.generateEnvironment({ randomBytes }).filter(([key]) => key !== "ADMIN_PASSWORD")
+      core
+        .generateEnvironment({ randomBytes })
+        .filter(([key]) => !DEVELOPMENT_TOOL_KEYS.includes(key))
     );
 
     expect(core.missingKeys(values)).toEqual([]);
+  });
+
+  it("holds no OAUTH_ENCRYPTION_KEY, and the API's schema accepts what it holds", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    const parsed = parseApiEnv(values);
+
+    expect(Object.keys(values)).not.toContain("OAUTH_ENCRYPTION_KEY");
+    expect(parsed.DATABASE_URL).toBe(values.DATABASE_URL);
   });
 
   it("gives the development seed an ADMIN_PASSWORD its password rule accepts", () => {

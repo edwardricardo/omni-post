@@ -11,7 +11,7 @@ This runbook covers the **local development `.env` file** at the repo root (`<re
 The `.env` file contains:
 
 - **6 auth secrets** (JWT × 5, cookie × 1) — losing them invalidates all sessions
-- **2 encryption keys** (`PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY`) — losing them makes encrypted-at-rest data (channel OAuth tokens, OIDC client secrets, hashed admin sessions) **permanently unreadable**
+- **1 encryption key** (`PLATFORM_ENCRYPTION_KEY`) — losing it makes encrypted-at-rest data (channel OAuth tokens, OIDC client secrets, hashed admin sessions) **permanently unreadable**
 - **4 service passwords** (Postgres, MinIO, Grafana, admin seed) — losing them locks out infra
 - **24 provider OAuth credentials** (8 providers × 3 fields) — losing them requires re-registering apps in each provider's developer console
 

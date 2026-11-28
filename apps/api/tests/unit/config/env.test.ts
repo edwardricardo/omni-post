@@ -16,7 +16,6 @@ vi.hoisted(() => vi.spyOn(process, "loadEnvFile").mockImplementation(() => undef
 const REQUIRED_BASE_ENV = {
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://u:p@localhost:5432/db?schema=public",
-  SHADOW_DATABASE_URL: "postgresql://u:p@localhost:5432/db_shadow?schema=public",
   JWT_ACCESS_SECRET: "a".repeat(32),
   JWT_REFRESH_SECRET: "b".repeat(32),
   CUSTOMER_JWT_SECRET: "c".repeat(32),
@@ -24,7 +23,6 @@ const REQUIRED_BASE_ENV = {
   ADMIN_JWT_REFRESH_SECRET: "e".repeat(32),
   COOKIE_SECRET: "f".repeat(32),
   PLATFORM_ENCRYPTION_KEY: "g".repeat(32),
-  OAUTH_ENCRYPTION_KEY: "h".repeat(32),
   // The name-digest key ring is REQUIRED with no default, so it belongs in the
   // base fixture like every other must-be-present key. Its own contract —
   // shape, contiguity, pointer — is exercised in `nameDigestRing.test.ts`.

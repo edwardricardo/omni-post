@@ -63,7 +63,7 @@ Table grouped by domain: the secrets a deployment holds, not what the git histor
 | Key                   | Service                                                 | Action                                                             | Priority |
 | --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ | -------- |
 | `DATABASE_URL`        | Managed PostgreSQL (Railway/Supabase/AWS RDS — confirm) | Create a new DB user + new password + update the connection string | CRITICAL |
-| `SHADOW_DATABASE_URL` | Managed PostgreSQL                                      | Same — it can reuse the same instance with a new password          | HIGH     |
+| `SHADOW_DATABASE_URL` | Managed PostgreSQL                                      | Same, where it is set: only `prisma migrate dev` reads it          | HIGH     |
 
 **Procedure:**
 
@@ -71,7 +71,7 @@ Table grouped by domain: the secrets a deployment holds, not what the git histor
 2. Create a new role/user with the same permissions (`CREATE USER new_user WITH PASSWORD '...' ;`).
 3. `GRANT ALL PRIVILEGES ON DATABASE omnipostdb TO new_user;`
 4. Revoke the old user (or disable its login): `ALTER USER old_user NOLOGIN;`
-5. Build the new `DATABASE_URL` and `SHADOW_DATABASE_URL`.
+5. Build the new `DATABASE_URL`, and `SHADOW_DATABASE_URL` where it is set.
 6. Update the local `.env` + the deploy platform.
 
 ### §2.2 Auth / JWT
@@ -405,7 +405,7 @@ The validity period NIST recommends per class of cryptographic key.
 | **JWT signing keys** (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CUSTOMER_JWT_SECRET`, `ADMIN_JWT_*_SECRET`) | ≤ 2 years             | ≤ 3 years            | **90 days**                 | Access tokens TTL ≤ 15min; rotation bounds blast radius if signing key compromised. Dual-key window ≥ 24h covers max access-token validity.                                            |
 | **Cookie signing** (`COOKIE_SECRET`)                                                                          | ≤ 2 years             | ≤ 3 years            | **90 days**                 | Same logic as JWT. Sessions invalidate gracefully on rotation since cookie verification is stateless.                                                                                  |
 | **API keys** (`STRIPE_SECRET_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, etc.)                                  | —                     | ≤ 2 years            | **1 year**                  | OAuth client secrets often appear in CI logs, third-party support tickets; tighter than NIST upper bound.                                                                              |
-| **Encryption keys** (`PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY`)                                       | ≤ 2 years             | indefinite           | **1 year** + key versioning | Encrypted-at-rest data must be readable across rotations; version column on every encrypted row enables zero-downtime rotation. Old key kept for decrypt-only until re-wrap completes. |
+| **Encryption keys** (`PLATFORM_ENCRYPTION_KEY`)                                                               | ≤ 2 years             | indefinite           | **1 year** + key versioning | Encrypted-at-rest data must be readable across rotations; version column on every encrypted row enables zero-downtime rotation. Old key kept for decrypt-only until re-wrap completes. |
 | **Database passwords** (`DATABASE_URL`, `POSTGRES_PASSWORD`)                                                  | —                     | —                    | **1 year**                  | App restart required for rotation; coordinate with DB admin for grace window if connection pooling is hot.                                                                             |
 | **Service account / infrastructure** (`MINIO_ROOT_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD`)                    | —                     | —                    | **1 year**                  | Single-instance dev today; in prod migrate to IAM roles where possible to avoid static credentials entirely.                                                                           |
 | **HMAC webhook signing secrets**                                                                              | ≤ 2 years             | ≤ 2 years            | **1 year**                  | Per-customer-rotated when supported by the integration provider.                                                                                                                       |
