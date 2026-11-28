@@ -30,7 +30,7 @@ name: Architectural Fitness Functions
 # step does NOT mask later violations — every PR sees every check. The greps, and
 # the node scripts of #37, #44 and #53 to #56, which read only tracked files, run in the
 # `fitness` job, which installs nothing; a check that needs the installed
-# tree runs in a job that installs it: #45 to #48, #50, #51 and #57 in `dependency-consistency`,
+# tree runs in a job that installs it: #45 to #48, #50, #51, #57 and #58 in `dependency-consistency`,
 # #30, #36 and #52 in `test-contracts`. Three exceptions to `if: always()` alone: #37,
 # #47 and #54 gate the delta against the PR base, which only exists on pull_request
 # events — their `if` adds that event condition and the step is skipped
@@ -2006,6 +2006,26 @@ jobs:
           fi
           if ! pnpm check:errors; then
             echo "::error title=Fitness #57 violation::The error registry breaks one of its rules, the page docs/api/ERROR_CODES.md is stale, the errors/ entries of eslint-suppressions.json rose against the base or changed without their history row, the rule that counts them changed beside a count, or a gate could not read one of its inputs. The error-registry-gate and error-sites-gate lines above name each rule broken (R1 to R11, S1 to S10) with its file and its repair: declare the error in the registry, regenerate the page with node scripts/testing/error-registry-gate.mjs --write, and record a changed count with node scripts/testing/error-sites-gate.mjs --record."
+            exit 1
+          fi
+
+      - name: "#58 The deployment checklist holds every name the tree reads and its citations resolve"
+        if: always()
+        run: |
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #58, the deployment twin of #45 and #46.
+          # scripts/deployment/run.mjs --check derives every repository variable and secret a workflow of
+          # .github/workflows/ reads and every variable of the four environment schemas, read from
+          # their syntax trees and never imported; joins each name with the table rows of
+          # docs/deployment/DEPLOYMENT_CHECKLIST.md and docs/deployment/classification/names.json;
+          # checks every path:line citation of the checklist; and re-renders
+          # docs/deployment/DEPLOYMENT_INVENTORY.md to compare it with the committed page. An
+          # unheld name, a stale entry, a pending count off its baseline, a citation that does not
+          # resolve or a stale page exits 1. Same job as #45 and #46: the page renders through
+          # prettier's API and the schemas parse with the installed typescript package. Pinned by
+          # apps/api/tests/unit/scripts/deploymentChecklist.test.ts.
+          set -euo pipefail
+          if ! pnpm check:deployment; then
+            echo "::error title=Fitness #58 violation::The deployment checklist does not hold the tree. A name a workflow or an environment schema reads has no table row and no entry in docs/deployment/classification/names.json, an entry is stale, a workflow reads its variables or secrets through a form that names none, the pending count is off pendingBaseline, a path:line citation of docs/deployment/DEPLOYMENT_CHECKLIST.md names no repository file or a line it does not have, or docs/deployment/DEPLOYMENT_INVENTORY.md is stale. Write the row, or classify the name (shorthand with its row, exempt with its reason, or pending within the baseline), run pnpm deployment:inventory, and commit the regenerated page with the change. The deployment-checklist lines above name each problem."
             exit 1
           fi
 

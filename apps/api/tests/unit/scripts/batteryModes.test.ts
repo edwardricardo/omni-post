@@ -58,6 +58,7 @@ const STATIC_STEPS = [
   "jsdoc",
   "legal",
   "support",
+  "deployment",
   "deps-ledger",
   "i18n",
   "errors",
@@ -285,11 +286,11 @@ describe("battery.sh --list", () => {
     expect(lines(result.stdout)).toEqual(declaredSteps().map((step) => step.name));
   });
 
-  it("prints as many names as PLANNED_STEPS, which is 38, when --list is given alone", () => {
+  it("prints as many names as PLANNED_STEPS, which is 39, when --list is given alone", () => {
     const result = runBattery(["--list"]);
 
     expect(lines(result.stdout)).toHaveLength(plannedSteps());
-    expect(plannedSteps()).toBe(38);
+    expect(plannedSteps()).toBe(39);
   });
 
   it("prints the static steps in the script's order when --static --list is given", () => {
@@ -389,6 +390,19 @@ describe("battery.sh full run", () => {
 });
 
 describe("battery.sh --static run", () => {
+  it("hands the deployment step pnpm check:deployment, after the support step, when --static runs", () => {
+    const repo = createRepository();
+
+    runStatic(repo);
+
+    const calls = lines(readFileSync(path.join(scratchRoot, "timeout-calls.txt"), "utf8"));
+    const at = (command: string): number => calls.findIndex((call) => call.endsWith(` ${command}`));
+    expect(calls.filter((call) => call.includes("pnpm check:deployment"))).toEqual([
+      "--kill-after=30 3600 pnpm check:deployment",
+    ]);
+    expect(at("pnpm check:deployment")).toBe(at("pnpm check:support") + 1);
+  });
+
   it("prints STATIC GREEN with the step count and exits 0 when every static step exits 0 and no environment file exists", () => {
     const repo = createRepository();
 

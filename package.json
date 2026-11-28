@@ -71,6 +71,8 @@
     "legal:inventory": "node scripts/legal/run.mjs",
     "check:support": "node scripts/support/run.mjs --check",
     "support:index": "node scripts/support/run.mjs",
+    "check:deployment": "node scripts/deployment/run.mjs --check",
+    "deployment:inventory": "node scripts/deployment/run.mjs",
     "check:stories": "node scripts/testing/story-per-component-gate.mjs",
     "check:architecture": "depcruise apps/api/src apps/workers/src packages --config .dependency-cruiser.cjs --output-type err --ignore-known .dependency-cruiser-known-violations.json",
     "check:architecture:update-baseline": "depcruise apps/api/src apps/workers/src packages --config .dependency-cruiser.cjs --baseline .dependency-cruiser-known-violations.json && prettier -w .dependency-cruiser-known-violations.json",

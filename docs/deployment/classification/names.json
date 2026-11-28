@@ -1,0 +1,59 @@
+{
+  "pendingBaseline": 24,
+  "entries": {
+    "AI_PROVIDER_REQUESTS_PER_MIN": { "status": "pending" },
+    "DELETION_NAME_DIGEST_ACTIVE_VERSION": { "status": "pending" },
+    "DELETION_RECORD_RETENTION_YEARS": { "status": "pending" },
+    "DO_SPACES_ENDPOINT": {
+      "status": "shorthand",
+      "row": "DO_SPACES_BUCKET",
+      "note": "The storage row names `DO_SPACES_BUCKET`, `_REGION`, `_KEY`, `_SECRET` and `_ENDPOINT`."
+    },
+    "DO_SPACES_KEY": {
+      "status": "shorthand",
+      "row": "DO_SPACES_BUCKET",
+      "note": "The storage row names `DO_SPACES_BUCKET`, `_REGION`, `_KEY`, `_SECRET` and `_ENDPOINT`."
+    },
+    "DO_SPACES_REGION": {
+      "status": "shorthand",
+      "row": "DO_SPACES_BUCKET",
+      "note": "The storage row names `DO_SPACES_BUCKET`, `_REGION`, `_KEY`, `_SECRET` and `_ENDPOINT`."
+    },
+    "DO_SPACES_SECRET": {
+      "status": "shorthand",
+      "row": "DO_SPACES_BUCKET",
+      "note": "The storage row names `DO_SPACES_BUCKET`, `_REGION`, `_KEY`, `_SECRET` and `_ENDPOINT`."
+    },
+    "EMBEDDINGS_DIMENSIONS": { "status": "pending" },
+    "EMBEDDINGS_PROVIDER_PREFERENCE": { "status": "pending" },
+    "ENABLE_RATE_LIMITING": { "status": "pending" },
+    "GEMINI_EMBEDDINGS_MODEL": { "status": "pending" },
+    "GEMINI_MODEL": { "status": "pending" },
+    "HOST": { "status": "pending" },
+    "LOG_CACHE_OPS": { "status": "pending" },
+    "LOG_LEVEL": { "status": "pending" },
+    "MATERIALIZED_VIEW_REFRESH_INTERVAL": { "status": "pending" },
+    "MAX_STREAMS_PER_ACCOUNT": { "status": "pending" },
+    "NEXT_PUBLIC_API_URL": { "status": "pending" },
+    "OPENAI_EMBEDDINGS_MODEL": { "status": "pending" },
+    "OPENAI_MODEL": { "status": "pending" },
+    "PERPLEXITY_MODEL": { "status": "pending" },
+    "PLATFORM_ENCRYPTION_KEY_V2": {
+      "status": "shorthand",
+      "row": "PLATFORM_ENCRYPTION_KEY_V1",
+      "note": "The row of `PLATFORM_ENCRYPTION_KEY` names `PLATFORM_ENCRYPTION_KEY_V1`, `_V2` and `_V3`."
+    },
+    "PLATFORM_ENCRYPTION_KEY_V3": {
+      "status": "shorthand",
+      "row": "PLATFORM_ENCRYPTION_KEY_V1",
+      "note": "The row of `PLATFORM_ENCRYPTION_KEY` names `PLATFORM_ENCRYPTION_KEY_V1`, `_V2` and `_V3`."
+    },
+    "REDIS_HOST": { "status": "pending" },
+    "REDIS_PASSWORD": { "status": "pending" },
+    "REDIS_PORT": { "status": "pending" },
+    "SAGA_WAIT_POLL_MS": { "status": "pending" },
+    "SCHEMA_ONLY": { "status": "pending" },
+    "THUMBNAIL_TEMP_DIR": { "status": "pending" },
+    "VIDEO_TEMP_DIR": { "status": "pending" }
+  }
+}

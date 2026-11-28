@@ -8,7 +8,7 @@ The rules of the suite and its count are in [CLAUDE.md](../../CLAUDE.md) §Autom
 
 ## Inventory
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37, #47 and #54 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (**#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. **#53 is held per file**: every tracked file's Spanish lines and name mentions equal its entry in `scripts/testing/artifact-language-baseline.json` in both directions, so each entry may fall and must never rise, and the file is deleted once every count is zero. Every baseline may fall and must never rise.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37, #47 and #54 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (**#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45, #46 and #58 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46, `docs/deployment/classification/names.json` for the deployment inventory of #58: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. **#53 is held per file**: every tracked file's Spanish lines and name mentions equal its entry in `scripts/testing/artifact-language-baseline.json` in both directions, so each entry may fall and must never rise, and the file is deleted once every count is zero. Every baseline may fall and must never rise.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -71,6 +71,7 @@ Each check is one line below: its number, the name of its step in `fitness.yml`,
 - **#55** The auto-loaded instruction files match their manifest and budget, and the hooks that enforce them are wired — `node scripts/testing/instruction-context-gate.mjs`
 - **#56** No closed feature has an open item — `node scripts/testing/plan-closure-gate.mjs`
 - **#57** The error registry is whole and the list of existing error sites only shrinks — `pnpm check:errors`
+- **#58** The deployment checklist holds every name the tree reads and its citations resolve — `pnpm check:deployment`
 
 **Not a numbered check: the integration-tier RLS coverage gate.** Whether row security covers every guard-enrolled table is database state, which no grep reads, so the gate is an integration test: `describe("pg_catalog coverage gate")` of `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts`, run by the CI job `Integration Tests`. It is named here so the gate inventory stays complete; its record is in this document, under "Not a numbered check".
 
@@ -79,7 +80,7 @@ Each check is one line below: its number, the name of its step in `fitness.yml`,
 Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex to `docs/development/FITNESS_FUNCTIONS.md`, as a block under the next number, with a one-line description of the threat being prevented and a comment justifying any exclusions, and add the check's line to the list above and raise the count sentence of [CLAUDE.md](../../CLAUDE.md) §Automated Compliance Checks.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #36, #37, #44 to #48, #50 to #57) is the same rule one level up: its step and its block call the same command, and the script, pinned by its own tests, is the rule's single source, so neither file restates it. A script-backed check also adds its script to the `paths:` of `.claude/rules/fitness-functions.md`.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #36, #37, #44 to #48, #50 to #58) is the same rule one level up: its step and its block call the same command, and the script, pinned by its own tests, is the rule's single source, so neither file restates it. A script-backed check also adds its script to the `paths:` of `.claude/rules/fitness-functions.md`.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as an item of the plan's cross-cutting part (`docs/product/plan/cross-cutting.md`) rather than locking in non-zero noise.
 
@@ -2599,6 +2600,128 @@ pnpm check:errors   # expect exit 0 and, on stdout:
 #   error-sites-gate: PASS
 #   error-sites-gate: <N> sites in <C> contexts
 #   error-sites-gate: base: <ref>   (or: base: none (S6 to S10 skipped))
+
+# 58. The deployment checklist holds every name the tree reads, and its citations resolve.
+# Threat: a deployment misses a setting nobody listed. A pull request that adds a variable to an
+# environment schema, or a `vars.X` or `secrets.X` to a workflow, adds something an operator must
+# create before a deployment, and nothing tied docs/deployment/DEPLOYMENT_CHECKLIST.md to that
+# change: the page is written by hand, a name the tree gained has no row, and a citation keeps
+# naming a file by its basename or a line its file no longer has.
+# WHAT IT RUNS: `pnpm check:deployment`, which is `node scripts/deployment/run.mjs --check`, with
+# one generator, scripts/deployment/inventory.mjs, and its three readers under
+# scripts/deployment/lib/, pinned by apps/api/tests/unit/scripts/deploymentChecklist.test.ts:
+#   - schema-names.mjs reads every key of the `server`, `client` or `shared` block of the
+#     `createEnv` call of apps/api/src/config/env.ts, apps/workers/src/config/env.ts,
+#     apps/admin/lib/env.ts and apps/client/lib/env.ts from the syntax tree of the `typescript`
+#     package, a spread followed through the paths of tsconfig.base.json to the module that
+#     declares it; a comment declares nothing, and a portal's `runtimeEnv`, which repeats its
+#     keys, is no block;
+#   - workflow-references.mjs reads the whole text of each workflow of .github/workflows/,
+#     comments included, and interprets no YAML. Where GitHub evaluates an expression, a `${{ … }}`
+#     span (closed by the first `}}` outside a single-quoted string, or by the text's end) and an
+#     `if:` value with every following line indented deeper than its key, each `vars` or `secrets`
+#     context, in any letter case and no property of another object, is derived or fails: it
+#     resolves to a name past whitespace, line breaks and the parentheses that wrap it alone
+#     (`secrets . X`, `(vars)['X']`), or it is returned with its line as a read with no name
+#     (`toJSON(secrets)`, `secrets.*`, an index that is no string literal, the bare context).
+#     Outside every region the forms written with no space, `secrets.X`, `secrets['X']` and
+#     `vars["X"]`, are read in excess, and `secrets: inherit` is a read with no name;
+#   - checklist.mjs reads the checklist's table rows, each with the heading above it and the words
+#     of its code spans, and its `path:line` and `path:a-b` citations, a bare `:a` bound to the
+#     path cited before it on the same line.
+# The generator joins each name with the rows that name it in a code span and with
+# docs/deployment/classification/names.json, checks every citation through its links, and
+# regenerates docs/deployment/DEPLOYMENT_INVENTORY.md in memory to compare it with the committed
+# page.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside #45 and #46 and
+# for their reason: the page renders through prettier's API, by way of the inventory library under
+# scripts/legal/lib/ that the three generators share, and the schemas are parsed by the installed
+# `typescript` package; the Fitness Functions job installs nothing. #44 reads a `#N` step name from
+# any job, so the inventory still counts this check. The battery runs the same command as its
+# static step `deployment`, after `support`.
+# WHAT FAILS, each printed as `deployment-checklist inventory: <problem>`: a name no table row
+# names and no entry classifies; an entry for a name the tree does not read, or for a name a row
+# names (drop it); a `shorthand` entry with no `row`, whose `row` no table row names, whose name
+# shares no prefix with its `row`, or whose suffix no row naming its `row` writes in a code span;
+# a `row` on an entry of another status; a note of blanks only; an entry the shared loader refuses
+# (a status it does not list, an unknown key, an `exempt` with no note); a `pending` count above or
+# below `pendingBaseline`; a citation that leaves the repository or names an environment file, as
+# written or where its links land, is no range, names no file of the repository (a basename alone
+# is no repository path) or a line past its file's end; an entry of .github/workflows/ that cannot
+# be read as a file (a dangling link, a directory); a workflow that reads `vars` or `secrets`
+# through a form that names none, inside an expression any context that resolves to no name,
+# the word of a trailing comment on an `if:` line included (`# no secrets on forks`: reword the
+# comment, or move it to a line of its own no deeper than the `if:` key), printed with its file,
+# its line and the form, as
+# "<file>:<line> reads secrets through `secrets: inherit`, which names none: a read the check
+# cannot name is not clean"; a schema part the reader cannot name (a key
+# with no literal name, a spread it cannot follow, a block or a module with no `createEnv` call);
+# and a committed page that is missing or differs from the regenerated one.
+# NOT APPLICABLE IS A ROW. A name that needs no row of the checklist is declared `exempt` in the
+# classification with its reason, and a name a row writes by a suffix (`PLATFORM_ENCRYPTION_KEY_V1`,
+# `_V2` and `_V3`) is declared `shorthand` with the `row` whose name the checklist writes in full:
+# the check never guesses a shorthand, and holds the declaration to the family, the two names
+# sharing a prefix and the row writing the declared name's own suffix. A pull request sentence never
+# satisfies it.
+# NO VALUE LEAVES A SOURCE. The schemas are parsed and never imported, because importing one
+# validates the process environment; an import is followed only to a module of the tree, never
+# out of it, under node_modules or into an environment file; a citation is followed through its
+# links, and one that names or lands on an environment file, or lands outside the tree, is refused
+# before its file is opened, which is then read at the real path that was checked. The page and
+# every printed line carry names, paths, counts and the shape of a nameless form, its index
+# elided (`secrets[…]`), never a default or a literal.
+# RECORDED FACTS ONLY. The page carries each name with the files that read it, the heading of each
+# row that names it and its classification, the sha256 prefix of the derived names with their
+# sources and of the classification file, and the counts per classification. No line number, no
+# citation count (printed, never written) and no timestamp: it fires when a name, a reader, a
+# naming section or a classification changes, and stays green over a change that moves a line.
+# RATCHET. `pendingBaseline` is the check's one counted residual: the names that wait for their
+# row, 24 when this check landed (30 names had no row; six of them are rows' suffix shorthand). It
+# may fall and must never rise, and the check holds it EXACT, so the change that writes a pending
+# name's row drops its entry and lowers the baseline in the same diff or goes red.
+# FAIL-CLOSED: a missing schema, checklist or .github/workflows/, a schema that yields no name and
+# a workflow directory with no workflow are a scope error, exit 1, instead of rendering a short
+# inventory as clean; an entry of the workflow directory that cannot be read as a file, a workflow
+# that reads `vars` or `secrets` with no name and a classification file that is missing or not
+# JSON are a problem, exit 1. A workflow that reads no name is no error.
+# RED PATH, shown on the tree this check landed in, each planted, run, restored byte for byte by
+# checksum, and the check green again (exit 0): (1) the entry of the pending name HOST deleted and
+# the baseline lowered to 23: exit 1, "HOST has no row in the checklist and no entry in
+# docs/deployment/classification/names.json: name it in a row or classify it"; (2) the baseline
+# raised to 25: exit 1, "stale pendingBaseline 25: lower it to 24"; (3) a citation cut back to
+# `providerOAuthConfigs.ts:646` and another moved to line 5900: exit 1, "… cites
+# providerOAuthConfigs.ts:646, which is no file of the repository" and "… cites
+# apps/workers/src/config/env.ts:5900, which has 110 lines"; (4) one count of the committed page
+# edited: exit 1, "docs/deployment/DEPLOYMENT_INVENTORY.md differs from the regenerated page: run
+# pnpm deployment:inventory".
+# RESIDUAL LIMITS, stated rather than implied: (1) a citation is held to its file's length, never to
+# what the cited line says (the plan row DEPLOYMENT-CHECKLIST-WORKFLOW-CITATIONS-NOT-HELD,
+# docs/product/plan/cross-cutting.md), and a prose citation such as "(line 291)" is not read;
+# (2) the names are the schemas' and the workflows': a variable read outside a schema (a billing
+# adapter's `process.env[...]`, the OpenTelemetry endpoint), a Dockerfile `ARG` and an Admin
+# settings key are derived by no reader; (3) a row names a variable when any of its code spans holds
+# it as a whole word, and a shorthand is a human's declaration, held only to its family; (4) the
+# workflow reader interprets no YAML, no alias and no escape, and finds its regions by text; where
+# it finds none it reads only the forms written with no space, so a reference there is read when
+# written tight and missed when written with a space or a parenthesis, in five places: a line of an
+# `if:` value no deeper than its key, as in a flow mapping `{ if: … }` continued under its key; a
+# `${{` span inside a YAML single-quoted scalar, whose raw text doubles each quote, past a `}}` one
+# of its string literals holds; an `if:` value that is a YAML alias (`if: *cond`), the anchored
+# scalar standing outside every region; a `${{` split by an escaped line break of a double-quoted
+# scalar (`${\` at a line's end, `{` on the next); and a `${{` written through a YAML escape
+# (`$\x7b{`). `actionlint` reads the last three as expressions, which is the ground for taking
+# GitHub to read them too. What the reader reads in excess (a name a comment or a string writes, a
+# word that only looks like a reference, such as `result` in `needs.build-secrets.result` outside
+# a region, every context after a `${{` that never closes, and a trailing comment on an `if:` line,
+# which is part of its region: `# the secrets. The job` derives `The`, and rewording or moving the
+# comment, as for a failure, takes it out) is held by a row or by the classification like any
+# other name, or fails, and by (3) a row can hold it by chance, as a code span `X-Forwarded-For`
+# holds `X`;
+# (5) a classification is a human judgement, and the check proves only that it is present and well
+# formed, never that it is right.
+pnpm check:deployment   # expect exit 0 and, on stdout:
+#   deployment-checklist inventory: <n> names (<v> vars, <s> secrets, <k> in the schemas), <c> citations
+#   deployment-checklist inventory: docs/deployment/DEPLOYMENT_INVENTORY.md is current
 ````
 
 ## Not a numbered check

@@ -24,6 +24,7 @@ paths:
   - "scripts/testing/lib/issue-reminder.mjs"
   - "scripts/legal/**"
   - "scripts/support/**"
+  - "scripts/deployment/**"
   - "packages/test-contracts/src/reach.ts"
   - "packages/test-contracts/src/scopes.ts"
 ---
