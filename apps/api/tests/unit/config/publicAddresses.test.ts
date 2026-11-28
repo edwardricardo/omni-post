@@ -105,7 +105,7 @@ const NOT_ORIGINS = [
 const ORIGINS = [
   "https://host.test",
   "http://127.0.0.1:3200",
-  "https://xn--bcher-kva.example",
+  "https://xn--kln-sna.example",
 ] as const;
 
 /**
@@ -115,7 +115,7 @@ const ORIGINS = [
 const MISWRITTEN_ORIGINS = [
   {
     form: "a host written in Unicode",
-    value: "https://bücher.example",
+    value: "https://köln.example",
     rule: "the host in lowercase ASCII (a name with other characters in its punycode form)",
   },
   {
