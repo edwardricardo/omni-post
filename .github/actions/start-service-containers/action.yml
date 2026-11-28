@@ -64,8 +64,12 @@ runs:
           "$REDIS_IMAGE" > /dev/null
         # 120 s covers the first check at 10 s and the five failed checks Docker counts before it
         # calls a container unhealthy. A container that stops, turns unhealthy or is still starting
-        # at the bound fails the step with its own log.
-        deadline=$((SECONDS + 120))
+        # at the bound fails the step with its own log. The bound and the pause between two reads
+        # come from two variables no workflow sets, so that the suite that runs this script can
+        # make them small; unset, they are 120 s and 2 s.
+        bound="${SERVICE_HEALTH_BOUND_SECONDS:-120}"
+        poll="${SERVICE_HEALTH_POLL_SECONDS:-2}"
+        deadline=$((SECONDS + bound))
         for name in postgres redis; do
           while :; do
             state="$(docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' "$name")"
@@ -74,7 +78,7 @@ runs:
               break
             fi
             if [ "$state" = "running starting" ] && [ "$SECONDS" -lt "$deadline" ]; then
-              sleep 2
+              sleep "$poll"
               continue
             fi
             echo "::group::docker logs $name"

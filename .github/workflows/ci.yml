@@ -234,8 +234,8 @@ jobs:
           fi
           echo "API types are in sync with the OpenAPI spec."
 
-      - name: Print the Postgres and Redis logs (the job failed)
-        if: failure()
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
         uses: ./.github/actions/service-container-logs
 
   coverage-merge:
@@ -600,8 +600,8 @@ jobs:
           # remove. The liveness verdict is therefore the step's exit status.
           exit "$liveness"
 
-      - name: Print the Postgres and Redis logs (the job failed)
-        if: failure()
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
         uses: ./.github/actions/service-container-logs
 
   build:

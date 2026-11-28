@@ -183,6 +183,6 @@ jobs:
           # verdict is the step's exit status. Teardown still runs first.
           exit "$liveness"
 
-      - name: Print the Postgres and Redis logs (the job failed)
-        if: failure()
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
         uses: ./.github/actions/service-container-logs

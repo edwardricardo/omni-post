@@ -1,11 +1,13 @@
 name: "Print the Postgres and Redis logs"
 description: >-
   Prints the log of each container .github/actions/start-service-containers runs, each in a group
-  of its own. A job that starts them ends with this action under `if: failure()`.
+  of its own. A job that starts them ends with this action under `if: failure() || cancelled()`.
 
 # A container a job starts from a step is the job's own: the runner prints nothing of it when the
 # job ends. When a job fails, the database's or the cache's own log often holds the reason, so
-# the job prints both. The names are the ones the start action gives its containers.
+# the job prints both. A job that reaches its `timeout-minutes` is cancelled, not failed, and a
+# hung database or cache is a common reason it does, so a cancelled job prints them too. The
+# names are the ones the start action gives its containers.
 runs:
   using: "composite"
   steps:

@@ -73,8 +73,8 @@ jobs:
       - name: Run full test suite (cache bypassed)
         run: pnpm turbo run test --force
 
-      - name: Print the Postgres and Redis logs (the job failed)
-        if: failure()
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
         uses: ./.github/actions/service-container-logs
 
   # The services tier in an order drawn from a seed, once per matrix entry, so a
@@ -203,8 +203,8 @@ jobs:
           REDIS_URL: redis://localhost:6379
         run: pnpm --filter @apps/api run test:integration
 
-      - name: Print the Postgres and Redis logs (the job failed)
-        if: failure()
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
         uses: ./.github/actions/service-container-logs
 
   # One issue tracks the nightly, whichever job turned it red: a red night comments

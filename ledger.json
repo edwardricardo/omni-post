@@ -27,7 +27,7 @@
       "total": 1299
     },
     "blocks": {
-      "total": 16341,
+      "total": 16349,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 16030
+        "BEHAVIOURAL": 16038
       }
     },
     "deleted": {
@@ -78837,123 +78837,158 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 22,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::is named on line 1 of every image's Dockerfile by an exact version and its digest, the same in all four",
-          "line": 308,
+          "line": 454,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e085c93864485c5b25c97b552ffc89101efc8ac6e3d699fe97bc7819d4ae3fb7"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are started by no services block in any job of %s",
-          "line": 322,
+          "line": 468,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f8698ca3ca5b170dd25bc71e8fc3da30249c266e78a743bb513d4ca45b97142d"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are started in $workflow job $job by the shared action, with that job's images and credentials",
-          "line": 330,
+          "line": 476,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9733b79af8ddbc3c228ee58f8d8ad3ef02806668d4c3fc831519281fe390979c"
         },
         {
-          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are followed in $workflow job $job, as its last step, by the shared step that prints their logs when the job failed",
-          "line": 340,
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are followed in $workflow job $job, as its last step, by the shared step that prints their logs when the job failed or was cancelled",
+          "line": 486,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "84f1cdb8ee8787ceb63c9d684ec8fb4dd8680fa1a877a197e25e1890d6b2305b"
+          "bodyHash": "240bd94d151e3b9c13d837bca84e1d7ea78c32fcb3bd86c3b85a58d13b58490b"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::pull both images with the routine and run each container with its port, --pull never, the password from the environment and its health check",
-          "line": 352,
+          "line": 498,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "841990c68d70f78285851a0f167d316e7f60304a1a61cb2523dae78fabd83c3c"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::print the log of each container the start action runs",
-          "line": 370,
+          "line": 516,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f62a482f36a87471d58c82c5c98de0935d3ad2e578c15541bfcdb7270cdc1354"
         },
         {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::wait, in the start action, until both containers are healthy and then exit 0",
+          "line": 527,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1211d6a143d2e576b2b304e60d6d9a4d0f824b510ea36de88325858c29897820"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::fail, in the start action's wait, with exit 1, the container's log and the ::error line when $name",
+          "line": 538,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "50e4f602af6e1219745d58001de97450103fa544aa12410a1ecb02ce60272ee8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::wait 120 s at most and poll every 2 s when the environment sets neither, which no workflow or action does",
+          "line": 577,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0249d205c40438293a59e66cb18c84820468faf3121b42282d1daf91407a6ecc"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::run the action at a full commit, name one Trivy version and turn the action's cache off",
-          "line": 383,
+          "line": 599,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45b1a8fb594df4ff7be184f4eca9f686c45f810c8dfb9670150ba7c0a5cd0772"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::read a database that main alone saves and every other ref restores, at the directory both steps name",
-          "line": 400,
+          "line": 616,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25122b58fd6ea030fc84bdc79fe6da2962ff7fcbb8ebbc41dbb1e61d0f64ac76"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::read the database's directory from the job's environment, which no step's condition can leave empty",
-          "line": 420,
+          "line": 636,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c9f151798b942aa7d2d8057bdc497abb30f9a6839901e972313085f20fe1a76"
         },
         {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::keep the database's directory out of the context the scan job builds its images from",
+          "line": 650,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ca11de46a8c44fc8c20ead241afb07a5be2f2b07b4b60350033b13c01203a599"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::restore the database before either Trivy step runs",
-          "line": 434,
+          "line": 671,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa48f8128e2c1a9399ae835203fe68fc60af2dd93af6cd6a1bb884961cffc4a2"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::hands the SARIF over in a step that never gates and runs whenever the SARIF step runs",
-          "line": 450,
+          "line": 687,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "72f1e347f292844002ec9add03abcab0b16a5a740fa0add5148fbdbbb9137494"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::downloads the report under the name the scan hands it over with and uploads it under the category of the scan job's analysis",
-          "line": 459,
+          "line": 696,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb1773cd4fe444088a5f7c375c228dcf46651d29d3d1692487306d6b1245dde9"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::runs in a job no ruleset requires, after the scan and whatever its verdict, while the scan keeps its required contexts",
-          "line": 474,
+          "line": 711,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20b79bd9198a3fa16363b7daabd362226282c5be9743513ee6461b9669b205d5"
         },
         {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::runs over the same services as the scan job's matrix",
+          "line": 724,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "704541a4a28a2a5595dc8e3dc5e018ba4f5fce597442f1fee696500834f9d4a5"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::holds security-events: write and nothing else, a permission the scan job does not hold",
-          "line": 487,
+          "line": 731,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "790b49178689b7798fffe28b005d78027d9ce32fcad2b30004c948e298347dde"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::pulls the images Compose names for Postgres and Redis with the routine, before the start",
-          "line": 499,
+          "line": 743,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d35831ff306453c2fcf9a515387c8eddb8d0f991ef3e6e2ed2ed01d6aaef86f1"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::runs the routine with a mirror that cannot answer and requires Docker Hub, then with no source that can answer and requires the exit that names the image",
-          "line": 525,
+          "line": 769,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4386b4de2c04d2d1457bba2c709c8341bbd40c0a3586e5ba2873348e5ac7b36"
         },
         {
           "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::each start with set -euo pipefail",
-          "line": 548,
+          "line": 792,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "808ecb452e886335a371ffea07b35d797b7b2bcce64a5edfcd6558dab700a4e1"
@@ -85126,95 +85161,116 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 13,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 0 and tags $image under the asked reference when the mirror serves it at $atMirror",
-          "line": 269,
+          "line": 285,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c962909f83f2d2c06bcb75a7188d7e531a1b0a3376925e355157f7b5c5b77ba"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 0 from Docker Hub, untagged, after the mirror's three attempts fail, pausing 5 s then 10 s and bounding each attempt at 90 s when the command line names neither",
-          "line": 286,
+          "line": 302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f6dc16427d2dc5cbb8f8459bf1d7567e11c7305107c6fd277a642a6fb3642f4"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 0 from the mirror on its second attempt, after one pause of the wait the command line names, each call bounded as it names",
-          "line": 330,
+          "line": 346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "abe984778283ba96982c1ebf39e741b8a2327fca1919dd1e1fbe9145aa5551a4"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 1 naming the image after every attempt at every source fails, pausing within a source and never after its last attempt",
-          "line": 357,
+          "line": 373,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a485f2f0d60ea42e3757d9c06501f78eccfc0662d94f547ee5f69ea4184e936"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::counts an attempt a signal ended as failed and names the signal",
-          "line": 420,
+          "line": 436,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aadb1f52a02337bc3afddf61f33f0de41cd4b65f95cdd913dc5dcdedb00fe36f"
         },
         {
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 3 after its first call, in one line naming the cause and with no pause, when docker cannot be started",
+          "line": 456,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6905a9ead02761f5e533789c282f47d55d39162bd7031ef9369d37674232aed2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::pauses for the largest wait whose last pause is exactly what a timer takes",
+          "line": 468,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ba7da7a59181bd3a126a447f13138872524b37e28a638214dda7914764392c28"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::bounds each call by the longest bound a timer takes",
+          "line": 492,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7aa48b0c6dee23d2cedc0a4c6f5d0e3cebbd8c91692ec13641c624d87b308a4e"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::reports, for a refused pull, the last line docker wrote on its error stream",
-          "line": 440,
+          "line": 506,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b093d9873f87f00192342c3b61196080bd589073c44a767840554b07e70acd7f"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 1 naming the image after the one attempt at each source the command line names fails",
-          "line": 460,
+          "line": 526,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c28ecba0c565eae74bbaf65b939ac8024c4d0c6c83703a89bc5d3ba99b08c4c"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::names the source that served the image when the sources and the attempts come from the command line",
-          "line": 486,
+          "line": 552,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9dc84bef0e8cb34a8ebbbe58f67155eadf71cc3cafb57f195822e88ba519ec0"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::ends an attempt that gives no answer within its bound and counts it as failed",
-          "line": 523,
+          "line": 589,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b5ed8ed6de879e86ff73b995ef4e1b99a7e674470b2af0eb3496b498c6546aa0"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::counts a pull from the mirror whose tag fails as a failed attempt",
-          "line": 543,
+          "line": 609,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2917ac691f3fadb2fc85f60ff8f06b561257710e40218de13e90e35beb230008"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::pulls an image whose path at Docker Hub is exactly Docker's limit of 255 characters",
-          "line": 565,
+          "line": 631,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbb6c42ab48ec5e751b8fb74cecd86679e781210430fc996d177ad9e5df0ba81"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 2 with the usage and calls no docker when given $name",
-          "line": 583,
+          "line": 649,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "286d7c43659400b12bee525726ef137c82eadb0e2929e5326358b3f81600e7bd"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 2 with the usage and calls no docker when given an option it does not take",
-          "line": 658,
+          "line": 746,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45960a93bf3e34633219748dcfd26b4085a3f3ecc081672d92983bb7f2ab5e13"

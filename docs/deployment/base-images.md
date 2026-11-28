@@ -287,8 +287,9 @@ smoke does not satisfy; both portal images answer 200 on `/api/health` and `/`
 and the same Trivy, saved from each built image, exits 0 with no HIGH or
 CRITICAL vulnerability in any of the four (`debian 13.7` and 767, 529, 25 and 25
 `node-pkg` targets for `api`, `workers`, `admin` and `client`). The gate itself
-is the `Container Security` job of the pull request, with the scanner
-`production-ci.yml` names; this section records the local read.
+is the `Container Security` job of the pull request, which runs
+`aquasecurity/trivy-action` at the commit of its release v0.36.0, as
+`production-ci.yml` pins it; this section records the local read.
 
 ### Re-pinned on 2026-11-26: libzstd1 `1.5.7+dfsg-1+deb13u1`
 

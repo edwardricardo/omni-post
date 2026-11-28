@@ -71,6 +71,14 @@ const SECOND_REGISTRY = "registry.example";
 /** The defaults the routine states: 3 attempts, pauses of 5 s times the attempt, 90 s each. */
 const DEFAULT_PAUSE_MS = 5_000;
 const DEFAULT_BOUND_MS = 90_000;
+/** The longest delay a Node timer takes, 2^31 - 1 ms, as whole seconds. */
+const TIMER_MAX_SECONDS = Math.floor(2_147_483_647 / 1000);
+/**
+ * Attempts whose last pause can equal the cap exactly: 2,147,483 s is 13 times 165,191 s, so the
+ * largest wait it takes leaves no second to spare, and one second more is over.
+ */
+const EDGE_ATTEMPTS = 13;
+const LARGEST_WAIT_SECONDS = TIMER_MAX_SECONDS / EDGE_ATTEMPTS;
 /** Docker's limit on a repository path, `library/` of an official image counted. */
 const NAME_LIMIT = 255;
 const LIBRARY = "library/";
@@ -160,6 +168,14 @@ const makeRefused = (reference: string): DockerResult => ({
 
 /** A `docker` call a signal ended. */
 const makeSignalled = (signal: string): DockerResult => ({ status: null, signal, stderr: "" });
+
+/** A `docker` that could not be started, as `spawnSync` reports one: no status, an error. */
+const makeUnstartable = (code: string): DockerResult => ({
+  status: null,
+  signal: null,
+  stderr: "",
+  error: Object.assign(new Error(`spawnSync docker ${code}`), { code }),
+});
 
 /** The stand-in's line for one call. */
 const called = (...args: string[]): string => args.map((arg) => `[${arg}]`).join("");
@@ -437,6 +453,56 @@ describe("pull-image: the source that serves the image", () => {
     expect(run.io.docker).toHaveBeenCalledTimes(3);
   });
 
+  it("returns exit 3 after its first call, in one line naming the cause and with no pause, when docker cannot be started", async () => {
+    const run = await runInProcess([OFFICIAL], [makeUnstartable("ENOENT")]);
+
+    expect(run.code).toBe(3);
+    expect(run.out).toEqual([]);
+    expect(run.err).toEqual([
+      `${OFFICIAL}: docker could not be started (ENOENT), so no attempt follows`,
+    ]);
+    expect(run.io.docker.mock.calls).toEqual([[["pull", OFFICIAL_AT_MIRROR], DEFAULT_BOUND_MS]]);
+    expect(run.io.wait).not.toHaveBeenCalled();
+  });
+
+  it("pauses for the largest wait whose last pause is exactly what a timer takes", async () => {
+    const refusals = EDGE_ATTEMPTS - 1;
+    const run = await runInProcess(
+      [
+        "--attempts",
+        String(EDGE_ATTEMPTS),
+        "--wait-seconds",
+        String(LARGEST_WAIT_SECONDS),
+        OFFICIAL,
+      ],
+      Array.from({ length: refusals }, () => makeRefused(OFFICIAL_AT_MIRROR))
+    );
+
+    expect(LARGEST_WAIT_SECONDS * EDGE_ATTEMPTS).toBe(TIMER_MAX_SECONDS);
+    expect(run.code).toBe(0);
+    expect(run.out).toEqual([
+      `${OFFICIAL} served by ${MIRROR} as ${OFFICIAL_AT_MIRROR}, tagged ${OFFICIAL}`,
+    ]);
+    expect(run.io.wait.mock.calls).toEqual(
+      Array.from({ length: refusals }, (_, index) => [(index + 1) * LARGEST_WAIT_SECONDS * 1000])
+    );
+    expect(run.io.docker).toHaveBeenCalledTimes(EDGE_ATTEMPTS + 1);
+  });
+
+  it("bounds each call by the longest bound a timer takes", async () => {
+    const run = await runInProcess(
+      ["--attempt-timeout-seconds", String(TIMER_MAX_SECONDS), OFFICIAL],
+      []
+    );
+
+    expect(run.code).toBe(0);
+    expect(run.io.docker.mock.calls).toEqual([
+      [["pull", OFFICIAL_AT_MIRROR], TIMER_MAX_SECONDS * 1000],
+      [["tag", OFFICIAL_AT_MIRROR, OFFICIAL], TIMER_MAX_SECONDS * 1000],
+    ]);
+    expect(run.io.wait).not.toHaveBeenCalled();
+  });
+
   it("reports, for a refused pull, the last line docker wrote on its error stream", () => {
     const run = runRoutine(
       ["--attempts", "1", OFFICIAL],
@@ -643,6 +709,28 @@ describe("pull-image: the command line", () => {
       name: "an attempt bound that rounds to no millisecond",
       args: ["--attempt-timeout-seconds", "0.0004", OFFICIAL],
       problem: '--attempt-timeout-seconds takes a whole number of seconds from 1, not "0.0004"',
+    },
+    {
+      name: "a wait whose last pause is over what a timer takes",
+      args: [
+        "--attempts",
+        String(EDGE_ATTEMPTS),
+        "--wait-seconds",
+        String(LARGEST_WAIT_SECONDS + 1),
+        OFFICIAL,
+      ],
+      problem:
+        `--wait-seconds ${String(LARGEST_WAIT_SECONDS + 1)} times --attempts ` +
+        `${String(EDGE_ATTEMPTS)} is a last pause of ` +
+        `${String((LARGEST_WAIT_SECONDS + 1) * EDGE_ATTEMPTS)} s, over the ` +
+        `${String(TIMER_MAX_SECONDS)} s a timer takes`,
+    },
+    {
+      name: "an attempt bound one second over what a timer takes",
+      args: ["--attempt-timeout-seconds", String(TIMER_MAX_SECONDS + 1), OFFICIAL],
+      problem:
+        `--attempt-timeout-seconds ${String(TIMER_MAX_SECONDS + 1)} is over the ` +
+        `${String(TIMER_MAX_SECONDS)} s a timer takes`,
     },
   ])("returns exit 2 with the usage and calls no docker when given $name", ({ args, problem }) => {
     const run = runRoutine(args);

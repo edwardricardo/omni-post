@@ -143,6 +143,6 @@ jobs:
               labels: ['chaos-failure', 'P1', 'reliability'],
             });
 
-      - name: Print the Postgres and Redis logs (the job failed)
-        if: failure()
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
         uses: ./.github/actions/service-container-logs

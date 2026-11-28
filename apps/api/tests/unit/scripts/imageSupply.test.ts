@@ -11,16 +11,20 @@
  *   - No job of the six workflows has a `services:` block, whose pull happens before any step and
  *     cannot be retried. The jobs that run a Postgres and a Redis start them through the shared
  *     action, with the images and the credentials the table below states, and end with the shared
- *     step that prints both containers' logs when the job failed. The action pulls with the
- *     routine, and runs each container with its port, `--pull never`, the password from its
- *     environment and its health check.
+ *     step that prints both containers' logs when the job failed or was cancelled. The action
+ *     pulls with the routine, and runs each container with its port, `--pull never`, the password
+ *     from its environment and its health check. Its wait runs here, read from the action file,
+ *     under the shell GitHub gives a `bash` step and against a stand-in for `docker`, with a bound
+ *     and a pause small enough that no case waits; another case reads the defaults, 120 s and
+ *     2 s, which no workflow overrides.
  *   - Both Trivy steps run the action at a full commit with its version in a trailing comment,
  *     name the Trivy version and turn the action's own cache off. They read the scanner's database
- *     from a directory the job's environment names, restored before either step runs, saved by
- *     `main` alone and restored read-only on every other ref.
+ *     from a directory the job's environment names, which `.dockerignore` keeps out of the build
+ *     context, restored before either step runs, saved by `main` alone and restored read-only on
+ *     every other ref.
  *   - The SARIF is handed over by a step that never gates, downloaded under the name it was
  *     handed over with and uploaded under the category of the scan job's analysis, by a job no
- *     ruleset requires that runs whatever the scan's verdict was. That job holds
+ *     ruleset requires that runs over the scan's services whatever its verdict was. That job holds
  *     `security-events: write` and nothing else; the scan job holds `contents: read` and
  *     `packages: write`.
  *   - The platform start pulls, before it starts, the two images Compose names.
@@ -32,11 +36,21 @@
  *   required contexts come from `.github/rulesets/main.json`.
  * @layer infrastructure
  */
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   collectionOf,
   readMapping,
@@ -64,6 +78,15 @@ const FALLBACK_JOB = "image-pull-fallback";
 const MAIN_ONLY = "github.ref == 'refs/heads/main'";
 const NOT_MAIN = "github.ref != 'refs/heads/main'";
 const STRICT_SHELL = "set -euo pipefail";
+/** The condition of the step that prints the containers' logs: a failed or a cancelled job. */
+const FAILED_OR_CANCELLED = "failure() || cancelled()";
+/** What the start action's wait reads from its environment, and what it takes when unset. */
+const HEALTH_BOUND_VARIABLE = "SERVICE_HEALTH_BOUND_SECONDS";
+const HEALTH_POLL_VARIABLE = "SERVICE_HEALTH_POLL_SECONDS";
+const HEALTH_BOUND_DEFAULT = "120";
+const HEALTH_POLL_DEFAULT = "2";
+/** The prefix of a directory of the runner's checkout, as a workflow writes one. */
+const WORKSPACE = "${{ github.workspace }}/";
 /** The condition of every step that reads the built image without deciding the job. */
 const AFTER_THE_BUILD = "${{ !cancelled() && steps.build.outcome == 'success' }}";
 /** The job's environment entry that names the database's directory, and its value. */
@@ -245,18 +268,8 @@ const routineCallsOf = (step: Mapping): string[] =>
 function contextsOf(job: Mapping): string[] {
   const name = scalarOf(job, "name") ?? "";
   if (!job.has("strategy")) return [name];
-  const matrix = readMapping(
-    collectionOf(readMapping(collectionOf(job, "strategy"), "strategy"), "matrix"),
-    "matrix"
-  );
-  const [key, entry] =
-    [...matrix.entries()].find(([field]) => field !== "include" && field !== "exclude") ?? [];
-  if (key === undefined || entry === undefined) return [name];
-  const values =
-    /^\[(.*)\]$/
-      .exec(entry.inline.trim())?.[1]
-      ?.split(",")
-      .map((value) => value.trim()) ?? [];
+  const { key, values } = matrixOf(job);
+  if (key === "") return [name];
   const matrixExpression = new RegExp(`\\$\\{\\{\\s*matrix\\.${key}\\s*\\}\\}`);
   return values.map((value) =>
     matrixExpression.test(name) ? name.replace(matrixExpression, value) : `${name} (${value})`
@@ -298,10 +311,143 @@ function sarifSteps(): { sarif: Mapping; handOver: Mapping } {
   return { sarif: sarif[0] ?? new Map(), handOver: handOver[0] ?? new Map() };
 }
 
+/** A one-key matrix's key and values, as its flow sequence lists them. */
+function matrixOf(job: Mapping): { key: string; values: string[] } {
+  const matrix = readMapping(
+    collectionOf(readMapping(collectionOf(job, "strategy"), "strategy"), "matrix"),
+    "matrix"
+  );
+  const [key, entry] =
+    [...matrix.entries()].find(([field]) => field !== "include" && field !== "exclude") ?? [];
+  const values =
+    /^\[(.*)\]$/
+      .exec(entry?.inline.trim() ?? "")?.[1]
+      ?.split(",")
+      .map((value) => value.trim()) ?? [];
+  return { key: key ?? "", values };
+}
+
+/**
+ * The stand-in for `docker` the wait loop of the start action runs against. It appends each
+ * call's command and last argument to `$FAKE_DOCKER_LOG`; `run` prints an id; `inspect` of a
+ * container prints the next of the comma-separated states `$FAKE_POSTGRES_STATES` or
+ * `$FAKE_REDIS_STATES` plans for it, and the last one from then on; `logs` prints one line.
+ */
+const WAIT_DOCKER_STAND_IN = `#!/bin/sh
+for name; do :; done
+printf '%s %s\\n' "$1" "$name" >> "$FAKE_DOCKER_LOG"
+case "$1" in
+  run) echo "container-id" ;;
+  inspect)
+    case "$name" in
+      postgres) states="$FAKE_POSTGRES_STATES" ;;
+      *) states="$FAKE_REDIS_STATES" ;;
+    esac
+    count="$FAKE_DOCKER_DIR/count-$name"
+    n=0
+    if [ -f "$count" ]; then read -r n < "$count"; fi
+    echo $((n + 1)) > "$count"
+    i=0
+    last=""
+    IFS=,
+    for state in $states; do
+      last="$state"
+      if [ "$i" -eq "$n" ]; then printf '%s\\n' "$state"; exit 0; fi
+      i=$((i + 1))
+    done
+    printf '%s\\n' "$last" ;;
+  logs) printf 'log of the %s container\\n' "$name" ;;
+esac
+`;
+
+/** The states each container reports, in order, and the wait's bound and pause. */
+interface WaitPlan {
+  readonly postgres: string;
+  readonly redis: string;
+  readonly bound: string;
+  readonly poll: string;
+}
+
+interface WaitRun {
+  readonly code: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly calls: readonly string[];
+}
+
+const makeWaitPlan = (overrides: Partial<WaitPlan> = {}): WaitPlan => ({
+  postgres: "running healthy",
+  redis: "running healthy",
+  bound: "5",
+  poll: "0.01",
+  ...overrides,
+});
+
+/** What the wait prints for a container that did not become healthy. */
+const unhealthyOutput = (name: string, state: string): string =>
+  `::group::docker logs ${name}\nlog of the ${name} container\n::endgroup::\n` +
+  `::error title=${name} did not become healthy::the ${name} container is '${state}' ` +
+  "(status, health); its log is in the group above\n";
+
+/** The script of the start action's step that runs the containers and waits for them. */
+function waitScript(): string {
+  const run = actionStepsOf(START_SERVICES)[1];
+  return run === undefined ? "" : (scalarOf(run, "run") ?? "");
+}
+
+let scratch = "";
+
+/**
+ * Runs the start action's wait step, read from the action file, under the shell and the flags
+ * GitHub gives a `shell: bash` step, with the stand-in as the only `docker`.
+ *
+ * @param plan - What each container reports, and the wait's bound and pause.
+ * @returns The exit code, both streams and the stand-in's calls.
+ */
+function runWaitLoop(plan: WaitPlan): WaitRun {
+  scratch = mkdtempSync(path.join(tmpdir(), "start-services-"));
+  const bin = path.join(scratch, "bin");
+  mkdirSync(bin);
+  writeFileSync(path.join(bin, "docker"), WAIT_DOCKER_STAND_IN, { mode: 0o755 });
+  const script = path.join(scratch, "wait.sh");
+  writeFileSync(script, `${waitScript()}\n`);
+  const log = path.join(scratch, "docker.log");
+
+  const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-eo", "pipefail", script], {
+    cwd: scratch,
+    encoding: "utf8",
+    timeout: 10_000,
+    env: {
+      PATH: `${bin}:/usr/bin:/bin`,
+      FAKE_DOCKER_LOG: log,
+      FAKE_DOCKER_DIR: scratch,
+      FAKE_POSTGRES_STATES: plan.postgres,
+      FAKE_REDIS_STATES: plan.redis,
+      POSTGRES_IMAGE: "pgvector/pgvector:pg16",
+      REDIS_IMAGE: "redis:7-alpine",
+      POSTGRES_DB: "omnipostdb",
+      POSTGRES_USER: "postgres",
+      POSTGRES_PASSWORD: "password123",
+      [HEALTH_BOUND_VARIABLE]: plan.bound,
+      [HEALTH_POLL_VARIABLE]: plan.poll,
+    },
+  });
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trimEnd().split("\n") : [];
+  return { code: result.status, stdout: result.stdout, stderr: result.stderr, calls };
+}
+
+/** The stand-in's lines for the two `docker run` calls, which every wait makes first. */
+const RUN_CALLS = ["run pgvector/pgvector:pg16", "run redis:7-alpine"];
+
 let required: string[] = [];
 
 beforeEach(() => {
   required = requiredContexts();
+  scratch = "";
+});
+
+afterEach(() => {
+  if (scratch !== "") rmSync(scratch, { recursive: true, force: true });
 });
 
 describe("the Dockerfile frontend", () => {
@@ -338,12 +484,12 @@ describe("the service containers of the jobs", () => {
   );
 
   it.each(SERVICE_JOBS)(
-    "are followed in $workflow job $job, as its last step, by the shared step that prints their logs when the job failed",
+    "are followed in $workflow job $job, as its last step, by the shared step that prints their logs when the job failed or was cancelled",
     ({ workflow, job }) => {
       const last = stepsOf(workflow, job).at(-1) ?? new Map();
 
       expect(scalarOf(last, "uses")).toBe(SERVICE_LOGS);
-      expect(scalarOf(last, "if")).toBe("failure()");
+      expect(scalarOf(last, "if")).toBe(FAILED_OR_CANCELLED);
     }
   );
 });
@@ -376,6 +522,76 @@ describe("the shared actions that start the containers and print their logs", ()
     expect(commands).toContain(
       'docker logs "$name" 2>&1 || echo "the $name container has no log: it was never started"'
     );
+  });
+
+  it("wait, in the start action, until both containers are healthy and then exit 0", () => {
+    const run = runWaitLoop(makeWaitPlan({ postgres: "running starting,running healthy" }));
+
+    expect(run).toEqual({
+      code: 0,
+      stdout: "postgres is healthy\nredis is healthy\n",
+      stderr: "",
+      calls: [...RUN_CALLS, "inspect postgres", "inspect postgres", "inspect redis"],
+    });
+  });
+
+  it.each([
+    {
+      name: "redis turns unhealthy",
+      plan: makeWaitPlan({ redis: "running starting,running unhealthy" }),
+      container: "redis",
+      state: "running unhealthy",
+      before: "postgres is healthy\n",
+      inspected: ["inspect postgres", "inspect redis", "inspect redis"],
+    },
+    {
+      name: "postgres exits",
+      plan: makeWaitPlan({ postgres: "exited starting" }),
+      container: "postgres",
+      state: "exited starting",
+      before: "",
+      inspected: ["inspect postgres"],
+    },
+    {
+      name: "postgres is still starting when the bound is reached",
+      plan: makeWaitPlan({ postgres: "running starting", bound: "0" }),
+      container: "postgres",
+      state: "running starting",
+      before: "",
+      inspected: ["inspect postgres"],
+    },
+  ])(
+    "fail, in the start action's wait, with exit 1, the container's log and the ::error line when $name",
+    ({ plan, container, state, before, inspected }) => {
+      const run = runWaitLoop(plan);
+
+      expect(run).toEqual({
+        code: 1,
+        stdout: before + unhealthyOutput(container, state),
+        stderr: "",
+        calls: [...RUN_CALLS, ...inspected, `logs ${container}`],
+      });
+    }
+  );
+
+  it("wait 120 s at most and poll every 2 s when the environment sets neither, which no workflow or action does", () => {
+    const script = waitScript();
+    const defaultOf = (variable: string): string | undefined =>
+      new RegExp(`="\\$\\{${variable}:-([0-9]+)\\}"$`, "m").exec(script)?.[1];
+    const setters = [
+      ...readdirSync(path.join(REPO_ROOT, ".github/workflows")).map(
+        (file) => `.github/workflows/${file}`
+      ),
+      `${SERVICE_LOGS.slice(2)}/action.yml`,
+    ].filter((file) =>
+      [HEALTH_BOUND_VARIABLE, HEALTH_POLL_VARIABLE].some((variable) =>
+        textOf(file).includes(variable)
+      )
+    );
+
+    expect(defaultOf(HEALTH_BOUND_VARIABLE)).toBe(HEALTH_BOUND_DEFAULT);
+    expect(defaultOf(HEALTH_POLL_VARIABLE)).toBe(HEALTH_POLL_DEFAULT);
+    expect(setters).toEqual([]);
   });
 });
 
@@ -431,6 +647,27 @@ describe("the Trivy steps of the image scan", () => {
     ).toEqual([fromEnvironment, fromEnvironment]);
   });
 
+  it("keep the database's directory out of the context the scan job builds its images from", () => {
+    const named = scalarsOf(jobOf(PRODUCTION_CI, SCAN_JOB), "env")[SCANNER_DB_DIR] ?? "";
+    const directory = named.startsWith(WORKSPACE) ? named.slice(WORKSPACE.length) : named;
+    const builds = stepsUsing(stepsOf(PRODUCTION_CI, SCAN_JOB), "docker/build-push-action@");
+    const patterns = textOf(".dockerignore")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== "" && !line.startsWith("#"));
+    const covers = (pattern: string): boolean => {
+      const prefix = pattern.replace(/^!/, "").replace(/^\//, "").replace(/\/$/, "");
+      return directory === prefix || directory.startsWith(`${prefix}/`);
+    };
+
+    expect(named.startsWith(WORKSPACE)).toBe(true);
+    expect(builds.map((step) => scalarsOf(step, "with").context)).toEqual([".", "."]);
+    expect(patterns.filter((pattern) => !pattern.startsWith("!") && covers(pattern))).not.toEqual(
+      []
+    );
+    expect(patterns.filter((pattern) => pattern.startsWith("!") && covers(pattern))).toEqual([]);
+  });
+
   it("restore the database before either Trivy step runs", () => {
     const steps = stepsOf(PRODUCTION_CI, SCAN_JOB);
     const indexOf = (prefix: string): number[] =>
@@ -482,6 +719,13 @@ describe("the upload of the scan's report", () => {
     );
     expect(scanContexts).toHaveLength(4);
     expect(scanContexts.filter((context) => !required.includes(context))).toEqual([]);
+  });
+
+  it("runs over the same services as the scan job's matrix", () => {
+    const scan = matrixOf(jobOf(PRODUCTION_CI, SCAN_JOB));
+
+    expect(scan.values).toHaveLength(4);
+    expect(matrixOf(jobOf(PRODUCTION_CI, uploadJobId()))).toEqual(scan);
   });
 
   it("holds security-events: write and nothing else, a permission the scan job does not hold", () => {

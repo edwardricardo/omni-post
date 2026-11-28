@@ -20,15 +20,30 @@
  *   sure, so the mirror is a first source and never the only one
  *   (https://docs.cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images).
  *
+ *   WHAT IS RETRIED. Every refusal by a registry, every exit of `docker` other than 0, a signal
+ *   and an attempt its bound ended: the routine reads no meaning into `docker`'s text, since a tag
+ *   the mirror lacks is the very case the fallback exists for. A `docker` that cannot be started
+ *   at all (`spawnSync` reports an error other than the bound's, such as ENOENT when no `docker`
+ *   is on the runner) is not retried: it will not start at the next attempt or at the next
+ *   source, so the routine stops at that call.
+ *
  *   OUTPUT. The served image is one line on stdout naming the source; each failed attempt is one
  *   line on stderr with its reason and what comes next; when no source serves the image, a last
- *   line names it. Every line starts with the routine's name.
+ *   line names it; a `docker` that cannot be started is one line naming the cause. Every line
+ *   starts with the routine's name.
  *
- *   EXIT CODES: 0 an image served; 1 no source served it; 2 a usage error, which calls no docker.
+ *   EXIT CODES: 0 an image served; 1 no source served it; 2 a usage error, which calls no docker;
+ *   3 `docker` could not be started. Code 3 is its own because each other code points elsewhere:
+ *   1 at the registries, which were never reached, and 2 at the command line, which was right;
+ *   the fault is the runner's.
  *
  *   WHAT IT BOUNDS. `--attempts` and the two durations are whole numbers from 1: a fraction of an
  *   attempt means nothing, a pause of 0 is no pause, and a bound below a millisecond is no bound
- *   at all to `spawnSync`.
+ *   at all to `spawnSync`. Both durations are capped by what a Node timer takes, 2,147,483,647
+ *   ms (a `setTimeout` past it fires after 1 ms): the last attempt's pause, `--attempts` times
+ *   `--wait-seconds`, and `--attempt-timeout-seconds` are each at most 2,147,483 s, and a value
+ *   past that is a usage error. `spawnSync` would take a longer bound; the bound shares the
+ *   pause's cap so that both durations follow one rule.
  *
  *   WHAT IT TRUSTS. The reference comes from the command line alone and must read as a Docker Hub
  *   reference, `name[:tag]`, so it cannot start with a dash and be taken for an option of
@@ -65,6 +80,13 @@ const DEFAULT_ATTEMPT_TIMEOUT_SECONDS = 90;
 const EXIT_SERVED = 0;
 const EXIT_UNSERVED = 1;
 const EXIT_USAGE = 2;
+const EXIT_UNSTARTABLE = 3;
+
+/**
+ * The longest delay a Node timer takes, 2^31 - 1 ms, as whole seconds: a longer `setTimeout`
+ * fires after 1 ms with a TimeoutOverflowWarning (Node's documentation of `setTimeout`).
+ */
+const TIMER_MAX_SECONDS = Math.floor(2_147_483_647 / 1000);
 
 /** One path component of a repository, as Docker's reference grammar writes it. */
 const COMPONENT = "[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*";
@@ -203,6 +225,13 @@ function parseRequest(argv) {
       usage: `--wait-seconds takes a whole number of seconds from 1, not "${String(waitText)}"`,
     };
   }
+  if (attempts * wait > TIMER_MAX_SECONDS) {
+    return {
+      usage:
+        `--wait-seconds ${String(wait)} times --attempts ${String(attempts)} is a last pause of ` +
+        `${String(attempts * wait)} s, over the ${String(TIMER_MAX_SECONDS)} s a timer takes`,
+    };
+  }
   const timeoutText = /** @type {string | undefined} */ (values["attempt-timeout-seconds"]);
   const timeout = wholeOption(timeoutText, DEFAULT_ATTEMPT_TIMEOUT_SECONDS);
   if (timeout === undefined) {
@@ -210,6 +239,13 @@ function parseRequest(argv) {
       usage:
         "--attempt-timeout-seconds takes a whole number of seconds from 1, " +
         `not "${String(timeoutText)}"`,
+    };
+  }
+  if (timeout > TIMER_MAX_SECONDS) {
+    return {
+      usage:
+        `--attempt-timeout-seconds ${String(timeout)} is over the ` +
+        `${String(TIMER_MAX_SECONDS)} s a timer takes`,
     };
   }
 
@@ -227,24 +263,37 @@ function parseRequest(argv) {
 }
 
 /**
+ * @typedef {{ reason: string, startable: boolean }} Failure Why a call or an attempt failed, and
+ *   whether `docker` started at all, which decides whether another attempt can help.
+ */
+
+/**
  * @param {DockerResult} result One `docker` call.
  * @param {number} timeoutMs Its bound.
- * @returns {string | undefined} Why the call failed, or `undefined` when it succeeded.
+ * @returns {Failure | undefined} Why the call failed, or `undefined` when it succeeded.
  */
 function failureOf(result, timeoutMs) {
   if (result.error !== undefined) {
     return result.error.code === "ETIMEDOUT"
-      ? `docker gave no answer within ${seconds(timeoutMs)} s`
-      : `docker could not be run (${result.error.code ?? result.error.message})`;
+      ? { reason: `docker gave no answer within ${seconds(timeoutMs)} s`, startable: true }
+      : {
+          reason: `docker could not be started (${result.error.code ?? result.error.message})`,
+          startable: false,
+        };
   }
   if (result.status === 0) return undefined;
-  if (result.status === null) return `docker ended by signal ${String(result.signal)}`;
+  if (result.status === null) {
+    return { reason: `docker ended by signal ${String(result.signal)}`, startable: true };
+  }
   const last = result.stderr
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line !== "")
     .at(-1);
-  return `docker exited ${String(result.status)}${last === undefined ? "" : `: ${last}`}`;
+  return {
+    reason: `docker exited ${String(result.status)}${last === undefined ? "" : `: ${last}`}`,
+    startable: true,
+  };
 }
 
 /**
@@ -253,7 +302,7 @@ function failureOf(result, timeoutMs) {
  * @param {Io} io
  * @param {Request} request
  * @param {string} pulled The reference pulled at this source.
- * @returns {string | undefined} Why the attempt failed, or `undefined` when it served the image.
+ * @returns {Failure | undefined} Why the attempt failed, or `undefined` when it served the image.
  */
 function attemptAt(io, request, pulled) {
   const pull = failureOf(io.docker(["pull", pulled], request.timeoutMs), request.timeoutMs);
@@ -264,7 +313,10 @@ function attemptAt(io, request, pulled) {
   );
   return tag === undefined
     ? undefined
-    : `pulled ${pulled} but could not tag it ${request.image}: ${tag}`;
+    : {
+        reason: `pulled ${pulled} but could not tag it ${request.image}: ${tag.reason}`,
+        startable: tag.startable,
+      };
 }
 
 /**
@@ -293,6 +345,10 @@ export async function main(argv, io = DEFAULT_IO) {
         );
         return EXIT_SERVED;
       }
+      if (!failure.startable) {
+        io.err(`${image}: ${failure.reason}, so no attempt follows`);
+        return EXIT_UNSTARTABLE;
+      }
       const pauseMs = attempt * request.waitMs;
       const following = sources[index + 1];
       const next =
@@ -302,7 +358,7 @@ export async function main(argv, io = DEFAULT_IO) {
             ? ""
             : `; trying ${following}`;
       io.err(
-        `${image}: attempt ${String(attempt)} of ${String(attempts)} at ${source} failed: ${failure}${next}`
+        `${image}: attempt ${String(attempt)} of ${String(attempts)} at ${source} failed: ${failure.reason}${next}`
       );
       if (attempt < attempts) await io.wait(pauseMs);
     }
