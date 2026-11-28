@@ -40,6 +40,7 @@ import { PrismaOidcConfigurationRepository } from "../../src/infrastructure/repo
 import { EncryptionService } from "../../src/security/EncryptionService.js";
 import { samlRoutes } from "../../src/auth/samlRoutes.js";
 import { oidcRoutes } from "../../src/auth/oidcRoutes.js";
+import { env } from "../../src/config/env.js";
 
 const TAG = `preauth-sso-${Date.now()}`;
 const FIXTURE_CERT = "MIICmTCCAgKgAwIBAgIBADANBgkqhkiG9w0BAQsFADB9example-cert-data-long-enough";
@@ -195,6 +196,10 @@ describe("Public SSO (SAML + OIDC) — two-tenant isolation across all 5 param-s
     assert.strictEqual(res.statusCode, 200, "A's public metadata must be served (seam binds ctx)");
     assert.ok(res.body.includes(tenantA.entityId), "metadata must carry A's entityId");
     assert.ok(!res.body.includes(tenantB.entityId), "A's metadata must never surface B's entityId");
+    assert.ok(
+      res.body.includes(`Location="${env.APP_BASE_URL}/auth/saml/${tenantA.accountId}/callback"`),
+      "A's ACS location must be A's callback on APP_BASE_URL"
+    );
   });
 
   it("SAML metadata: serves B's own SP metadata scoped to B", async () => {

@@ -140,10 +140,12 @@ const SECRETS = [
   "ADMIN_JWT_REFRESH_SECRET",
   "COOKIE_SECRET",
   "PLATFORM_ENCRYPTION_KEY",
-  "OAUTH_ENCRYPTION_KEY",
   "DELETION_NAME_DIGEST_KEY_RING",
   "ADMIN_PASSWORD",
 ];
+
+/** The variables a new file receives for the development tools, which the platform never reads. */
+const DEVELOPMENT_TOOL_KEYS = ["SHADOW_DATABASE_URL", "ADMIN_PASSWORD"];
 
 /** Lowercase hex of `bytes` random bytes: two characters per byte. */
 const hexOf = (bytes: number): RegExp => new RegExp(`^[0-9a-f]{${String(bytes * 2)}}$`);
@@ -173,7 +175,6 @@ const SECRET_SHAPES: ReadonlyArray<[string, SecretReading, RegExp]> = [
   ["ADMIN_JWT_REFRESH_SECRET", own("ADMIN_JWT_REFRESH_SECRET"), hexOf(32)],
   ["COOKIE_SECRET", own("COOKIE_SECRET"), hexOf(32)],
   ["PLATFORM_ENCRYPTION_KEY", own("PLATFORM_ENCRYPTION_KEY"), /^[A-Za-z0-9+/]{43}=$/],
-  ["OAUTH_ENCRYPTION_KEY", own("OAUTH_ENCRYPTION_KEY"), hexOf(32)],
   [
     "DELETION_NAME_DIGEST_KEY_RING",
     (values) =>
@@ -788,6 +789,37 @@ function writeEnvironment(
 }
 
 /**
+ * Writes a complete environment file for the staged services whose two API addresses are
+ * `address`, and returns its text.
+ */
+function writeEnvironmentWithApiAddress(staged: Stage, address: string): string {
+  const entries = core
+    .generateEnvironment({
+      randomBytes,
+      postgresHostPort: staged.postgres.port,
+      redisHostPort: staged.redis.port,
+    })
+    .map(([key, value]): [string, string] =>
+      key === "API_BASE_URL" || key === "APP_BASE_URL" ? [key, address] : [key, value]
+    );
+  const text = core.renderEnvironmentFile(entries);
+  writeFileSync(staged.file, text);
+  return text;
+}
+
+/**
+ * How many variables the generator emits for a run that publishes the staged services on their own
+ * host ports: the platform's, the two host ports, and the development tools'.
+ */
+function emittedFor(staged: Stage): number {
+  return core.generateEnvironment({
+    randomBytes,
+    postgresHostPort: staged.postgres.port,
+    redisHostPort: staged.redis.port,
+  }).length;
+}
+
+/**
  * A socket on a free loopback port that records what it is sent. Connection by connection it
  * answers the next of `replies`, and the last one from then on; `null` is a peer that says nothing.
  */
@@ -993,16 +1025,29 @@ describe("the generated environment", () => {
   it("holds what the platform requires and, besides it, what the development tools need", () => {
     const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
 
-    expect(core.REQUIRED_KEYS).not.toContain("ADMIN_PASSWORD");
-    expect(Object.keys(values).sort()).toEqual([...core.REQUIRED_KEYS, "ADMIN_PASSWORD"].sort());
+    expect(core.REQUIRED_KEYS.filter((key) => DEVELOPMENT_TOOL_KEYS.includes(key))).toEqual([]);
+    expect(Object.keys(values).sort()).toEqual(
+      [...core.REQUIRED_KEYS, ...DEVELOPMENT_TOOL_KEYS].sort()
+    );
   });
 
   it("requires nothing of an existing file that only the development tools read", () => {
     const values = Object.fromEntries(
-      core.generateEnvironment({ randomBytes }).filter(([key]) => key !== "ADMIN_PASSWORD")
+      core
+        .generateEnvironment({ randomBytes })
+        .filter(([key]) => !DEVELOPMENT_TOOL_KEYS.includes(key))
     );
 
     expect(core.missingKeys(values)).toEqual([]);
+  });
+
+  it("holds no OAUTH_ENCRYPTION_KEY, and the API's schema accepts what it holds", () => {
+    const values = Object.fromEntries(core.generateEnvironment({ randomBytes }));
+
+    const parsed = parseApiEnv(values);
+
+    expect(Object.keys(values)).not.toContain("OAUTH_ENCRYPTION_KEY");
+    expect(parsed.DATABASE_URL).toBe(values.DATABASE_URL);
   });
 
   it("gives the development seed an ADMIN_PASSWORD its password rule accepts", () => {
@@ -1092,8 +1137,31 @@ describe("the start sequence", () => {
     expect(statSync(staged.file).mode & 0o777).toBe(0o600);
     expect(core.missingKeys(values)).toEqual([]);
     expect(new URL(values.DATABASE_URL ?? "").port).toBe(staged.ports.POSTGRES_HOST_PORT);
-    expect(result.stdout).toContain(`wrote ${staged.file} with 22 variables`);
+    expect(result.stdout).toContain(`wrote ${staged.file} with ${emittedFor(staged)} variables`);
     expect(SECRETS.filter((key) => result.stdout.includes(values[key] ?? "unset"))).toEqual([]);
+  });
+
+  it("writes the API's two public addresses on the port the run starts it on, the client portal's on its dev script's", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    const values = core.readEnvironment(readFileSync(staged.file, "utf8"));
+    const api = `http://127.0.0.1:${staged.apiPort}`;
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(staged.ports.PORT).not.toBe("3000");
+    expect(result.stdout).toContain(`platform-start: the API takes port ${staged.apiPort}\n`);
+    expect({
+      API_BASE_URL: values.API_BASE_URL,
+      APP_BASE_URL: values.APP_BASE_URL,
+      CLIENT_URL: values.CLIENT_URL,
+      PORT: values.PORT,
+    }).toEqual({
+      API_BASE_URL: api,
+      APP_BASE_URL: api,
+      CLIENT_URL: `http://127.0.0.1:${staged.clientPort}`,
+      PORT: undefined,
+    });
   });
 
   it("leaves a complete environment file untouched and reports the ports it names", async () => {
@@ -4152,9 +4220,27 @@ describe("db:up, the services alone (--services-only)", () => {
       pnpm: pnpmCalls(staged),
     }).toEqual({
       code: 0,
-      firstLine: `platform-start: wrote ${staged.file} with 22 variables, its secrets random`,
+      firstLine: `platform-start: wrote ${staged.file} with ${emittedFor(staged)} variables, its secrets random`,
       missing: [],
       pnpm: [],
+    });
+  });
+
+  it("writes the public addresses on the apps' default ports, since it reads no app's port", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--services-only"], asked(staged));
+
+    const values = core.readEnvironment(readFileSync(staged.file, "utf8"));
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect({
+      API_BASE_URL: values.API_BASE_URL,
+      APP_BASE_URL: values.APP_BASE_URL,
+      CLIENT_URL: values.CLIENT_URL,
+    }).toEqual({
+      API_BASE_URL: "http://127.0.0.1:3000",
+      APP_BASE_URL: "http://127.0.0.1:3000",
+      CLIENT_URL: "http://127.0.0.1:3200",
     });
   });
 
@@ -4229,6 +4315,52 @@ describe("db:up, the services alone (--services-only)", () => {
     };
 
     expect(manifest.scripts["db:up"]).toBe("node scripts/start/platform-start.mjs --services-only");
+  });
+});
+
+describe("an existing file whose API addresses name another port than the API takes", () => {
+  /** A port no staged API takes: the one an earlier run's API took when it wrote the file. */
+  const ANOTHER_API_PORT = 4321;
+
+  /** The line a run prints for a kept file whose two API addresses are on `port`. */
+  const staleLine = (staged: Stage, port: number): string =>
+    `platform-start: ${staged.file} names the API on a port it does not take: ` +
+    `API_BASE_URL on ${port}, APP_BASE_URL on ${port}, and the API takes port ${staged.apiPort}`;
+
+  /** Every line of a run's output that speaks of the file's API addresses. */
+  const addressLines = (stdout: string): string[] =>
+    stdout.split("\n").filter((line) => line.includes("names the API on a port"));
+
+  it("says in one line which address names which port and which port the API takes", async () => {
+    const staged = await stage();
+    const before = writeEnvironmentWithApiAddress(staged, `http://127.0.0.1:${ANOTHER_API_PORT}`);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(staged.apiPort).not.toBe(ANOTHER_API_PORT);
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(addressLines(result.stdout)).toEqual([staleLine(staged, ANOTHER_API_PORT)]);
+    expect(readFileSync(staged.file, "utf8")).toBe(before);
+  });
+
+  it("says nothing when the file's addresses name the port the API takes", async () => {
+    const staged = await stage();
+    writeEnvironmentWithApiAddress(staged, `http://127.0.0.1:${staged.apiPort}`);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(addressLines(result.stdout)).toEqual([]);
+  });
+
+  it("says nothing when the file's addresses name another host, which a file may do on purpose", async () => {
+    const staged = await stage();
+    writeEnvironmentWithApiAddress(staged, `http://api.internal.test:${ANOTHER_API_PORT}`);
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(addressLines(result.stdout)).toEqual([]);
   });
 });
 

@@ -2,8 +2,8 @@
  * @file mockAuthMiddleware.ts
  * @description Shared mock factories for admin and customer auth middleware.
  *   These factories decode JWT tokens without verifying the signature, allowing
- *   tests that generate tokens via AuthService (JWT_SECRET) to pass through
- *   routes protected by requireAdminAuth (ADMIN_JWT_SECRET) or
+ *   tests that generate tokens via AuthService (JWT_ACCESS_SECRET) to pass through
+ *   routes protected by requireAdminAuth (ADMIN_JWT_ACCESS_SECRET) or
  *   requireClientAuth (CUSTOMER_JWT_SECRET).
  * @layer infrastructure
  */
@@ -91,8 +91,11 @@ function buildAuthContext(decoded: DecodedToken): AuthContext {
 }
 
 /**
- * Returns a mock factory for `../../src/admin/auth/adminAuthMiddleware.js`.
- * Use with `vi.mock(path, () => createAdminAuthMock())`.
+ * @function createAdminAuthMock
+ * @description A mock factory for `../../src/admin/auth/adminAuthMiddleware.js`, to use with
+ *   `vi.mock(path, () => createAdminAuthMock())`.
+ * @returns The middleware's guards, each reading the bearer token without verifying its
+ *   signature, and a rate limit that lets every request through.
  */
 export function createAdminAuthMock() {
   return {
@@ -142,8 +145,10 @@ export function createAdminAuthMock() {
 }
 
 /**
- * Returns a mock factory for `../../src/auth/customerAuthMiddleware.js`.
- * Use with `vi.mock(path, () => createCustomerAuthMock())`.
+ * @function createCustomerAuthMock
+ * @description A mock factory for `../../src/auth/customerAuthMiddleware.js`, to use with
+ *   `vi.mock(path, () => createCustomerAuthMock())`.
+ * @returns The customer guard, which reads the bearer token without verifying its signature.
  */
 export function createCustomerAuthMock() {
   return {

@@ -8,15 +8,18 @@
  *   TWO CONSUMERS make up the platform. Compose interpolates every `${NAME:?}` of
  *   `docker-compose.yml` whatever services it is asked for, so Postgres and Redis alone need the
  *   seven variables the file names, Grafana's and MinIO's included. The API refuses to boot without
- *   the twelve its schema declares with no default (`apps/api/src/config/env.ts`); the workers'
- *   three are among them. A new file also receives what the development tools need: the
- *   development seed's `ADMIN_PASSWORD`, the password of the administrator it creates
- *   (`infra/prisma/src/seedGuard.ts`). The suite holds the generated environment to all of them.
+ *   the thirteen its schema declares with no default (`apps/api/src/config/env.ts`), its three
+ *   public addresses among them; the workers' three are among them too. A new file also receives
+ *   what the development tools need: `SHADOW_DATABASE_URL`, the empty database `prisma migrate dev`
+ *   diffs a migration against (`infra/prisma/prisma.config.ts`), and the development seed's
+ *   `ADMIN_PASSWORD`, the password of the administrator it creates (`infra/prisma/src/seedGuard.ts`).
+ *   The suite holds the generated environment to all of them.
  *
  *   ONE LIST PER PURPOSE. What the platform reads is what an existing file must hold:
  *   `REQUIRED_KEYS` is read off the platform's generator, so the two cannot drift. What the
  *   development tools need is generated for a new file and never required of an existing one: the
- *   platform never reads it, and a tool whose variable is missing refuses by itself, naming it.
+ *   platform never reads it, so a file without it still starts the platform, and the tool that
+ *   reads it answers for it (the seed refuses without its password, naming it).
  *
  *   THREE READERS take the file: Compose, Node's loader (`process.loadEnvFile`, `--env-file`) and a
  *   shell that sources it. A value outside the plain set is written in single quotes, the one
@@ -36,6 +39,24 @@ export const DEFAULT_REDIS_HOST_PORT = 6379;
 
 /** The port the API takes when neither the calling shell nor the environment file names one. */
 const DEFAULT_API_PORT = 3000;
+
+/**
+ * The client portal's development port, the one its `dev` script hands `next dev -p`: the port its
+ * address names when the run that writes the file reads no app's port.
+ */
+const CLIENT_PORTAL_PORT = 3200;
+
+/**
+ * @typedef {object} GenerationOptions
+ * @property {(size: number) => Buffer} randomBytes The random source every secret is drawn from.
+ * @property {number} [postgresHostPort] The host port Postgres is published on, when it is not the
+ *   compose file's default.
+ * @property {number} [redisHostPort] The host port Redis is published on, when it is not the compose
+ *   file's default.
+ * @property {number} [apiPort] The port the run starts the API on; without it, the API's default.
+ * @property {number} [clientPort] The port the run starts the client portal on; without it, the one
+ *   its `dev` script fixes in the repository.
+ */
 
 /** The API's HMAC secrets: its schema asks each for 32 characters or more. */
 const HMAC_SECRETS = [
@@ -58,13 +79,12 @@ const HEADER = [
 
 /**
  * The variables the platform reads, in file order: the seven Compose interpolates, the host ports
- * when one was chosen, and the twelve the API requires.
- * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
- *   The random source every secret is drawn from, and the host ports to publish when they are not
- *   the compose file's defaults.
- * @returns {Array<[string, string]>} Each variable with its value.
+ * when one was chosen, and the thirteen the API requires, its public addresses last.
+ * @param {GenerationOptions} options - The random source, and the ports the run settled.
+ * @returns {{ entries: Array<[string, string]>, databaseUrl: string }} Each variable with its
+ *   value, and the URL of the platform's database, beside which the development tools' sits.
  */
-function platformEntries({ randomBytes, postgresHostPort, redisHostPort }) {
+function platformEntries({ randomBytes, postgresHostPort, redisHostPort, apiPort, clientPort }) {
   const hex = (/** @type {number} */ size) => randomBytes(size).toString("hex");
   const user = "omnipost";
   const database = "omnipostdb";
@@ -94,41 +114,55 @@ function platformEntries({ randomBytes, postgresHostPort, redisHostPort }) {
   if (redisHostPort !== undefined) {
     entries.push(["REDIS_HOST_PORT", String(redisHostPort)]);
   }
+  const platformDatabase = databaseUrl(database);
   entries.push(
-    ["DATABASE_URL", databaseUrl(database)],
-    ["SHADOW_DATABASE_URL", databaseUrl(`${database}_shadow`)],
+    ["DATABASE_URL", platformDatabase],
     ["REDIS_URL", `redis://${LOOPBACK}:${redisHostPort ?? DEFAULT_REDIS_HOST_PORT}`]
   );
   for (const key of HMAC_SECRETS) entries.push([key, hex(32)]);
   entries.push(
     ["PLATFORM_ENCRYPTION_KEY", randomBytes(32).toString("base64")],
-    ["OAUTH_ENCRYPTION_KEY", hex(32)],
     ["DELETION_NAME_DIGEST_KEY_RING", JSON.stringify({ 1: hex(32) })]
   );
-  return entries;
+  // Each app's address is where the run that writes the file serves it. Webhooks and single
+  // sign-on name the same API in development.
+  const api = `http://${LOOPBACK}:${apiPort ?? DEFAULT_API_PORT}`;
+  entries.push(
+    ["CLIENT_URL", `http://${LOOPBACK}:${clientPort ?? CLIENT_PORTAL_PORT}`],
+    ["API_BASE_URL", api],
+    ["APP_BASE_URL", api]
+  );
+  return { entries, databaseUrl: platformDatabase };
 }
 
 /**
- * The variables the development tools need and the platform never reads: the development seed's
- * administrator password, which its password rule requires and takes no default for.
+ * The variables the development tools need and the platform never reads: the shadow database
+ * `prisma migrate dev` diffs a migration against, on the platform's server, as its user, under its
+ * database's name followed by `_shadow`; and the development seed's administrator password, which
+ * its password rule requires and takes no default for.
  * @param {{ randomBytes: (size: number) => Buffer }} options - The random source.
+ * @param {string} databaseUrl - The URL of the platform's database.
  * @returns {Array<[string, string]>} Each variable with its value.
  */
-function developmentToolEntries({ randomBytes }) {
-  return [["ADMIN_PASSWORD", randomBytes(24).toString("hex")]];
+function developmentToolEntries({ randomBytes }, databaseUrl) {
+  const shadow = new URL(databaseUrl);
+  shadow.pathname = `${shadow.pathname}_shadow`;
+  return [
+    ["SHADOW_DATABASE_URL", shadow.href],
+    ["ADMIN_PASSWORD", randomBytes(24).toString("hex")],
+  ];
 }
 
 /**
  * @function generateEnvironment
  * @description The environment of a checkout that has none, in file order: what the platform
  *   reads, then what the development tools need.
- * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
- *   The random source every secret is drawn from, and the host ports to publish when they are not
- *   the compose file's defaults.
+ * @param {GenerationOptions} options - The random source, and the ports the run settled.
  * @returns {Array<[string, string]>} Each variable with its value.
  */
 export function generateEnvironment(options) {
-  return [...platformEntries(options), ...developmentToolEntries(options)];
+  const platform = platformEntries(options);
+  return [...platform.entries, ...developmentToolEntries(options, platform.databaseUrl)];
 }
 
 /** A random source of zeros, for a generation whose values are discarded and names kept. */
@@ -140,7 +174,7 @@ const discarded = { randomBytes: (/** @type {number} */ size) => Buffer.alloc(si
  * only the names are kept, so the generator stays the one place that says which variables there
  * are.
  */
-export const REQUIRED_KEYS = platformEntries(discarded).map(([key]) => key);
+export const REQUIRED_KEYS = platformEntries(discarded).entries.map(([key]) => key);
 
 /**
  * @function renderEnvironmentFile
@@ -177,6 +211,43 @@ export function readEnvironment(text) {
  */
 export function missingKeys(values) {
   return REQUIRED_KEYS.filter((key) => !values[key]);
+}
+
+/** A loopback host as a URL writes it: IPv4 `127.0.0.0/8`, `localhost`, or IPv6 `[::1]`. */
+const LOOPBACK_HOST = /^(?:127(?:\.\d{1,3}){3}|localhost|\[::1\])$/;
+
+/**
+ * The port an `http` or `https` URL names when it writes none. The URL parser leaves `port` empty
+ * for a scheme's default port, written or not, so the number has to come from the scheme.
+ */
+const DEFAULT_PORTS = new Map([
+  ["http:", 80],
+  ["https:", 443],
+]);
+
+/**
+ * @function staleApiAddresses
+ * @description The API addresses of an environment file that name a loopback origin on another
+ *   port than the one the run starts the API on, each with the port it names. An address on another
+ *   host is left alone, since a file may point at another server on purpose, and so is a value that
+ *   is not an `http` or `https` URL, which the API's own schema refuses.
+ * @param {Record<string, string>} values - The file's variables.
+ * @param {number} apiPort - The port the run starts the API on.
+ * @returns {Array<{ key: string, port: number }>} Each such address and its port, `API_BASE_URL`
+ *   first, then `APP_BASE_URL`.
+ */
+export function staleApiAddresses(values, apiPort) {
+  /** @type {Array<{ key: string, port: number }>} */
+  const stale = [];
+  for (const key of ["API_BASE_URL", "APP_BASE_URL"]) {
+    const raw = values[key];
+    const url = raw !== undefined && URL.canParse(raw) ? new URL(raw) : null;
+    const fallback = url === null ? undefined : DEFAULT_PORTS.get(url.protocol);
+    if (url === null || fallback === undefined || !LOOPBACK_HOST.test(url.hostname)) continue;
+    const port = url.port === "" ? fallback : Number(url.port);
+    if (port !== apiPort) stale.push({ key, port });
+  }
+  return stale;
 }
 
 /**

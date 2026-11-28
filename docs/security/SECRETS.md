@@ -61,17 +61,22 @@ Cross-references in tables use these short forms:
 
 ## 3. Master keys (cryptographic root)
 
-The platform's two cryptographic roots. Both are required at boot; the
-API and workers refuse to start without them. They protect every
+The platform's cryptographic root. It is required at boot; the API and
+the workers refuse to start without it. It protects every
 encrypted-at-rest credential downstream.
 
-| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                                                           |
-| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext`                                          |
-| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | No reader                                       | Nothing: no model has the `ProviderConnection` columns it was described as protecting                                                                            | NIST 1 year (KEK) | Required at boot (`apps/api/src/config/env.ts`), named in `secretCatalog.ts`; wiring or deleting it is the Maintainer's choice in `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16 |
+| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                  |
+| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext` |
 
-**Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`,
-`openssl rand -hex 32` for `OAUTH_ENCRYPTION_KEY`.
+`OAUTH_ENCRYPTION_KEY` is not a master key: nothing reads it, nothing
+replaced it, and the `ProviderConnection` columns it was described as
+protecting are not in the schema. The API refuses to boot while it is set,
+naming it and never its value (`REMOVED_VARIABLES` in
+`apps/api/src/config/env.ts`). The secret catalog that the rotation status
+reads (`packages/core/domain/src/security/secretCatalog.ts`) still lists it.
+
+**Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`.
 
 **Rotation procedure.** [T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--special-consideration)
 documents the special handling required (re-wrap of all DEKs, dual-key
@@ -171,7 +176,7 @@ validated at boot by `env.ts`; missing required values cause fail-fast.
 | Env var               | Required                      | Format                                              | Used by                      | Rotation cadence          | Notes                                                            |
 | --------------------- | ----------------------------- | --------------------------------------------------- | ---------------------------- | ------------------------- | ---------------------------------------------------------------- |
 | `DATABASE_URL`        | required                      | `postgresql://USER:PASS@HOST:PORT/DB?schema=public` | API, workers, Prisma migrate | NIST 1 year (DB password) | Embedded password is the credential; URL host/port may be public |
-| `SHADOW_DATABASE_URL` | required for `prisma migrate` | Same shape                                          | Prisma migration tool        | Same as above             | Used only for shadow database during schema diffing              |
+| `SHADOW_DATABASE_URL` | for `prisma migrate dev` only | Same shape                                          | Prisma migration tool        | Same as above             | Used only for shadow database during schema diffing              |
 
 Rotation procedure: [T0A §2.1](./T0A_SECRETS_ROTATION_RUNBOOK.md#21-database-postgresql).
 
@@ -346,7 +351,7 @@ in one of five classes:
 | `PlatformCredential.encryptedValue` + `.iv` + `.authTag` | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Generic platform-credential blob                                          |
 | `AccountCredential.encryptedValue` + `.iv` + `.authTag`  | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Per-account credential blob                                               |
 
-`OAUTH_ENCRYPTION_KEY` encrypts none of these: no code reads it, and the `ProviderConnection` model it was described as protecting is not in the schema (§3; `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16). Per-channel OAuth tokens live in `Channel.credentials`.
+`OAUTH_ENCRYPTION_KEY` encrypts none of these: no code reads it, the API refuses to boot while it is set, and the `ProviderConnection` model it was described as protecting is not in the schema (§3; `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16). Per-channel OAuth tokens live in `Channel.credentials`.
 
 Rotation = re-wrap with the new KEK version using the
 `*KeyVersion` discriminator. Procedure in
@@ -433,14 +438,40 @@ this document points at its last version.
 
 ### 7.1 Current state
 
-CI is GitHub Actions. CI-only secrets are stored in the repository's
-GitHub Actions Secrets configuration. The set is small:
+CI is GitHub Actions. CI-only secrets and variables are stored in the
+repository's Settings → Secrets and variables → Actions. The workflows in
+`.github/workflows/` read the secrets and the repository variables listed
+below; one of the secrets, `GITHUB_TOKEN`, is minted by GitHub. The command
+that derives the list is
+`rg -o -I 'vars\.[A-Z_]+|secrets\.[A-Z_]+' .github/workflows/*.yml | sort -u`.
 
-| Secret                            | Used by                                               | Notes                                                           |
-| --------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------- |
-| `GITHUB_TOKEN`                    | All workflows                                         | Auto-provisioned by GitHub Actions; scoped per workflow run     |
-| Container registry credentials    | Image build / push workflows                          | Currently absent — only added when an image is published        |
-| Application runtime secrets in CI | Integration tests that talk to live external services | Currently absent — integration tests run against local fixtures |
+| Secret                    | Kind              | Read by                                                                                                                                                         | Notes                                                                                                                                                                                                             | Owner    |
+| ------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `GITHUB_TOKEN`            | Automatic         | `production-ci.yml`, step "Log in to Container Registry"; the reminder steps of `error-sites-stall.yml`, `maturity-reminder.yml` and `patched-dependencies.yml` | Minted by GitHub for each run; its scope is the `permissions` declared where it is used: `packages: write` for the registry login of `production-ci.yml`, `issues: write` in each of the three reminder workflows | GitHub   |
+| `DEPENDENCY_UPDATE_TOKEN` | Repository secret | `dependency-updates.yml`: the checkouts and `peter-evans/create-pull-request` of the security and minor update jobs, and the step "Create major update issue"   | Pushes the dependency branches and opens their pull requests and issues; narrowing its scope is the plan row L-621 CI-PAT-SCOPE ([cross-cutting.md](../product/plan/cross-cutting.md))                            | operator |
+| `SLACK_WEBHOOK`           | Repository secret | `dependency-updates.yml`, step "Notify team about dependency updates", as `SLACK_WEBHOOK_URL`                                                                   | Incoming-webhook URL of the Slack channel that receives the security-update notice                                                                                                                                | operator |
+
+| Variable                        | Read by                                                                       | Notes                                                                                                                         | Owner    |
+| ------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `ADMIN_NEXT_PUBLIC_SENTRY_DSN`  | `production-ci.yml`, job `container-security`, through `SENTRY_DSN_BUILD_ARG` | The admin portal's browser DSN, passed to the image build as `NEXT_PUBLIC_SENTRY_DSN`; public, so a variable and not a secret | operator |
+| `CLIENT_NEXT_PUBLIC_SENTRY_DSN` | `production-ci.yml`, job `container-security`, through `SENTRY_DSN_BUILD_ARG` | The client portal's browser DSN, passed the same way                                                                          | operator |
+
+Container registry: the publication of the images (`api`, `workers`,
+`admin`, `client`) to `ghcr.io` logs in with `GITHUB_TOKEN`, as the
+workflow's actor, in the job `container-security` of `production-ci.yml`.
+The login and the push run on every event but a pull request, and the job
+declares `packages: write` for them. No registry credential is stored in
+the repository.
+
+No workflow reads any other secret or variable, so no CI job holds an
+application runtime secret or a credential for a live external service.
+
+For each name, what happens when it is unset, how to set it and how to
+verify it: the table of
+[GitHub repository variables and secrets](../deployment/DEPLOYMENT_CHECKLIST.md#github-repository-variables-and-secrets)
+in the deployment checklist. Where the two disagree, the workflow decides.
+None of these secrets has a procedure in the
+[rotation runbook](./T0A_SECRETS_ROTATION_RUNBOOK.md).
 
 Pre-commit guards (`gitleaks`, `secretlint`) run via husky and block any
 secret-shaped string in a commit. Configuration files for these tools
@@ -526,7 +557,7 @@ schedule template in
 
 | Category                                                                            | Cadence                        | Rotation method                                                           |
 | ----------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------- |
-| Symmetric encryption keys (KEK) — `PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY` | 1 year                         | Re-wrap of all dependent ciphertexts using the version discriminator      |
+| Symmetric encryption key (KEK) — `PLATFORM_ENCRYPTION_KEY`, with its prior versions | 1 year                         | Re-wrap of all dependent ciphertexts using the version discriminator      |
 | JWT signing keys — `JWT_*_SECRET`, `ADMIN_JWT_*_SECRET`, `CUSTOMER_JWT_SECRET`      | 90 days                        | Dual-key validity window; existing tokens stay valid until natural expiry |
 | Session / cookie secrets — `COOKIE_SECRET`                                          | 90 days                        | Same dual-key window                                                      |
 | Database password (embedded in `DATABASE_URL`)                                      | 1 year                         | Roll the DB role password, update env var, restart                        |
@@ -586,12 +617,12 @@ immediate steps, verification, communication.
 
 ### D.1 Master key compromise
 
-Signal: `PLATFORM_ENCRYPTION_KEY` or `OAUTH_ENCRYPTION_KEY` appears in
+Signal: `PLATFORM_ENCRYPTION_KEY` appears in
 logs, git history, screenshots, error messages, or external dump.
 
 Immediate steps:
 
-1. Generate a new key (`openssl rand -base64 32` / `openssl rand -hex 32`).
+1. Generate a new key (`openssl rand -base64 32`).
 2. Add it as the new active version (bump `keyVersion`); keep the
    compromised key in the prior-version map for the duration of re-wrap.
 3. Run the re-wrap campaign for every Class A column

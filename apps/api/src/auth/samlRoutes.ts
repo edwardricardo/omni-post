@@ -180,8 +180,6 @@ class SamlAdminHandler extends BaseRouteHandler {
 // SAML Flow Helpers
 // ============================================================================
 
-const APP_BASE_URL = env.APP_BASE_URL ?? "https://omnipost.app";
-
 function buildSamlInstance(config: {
   entityId: string;
   idpEntityId: string;
@@ -190,7 +188,7 @@ function buildSamlInstance(config: {
   accountId: string;
 }): SAML {
   return new SAML({
-    callbackUrl: `${APP_BASE_URL}/auth/saml/${config.accountId}/callback`,
+    callbackUrl: `${env.APP_BASE_URL}/auth/saml/${config.accountId}/callback`,
     issuer: config.entityId,
     idpIssuer: config.idpEntityId,
     entryPoint: config.idpSsoUrl,
@@ -203,6 +201,13 @@ function buildSamlInstance(config: {
 // Plugin
 // ============================================================================
 
+/**
+ * @description Fastify plugin that registers the SAML administration routes and the public
+ *   metadata, login and callback flow. The ACS URL it publishes and sends in an AuthnRequest is
+ *   `APP_BASE_URL` followed by the account's callback path, so its origin never comes from the
+ *   request.
+ * @param app - The Fastify instance, decorated with the composition root's container.
+ */
 export const samlRoutes: FastifyPluginAsync = async (app) => {
   const configureUseCase = app.container!.resolve<ConfigureSamlUseCase>(
     TOKENS.ConfigureSamlUseCase

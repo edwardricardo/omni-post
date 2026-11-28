@@ -2676,7 +2676,7 @@ pnpm check:errors   # expect exit 0 and, on stdout:
 # citation count (printed, never written) and no timestamp: it fires when a name, a reader, a
 # naming section or a classification changes, and stays green over a change that moves a line.
 # RATCHET. `pendingBaseline` is the check's one counted residual: the names that wait for their
-# row, 25 when this check landed (31 names had no row; six of them are rows' suffix shorthand). It
+# row, 24 when this check landed (30 names had no row; six of them are rows' suffix shorthand). It
 # may fall and must never rise, and the check holds it EXACT, so the change that writes a pending
 # name's row drops its entry and lowers the baseline in the same diff or goes red.
 # FAIL-CLOSED: a missing schema, checklist or .github/workflows/, a schema that yields no name and
@@ -2686,9 +2686,9 @@ pnpm check:errors   # expect exit 0 and, on stdout:
 # JSON are a problem, exit 1. A workflow that reads no name is no error.
 # RED PATH, shown on the tree this check landed in, each planted, run, restored byte for byte by
 # checksum, and the check green again (exit 0): (1) the entry of the pending name HOST deleted and
-# the baseline lowered to 24: exit 1, "HOST has no row in the checklist and no entry in
+# the baseline lowered to 23: exit 1, "HOST has no row in the checklist and no entry in
 # docs/deployment/classification/names.json: name it in a row or classify it"; (2) the baseline
-# raised to 26: exit 1, "stale pendingBaseline 26: lower it to 25"; (3) a citation cut back to
+# raised to 25: exit 1, "stale pendingBaseline 25: lower it to 24"; (3) a citation cut back to
 # `providerOAuthConfigs.ts:646` and another moved to line 5900: exit 1, "… cites
 # providerOAuthConfigs.ts:646, which is no file of the repository" and "… cites
 # apps/workers/src/config/env.ts:5900, which has 110 lines"; (4) one count of the committed page
@@ -2696,7 +2696,7 @@ pnpm check:errors   # expect exit 0 and, on stdout:
 # pnpm deployment:inventory".
 # RESIDUAL LIMITS, stated rather than implied: (1) a citation is held to its file's length, never to
 # what the cited line says (the plan row DEPLOYMENT-CHECKLIST-WORKFLOW-CITATIONS-NOT-HELD,
-# docs/product/plan/cross-cutting.md), and a prose citation such as "(line 296)" is not read;
+# docs/product/plan/cross-cutting.md), and a prose citation such as "(line 291)" is not read;
 # (2) the names are the schemas' and the workflows': a variable read outside a schema (a billing
 # adapter's `process.env[...]`, the OpenTelemetry endpoint), a Dockerfile `ARG` and an Admin
 # settings key are derived by no reader; (3) a row names a variable when any of its code spans holds

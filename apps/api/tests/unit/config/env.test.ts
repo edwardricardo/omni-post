@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { makePublicAddressEnv } from "../helpers/publicAddressEnv.js";
 
 // process.loadEnvFile() inside env.ts re-injects values from .env.test on import. For
 // deterministic tests we need it to be a no-op so that explicit process.env mutations are the only
@@ -15,7 +16,6 @@ vi.hoisted(() => vi.spyOn(process, "loadEnvFile").mockImplementation(() => undef
 const REQUIRED_BASE_ENV = {
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://u:p@localhost:5432/db?schema=public",
-  SHADOW_DATABASE_URL: "postgresql://u:p@localhost:5432/db_shadow?schema=public",
   JWT_ACCESS_SECRET: "a".repeat(32),
   JWT_REFRESH_SECRET: "b".repeat(32),
   CUSTOMER_JWT_SECRET: "c".repeat(32),
@@ -23,12 +23,12 @@ const REQUIRED_BASE_ENV = {
   ADMIN_JWT_REFRESH_SECRET: "e".repeat(32),
   COOKIE_SECRET: "f".repeat(32),
   PLATFORM_ENCRYPTION_KEY: "g".repeat(32),
-  OAUTH_ENCRYPTION_KEY: "h".repeat(32),
   // The name-digest key ring is REQUIRED with no default, so it belongs in the
   // base fixture like every other must-be-present key. Its own contract —
   // shape, contiguity, pointer — is exercised in `nameDigestRing.test.ts`.
   DELETION_NAME_DIGEST_KEY_RING:
     '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
+  ...makePublicAddressEnv(),
 } as const;
 
 async function loadEnvWith(overrides: Record<string, string | undefined> = {}): Promise<unknown> {

@@ -1,0 +1,90 @@
+name: "Start Postgres and Redis"
+description: >-
+  Pulls a job's Postgres and Redis images through scripts/ci/pull-image.mjs, the mirror first and
+  Docker Hub second, runs them with their ports published on the runner and their health checks,
+  and waits, bounded, until both are healthy.
+
+# A `services:` block pulls its images while the job is set up, before any step, and the workflow
+# syntax gives that pull no retry, so one failure at Docker Hub fails the job. A step can retry, so
+# a job starts its containers with this action, as a services block would start them: the ports
+# 5432 and 6379 on the runner, `pg_isready` and `redis-cli ping` every 10 s, the Postgres
+# credentials the job passes. They are left running when the job ends; a hosted runner is
+# discarded with them.
+inputs:
+  postgres-image:
+    description: "The Postgres image, a Docker Hub reference (name:tag)"
+    required: true
+  postgres-db:
+    description: "The database the Postgres image creates at its first start (POSTGRES_DB)"
+    required: true
+  postgres-user:
+    description: "The superuser the Postgres image creates (POSTGRES_USER)"
+    required: true
+  postgres-password:
+    description: "That superuser's password (POSTGRES_PASSWORD), a non-production CI value"
+    required: true
+  redis-image:
+    description: "The Redis image, a Docker Hub reference (name:tag)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Pull the Postgres and Redis images, the mirror first and Docker Hub second
+      shell: bash
+      env:
+        POSTGRES_IMAGE: ${{ inputs.postgres-image }}
+        REDIS_IMAGE: ${{ inputs.redis-image }}
+      run: |
+        set -euo pipefail
+        node scripts/ci/pull-image.mjs "$POSTGRES_IMAGE"
+        node scripts/ci/pull-image.mjs "$REDIS_IMAGE"
+
+    - name: Run the containers and wait until both are healthy
+      shell: bash
+      env:
+        POSTGRES_IMAGE: ${{ inputs.postgres-image }}
+        REDIS_IMAGE: ${{ inputs.redis-image }}
+        POSTGRES_DB: ${{ inputs.postgres-db }}
+        POSTGRES_USER: ${{ inputs.postgres-user }}
+        POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+      run: |
+        set -euo pipefail
+        # `--pull never`: the step above is the only pull, so a missing image fails here rather
+        # than reaching Docker Hub a second time with no retry. `--env NAME` with no value hands
+        # the container the variable of this step, so the password is on no command line.
+        docker run --detach --pull never --name postgres \
+          --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD \
+          --publish 5432:5432 \
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 \
+          "$POSTGRES_IMAGE" > /dev/null
+        docker run --detach --pull never --name redis \
+          --publish 6379:6379 \
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5 \
+          "$REDIS_IMAGE" > /dev/null
+        # 120 s covers the first check at 10 s and the five failed checks Docker counts before it
+        # calls a container unhealthy. A container that stops, turns unhealthy or is still starting
+        # at the bound fails the step with its own log. The bound and the pause between two reads
+        # come from two variables no workflow sets, so that the suite that runs this script can
+        # make them small; unset, they are 120 s and 2 s.
+        bound="${SERVICE_HEALTH_BOUND_SECONDS:-120}"
+        poll="${SERVICE_HEALTH_POLL_SECONDS:-2}"
+        deadline=$((SECONDS + bound))
+        for name in postgres redis; do
+          while :; do
+            state="$(docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' "$name")"
+            if [ "$state" = "running healthy" ]; then
+              echo "$name is healthy"
+              break
+            fi
+            if [ "$state" = "running starting" ] && [ "$SECONDS" -lt "$deadline" ]; then
+              sleep "$poll"
+              continue
+            fi
+            echo "::group::docker logs $name"
+            docker logs "$name" 2>&1 || true
+            echo "::endgroup::"
+            echo "::error title=$name did not become healthy::the $name container is '$state' (status, health); its log is in the group above"
+            exit 1
+          done
+        done

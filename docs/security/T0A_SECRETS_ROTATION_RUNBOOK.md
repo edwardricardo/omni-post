@@ -8,9 +8,9 @@
 >
 > **Created.** 2026-04-21.
 >
-> **Success criterion.** `git log --all --oneline -- .env` returns 0 lines + every external service running with new secrets + apps redeployed green.
+> **Success criterion.** Every secret of an environment reachable from outside is generated for it, and none is a value that a development or test file holds or that the git history published ([DEPLOYMENT_CHECKLIST.md](../deployment/DEPLOYMENT_CHECKLIST.md), Infrastructure, "New secrets per environment"). The history is not rewritten, so `git log --all --oneline -- .env` keeps listing the three commits of §1.
 >
-> **Status (2026-10-15): IN FORCE, NOT EXECUTED.** The rotation and the history purge happen at the move to production (`SECRETS-ROTATION-GOLIVE`, a row of the plan in `docs/product/plan/chain.md`). The dual-key window of §7 and the re-encryption of §10 describe what the code does not do yet: CRED-6 and CRED-11 (DEF-45) are still open. §2, §3 and §7 to §10 are the permanent procedure that [`SECRETS.md`](./SECRETS.md) links to; §1, §4 and §5 are the L-591 incident part; §6 (the checklist) serves both.
+> **Status (2026-11-28): IN FORCE; the L-591 rotation has nothing to rotate.** An inventory run on 2026-11-28, by name and by the form of each value and printing no value, of every environment-like file the history held (the five real files of §1 and four example files) found no third-party credential published: the real files held development values only. By decision of the Maintainer of 2026-11-20 the history is not rewritten, so no rotation and no history purge happen at the move to production; `SECRETS-ROTATION-GOLIVE` (`docs/product/plan/chain.md`) is closed by decision of the Maintainer on 2026-11-28. The dual-key window of §7 and the re-encryption of §10 describe what the code does not do yet: CRED-6 and CRED-11 (DEF-45) are still open. §2, §3 and §7 to §10 are the permanent procedure that [`SECRETS.md`](./SECRETS.md) links to; §1, §4 and §5 are the L-591 incident part; §6 (the checklist) serves both.
 >
 > **Division of authority.** [`SECRETS.md`](./SECRETS.md) is the catalog (which secrets exist and where they live); this document is the how (the procedure); the plan carries only what is left to do.
 
@@ -22,7 +22,7 @@
 
 **L-591** — `.env` tracked in git with real secrets. Documented in:
 
-- The original finding L-591 (`.env` git-tracked with secrets). The pending work (the real rotation + the history purge) lives in the plan row `SECRETS-ROTATION-GOLIVE` (`docs/product/plan/chain.md`). The originating audit docs (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) were retired after their absorption into the consolidated plan.
+- The original finding L-591 (`.env` git-tracked with secrets). The plan row `SECRETS-ROTATION-GOLIVE` (`docs/product/plan/chain.md`) held the pending work (the real rotation + the history purge) and is closed by decision of the Maintainer on 2026-11-28 (see Status). The originating audit docs (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) were retired after their absorption into the consolidated plan.
 
 ### Scope correction (found on 2026-04-21 while exploring T0-A)
 
@@ -31,17 +31,18 @@ The original finding described `apps/api/.env` as the tracked file. The reality:
 - **Root `.env`** (not `apps/api/.env`) is the file tracked in git.
 - `apps/api/.env` was never tracked (correctly gitignored from the start).
 - L-591 stays CRITICAL — only the affected file changes.
+- The history held five real environment files, not one (`git log --all --format='%h %cs' -- <path>`): the root `.env` (`d68a4757a`, `5603d6be8`, `78b1055c6`), `infra/prisma/.env` (`d68a4757a`, `5603d6be8`, `907b62f7a`), `apps/api/.env.test` and `apps/admin/.env.test` (`d68a4757a`, `5603d6be8`, `0a6288230`) and `.env.test` (`2a1673b43`, `1a48bbf35`, `0a6288230`). The inventory of 2026-11-28 read all five by name and by form: internal signing and encryption secrets, connection strings to local hosts and settings, and no third-party credential.
 
 ### Exposure
 
 - **Repo:** `https://github.com/edwardricardo/omni-post.git` — **PUBLIC on GitHub**
-- **First commit with `.env`:** `5603d6b` (2026-03-08)
+- **First commit with `.env`:** `d68a4757a` (2026-03-08)
 - **Active exposure time:** ~44 days
-- **Affected commits:** 6 (the file's whole history)
+- **Affected commits:** 3 (the file's whole history, by `git log --all --format='%h %cs' -- .env`): `d68a4757a` and `5603d6be8` of 2026-03-08 hold it, and `78b1055c6` of 2026-04-22 untracks it
 
 ### What counts as compromised
 
-Every value present in root `.env` during the last 44 days. Check against the commits:
+Every value present in the five files of the scope correction above while the history held them. Check against the commits:
 
 ```bash
 git log --all --oneline -- .env
@@ -49,20 +50,20 @@ git log --all --oneline -- .env
 git show <SHA>:.env
 ```
 
-**⚠️ Assume compromised** every secret documented in §2 until it is rotated, even if the historical diff shows partial changes.
+**Inventory (2026-11-28).** An inventory of the five files by name and by the form of each value, printing no value, replaced the assumption that every secret of §2 was compromised: the five files published development values only, and no third-party credential. A value they published is never reused in an environment reachable from outside.
 
 ---
 
 ## §2. Full list of secrets to rotate
 
-Table grouped by domain. **43+ variables** across root `.env` + `apps/api/.env`.
+Table grouped by domain: the secrets a deployment holds, not what the git history published (§1 says what the five published files held).
 
 ### §2.1 Database (PostgreSQL)
 
 | Key                   | Service                                                 | Action                                                             | Priority |
 | --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ | -------- |
 | `DATABASE_URL`        | Managed PostgreSQL (Railway/Supabase/AWS RDS — confirm) | Create a new DB user + new password + update the connection string | CRITICAL |
-| `SHADOW_DATABASE_URL` | Managed PostgreSQL                                      | Same — it can reuse the same instance with a new password          | HIGH     |
+| `SHADOW_DATABASE_URL` | Managed PostgreSQL                                      | Same, where it is set: only `prisma migrate dev` reads it          | HIGH     |
 
 **Procedure:**
 
@@ -70,7 +71,7 @@ Table grouped by domain. **43+ variables** across root `.env` + `apps/api/.env`.
 2. Create a new role/user with the same permissions (`CREATE USER new_user WITH PASSWORD '...' ;`).
 3. `GRANT ALL PRIVILEGES ON DATABASE omnipostdb TO new_user;`
 4. Revoke the old user (or disable its login): `ALTER USER old_user NOLOGIN;`
-5. Build the new `DATABASE_URL` and `SHADOW_DATABASE_URL`.
+5. Build the new `DATABASE_URL`, and `SHADOW_DATABASE_URL` where it is set.
 6. Update the local `.env` + the deploy platform.
 
 ### §2.2 Auth / JWT
@@ -137,9 +138,9 @@ The seed reads no administrator e-mail: the administrator it writes is the fixed
 
 ### §2.7 URLs and config
 
-| Key                                  | Action                                | Priority |
-| ------------------------------------ | ------------------------------------- | -------- |
-| `APP_URL`, `CLIENT_URL`, `ADMIN_URL` | No action unless the host has changed | LOW      |
+| Key                                          | Action                                | Priority |
+| -------------------------------------------- | ------------------------------------- | -------- |
+| `CLIENT_URL`, `API_BASE_URL`, `APP_BASE_URL` | No action unless the host has changed | LOW      |
 
 ### §2.8 Observability
 
@@ -390,7 +391,7 @@ git status
 
 ### Final note
 
-If the whole checklist passes: **L-591 CLOSED**. The tail (the real rotation + the history purge) stays tracked in the plan row `SECRETS-ROTATION-GOLIVE` (`docs/product/plan/chain.md`); mark it closed there once it is done.
+If the whole checklist passes: **L-591 CLOSED**. The tail (the real rotation + the history purge) was tracked in the plan row `SECRETS-ROTATION-GOLIVE` (`docs/product/plan/chain.md`), closed by decision of the Maintainer on 2026-11-28: the inventory found nothing to rotate, and the history is not rewritten (see Status).
 
 ---
 
@@ -404,7 +405,7 @@ The validity period NIST recommends per class of cryptographic key.
 | **JWT signing keys** (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CUSTOMER_JWT_SECRET`, `ADMIN_JWT_*_SECRET`) | ≤ 2 years             | ≤ 3 years            | **90 days**                 | Access tokens TTL ≤ 15min; rotation bounds blast radius if signing key compromised. Dual-key window ≥ 24h covers max access-token validity.                                            |
 | **Cookie signing** (`COOKIE_SECRET`)                                                                          | ≤ 2 years             | ≤ 3 years            | **90 days**                 | Same logic as JWT. Sessions invalidate gracefully on rotation since cookie verification is stateless.                                                                                  |
 | **API keys** (`STRIPE_SECRET_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, etc.)                                  | —                     | ≤ 2 years            | **1 year**                  | OAuth client secrets often appear in CI logs, third-party support tickets; tighter than NIST upper bound.                                                                              |
-| **Encryption keys** (`PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY`)                                       | ≤ 2 years             | indefinite           | **1 year** + key versioning | Encrypted-at-rest data must be readable across rotations; version column on every encrypted row enables zero-downtime rotation. Old key kept for decrypt-only until re-wrap completes. |
+| **Encryption keys** (`PLATFORM_ENCRYPTION_KEY`)                                                               | ≤ 2 years             | indefinite           | **1 year** + key versioning | Encrypted-at-rest data must be readable across rotations; version column on every encrypted row enables zero-downtime rotation. Old key kept for decrypt-only until re-wrap completes. |
 | **Database passwords** (`DATABASE_URL`, `POSTGRES_PASSWORD`)                                                  | —                     | —                    | **1 year**                  | App restart required for rotation; coordinate with DB admin for grace window if connection pooling is hot.                                                                             |
 | **Service account / infrastructure** (`MINIO_ROOT_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD`)                    | —                     | —                    | **1 year**                  | Single-instance dev today; in prod migrate to IAM roles where possible to avoid static credentials entirely.                                                                           |
 | **HMAC webhook signing secrets**                                                                              | ≤ 2 years             | ≤ 2 years            | **1 year**                  | Per-customer-rotated when supported by the integration provider.                                                                                                                       |
@@ -575,5 +576,5 @@ If something fails catastrophically during the rotation (DB unreachable, prod se
 
 ## Annex B — Cross-references
 
-- the plan rows `SECRETS-ROTATION-GOLIVE` (rotation + history purge at go-live) and `L-546` (ADMIN_PASSWORD fallback), both in `docs/product/plan/chain.md` · `L-623` password123 in CI = accepted-dev-fixture (closed; in `docs/product/plan/cross-cutting.md`). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
+- the plan rows `SECRETS-ROTATION-GOLIVE` (closed by decision of the Maintainer on 2026-11-28: nothing to rotate, no history rewrite) and `L-546` (ADMIN_PASSWORD fallback), both in `docs/product/plan/chain.md` · `L-623` password123 in CI = accepted-dev-fixture (closed; in `docs/product/plan/cross-cutting.md`). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
 - CLAUDE.md — "Automated Compliance Checks" (fitness functions already wired in CI).

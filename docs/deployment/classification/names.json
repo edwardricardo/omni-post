@@ -1,5 +1,5 @@
 {
-  "pendingBaseline": 25,
+  "pendingBaseline": 24,
   "entries": {
     "AI_PROVIDER_REQUESTS_PER_MIN": { "status": "pending" },
     "DELETION_NAME_DIGEST_ACTIVE_VERSION": { "status": "pending" },
@@ -30,7 +30,6 @@
     "GEMINI_EMBEDDINGS_MODEL": { "status": "pending" },
     "GEMINI_MODEL": { "status": "pending" },
     "HOST": { "status": "pending" },
-    "JWT_SECRET": { "status": "pending" },
     "LOG_CACHE_OPS": { "status": "pending" },
     "LOG_LEVEL": { "status": "pending" },
     "MATERIALIZED_VIEW_REFRESH_INTERVAL": { "status": "pending" },

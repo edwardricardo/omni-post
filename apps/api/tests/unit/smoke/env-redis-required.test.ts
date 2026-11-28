@@ -16,6 +16,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { parseApiEnv } from "../../../src/config/env.js";
+import { makePublicAddressEnv } from "../helpers/publicAddressEnv.js";
 
 /**
  * A fully-valid runtime env covering every REQUIRED apps/api server key, so the
@@ -25,7 +26,6 @@ import { parseApiEnv } from "../../../src/config/env.js";
 const VALID_ENV: Record<string, string> = {
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://postgres:password123@localhost:5432/omnipostdb",
-  SHADOW_DATABASE_URL: "postgresql://postgres:password123@localhost:5432/omnipostdb_shadow",
   REDIS_URL: "redis://localhost:6379",
   JWT_ACCESS_SECRET: "a-very-long-jwt-access-secret-for-testing-only",
   JWT_REFRESH_SECRET: "a-very-long-jwt-refresh-secret-for-testing-only",
@@ -34,9 +34,9 @@ const VALID_ENV: Record<string, string> = {
   ADMIN_JWT_REFRESH_SECRET: "a-very-long-admin-refresh-secret-for-testing-only",
   COOKIE_SECRET: "a-very-long-cookie-secret-for-testing-purposes-only",
   PLATFORM_ENCRYPTION_KEY: "a-very-long-platform-encryption-key-testing-only",
-  OAUTH_ENCRYPTION_KEY: "a-very-long-oauth-encryption-key-for-testing-only",
   DELETION_NAME_DIGEST_KEY_RING:
     '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
+  ...makePublicAddressEnv(),
 };
 
 /**

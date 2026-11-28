@@ -263,7 +263,14 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     });
   }
 
-  /** Route: GET /auth/:provider - Initiate OAuth flow (requires authentication) */
+  /**
+   * @method initiateOAuth
+   * @description Route GET /auth/:provider: starts a provider connection for the authenticated
+   *   customer's project and redirects to the provider's consent page.
+   * @param request - The request, with the provider in its path and the project in its query.
+   * @param reply - The reply that redirects, or answers the refusal.
+   * @returns Resolves once the reply is sent.
+   */
   async initiateOAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
@@ -303,10 +310,18 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     }
   }
 
-  /** Route: GET /auth/callback/:provider - Handle OAuth callback */
+  /**
+   * @method handleCallback
+   * @description Route GET /auth/callback/:provider: completes a provider connection and redirects
+   *   the browser to the client portal's connections page, whose origin is `CLIENT_URL` alone,
+   *   whether the connection succeeded or failed.
+   * @param request - The provider's callback, with the code and state in its query.
+   * @param reply - The reply that redirects.
+   * @returns Resolves once the reply is sent.
+   */
   async handleCallback(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const frontendUrl = env.FRONTEND_URL || "http://localhost:3200";
+    const clientUrl = env.CLIENT_URL;
 
     try {
       const validated = await this.validateRequest<z.infer<typeof OAuthCallbackSchema>>(ctx, {
@@ -316,7 +331,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
 
       if (!validated.ok) {
         return reply.redirect(
-          `${frontendUrl}/dashboard/connections?error=${encodeURIComponent("Invalid OAuth callback parameters")}`
+          `${clientUrl}/dashboard/connections?error=${encodeURIComponent("Invalid OAuth callback parameters")}`
         );
       }
 
@@ -326,14 +341,14 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       if (error) {
         this.logError(ctx, "OAuth provider returned error", { provider, error });
         return reply.redirect(
-          `${frontendUrl}/dashboard/connections?error=${encodeURIComponent(`OAuth error: ${error}`)}`
+          `${clientUrl}/dashboard/connections?error=${encodeURIComponent(`OAuth error: ${error}`)}`
         );
       }
 
       await this.handleOAuthCallback(ctx, provider, code, state);
 
       return reply.redirect(
-        `${frontendUrl}/dashboard/connections?provider=${provider}&status=connected`
+        `${clientUrl}/dashboard/connections?provider=${provider}&status=connected`
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "OAuth callback failed";
@@ -341,12 +356,19 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       this.logError(ctx, "OAuth callback failed", { error: errorMessage });
 
       return reply.redirect(
-        `${frontendUrl}/dashboard/connections?error=${encodeURIComponent(errorMessage)}`
+        `${clientUrl}/dashboard/connections?error=${encodeURIComponent(errorMessage)}`
       );
     }
   }
 
-  /** Route: GET /auth/connections/:projectId - Get connection status (requires authentication) */
+  /**
+   * @method getConnections
+   * @description Route GET /auth/connections/:projectId: lists the provider connections of one of
+   *   the authenticated customer's projects.
+   * @param request - The request, with the project in its path.
+   * @param reply - The reply that carries the connections, or the refusal.
+   * @returns Resolves once the reply is sent.
+   */
   async getConnections(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
@@ -402,7 +424,14 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     }
   }
 
-  /** Route: DELETE /auth/connections/:connectionId - Disconnect provider (requires authentication + ownership) */
+  /**
+   * @method disconnectProvider
+   * @description Route DELETE /auth/connections/:connectionId: disconnects a provider connection
+   *   the authenticated customer's account owns.
+   * @param request - The request, with the connection in its path.
+   * @param reply - The reply that confirms the disconnection, or the refusal.
+   * @returns Resolves once the reply is sent.
+   */
   async disconnectProvider(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
