@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1295,
+      "total": 1296,
       "byShape": {
-        "test": 1042,
+        "test": 1043,
         "integration-test": 93,
         "live-test": 17,
         "spec": 10,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1123,
+        "KEEP": 1124,
         "ADJUDICATE": 99,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1283,
+      "machine": 1284,
       "confirmed": 12,
-      "total": 1295
+      "total": 1296
     },
     "blocks": {
-      "total": 16296,
+      "total": 16302,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15985
+        "BEHAVIOURAL": 15991
       }
     },
     "deleted": {
@@ -7429,84 +7429,84 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML metadata: serves A's own SP metadata and never leaks B's config",
-          "line": 189,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "e0b7d05269890057ee130c5be3d0cd43e01bef99f00b6a566bda2df9748f3194"
+          "bodyHash": "d0bbc7814fb8f9ce3f9fd9de1a0af6b048a0a5aa2a438133915b38a79a80f6ed"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML metadata: serves B's own SP metadata scoped to B",
-          "line": 200,
+          "line": 205,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "531e7b9b214cd83b83c6edac5fdfc488785f217d33ae659fcd28630074a3eb76"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML metadata: absent config resolves to a scoped 404, never a 500 context-miss",
-          "line": 211,
+          "line": 216,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa371758fd704e8994f78324b45cdf6b81e521c7d577aca3f447e51cda9ec6d7"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML login: redirects A to A's own IdP SSO URL, never B's",
-          "line": 226,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df39390e7930ff4a98d726fa045b3d7ec8e10f456ea4cc8252f90afc7abbb846"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML login: absent config resolves to a scoped 404, never a 500 context-miss",
-          "line": 238,
+          "line": 243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34f7626ac4aa6a4cbbb27eddf087929ebf3b1e29e048795a7c4fdec773effede"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML callback: reaches SAML validation (401) for A under a bound context, not a 500 context-miss",
-          "line": 253,
+          "line": 258,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13622f2622e66b1a22ea195b27ac93dd73f0fac16003b32ec7362d726be7144b"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::SAML callback: absent config resolves to a scoped 404, never a 500 context-miss",
-          "line": 269,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ab5241eb39d9e36b0660c67c962e343f7e9b51a0f53a6df19c3ad19b96cd909"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::OIDC login: absent config resolves to a scoped 404, never a 500 context-miss",
-          "line": 285,
+          "line": 290,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b112b2acb90410aba3e1a429d8da722f601bd073190ecce3f6c723833138199b"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::OIDC login: an account without OIDC config cannot surface another account's config (404)",
-          "line": 298,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9c8abfd552ab755f11ea7785becc379e208215b98871c0a98eeeb1a110e013f"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::OIDC callback: reads A's own oidcConfiguration under a bound context (reaches Missing state 400)",
-          "line": 311,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e266465f68072b1dab5f9adafff0978a19eb478cc40011be25cd37a872136523"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::OIDC callback: an account without OIDC config cannot surface another account's config (404)",
-          "line": 329,
+          "line": 334,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a05ab476ce898797e32347b503c4932119b7077d11bbdd21b131b69573293402"
         },
         {
           "id": "apps/api/tests/integration/preAuthSsoTenantIsolation.integration.test.ts::OIDC callback: absent config resolves to a scoped 404, never a 500 context-miss",
-          "line": 338,
+          "line": 343,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e86681509a1e5cf0a3e21b1fee3fd74742dae781f3e38dcff262d0d2e1b7a3ee"
@@ -35722,6 +35722,51 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts::gives the OIDC library a redirect_uri on APP_BASE_URL at login, whatever host the request names",
+          "line": 157,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "70a9be3f7b1e4db1117a5e0d4009c856b6a07d5962654f31e41a6c91009386e2"
+        },
+        {
+          "id": "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts::exchanges the OIDC code against the same redirect_uri, whatever host the request names",
+          "line": 175,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fd293240db4ad3645e24c25926a80fffd49e93343b5245a27a306859ac6edcc8"
+        },
+        {
+          "id": "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts::publishes the SAML ACS URL on APP_BASE_URL in the metadata, whatever host the request names",
+          "line": 201,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cfb02e48ca13202c9f4a25b37e2fec0a9e980ec864d466658107b3c12fa9fc7c"
+        },
+        {
+          "id": "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts::sends the SAML ACS URL on APP_BASE_URL in the AuthnRequest, whatever host the request names",
+          "line": 216,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d331a1dea086eb0c6f4e5b2489e7b3e021e17983372571b19b37dd2ec03a40f3"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/authMiddleware.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -39802,49 +39847,63 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses an environment without %s, naming that variable alone",
-          "line": 95,
+          "line": 109,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15f7cb462e1fdf1e6af9e9734c066c660b627977f02b80b09908730828d0243f"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses %s when it is not a URL, naming the variable and never its value",
-          "line": 108,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14a244569039846492a87cdf35728a77703b2e62b2a52920d54f1ebcb82d6bad"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::gives each public address as the environment wrote it",
-          "line": 122,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa88531cd1aead5eba2f03397a916160c1743e9aea9063a2da3a2f317a30c9a0"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses $variable written as $form, naming the variable and never the value",
-          "line": 146,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d3ec9777dce7c52189031e0bac7892dca43bcbf1502a1451238aefdfeb989b4b"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::accepts $variable written as $origin, and gives it as written",
-          "line": 164,
+          "line": 178,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b747544ed60bce3820b40022f2bcb6d8082105983189fe2fd7dc19aad8953a0"
         },
         {
-          "id": "apps/api/tests/unit/config/publicAddresses.test.ts::neither validates nor gives %s when the environment sets it",
-          "line": 178,
+          "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses %s set alone, naming it and never its value, and says what to do instead",
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "8bce6ea54d1dee16769adeab4d1c26995f75b2cefa44b954273623997734401e"
+          "bodyHash": "fbb1a679368b7a78a7d43329b94f4619c02685aabafc92b94a16beb9a77ff440"
+        },
+        {
+          "id": "apps/api/tests/unit/config/publicAddresses.test.ts::accepts an environment that sets none of them, and gives none of them",
+          "line": 217,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5bb1c4fa5e7df78e07b266da489d750e23cd8a82f2750163449ce26436a1997e"
+        },
+        {
+          "id": "apps/api/tests/unit/config/publicAddresses.test.ts::takes a retired name set to %j as unset, as the schema takes the removed TRUSTED_PROXY_HOP_COUNT",
+          "line": 223,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0bcaf6c65cfb48aa3b110a1d1266f2ffbe1ecc78ee5735ca0978a9004937fc49"
         }
       ],
       "verdict": "KEEP",
@@ -51797,7 +51856,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 9
+      "importers": 10
     },
     {
       "path": "apps/api/tests/unit/helpers/seedCustomerRoles.ts",

@@ -321,7 +321,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
    */
   async handleCallback(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const frontendUrl = env.CLIENT_URL;
+    const clientUrl = env.CLIENT_URL;
 
     try {
       const validated = await this.validateRequest<z.infer<typeof OAuthCallbackSchema>>(ctx, {
@@ -331,7 +331,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
 
       if (!validated.ok) {
         return reply.redirect(
-          `${frontendUrl}/dashboard/connections?error=${encodeURIComponent("Invalid OAuth callback parameters")}`
+          `${clientUrl}/dashboard/connections?error=${encodeURIComponent("Invalid OAuth callback parameters")}`
         );
       }
 
@@ -341,14 +341,14 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       if (error) {
         this.logError(ctx, "OAuth provider returned error", { provider, error });
         return reply.redirect(
-          `${frontendUrl}/dashboard/connections?error=${encodeURIComponent(`OAuth error: ${error}`)}`
+          `${clientUrl}/dashboard/connections?error=${encodeURIComponent(`OAuth error: ${error}`)}`
         );
       }
 
       await this.handleOAuthCallback(ctx, provider, code, state);
 
       return reply.redirect(
-        `${frontendUrl}/dashboard/connections?provider=${provider}&status=connected`
+        `${clientUrl}/dashboard/connections?provider=${provider}&status=connected`
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "OAuth callback failed";
@@ -356,7 +356,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       this.logError(ctx, "OAuth callback failed", { error: errorMessage });
 
       return reply.redirect(
-        `${frontendUrl}/dashboard/connections?error=${encodeURIComponent(errorMessage)}`
+        `${clientUrl}/dashboard/connections?error=${encodeURIComponent(errorMessage)}`
       );
     }
   }

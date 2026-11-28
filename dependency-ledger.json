@@ -3645,10 +3645,14 @@
           "production": [
             "apps/api/src/auth/oidcRoutes.ts",
             "apps/api/src/infrastructure/auth/OpenidClientHandshakeProbe.ts"
-          ]
+          ],
+          "test": ["apps/api/tests/unit/auth/ssoCallbackAddress.test.ts"]
         },
         "test-mock": {
-          "test": ["apps/api/tests/unit/infrastructure/auth/OpenidClientHandshakeProbe.test.ts"]
+          "test": [
+            "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts",
+            "apps/api/tests/unit/infrastructure/auth/OpenidClientHandshakeProbe.test.ts"
+          ]
         }
       }
     },

@@ -6,8 +6,9 @@
  *   or `https` origin written as its own serialization, since every reader appends a path to it. An
  *   environment that lacks one, or names it with anything else, is refused by the registry's
  *   `ENV_VARIABLES_REFUSED`, which names the variable and never a value. The names those three
- *   replace, `CLIENT_APP_URL`, `FRONTEND_URL` and `ADMIN_URL`, are not variables of the API. Driven
- *   through the real `parseApiEnv`.
+ *   replace, `CLIENT_APP_URL`, `FRONTEND_URL` and `ADMIN_URL`, are refused while they are set, with
+ *   what to do instead, and a blank one is unset, as for the removed `TRUSTED_PROXY_HOP_COUNT`.
+ *   Driven through the real `parseApiEnv`.
  * @layer infrastructure
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +29,13 @@ const PLANTED = "planted-Address-Value-q3k8";
 /** The names the three public addresses replace. */
 const RETIRED_VARIABLES = ["CLIENT_APP_URL", "FRONTEND_URL", "ADMIN_URL"] as const;
 
+/** What the refusal of each retired name tells the operator to do. */
+const RETIRED_INSTRUCTIONS: Record<(typeof RETIRED_VARIABLES)[number], string> = {
+  CLIENT_APP_URL: "Set CLIENT_URL to the client portal's origin, then unset CLIENT_APP_URL.",
+  FRONTEND_URL: "Set CLIENT_URL to the client portal's origin, then unset FRONTEND_URL.",
+  ADMIN_URL: "Nothing in the API reads it, so its value configures nothing. Unset it.",
+};
+
 type ParseApiEnv = typeof import("../../../src/config/env.js").parseApiEnv;
 
 /** The fields every reader of a registered error relies on. */
@@ -35,6 +43,12 @@ interface RefusalFields {
   readonly code: string;
   readonly message: string;
   readonly params: unknown;
+  readonly cause?: unknown;
+}
+
+/** The schema's text a refusal carries as its cause, which the API's start shows; empty without. */
+function causeText(refusal: RefusalFields | undefined): string {
+  return refusal?.cause instanceof Error ? refusal.cause.message : "";
 }
 
 /** The real `parseApiEnv`, loaded with an environment the schema accepts. */
@@ -170,20 +184,48 @@ describe("a public address is an http or https origin and nothing more", () => {
   });
 });
 
-describe("the API's environment has no variable for a retired address name", () => {
+describe("the API's environment refuses a retired address name while it is set", () => {
+  let parseApiEnv: ParseApiEnv;
+
+  beforeAll(async () => {
+    parseApiEnv = await loadParseApiEnv();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it.each(RETIRED_VARIABLES)(
-    "neither validates nor gives %s when the environment sets it",
-    async (variable) => {
-      const parseApiEnv = await loadParseApiEnv();
+    "refuses %s set alone, naming it and never its value, and says what to do instead",
+    (variable) => {
+      const refusal = refusalUnder(
+        parseApiEnv,
+        makeApiEnv({ [variable]: `https://${PLANTED}.example.test` })
+      );
 
-      const parsed = parseApiEnv(makeApiEnv({ [variable]: `not a url ${PLANTED}` }));
+      expect(refusal).toMatchObject({
+        code: "ENV_VARIABLES_REFUSED",
+        params: { variables: [variable] },
+        message: `The environment was refused: these variables are missing or not valid: ${variable}`,
+      });
+      expect(causeText(refusal)).toContain(`\n  - ${variable}: ${variable} was removed`);
+      expect(causeText(refusal)).toContain(RETIRED_INSTRUCTIONS[variable]);
+      expect(causeText(refusal)).not.toContain(PLANTED);
+    }
+  );
 
-      expect(Object.keys(parsed)).not.toContain(variable);
-      expect(parsed.CLIENT_URL).toBe(makePublicAddressEnv().CLIENT_URL);
+  it("accepts an environment that sets none of them, and gives none of them", () => {
+    const parsed = parseApiEnv(makeApiEnv());
+
+    expect(RETIRED_VARIABLES.filter((variable) => variable in parsed)).toEqual([]);
+  });
+
+  it.each(["", "   "])(
+    "takes a retired name set to %j as unset, as the schema takes the removed TRUSTED_PROXY_HOP_COUNT",
+    (value) => {
+      const blank = Object.fromEntries(RETIRED_VARIABLES.map((variable) => [variable, value]));
+
+      expect(refusalUnder(parseApiEnv, makeApiEnv(blank))).toBeUndefined();
     }
   );
 });

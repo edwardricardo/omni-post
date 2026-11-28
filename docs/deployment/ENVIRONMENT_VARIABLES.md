@@ -48,6 +48,8 @@ The API refuses to boot without these fifteen, and the workers without three of 
 
 The three public addresses have no default, and no reader falls back to another host: the API refuses to boot without each of them, naming it and never its value. Each is an `http` or `https` origin written as the origin serializes ([URL Standard](https://url.spec.whatwg.org/#concept-url-origin), [RFC 6454 §6.2](https://www.rfc-editor.org/rfc/rfc6454#section-6.2)): the scheme, the host, and a port only when it is not the scheme's default, in lowercase, with no credentials, path, query, fragment or trailing slash, since every reader appends a path that starts with `/`. `https://app.example.com` and `http://127.0.0.1:3200` are origins; `https://app.example.com/`, `https://app.example.com:443`, `https://user@app.example.com`, `HTTPS://APP.EXAMPLE.COM` and `localhost:3200` refuse the boot. `API_BASE_URL` and `APP_BASE_URL` both name the API, so they hold the same origin when one host serves it.
 
+The names these three replaced are refused while they are set, an empty or blank value counting as unset, and the refusal names the variable and never its value: `CLIENT_APP_URL` and `FRONTEND_URL`, whose value now belongs in `CLIENT_URL`, and `ADMIN_URL`, which nothing reads. Remove them from an environment before the API starts in it.
+
 ---
 
 ## Database

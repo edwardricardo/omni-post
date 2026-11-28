@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1295  |
+| Files                   | 1296  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1123  |
+| KEEP                    | 1124  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1283  |
+| Machine rows            | 1284  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16296 |
+| Blocks                  | 16302 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -702,6 +702,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/auth/providerOAuthX.pilot.test.ts`                                               | test             | 2      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/auth/refreshTokenHash.test.ts`                                                   | test             | 6      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/auth/requireCallerOwnsAccountParam.test.ts`                                      | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/auth/ssoCallbackAddress.test.ts`                                                 | test             | 4      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/authMiddleware.test.ts`                                                          | test             | 16     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/authRoutes.test.ts`                                                              | test             | 19     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/authService.test.ts`                                                             | test             | 38     | 0          | KEEP       | machine                         | behavioural          |
@@ -730,7 +731,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/config/env.test.ts`                                                              | test             | 37     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/config/envRefusal.test.ts`                                                       | test             | 8      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/config/nameDigestRing.test.ts`                                                   | test             | 20     | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/config/publicAddresses.test.ts`                                                  | test             | 6      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/config/publicAddresses.test.ts`                                                  | test             | 8      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/content/syncEngineContentRead.test.ts`                                           | test             | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/contentRoutes.test.ts`                                                           | test             | 34     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/crossPlatformDataFetcher.test.ts`                                                | test             | 5      | 0          | KEEP       | machine                         | behavioural          |

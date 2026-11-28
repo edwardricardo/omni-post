@@ -381,9 +381,10 @@ const serverSchema = {
   // that power to everything inside it.
   TRUSTED_PROXY_RANGES: z.string().optional(),
 
-  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here.
-  // It is rejected from the raw runtime env in `createFinalSchema` below, so it
-  // stays out of the validated env's type while still refusing to boot when an
+  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here,
+  // and neither are the retired address names. Each is rejected from the raw
+  // runtime env in `createFinalSchema` below (`REMOVED_VARIABLES`), so it stays
+  // out of the validated env's type while still refusing to boot when an
   // operator leaves it set (see the tripwire there for why silence is unsafe).
 
   // ── DeletionRecord plaintext retention window ───────────────────────
@@ -464,6 +465,45 @@ export function environmentRefusal(issues: readonly SchemaIssue[]): RegisteredEr
 const onValidationError = (issues: readonly SchemaIssue[]): never => {
   throw environmentRefusal(issues);
 };
+
+/**
+ * Variables the API no longer reads, each with the constraint its refusal states: what replaced it,
+ * or that nothing did, and what the operator does. A removed variable left merely unread is a trap:
+ * the operator who still sets it believes it is in force. Each is refused while it is set, a value
+ * that is empty or only blanks counting as unset, and read from the raw environment so it never
+ * enters the env's type. An entry is deleted once no deployed environment sets the variable.
+ */
+const REMOVED_VARIABLES: ReadonlyArray<{ readonly name: string; readonly message: string }> = [
+  {
+    name: "TRUSTED_PROXY_HOP_COUNT",
+    message:
+      "TRUSTED_PROXY_HOP_COUNT was removed (ADR-0021). Hop-count proxy trust is " +
+      "fail-closed in fastify >= 5.12.1, so this value is read by nothing and its " +
+      "presence misrepresents the deployment. Use TRUSTED_PROXY_MODE=socket-only " +
+      "(equivalent to the old 0), or TRUSTED_PROXY_MODE=trusted-ranges with " +
+      "TRUSTED_PROXY_RANGES set to your proxy IPs/CIDRs.",
+  },
+  {
+    name: "CLIENT_APP_URL",
+    message:
+      "CLIENT_APP_URL was removed: CLIENT_URL names the client portal for the billing return " +
+      "URLs, as for every other link to it, so this value is read by nothing. Set CLIENT_URL to " +
+      "the client portal's origin, then unset CLIENT_APP_URL.",
+  },
+  {
+    name: "FRONTEND_URL",
+    message:
+      "FRONTEND_URL was removed: CLIENT_URL names the client portal for the redirect that ends a " +
+      "provider connection, as for every other link to it, so this value is read by nothing. Set " +
+      "CLIENT_URL to the client portal's origin, then unset FRONTEND_URL.",
+  },
+  {
+    name: "ADMIN_URL",
+    message:
+      "ADMIN_URL was removed. Nothing in the API reads it, so its value configures nothing. " +
+      "Unset it.",
+  },
+];
 
 /**
  * @function parseApiEnv
@@ -554,24 +594,13 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
           }
         }
 
-        // Removal tripwire for TRUSTED_PROXY_HOP_COUNT. Read from the RAW env
-        // rather than the parsed value so the dead key never enters the env's
-        // type. Leaving it merely unread would be the trap this change exists to
-        // remove: an operator who still sets it believes hop-count trust is in
-        // force, while fastify >= 5.12.1 ignores it completely. Delete this
-        // block once no deployed environment sets the variable.
-        const legacyHopCount = runtimeEnv["TRUSTED_PROXY_HOP_COUNT"];
-        if (legacyHopCount !== undefined && legacyHopCount.trim() !== "") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["TRUSTED_PROXY_HOP_COUNT"],
-            message:
-              "TRUSTED_PROXY_HOP_COUNT was removed (ADR-0021). Hop-count proxy trust is " +
-              "fail-closed in fastify >= 5.12.1, so this value is read by nothing and its " +
-              "presence misrepresents the deployment. Use TRUSTED_PROXY_MODE=socket-only " +
-              "(equivalent to the old 0), or TRUSTED_PROXY_MODE=trusted-ranges with " +
-              "TRUSTED_PROXY_RANGES set to your proxy IPs/CIDRs.",
-          });
+        // Removal tripwire: each removed variable still set refuses the boot, read
+        // from the RAW env so a dead key never enters the env's type.
+        for (const removed of REMOVED_VARIABLES) {
+          const set = runtimeEnv[removed.name];
+          if (set !== undefined && set.trim() !== "") {
+            ctx.addIssue({ code: "custom", path: [removed.name], message: removed.message });
+          }
         }
       }),
 
