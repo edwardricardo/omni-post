@@ -27,7 +27,7 @@
       "total": 1299
     },
     "blocks": {
-      "total": 16349,
+      "total": 16352,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 16038
+        "BEHAVIOURAL": 16041
       }
     },
     "deleted": {
@@ -85161,116 +85161,137 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 16,
+      "blockCount": 19,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 0 and tags $image under the asked reference when the mirror serves it at $atMirror",
-          "line": 285,
+          "line": 287,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c962909f83f2d2c06bcb75a7188d7e531a1b0a3376925e355157f7b5c5b77ba"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 0 from Docker Hub, untagged, after the mirror's three attempts fail, pausing 5 s then 10 s and bounding each attempt at 90 s when the command line names neither",
-          "line": 302,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f6dc16427d2dc5cbb8f8459bf1d7567e11c7305107c6fd277a642a6fb3642f4"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 0 from the mirror on its second attempt, after one pause of the wait the command line names, each call bounded as it names",
-          "line": 346,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "abe984778283ba96982c1ebf39e741b8a2327fca1919dd1e1fbe9145aa5551a4"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 1 naming the image after every attempt at every source fails, pausing within a source and never after its last attempt",
-          "line": 373,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a485f2f0d60ea42e3757d9c06501f78eccfc0662d94f547ee5f69ea4184e936"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::counts an attempt a signal ended as failed and names the signal",
-          "line": 436,
+          "line": 438,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aadb1f52a02337bc3afddf61f33f0de41cd4b65f95cdd913dc5dcdedb00fe36f"
         },
         {
-          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 3 after its first call, in one line naming the cause and with no pause, when docker cannot be started",
-          "line": 456,
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 3 after its first call, in one line naming the cause and with no pause, when docker cannot be started (%s)",
+          "line": 458,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "6905a9ead02761f5e533789c282f47d55d39162bd7031ef9369d37674232aed2"
+          "bodyHash": "8353916422184048d245076424f2062ccb85d72212c53da4f7d0ce23d91a915f"
         },
         {
-          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::pauses for the largest wait whose last pause is exactly what a timer takes",
-          "line": 468,
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 3 with no pause when docker cannot be started for the tag after a pull from the mirror",
+          "line": 473,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "ba7da7a59181bd3a126a447f13138872524b37e28a638214dda7914764392c28"
+          "bodyHash": "214bad494ae62cae093230df4dacaaf8d15aaaa23f9a52a747546e0fb9eef4f8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::retries, after a pause, a docker call that failed with %s, and takes the image the next attempt serves",
+          "line": 489,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "92c0e2ca952ac20adec76d7428278bd659d7cb95042e58ab3dcce1c2785d814f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::pauses for the largest wait whose longest pause is exactly what a timer takes",
+          "line": 516,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5cdc9d0a4733a3c317944ffecdd2738ae87cbae5abb8818f51eec02e8e2ac278"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/pullImage.test.ts::takes any wait with one attempt, which never pauses",
+          "line": 539,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "708e56a5273987e7561a4baae5b8adbb07a2f1f1d6de481c0793eadcffc307c9"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::bounds each call by the longest bound a timer takes",
-          "line": 492,
+          "line": 560,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7aa48b0c6dee23d2cedc0a4c6f5d0e3cebbd8c91692ec13641c624d87b308a4e"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::reports, for a refused pull, the last line docker wrote on its error stream",
-          "line": 506,
+          "line": 574,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b093d9873f87f00192342c3b61196080bd589073c44a767840554b07e70acd7f"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 1 naming the image after the one attempt at each source the command line names fails",
-          "line": 526,
+          "line": 594,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c28ecba0c565eae74bbaf65b939ac8024c4d0c6c83703a89bc5d3ba99b08c4c"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::names the source that served the image when the sources and the attempts come from the command line",
-          "line": 552,
+          "line": 620,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9dc84bef0e8cb34a8ebbbe58f67155eadf71cc3cafb57f195822e88ba519ec0"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::ends an attempt that gives no answer within its bound and counts it as failed",
-          "line": 589,
+          "line": 657,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b5ed8ed6de879e86ff73b995ef4e1b99a7e674470b2af0eb3496b498c6546aa0"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::counts a pull from the mirror whose tag fails as a failed attempt",
-          "line": 609,
+          "line": 677,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2917ac691f3fadb2fc85f60ff8f06b561257710e40218de13e90e35beb230008"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::pulls an image whose path at Docker Hub is exactly Docker's limit of 255 characters",
-          "line": 631,
+          "line": 699,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbb6c42ab48ec5e751b8fb74cecd86679e781210430fc996d177ad9e5df0ba81"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 2 with the usage and calls no docker when given $name",
-          "line": 649,
+          "line": 717,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "286d7c43659400b12bee525726ef137c82eadb0e2929e5326358b3f81600e7bd"
         },
         {
           "id": "apps/api/tests/unit/scripts/pullImage.test.ts::returns exit 2 with the usage and calls no docker when given an option it does not take",
-          "line": 746,
+          "line": 814,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45960a93bf3e34633219748dcfd26b4085a3f3ecc081672d92983bb7f2ab5e13"

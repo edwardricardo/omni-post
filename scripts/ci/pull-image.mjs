@@ -20,12 +20,14 @@
  *   sure, so the mirror is a first source and never the only one
  *   (https://docs.cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images).
  *
- *   WHAT IS RETRIED. Every refusal by a registry, every exit of `docker` other than 0, a signal
- *   and an attempt its bound ended: the routine reads no meaning into `docker`'s text, since a tag
- *   the mirror lacks is the very case the fallback exists for. A `docker` that cannot be started
- *   at all (`spawnSync` reports an error other than the bound's, such as ENOENT when no `docker`
- *   is on the runner) is not retried: it will not start at the next attempt or at the next
- *   source, so the routine stops at that call.
+ *   WHAT IS RETRIED. Every refusal by a registry, every exit of `docker` other than 0, a signal,
+ *   an attempt its bound ended, and every other error `spawnSync` reports for a call (such as
+ *   EAGAIN or ENOMEM under resource pressure, or ENOBUFS when `docker` started and its output
+ *   passed the buffer): the routine reads no meaning into `docker`'s text, since a tag the mirror
+ *   lacks is the very case the fallback exists for. Only a `docker` that cannot be executed at
+ *   all is not retried, the codes of `UNSTARTABLE_CODES` (ENOENT when no `docker` is on the
+ *   runner, among them): it will not start at the next attempt or at the next source, so the
+ *   routine stops at that call.
  *
  *   OUTPUT. The served image is one line on stdout naming the source; each failed attempt is one
  *   line on stderr with its reason and what comes next; when no source serves the image, a last
@@ -40,10 +42,11 @@
  *   WHAT IT BOUNDS. `--attempts` and the two durations are whole numbers from 1: a fraction of an
  *   attempt means nothing, a pause of 0 is no pause, and a bound below a millisecond is no bound
  *   at all to `spawnSync`. Both durations are capped by what a Node timer takes, 2,147,483,647
- *   ms (a `setTimeout` past it fires after 1 ms): the last attempt's pause, `--attempts` times
- *   `--wait-seconds`, and `--attempt-timeout-seconds` are each at most 2,147,483 s, and a value
- *   past that is a usage error. `spawnSync` would take a longer bound; the bound shares the
- *   pause's cap so that both durations follow one rule.
+ *   ms (a `setTimeout` past it fires after 1 ms). The pauses come after every attempt but the
+ *   last, so the longest is `--attempts` minus 1 times `--wait-seconds`; it and
+ *   `--attempt-timeout-seconds` are each at most 2,147,483 s, and a value past that is a usage
+ *   error. A single attempt never pauses, so it takes any wait. `spawnSync` would take a longer
+ *   bound; the bound shares the pause's cap so that both durations follow one rule.
  *
  *   WHAT IT TRUSTS. The reference comes from the command line alone and must read as a Docker Hub
  *   reference, `name[:tag]`, so it cannot start with a dash and be taken for an option of
@@ -87,6 +90,24 @@ const EXIT_UNSTARTABLE = 3;
  * fires after 1 ms with a TimeoutOverflowWarning (Node's documentation of `setTimeout`).
  */
 const TIMER_MAX_SECONDS = Math.floor(2_147_483_647 / 1000);
+
+/**
+ * The codes with which `spawnSync` reports that the program cannot be executed at all, each a
+ * property of the file or of its path that no later attempt changes (POSIX `execve`, through
+ * libuv): ENOENT, no `docker` on `PATH`; EACCES, no permission to execute it or to search a
+ * directory of its path; ENOTDIR, a component of its path is not a directory; ELOOP, a loop of
+ * symbolic links; ENAMETOOLONG, a path past the system's limit; ENOEXEC, a file whose format the
+ * system cannot execute. Every other code, such as EAGAIN or ENOMEM under resource pressure, is
+ * retried.
+ */
+const UNSTARTABLE_CODES = new Set([
+  "ENOENT",
+  "EACCES",
+  "ENOTDIR",
+  "ELOOP",
+  "ENAMETOOLONG",
+  "ENOEXEC",
+]);
 
 /** One path component of a repository, as Docker's reference grammar writes it. */
 const COMPONENT = "[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*";
@@ -225,11 +246,13 @@ function parseRequest(argv) {
       usage: `--wait-seconds takes a whole number of seconds from 1, not "${String(waitText)}"`,
     };
   }
-  if (attempts * wait > TIMER_MAX_SECONDS) {
+  const pauses = attempts - 1;
+  if (pauses * wait > TIMER_MAX_SECONDS) {
     return {
       usage:
-        `--wait-seconds ${String(wait)} times --attempts ${String(attempts)} is a last pause of ` +
-        `${String(attempts * wait)} s, over the ${String(TIMER_MAX_SECONDS)} s a timer takes`,
+        `--wait-seconds ${String(wait)} makes the longest pause, after attempt ${String(pauses)} ` +
+        `of ${String(attempts)}, ${String(pauses * wait)} s, over the ` +
+        `${String(TIMER_MAX_SECONDS)} s a timer takes`,
     };
   }
   const timeoutText = /** @type {string | undefined} */ (values["attempt-timeout-seconds"]);
@@ -274,12 +297,13 @@ function parseRequest(argv) {
  */
 function failureOf(result, timeoutMs) {
   if (result.error !== undefined) {
-    return result.error.code === "ETIMEDOUT"
-      ? { reason: `docker gave no answer within ${seconds(timeoutMs)} s`, startable: true }
-      : {
-          reason: `docker could not be started (${result.error.code ?? result.error.message})`,
-          startable: false,
-        };
+    const code = result.error.code ?? result.error.message;
+    if (code === "ETIMEDOUT") {
+      return { reason: `docker gave no answer within ${seconds(timeoutMs)} s`, startable: true };
+    }
+    return UNSTARTABLE_CODES.has(code)
+      ? { reason: `docker could not be started (${code})`, startable: false }
+      : { reason: `docker call failed (${code})`, startable: true };
   }
   if (result.status === 0) return undefined;
   if (result.status === null) {
