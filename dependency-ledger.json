@@ -3645,10 +3645,14 @@
           "production": [
             "apps/api/src/auth/oidcRoutes.ts",
             "apps/api/src/infrastructure/auth/OpenidClientHandshakeProbe.ts"
-          ]
+          ],
+          "test": ["apps/api/tests/unit/auth/ssoCallbackAddress.test.ts"]
         },
         "test-mock": {
-          "test": ["apps/api/tests/unit/infrastructure/auth/OpenidClientHandshakeProbe.test.ts"]
+          "test": [
+            "apps/api/tests/unit/auth/ssoCallbackAddress.test.ts",
+            "apps/api/tests/unit/infrastructure/auth/OpenidClientHandshakeProbe.test.ts"
+          ]
         }
       }
     },
@@ -4284,6 +4288,7 @@
             "apps/api/tests/unit/application/paymentAdapterFactory.test.ts",
             "apps/api/tests/unit/billing/GatewayBillingService.test.ts",
             "apps/api/tests/unit/billing/billingWebhookIdempotency.test.ts",
+            "apps/api/tests/unit/billing/clientBillingReturnAddress.test.ts",
             "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts",
             "apps/api/tests/unit/scripts/subprocessorsInventory.test.ts",
             "apps/api/tests/unit/settings/settingsSchemas.test.ts"

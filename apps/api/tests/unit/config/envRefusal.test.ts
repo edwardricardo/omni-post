@@ -10,6 +10,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi } from "vitest";
+import { makePublicAddressEnv } from "../helpers/publicAddressEnv.js";
 
 // `env.ts` calls `process.loadEnvFile()` on import, which would re-inject an env file over the
 // fixture below; vi.hoisted installs the spy before any import of this file can load env.ts.
@@ -34,6 +35,7 @@ const BASE_ENV: Record<string, string> = {
   OAUTH_ENCRYPTION_KEY: "a-very-long-oauth-encryption-key-for-testing-only",
   DELETION_NAME_DIGEST_KEY_RING:
     '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
+  ...makePublicAddressEnv(),
 };
 
 /** An environment with four refused variables, each but the missing one holding `PLANTED`. */

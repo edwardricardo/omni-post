@@ -935,10 +935,7 @@ export function setupServices(
 
   // Register the transactional-email role ports (one adapter backs all five).
   const transactionalEmailAdapter = () =>
-    new TransactionalEmailAdapter(
-      container.resolve<EmailPort>(TOKENS.EmailPort),
-      env.CLIENT_URL ?? "http://localhost:3002"
-    );
+    new TransactionalEmailAdapter(container.resolve<EmailPort>(TOKENS.EmailPort), env.CLIENT_URL);
   container.register<ReferralRewardMailer>(
     TOKENS.ReferralRewardMailer,
     transactionalEmailAdapter,

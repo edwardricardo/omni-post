@@ -215,15 +215,15 @@ class OidcAdminHandler extends BaseRouteHandler {
 }
 
 // ============================================================================
-// Helpers
-// ============================================================================
-
-const APP_BASE_URL = env.APP_BASE_URL ?? "https://omnipost.app";
-
-// ============================================================================
 // Plugin
 // ============================================================================
 
+/**
+ * @description Fastify plugin that registers the OIDC administration routes and the public login
+ *   and callback flow. The `redirect_uri` it hands an identity provider is `APP_BASE_URL` followed
+ *   by the account's callback path, so its origin never comes from the request.
+ * @param app - The Fastify instance, decorated with the composition root's container.
+ */
 export const oidcRoutes: FastifyPluginAsync = async (app) => {
   const configureUseCase = app.container!.resolve<ConfigureOidcUseCase>(
     TOKENS.ConfigureOidcUseCase
@@ -333,7 +333,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
           expiresAt: Date.now() + PKCE_TTL_MS,
         });
 
-        const redirectUri = `${APP_BASE_URL}/auth/oidc/${params.data.accountId}/callback`;
+        const redirectUri = `${env.APP_BASE_URL}/auth/oidc/${params.data.accountId}/callback`;
 
         // Build authorization URL
         const authUrl = openidClient.buildAuthorizationUrl(oidcConfig, {
@@ -400,7 +400,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
           config.clientSecret
         );
 
-        const redirectUri = `${APP_BASE_URL}/auth/oidc/${params.data.accountId}/callback`;
+        const redirectUri = `${env.APP_BASE_URL}/auth/oidc/${params.data.accountId}/callback`;
 
         // Build the current URL for token exchange
         const currentUrl = new URL(`${redirectUri}?${new URLSearchParams(query).toString()}`);

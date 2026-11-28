@@ -22,6 +22,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { parseNameDigestKeyRing } from "../../../src/security/nameDigest/keyRing.js";
+import { makePublicAddressEnv } from "../helpers/publicAddressEnv.js";
 
 // `env.ts` calls `process.loadEnvFile()` on import, which would re-inject `.env.test`
 // over the fixture below. Neutralise it so the fixture is the only source; vi.hoisted installs
@@ -54,6 +55,7 @@ const BASE_ENV: Record<string, string> = {
   PLATFORM_ENCRYPTION_KEY: "a-very-long-platform-encryption-key-testing-only",
   OAUTH_ENCRYPTION_KEY: "a-very-long-oauth-encryption-key-for-testing-only",
   DELETION_NAME_DIGEST_KEY_RING: RING_V1,
+  ...makePublicAddressEnv(),
 };
 
 /** The exported factory, loaded with `BASE_ENV` installed so module load succeeds. */

@@ -37,13 +37,23 @@ PLATFORM_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
 # PLATFORM_KEY above).
 DIGEST_RING_KEY="$(printf 'omnipost-citest-name-digest-ring' | sha256sum | cut -d' ' -f1)"
 
+# The port the test API listens on, and the origin the API's two public addresses name: one value,
+# so the addresses cannot point at another port than the one the API takes.
+API_PORT=3001
+API_ORIGIN="http://127.0.0.1:${API_PORT}"
+
 {
   echo "NODE_ENV=test"
-  echo "PORT=3001"
+  echo "PORT=${API_PORT}"
   echo "DATABASE_URL=${DATABASE_URL}"
   echo "MIGRATE_DATABASE_URL=${MIGRATE_URL}"
   echo "SHADOW_DATABASE_URL=${SH}"
   echo "REDIS_URL=${REDIS_URL}"
+  # The public addresses env.ts requires with no default: the client portal on its development
+  # port, then the API itself, as webhooks and single sign-on name it.
+  echo "CLIENT_URL=http://127.0.0.1:3200"
+  echo "API_BASE_URL=${API_ORIGIN}"
+  echo "APP_BASE_URL=${API_ORIGIN}"
   # HMAC-style secrets: env.ts only requires z.string().min(32).
   for k in JWT_ACCESS_SECRET JWT_REFRESH_SECRET CUSTOMER_JWT_SECRET \
            ADMIN_JWT_ACCESS_SECRET ADMIN_JWT_REFRESH_SECRET COOKIE_SECRET \

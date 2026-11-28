@@ -55,6 +55,39 @@ const SECRET_MIN = 32;
 const urlString = z.string().url();
 
 /**
+ * The schemes a public origin may have: the two of the URL Standard's special schemes a browser
+ * loads a page from. `ws`, `wss` and `ftp` have origins as well, and nothing sends a browser to one.
+ */
+const PUBLIC_ORIGIN_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:"]);
+
+/**
+ * A public origin: the start of every link, redirect and callback URL the API builds on one of its
+ * public addresses, each reader appending a path that starts with `/`. The value must be the
+ * serialization of its own origin, as the URL Standard defines an origin
+ * (https://url.spec.whatwg.org/#concept-url-origin) and the `URL.origin` getter returns it
+ * (https://url.spec.whatwg.org/#dom-url-origin; RFC 6454 §4 and §6.2): a scheme, a host, and a port
+ * only when it is not the scheme's default. Credentials, a path (a lone `/` included), a query or a
+ * fragment, even an empty one, capitals the parser would lower, a host name in other characters
+ * than ASCII (the serialization writes it in punycode, https://url.spec.whatwg.org/#concept-domain-to-ascii),
+ * surrounding whitespace the parser would strip, and a default port written out are all refused,
+ * so whatever a reader appends lands on that origin's own path. The refusal names the rule and
+ * never the value.
+ */
+const publicOrigin = z.string().superRefine((raw, ctx) => {
+  const url = URL.canParse(raw) ? new URL(raw) : undefined;
+  if (url === undefined || !PUBLIC_ORIGIN_SCHEMES.has(url.protocol) || url.origin !== raw) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "must be an http or https origin written as the origin serializes: the scheme in " +
+        "lowercase, the host in lowercase ASCII (a name with other characters in its punycode " +
+        "form) and a port that is not the scheme's default, with no credentials, path, query, " +
+        "fragment or trailing slash, and no surrounding whitespace",
+    });
+  }
+});
+
+/**
  * Boolean coerced from "true"/"false"/"1"/"0". Defaults handled per-field via
  * `.default()` rather than here so each toggle's default is locally visible.
  */
@@ -154,13 +187,20 @@ const serverSchema = {
   // which is what makes rotation append-and-bump rather than a migration.
   DELETION_NAME_DIGEST_ACTIVE_VERSION: z.coerce.number().int().min(1).default(1),
 
-  // ── URLs (frontends + base) ─────────────────────────────────────────
-  ADMIN_URL: urlString.optional(),
-  CLIENT_URL: urlString.optional(),
-  CLIENT_APP_URL: urlString.optional(),
-  FRONTEND_URL: urlString.optional(),
-  API_BASE_URL: urlString.optional(),
-  APP_BASE_URL: urlString.optional(),
+  // ── Public addresses (REQUIRED — boot fails without these) ──────────
+  // The links, redirects and callback URLs the API builds toward the client portal, a webhook
+  // sender and an identity provider start with one of these, so none has a default: a fallback
+  // would send a reset link, a payment gateway's return or a single sign-on callback to a host no
+  // operator chose. Each is an http or https origin and nothing more (`publicOrigin`).
+  // The client portal: reset, referral and e-mail links, billing return URLs, and the redirect
+  // that ends a provider connection.
+  CLIENT_URL: publicOrigin,
+  // The API as a webhook subscription names it.
+  API_BASE_URL: publicOrigin,
+  // The API as single sign-on names it: the OIDC `redirect_uri` and the SAML ACS URL.
+  APP_BASE_URL: publicOrigin,
+
+  // ── Media ───────────────────────────────────────────────────────────
   ALLOWED_MEDIA_HOSTS: z.string().optional(),
 
   // ── Logging ─────────────────────────────────────────────────────────
@@ -344,9 +384,10 @@ const serverSchema = {
   // that power to everything inside it.
   TRUSTED_PROXY_RANGES: z.string().optional(),
 
-  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here.
-  // It is rejected from the raw runtime env in `createFinalSchema` below, so it
-  // stays out of the validated env's type while still refusing to boot when an
+  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here,
+  // and neither are the retired address names. Each is rejected from the raw
+  // runtime env in `createFinalSchema` below (`REMOVED_VARIABLES`), so it stays
+  // out of the validated env's type while still refusing to boot when an
   // operator leaves it set (see the tripwire there for why silence is unsafe).
 
   // ── DeletionRecord plaintext retention window ───────────────────────
@@ -427,6 +468,45 @@ export function environmentRefusal(issues: readonly SchemaIssue[]): RegisteredEr
 const onValidationError = (issues: readonly SchemaIssue[]): never => {
   throw environmentRefusal(issues);
 };
+
+/**
+ * Variables the API no longer reads, each with the constraint its refusal states: what replaced it,
+ * or that nothing did, and what the operator does. A removed variable left merely unread is a trap:
+ * the operator who still sets it believes it is in force. Each is refused while it is set, a value
+ * that is empty or only blanks counting as unset, and read from the raw environment so it never
+ * enters the env's type. An entry is deleted once no deployed environment sets the variable.
+ */
+const REMOVED_VARIABLES: ReadonlyArray<{ readonly name: string; readonly message: string }> = [
+  {
+    name: "TRUSTED_PROXY_HOP_COUNT",
+    message:
+      "TRUSTED_PROXY_HOP_COUNT was removed (ADR-0021). Hop-count proxy trust is " +
+      "fail-closed in fastify >= 5.12.1, so this value is read by nothing and its " +
+      "presence misrepresents the deployment. Use TRUSTED_PROXY_MODE=socket-only " +
+      "(equivalent to the old 0), or TRUSTED_PROXY_MODE=trusted-ranges with " +
+      "TRUSTED_PROXY_RANGES set to your proxy IPs/CIDRs.",
+  },
+  {
+    name: "CLIENT_APP_URL",
+    message:
+      "CLIENT_APP_URL was removed: CLIENT_URL names the client portal for the billing return " +
+      "URLs, as for every other link to it, so this value is read by nothing. Set CLIENT_URL to " +
+      "the client portal's origin, then unset CLIENT_APP_URL.",
+  },
+  {
+    name: "FRONTEND_URL",
+    message:
+      "FRONTEND_URL was removed: CLIENT_URL names the client portal for the redirect that ends a " +
+      "provider connection, as for every other link to it, so this value is read by nothing. Set " +
+      "CLIENT_URL to the client portal's origin, then unset FRONTEND_URL.",
+  },
+  {
+    name: "ADMIN_URL",
+    message:
+      "ADMIN_URL was removed. Nothing in the API reads it, so its value configures nothing. " +
+      "Unset it.",
+  },
+];
 
 /**
  * @function parseApiEnv
@@ -517,24 +597,13 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
           }
         }
 
-        // Removal tripwire for TRUSTED_PROXY_HOP_COUNT. Read from the RAW env
-        // rather than the parsed value so the dead key never enters the env's
-        // type. Leaving it merely unread would be the trap this change exists to
-        // remove: an operator who still sets it believes hop-count trust is in
-        // force, while fastify >= 5.12.1 ignores it completely. Delete this
-        // block once no deployed environment sets the variable.
-        const legacyHopCount = runtimeEnv["TRUSTED_PROXY_HOP_COUNT"];
-        if (legacyHopCount !== undefined && legacyHopCount.trim() !== "") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["TRUSTED_PROXY_HOP_COUNT"],
-            message:
-              "TRUSTED_PROXY_HOP_COUNT was removed (ADR-0021). Hop-count proxy trust is " +
-              "fail-closed in fastify >= 5.12.1, so this value is read by nothing and its " +
-              "presence misrepresents the deployment. Use TRUSTED_PROXY_MODE=socket-only " +
-              "(equivalent to the old 0), or TRUSTED_PROXY_MODE=trusted-ranges with " +
-              "TRUSTED_PROXY_RANGES set to your proxy IPs/CIDRs.",
-          });
+        // Removal tripwire: each removed variable still set refuses the boot, read
+        // from the RAW env so a dead key never enters the env's type.
+        for (const removed of REMOVED_VARIABLES) {
+          const rawValue = runtimeEnv[removed.name];
+          if (rawValue !== undefined && rawValue.trim() !== "") {
+            ctx.addIssue({ code: "custom", path: [removed.name], message: removed.message });
+          }
         }
       }),
 

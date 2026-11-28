@@ -12,39 +12,43 @@ What an operator configures for a deployment, and the evidence for each requirem
 
 ## Quick Reference: Required Variables
 
-The API refuses to boot without these twelve, and the workers without three of them. The portals require none. `pnpm start:platform` generates all twelve, each secret random, in a checkout with no `.env` (`scripts/start/lib/start-environment.mjs`).
+The API refuses to boot without these fifteen, and the workers without three of them. The portals require none. `pnpm start:platform` generates all fifteen in a checkout with no `.env`, each secret random and each address on the loopback, on the port the run starts that app on: the API's on the `PORT` the run gives it, the client portal's on the port its `dev` script fixes. A run with `--services-only` starts neither app and writes their default ports, 3000 and 3200 (`scripts/start/lib/start-environment.mjs`). The generated file holds no `PORT`: a run takes the API's port from the calling shell's `PORT`, else from a `PORT` an operator wrote in the file, else 3000. A file that exists is never rewritten: a later run that keeps it and starts the API on another port says so in one line, naming each of `API_BASE_URL` and `APP_BASE_URL` that is a loopback origin on another port, the port it names and the port the API takes, and goes on; an address on another host is the operator's and draws no line.
 
-| Variable                        | Deployables                   | Example                                              |
-| ------------------------------- | ----------------------------- | ---------------------------------------------------- |
-| `DATABASE_URL`                  | api, workers                  | `postgresql://user:pass@host:5432/omnipostdb`        |
-| `SHADOW_DATABASE_URL`           | api                           | `postgresql://user:pass@host:5432/omnipostdb_shadow` |
-| `REDIS_URL`                     | api, workers                  | `redis://host:6379`                                  |
-| `JWT_ACCESS_SECRET`             | api                           | 32 characters or more                                |
-| `JWT_REFRESH_SECRET`            | api                           | 32 characters or more                                |
-| `CUSTOMER_JWT_SECRET`           | api                           | 32 characters or more                                |
-| `ADMIN_JWT_ACCESS_SECRET`       | api                           | 32 characters or more                                |
-| `ADMIN_JWT_REFRESH_SECRET`      | api                           | 32 characters or more                                |
-| `COOKIE_SECRET`                 | api                           | 32 characters or more                                |
-| `PLATFORM_ENCRYPTION_KEY`       | api, workers, the same values | 32 characters or more                                |
-| `OAUTH_ENCRYPTION_KEY`          | api                           | 32 characters or more; no code reads it (DEF-44)     |
-| `DELETION_NAME_DIGEST_KEY_RING` | api                           | `{"1":"<64 lowercase hex characters>"}`              |
+| Variable                        | Deployables                   | Example                                                   |
+| ------------------------------- | ----------------------------- | --------------------------------------------------------- |
+| `DATABASE_URL`                  | api, workers                  | `postgresql://user:pass@host:5432/omnipostdb`             |
+| `SHADOW_DATABASE_URL`           | api                           | `postgresql://user:pass@host:5432/omnipostdb_shadow`      |
+| `REDIS_URL`                     | api, workers                  | `redis://host:6379`                                       |
+| `JWT_ACCESS_SECRET`             | api                           | 32 characters or more                                     |
+| `JWT_REFRESH_SECRET`            | api                           | 32 characters or more                                     |
+| `CUSTOMER_JWT_SECRET`           | api                           | 32 characters or more                                     |
+| `ADMIN_JWT_ACCESS_SECRET`       | api                           | 32 characters or more                                     |
+| `ADMIN_JWT_REFRESH_SECRET`      | api                           | 32 characters or more                                     |
+| `COOKIE_SECRET`                 | api                           | 32 characters or more                                     |
+| `PLATFORM_ENCRYPTION_KEY`       | api, workers, the same values | 32 characters or more                                     |
+| `OAUTH_ENCRYPTION_KEY`          | api                           | 32 characters or more; no code reads it (DEF-44)          |
+| `DELETION_NAME_DIGEST_KEY_RING` | api                           | `{"1":"<64 lowercase hex characters>"}`                   |
+| `CLIENT_URL`                    | api                           | An `http` or `https` origin: `https://app.yourdomain.com` |
+| `API_BASE_URL`                  | api                           | An `http` or `https` origin: `https://api.yourdomain.com` |
+| `APP_BASE_URL`                  | api                           | An `http` or `https` origin: `https://api.yourdomain.com` |
 
-`NODE_ENV` and `PORT` are not required: unset, they are `development` and `3000`. The URL variables (`API_BASE_URL`, `CLIENT_URL`, `ADMIN_URL`, `APP_BASE_URL`) are optional in the schema and wrong when unset in production ([DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md#optional-in-the-schema-wrong-when-unset-in-production)).
+`NODE_ENV` and `PORT` are not required: unset, they are `development` and `3000`. The three public addresses have no default: the links, redirects and callback URLs the API builds toward the client portal, a webhook sender and an identity provider start with one of them ([Core Application](#core-application)).
 
 ---
 
 ## Core Application
 
-| Variable       | Required | Default       | Description                                                                                                                         |
-| -------------- | -------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`     | No       | `development` | `development`, `production`, `test` or `staging` for the API and the workers; `development`, `production` or `test` for the portals |
-| `PORT`         | No       | `3000`        | API server listening port                                                                                                           |
-| `API_BASE_URL` | No       | --            | Public URL of the API server                                                                                                        |
-| `CLIENT_URL`   | No       | --            | Public URL of the client application                                                                                                |
-| `ADMIN_URL`    | No       | --            | Public URL of the admin dashboard                                                                                                   |
-| `APP_BASE_URL` | No       | --            | Base URL for OAuth callbacks and SAML                                                                                               |
+| Variable       | Required | Default       | Description                                                                                                                                                                                                                           |
+| -------------- | -------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`     | No       | `development` | `development`, `production`, `test` or `staging` for the API and the workers; `development`, `production` or `test` for the portals                                                                                                   |
+| `PORT`         | No       | `3000`        | API server listening port                                                                                                                                                                                                             |
+| `CLIENT_URL`   | Yes      | --            | The client portal's public origin, `http` or `https` and nothing more: password reset, referral and e-mail links, the payment gateway's return URLs and the redirect that ends a provider connection                                  |
+| `API_BASE_URL` | Yes      | --            | The API's public origin, `http` or `https` and nothing more, as a webhook subscription names it: `<API_BASE_URL>/webhooks/<provider>`                                                                                                 |
+| `APP_BASE_URL` | Yes      | --            | The API's public origin, `http` or `https` and nothing more, as single sign-on names it: the OIDC `redirect_uri` (`<APP_BASE_URL>/auth/oidc/<account>/callback`) and the SAML ACS URL (`<APP_BASE_URL>/auth/saml/<account>/callback`) |
 
-The four URL variables are optional in the schema; unset, each reader falls back to a localhost or placeholder host, so a production deployment sets them.
+The three public addresses have no default, and no reader falls back to another host: the API refuses to boot without each of them, naming it and never its value. Each is an `http` or `https` origin written as the origin serializes ([URL Standard](https://url.spec.whatwg.org/#concept-url-origin), [RFC 6454 §6.2](https://www.rfc-editor.org/rfc/rfc6454#section-6.2)): the scheme, the host, and a port only when it is not the scheme's default, in lowercase, the host in ASCII (a name with other characters in its punycode form), with no credentials, path, query, fragment or trailing slash, and no surrounding whitespace, since every reader appends a path that starts with `/`. `https://app.example.com`, `http://127.0.0.1:3200` and `https://xn--kln-sna.example` are origins; `https://app.example.com/`, `https://app.example.com:443`, `https://user@app.example.com`, `HTTPS://APP.EXAMPLE.COM`, `https://köln.example`, a value with a leading or trailing space, and `localhost:3200` refuse the boot. `API_BASE_URL` and `APP_BASE_URL` both name the API, so they hold the same origin when one host serves it.
+
+The names these three replaced are refused while they are set, an empty or blank value counting as unset, and the refusal names the variable and never its value: `CLIENT_APP_URL` and `FRONTEND_URL`, whose value now belongs in `CLIENT_URL`, and `ADMIN_URL`, which nothing reads. Remove them from an environment before the API starts in it.
 
 ---
 
@@ -287,15 +291,15 @@ The workers validate their variables through their own schema, [`apps/workers/sr
 
 The administration portal ([`apps/admin/lib/env.ts`](../../apps/admin/lib/env.ts)) and the client portal ([`apps/client/lib/env.ts`](../../apps/client/lib/env.ts)) validate their variables through `@t3-oss/env-nextjs`, and neither requires any: each variable has a default or is optional. A `NEXT_PUBLIC_` variable is exposed to the browser bundle.
 
-| Variable                 | Portals       | Required | Default                 | Description                                                                                                                                                                                |
-| ------------------------ | ------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `API_URL`                | admin, client | No       | `http://localhost:3000` | The API the portal's server-side code calls (its backend proxy and its server actions). `pnpm start:platform` passes `http://127.0.0.1:<the API's port>` unless the calling shell sets one |
-| `SENTRY_DSN`             | admin, client | No       | --                      | Server-side Sentry DSN ([Sentry, end to end](DEPLOYMENT_CHECKLIST.md#sentry-end-to-end))                                                                                                   |
-| `NEXT_PUBLIC_API_URL`    | admin, client | No       | `http://localhost:3000` | The API URL exposed to the browser bundle                                                                                                                                                  |
-| `NEXT_PUBLIC_URL`        | admin         | No       | `http://localhost:3100` | The administration portal's public origin, used for self-redirects and link generation                                                                                                     |
-| `NEXT_PUBLIC_SENTRY_DSN` | admin, client | No       | --                      | Browser Sentry DSN                                                                                                                                                                         |
-| `API_BASE_URL`           | client        | No       | `http://localhost:3000` | Declared beside `API_URL` with the same default; no module of the portal reads it (plan row CLIENT-API-BASE-URL-UNREAD, `docs/product/plan/cross-cutting.md`)                              |
-| `NODE_ENV`               | admin, client | No       | `development`           | `development`, `production` or `test`                                                                                                                                                      |
+| Variable                 | Portals       | Required | Default                 | Description                                                                                                                                                                                                                               |
+| ------------------------ | ------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_URL`                | admin, client | No       | `http://localhost:3000` | The API the portal's server-side code calls (its backend proxy and its server actions). `pnpm start:platform` passes `http://127.0.0.1:<the API's port>` unless the calling shell sets one                                                |
+| `SENTRY_DSN`             | admin, client | No       | --                      | Server-side Sentry DSN ([Sentry, end to end](DEPLOYMENT_CHECKLIST.md#sentry-end-to-end))                                                                                                                                                  |
+| `NEXT_PUBLIC_API_URL`    | admin, client | No       | `http://localhost:3000` | The API URL exposed to the browser bundle                                                                                                                                                                                                 |
+| `NEXT_PUBLIC_URL`        | admin         | No       | `http://localhost:3100` | The administration portal's public origin, used for self-redirects and link generation                                                                                                                                                    |
+| `NEXT_PUBLIC_SENTRY_DSN` | admin, client | No       | --                      | Browser Sentry DSN                                                                                                                                                                                                                        |
+| `API_BASE_URL`           | client        | No       | `http://localhost:3000` | Declared beside `API_URL` with the same default; no module of the portal reads it (plan row CLIENT-API-BASE-URL-UNREAD, `docs/product/plan/cross-cutting.md`). It is not the API's `API_BASE_URL` ([Core Application](#core-application)) |
+| `NODE_ENV`               | admin, client | No       | `development`           | `development`, `production` or `test`                                                                                                                                                                                                     |
 
 ---
 
@@ -372,7 +376,7 @@ Governs how Turbopack/Next resolves modules when building/serving `apps/admin` a
 
 ### Minimal Local Development
 
-`pnpm start:platform` writes it. In a checkout with no `.env`, the command generates one with these variables, every secret random, adding `POSTGRES_HOST_PORT` and `REDIS_HOST_PORT` (and their ports in the URLs) when the calling shell sets them, and it never rewrites an existing file (`scripts/start/lib/start-environment.mjs`). Docker Compose requires the Grafana and MinIO variables whatever services it starts; the API requires the twelve after them.
+`pnpm start:platform` writes it. In a checkout with no `.env`, the command generates one with these variables, every secret random, adding `POSTGRES_HOST_PORT` and `REDIS_HOST_PORT` (and their ports in the URLs) when the calling shell sets them, and it never rewrites an existing file (`scripts/start/lib/start-environment.mjs`). Docker Compose requires the Grafana and MinIO variables whatever services it starts; the API requires the fifteen after them.
 
 ```env
 POSTGRES_USER=omnipost
@@ -394,6 +398,9 @@ COOKIE_SECRET=<random>
 PLATFORM_ENCRYPTION_KEY=<random>
 OAUTH_ENCRYPTION_KEY=<random>
 DELETION_NAME_DIGEST_KEY_RING='{"1":"<random>"}'
+CLIENT_URL=http://127.0.0.1:3200
+API_BASE_URL=http://127.0.0.1:3000
+APP_BASE_URL=http://127.0.0.1:3000
 ```
 
 ### Production (Generic)
@@ -406,7 +413,6 @@ SHADOW_DATABASE_URL=postgresql://user:STRONG_PASSWORD@db-host:5432/omnipostdb_sh
 REDIS_URL=rediss://:REDIS_PASSWORD@redis-host:6379
 API_BASE_URL=https://api.yourdomain.com
 CLIENT_URL=https://app.yourdomain.com
-ADMIN_URL=https://admin.yourdomain.com
 APP_BASE_URL=https://api.yourdomain.com
 JWT_ACCESS_SECRET=<openssl rand -hex 64>
 JWT_REFRESH_SECRET=<openssl rand -hex 64>
