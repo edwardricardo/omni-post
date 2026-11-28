@@ -435,22 +435,23 @@ this document points at its last version.
 
 CI is GitHub Actions. CI-only secrets and variables are stored in the
 repository's Settings → Secrets and variables → Actions. The workflows in
-`.github/workflows/` read three secrets, one of them minted by GitHub, and
-two repository variables. The command that derives the list is
+`.github/workflows/` read the secrets and the repository variables listed
+below; one of the secrets, `GITHUB_TOKEN`, is minted by GitHub. The command
+that derives the list is
 `rg -o -I 'vars\.[A-Z_]+|secrets\.[A-Z_]+' .github/workflows/*.yml | sort -u`.
 
-| Secret                    | Kind              | Read by                                                                                                                                                         | Notes                                                                                                              | Owner    |
-| ------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
-| `GITHUB_TOKEN`            | Automatic         | `production-ci.yml`, step "Log in to Container Registry"; the reminder steps of `error-sites-stall.yml`, `maturity-reminder.yml` and `patched-dependencies.yml` | Minted by GitHub for each run; its scope is the `permissions` the job declares: `packages: write`, `issues: write` | GitHub   |
-| `DEPENDENCY_UPDATE_TOKEN` | Repository secret | `dependency-updates.yml`: the checkouts and `peter-evans/create-pull-request` of the security and minor update jobs, and the step "Create major update issue"   | Pushes the dependency branches and opens their pull requests and issues; narrowing its scope is plan row L-621     | operator |
-| `SLACK_WEBHOOK`           | Repository secret | `dependency-updates.yml`, step "Notify team about dependency updates", as `SLACK_WEBHOOK_URL`                                                                   | Incoming-webhook URL of the Slack channel that receives the security-update notice                                 | operator |
+| Secret                    | Kind              | Read by                                                                                                                                                         | Notes                                                                                                                                                                                                             | Owner    |
+| ------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `GITHUB_TOKEN`            | Automatic         | `production-ci.yml`, step "Log in to Container Registry"; the reminder steps of `error-sites-stall.yml`, `maturity-reminder.yml` and `patched-dependencies.yml` | Minted by GitHub for each run; its scope is the `permissions` declared where it is used: `packages: write` for the registry login of `production-ci.yml`, `issues: write` in each of the three reminder workflows | GitHub   |
+| `DEPENDENCY_UPDATE_TOKEN` | Repository secret | `dependency-updates.yml`: the checkouts and `peter-evans/create-pull-request` of the security and minor update jobs, and the step "Create major update issue"   | Pushes the dependency branches and opens their pull requests and issues; narrowing its scope is the plan row L-621 CI-PAT-SCOPE ([cross-cutting.md](../product/plan/cross-cutting.md))                            | operator |
+| `SLACK_WEBHOOK`           | Repository secret | `dependency-updates.yml`, step "Notify team about dependency updates", as `SLACK_WEBHOOK_URL`                                                                   | Incoming-webhook URL of the Slack channel that receives the security-update notice                                                                                                                                | operator |
 
 | Variable                        | Read by                                                                       | Notes                                                                                                                         | Owner    |
 | ------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `ADMIN_NEXT_PUBLIC_SENTRY_DSN`  | `production-ci.yml`, job `container-security`, through `SENTRY_DSN_BUILD_ARG` | The admin portal's browser DSN, passed to the image build as `NEXT_PUBLIC_SENTRY_DSN`; public, so a variable and not a secret | operator |
 | `CLIENT_NEXT_PUBLIC_SENTRY_DSN` | `production-ci.yml`, job `container-security`, through `SENTRY_DSN_BUILD_ARG` | The client portal's browser DSN, passed the same way                                                                          | operator |
 
-Container registry: the publication of the four images (`api`, `workers`,
+Container registry: the publication of the images (`api`, `workers`,
 `admin`, `client`) to `ghcr.io` logs in with `GITHUB_TOKEN`, as the
 workflow's actor, in the job `container-security` of `production-ci.yml`.
 The login and the push run on every event but a pull request, and the job
@@ -464,7 +465,7 @@ For each name, what happens when it is unset, how to set it and how to
 verify it: the table of
 [GitHub repository variables and secrets](../deployment/DEPLOYMENT_CHECKLIST.md#github-repository-variables-and-secrets)
 in the deployment checklist. Where the two disagree, the workflow decides.
-None of the three secrets has a procedure in the
+None of these secrets has a procedure in the
 [rotation runbook](./T0A_SECRETS_ROTATION_RUNBOOK.md).
 
 Pre-commit guards (`gitleaks`, `secretlint`) run via husky and block any
