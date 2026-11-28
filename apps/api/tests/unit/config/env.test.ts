@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { makePublicAddressEnv } from "../helpers/publicAddressEnv.js";
 
 // process.loadEnvFile() inside env.ts re-injects values from .env.test on import. For
 // deterministic tests we need it to be a no-op so that explicit process.env mutations are the only
@@ -29,6 +30,7 @@ const REQUIRED_BASE_ENV = {
   // shape, contiguity, pointer — is exercised in `nameDigestRing.test.ts`.
   DELETION_NAME_DIGEST_KEY_RING:
     '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
+  ...makePublicAddressEnv(),
 } as const;
 
 async function loadEnvWith(overrides: Record<string, string | undefined> = {}): Promise<unknown> {

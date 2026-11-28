@@ -154,13 +154,20 @@ const serverSchema = {
   // which is what makes rotation append-and-bump rather than a migration.
   DELETION_NAME_DIGEST_ACTIVE_VERSION: z.coerce.number().int().min(1).default(1),
 
-  // ── URLs (frontends + base) ─────────────────────────────────────────
-  ADMIN_URL: urlString.optional(),
-  CLIENT_URL: urlString.optional(),
-  CLIENT_APP_URL: urlString.optional(),
-  FRONTEND_URL: urlString.optional(),
-  API_BASE_URL: urlString.optional(),
-  APP_BASE_URL: urlString.optional(),
+  // ── Public addresses (REQUIRED — boot fails without these) ──────────
+  // The links, redirects and callback URLs the API builds toward the client portal, a webhook
+  // sender and an identity provider start with one of these, so none has a default: a fallback
+  // would send a reset link, a payment gateway's return or a single sign-on callback to a host no
+  // operator chose.
+  // The client portal: reset, referral and e-mail links, billing return URLs, and the redirect
+  // that ends a provider connection.
+  CLIENT_URL: urlString,
+  // The API as a webhook subscription names it.
+  API_BASE_URL: urlString,
+  // The API as single sign-on names it: the OIDC `redirect_uri` and the SAML ACS URL.
+  APP_BASE_URL: urlString,
+
+  // ── Media ───────────────────────────────────────────────────────────
   ALLOWED_MEDIA_HOSTS: z.string().optional(),
 
   // ── Logging ─────────────────────────────────────────────────────────

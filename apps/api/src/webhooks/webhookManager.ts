@@ -508,8 +508,7 @@ export class WebhookManager {
    * Generate setup instructions for webhook subscription
    */
   private generateSetupInstructions(subscription: { provider: string; verifyToken: string }) {
-    const baseUrl = env.API_BASE_URL || "https://your-api-domain.com";
-    const webhookUrl = `${baseUrl}/webhooks/${subscription.provider.toLowerCase()}`;
+    const webhookUrl = `${env.API_BASE_URL}/webhooks/${subscription.provider.toLowerCase()}`;
 
     const instructions: Record<string, unknown> = {
       webhookUrl,

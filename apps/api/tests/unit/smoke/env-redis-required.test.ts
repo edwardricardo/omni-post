@@ -16,6 +16,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { parseApiEnv } from "../../../src/config/env.js";
+import { makePublicAddressEnv } from "../helpers/publicAddressEnv.js";
 
 /**
  * A fully-valid runtime env covering every REQUIRED apps/api server key, so the
@@ -37,6 +38,7 @@ const VALID_ENV: Record<string, string> = {
   OAUTH_ENCRYPTION_KEY: "a-very-long-oauth-encryption-key-for-testing-only",
   DELETION_NAME_DIGEST_KEY_RING:
     '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
+  ...makePublicAddressEnv(),
 };
 
 /**

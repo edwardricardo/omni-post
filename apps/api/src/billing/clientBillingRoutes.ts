@@ -13,6 +13,12 @@ import type { GatewayBillingService } from "@core/billing/GatewayBillingService.
 import { initiateGatewaySwitchSchema } from "./gatewaySwitchSchemas.js";
 import { env } from "../config/env.js";
 
+/**
+ * @description Fastify plugin that registers the client billing routes. The success, cancel and
+ *   return URLs it hands a payment gateway are the client portal's billing page on `CLIENT_URL`, so
+ *   their origin never comes from the request.
+ * @param fastify - The Fastify instance, decorated with the composition root's container.
+ */
 export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container;
   if (!container) {
@@ -149,9 +155,8 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const accountId = request.customerUser!.accountId;
-      const clientUrl = env.CLIENT_APP_URL ?? "http://localhost:3001";
-      const successUrl = `${clientUrl}/dashboard/settings/billing?success=true`;
-      const cancelUrl = `${clientUrl}/dashboard/settings/billing?canceled=true`;
+      const successUrl = `${env.CLIENT_URL}/dashboard/settings/billing?success=true`;
+      const cancelUrl = `${env.CLIENT_URL}/dashboard/settings/billing?canceled=true`;
 
       const result = await gatewayService.createCheckoutSession(
         accountId,
@@ -184,8 +189,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const accountId = request.customerUser!.accountId;
-      const clientUrl = env.CLIENT_APP_URL ?? "http://localhost:3001";
-      const returnUrl = `${clientUrl}/dashboard/settings/billing`;
+      const returnUrl = `${env.CLIENT_URL}/dashboard/settings/billing`;
 
       const result = await gatewayService.getBillingPortalUrl(accountId, returnUrl);
 

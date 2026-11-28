@@ -137,9 +137,9 @@ The seed reads no administrator e-mail: the administrator it writes is the fixed
 
 ### §2.7 URLs and config
 
-| Key                                  | Action                                | Priority |
-| ------------------------------------ | ------------------------------------- | -------- |
-| `APP_URL`, `CLIENT_URL`, `ADMIN_URL` | No action unless the host has changed | LOW      |
+| Key                                          | Action                                | Priority |
+| -------------------------------------------- | ------------------------------------- | -------- |
+| `CLIENT_URL`, `API_BASE_URL`, `APP_BASE_URL` | No action unless the host has changed | LOW      |
 
 ### §2.8 Observability
 

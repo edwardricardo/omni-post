@@ -144,7 +144,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new RequestPasswordResetUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
-        env.CLIENT_URL ?? "http://localhost:3200",
+        env.CLIENT_URL,
         container.resolve<EmailPort>(TOKENS.EmailPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
         // Supplies the per-account label on each reset link when one address is

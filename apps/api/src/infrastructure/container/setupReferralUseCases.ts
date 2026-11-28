@@ -29,6 +29,7 @@ import { GetOrCreateReferralCodeUseCase } from "@core/referral/GetOrCreateReferr
 /**
  * @method setupReferralUseCases
  * @description Registers referral repositories and use cases in the DI container.
+ * @param container - The composition root's container.
  */
 export function setupReferralUseCases(container: Container): void {
   // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
@@ -104,7 +105,7 @@ export function setupReferralUseCases(container: Container): void {
     () =>
       new GetOrCreateReferralCodeUseCase(
         container.resolve<ReferralCodeRepository>(TOKENS.ReferralCodeRepository),
-        env.CLIENT_URL ?? "http://localhost:3002",
+        env.CLIENT_URL,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

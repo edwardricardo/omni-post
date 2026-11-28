@@ -8,10 +8,11 @@
  *   TWO CONSUMERS make up the platform. Compose interpolates every `${NAME:?}` of
  *   `docker-compose.yml` whatever services it is asked for, so Postgres and Redis alone need the
  *   seven variables the file names, Grafana's and MinIO's included. The API refuses to boot without
- *   the twelve its schema declares with no default (`apps/api/src/config/env.ts`); the workers'
- *   three are among them. A new file also receives what the development tools need: the
- *   development seed's `ADMIN_PASSWORD`, the password of the administrator it creates
- *   (`infra/prisma/src/seedGuard.ts`). The suite holds the generated environment to all of them.
+ *   the fifteen its schema declares with no default (`apps/api/src/config/env.ts`), its three
+ *   public addresses among them; the workers' three are among them too. A new file also receives
+ *   what the development tools need: the development seed's `ADMIN_PASSWORD`, the password of the
+ *   administrator it creates (`infra/prisma/src/seedGuard.ts`). The suite holds the generated
+ *   environment to all of them.
  *
  *   ONE LIST PER PURPOSE. What the platform reads is what an existing file must hold:
  *   `REQUIRED_KEYS` is read off the platform's generator, so the two cannot drift. What the
@@ -37,6 +38,9 @@ export const DEFAULT_REDIS_HOST_PORT = 6379;
 /** The port the API takes when neither the calling shell nor the environment file names one. */
 const DEFAULT_API_PORT = 3000;
 
+/** The client portal's development port: the one its `dev` script hands `next dev -p`. */
+const CLIENT_PORTAL_PORT = 3200;
+
 /** The API's HMAC secrets: its schema asks each for 32 characters or more. */
 const HMAC_SECRETS = [
   "JWT_ACCESS_SECRET",
@@ -58,7 +62,7 @@ const HEADER = [
 
 /**
  * The variables the platform reads, in file order: the seven Compose interpolates, the host ports
- * when one was chosen, and the twelve the API requires.
+ * when one was chosen, and the fifteen the API requires, its public addresses last.
  * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
  *   The random source every secret is drawn from, and the host ports to publish when they are not
  *   the compose file's defaults.
@@ -104,6 +108,14 @@ function platformEntries({ randomBytes, postgresHostPort, redisHostPort }) {
     ["PLATFORM_ENCRYPTION_KEY", randomBytes(32).toString("base64")],
     ["OAUTH_ENCRYPTION_KEY", hex(32)],
     ["DELETION_NAME_DIGEST_KEY_RING", JSON.stringify({ 1: hex(32) })]
+  );
+  // Webhooks and single sign-on name the same API in development: the one this run starts, on the
+  // port it takes when nothing names another.
+  const api = `http://${LOOPBACK}:${DEFAULT_API_PORT}`;
+  entries.push(
+    ["CLIENT_URL", `http://${LOOPBACK}:${CLIENT_PORTAL_PORT}`],
+    ["API_BASE_URL", api],
+    ["APP_BASE_URL", api]
   );
   return entries;
 }
