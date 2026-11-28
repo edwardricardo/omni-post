@@ -71,7 +71,7 @@ set -uo pipefail
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly. A full
 # run hands it to battery-state.mjs as --expected-steps, at the end of this file.
-PLANNED_STEPS=38
+PLANNED_STEPS=39
 
 USAGE="usage: scripts/testing/battery.sh [--static] [--list] [<worktree>]"
 usage() {
@@ -187,6 +187,9 @@ battery_steps() {
   step static legal pnpm check:legal
   # Every support page current, every doc on the template, every tree candidate classified.
   step static support pnpm check:support
+  # Fitness #58: the deployment checklist holds every name the tree reads, every citation of it
+  # resolves, and its generated inventory is current.
+  step static deployment pnpm check:deployment
   # The dependency-usage record is current, every owner decision is well formed and still applies,
   # and the pending count equals its baseline.
   step static deps-ledger pnpm check:deps-ledger

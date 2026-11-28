@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1289  |
+| Files                   | 1290  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1117  |
+| KEEP                    | 1118  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1277  |
+| Machine rows            | 1278  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16275 |
+| Blocks                  | 16320 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -983,7 +983,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 33     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/architectureBaseline.test.ts`                                            | test             | 6      | 0          | ADJUDICATE | machine                         | opaque               |
 | `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 28     | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/scripts/batteryModes.test.ts`                                                    | test             | 23     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/batteryModes.test.ts`                                                    | test             | 24     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/batteryStatic.test.ts`                                                   | test             | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/batteryVerdict.test.ts`                                                  | test             | 47     | 0          | KEEP       | machine                         | behavioural          |
@@ -992,6 +992,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/coverageFloorGate.test.ts`                                               | test             | 31     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/dependencyLedger.test.ts`                                                | test             | 68     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/dependencySites.test.ts`                                                 | test             | 23     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/deploymentChecklist.test.ts`                                             | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/enginesNodeGate.test.ts`                                                 | test             | 21     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/environmentVariablesPage.test.ts`                                        | test             | 1      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/errorReferencePage.test.ts`                                              | test             | 15     | 0          | KEEP       | machine                         | behavioural          |

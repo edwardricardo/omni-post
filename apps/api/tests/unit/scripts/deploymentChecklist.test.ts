@@ -1179,6 +1179,15 @@ describe("the command", () => {
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("usage: run.mjs [--check]; got --write");
   });
+
+  it("is what pnpm check:deployment and pnpm deployment:inventory run, from the repository's root", () => {
+    const manifest = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string | undefined>;
+    };
+
+    expect(manifest.scripts["check:deployment"]).toBe("node scripts/deployment/run.mjs --check");
+    expect(manifest.scripts["deployment:inventory"]).toBe("node scripts/deployment/run.mjs");
+  });
 });
 
 describe("the real tree", () => {
