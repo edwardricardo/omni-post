@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1284  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16306 |
+| Blocks                  | 16310 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1033,7 +1033,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts`                                 | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts`                                 | test             | 9      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/storyPerComponentGate.test.ts`                                           | test             | 13     | 0          | ADJUDICATE | machine                         | opaque               |
 | `apps/api/tests/unit/scripts/subprocessorsInventory.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/supportFrontMatter.test.ts`                                              | test             | 9      | 0          | KEEP       | machine                         | behavioural          |

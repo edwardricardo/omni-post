@@ -205,7 +205,10 @@ export function missingKeys(values) {
 /** A loopback host as a URL writes it: IPv4 `127.0.0.0/8`, `localhost`, or IPv6 `[::1]`. */
 const LOOPBACK_HOST = /^(?:127(?:\.\d{1,3}){3}|localhost|\[::1\])$/;
 
-/** The port an `http` or `https` URL names when it writes none. */
+/**
+ * The port an `http` or `https` URL names when it writes none. The URL parser leaves `port` empty
+ * for a scheme's default port, written or not, so the number has to come from the scheme.
+ */
 const DEFAULT_PORTS = new Map([
   ["http:", 80],
   ["https:", 443],
@@ -219,7 +222,8 @@ const DEFAULT_PORTS = new Map([
  *   is not an `http` or `https` URL, which the API's own schema refuses.
  * @param {Record<string, string>} values - The file's variables.
  * @param {number} apiPort - The port the run starts the API on.
- * @returns {Array<{ key: string, port: number }>} Each such address and its port, in file order.
+ * @returns {Array<{ key: string, port: number }>} Each such address and its port, `API_BASE_URL`
+ *   first, then `APP_BASE_URL`.
  */
 export function staleApiAddresses(values, apiPort) {
   /** @type {Array<{ key: string, port: number }>} */

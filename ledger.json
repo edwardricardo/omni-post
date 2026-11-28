@@ -27,7 +27,7 @@
       "total": 1296
     },
     "blocks": {
-      "total": 16306,
+      "total": 16310,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15995
+        "BEHAVIOURAL": 15999
       }
     },
     "deleted": {
@@ -85370,42 +85370,70 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::holds the three, in values the API's schema accepts as written",
-          "line": 67,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41d3c9739e20ed5b0b78b648d89fe09236d613f646a3c383251db441aca368d1"
         },
         {
           "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::names the client portal on the loopback, at the port its dev script fixes, when the run gives none",
-          "line": 88,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c2f66335ce0b8a17a68e19dc92a97e40eab49b61566873a24350e69fa1f1b84"
         },
         {
           "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::names the API on the loopback, at the port it takes by default, for webhooks and sign-on alike, when the run gives none",
-          "line": 100,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c19ec6ec70423834e9e75f1a3d7f25f5ebbe5e668056ff65d93b3318897d529c"
         },
         {
           "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::names the API and the client portal at the ports the run gives them, and writes no PORT",
-          "line": 107,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "748d66616a80f4cf00bf8a63fca9104f2c19c43dd75c0da23c8def67e32d319d"
         },
         {
           "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::names each public address an existing environment file lacks",
-          "line": 124,
+          "line": 129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4eb899a3fd7bd00235cacd27eb8e81ae4a6d1e02f88f8f3a84751f0cebc679d3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns both names with the port each names when each is $form",
+          "line": 151,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "951b6f2f62aa36fd49dc245370c1aa8787a934f25873fd0bffe424400b643934"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns nothing when each is $form",
+          "line": 191,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b2e2b989584cafa0a6abc19deab236136f9133e8572305357232cbfd08a53388"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns the one stale name when the other is on the port the API takes",
+          "line": 207,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e3afe2577c9fac0363716d02baf95945d2ef48f26eed17e9ffe19706c2fdea45"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns nothing when the file holds neither address",
+          "line": 218,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2ab2a3523ef223f5c04e76f124d646097d21dba1982143f423ce02bd0a85c89a"
         }
       ],
       "verdict": "KEEP",

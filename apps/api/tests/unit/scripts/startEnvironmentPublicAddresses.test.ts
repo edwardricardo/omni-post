@@ -5,7 +5,8 @@
  *   a URL on the loopback where the development run serves it, in values the API's own schema
  *   accepts as written; and an existing environment file that lacks one is named as lacking it. The
  *   client portal's port is read from its `dev` script, the one `next dev -p` takes, so the suite
- *   goes red when either side moves alone.
+ *   goes red when either side moves alone. It also pins which API addresses of a kept environment
+ *   file the start reads as naming a loopback port the API does not take, form by form.
  * @layer infrastructure
  */
 import { randomBytes } from "node:crypto";
@@ -37,6 +38,10 @@ interface EnvironmentModule {
   }): Array<[string, string]>;
   missingKeys(values: Record<string, string | undefined>): string[];
   apiPort(fromShell: string | undefined, fromFile: string | undefined): number | null;
+  staleApiAddresses(
+    values: Record<string, string>,
+    apiPort: number
+  ): Array<{ key: string; port: number }>;
 }
 
 const core = (await import(CORE)) as EnvironmentModule;
@@ -126,5 +131,91 @@ describe("the generated environment's public addresses", () => {
     for (const variable of PUBLIC_ADDRESS_VARIABLES) values[variable] = undefined;
 
     expect(core.missingKeys(values)).toEqual([...PUBLIC_ADDRESS_VARIABLES]);
+  });
+});
+
+/** The port the run starts the API on, and a port it does not take. */
+const TAKEN_PORT = RUN_PORTS.apiPort;
+const OTHER_PORT = 5000;
+
+/** An environment file whose two API addresses are both `address`. */
+function apiAddresses(address: string): Record<string, string> {
+  return { API_BASE_URL: address, APP_BASE_URL: address };
+}
+
+describe("the API addresses of a kept environment file", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    {
+      form: "the IPv4 loopback on another port",
+      address: `http://127.0.0.1:${String(OTHER_PORT)}`,
+      port: OTHER_PORT,
+    },
+    {
+      form: "another address of the IPv4 loopback block",
+      address: `http://127.8.8.8:${String(OTHER_PORT)}`,
+      port: OTHER_PORT,
+    },
+    {
+      form: "localhost on another port",
+      address: `http://localhost:${String(OTHER_PORT)}`,
+      port: OTHER_PORT,
+    },
+    {
+      form: "the IPv6 loopback on another port",
+      address: `http://[::1]:${String(OTHER_PORT)}`,
+      port: OTHER_PORT,
+    },
+    {
+      form: "an https loopback on another port",
+      address: `https://localhost:${String(OTHER_PORT)}`,
+      port: OTHER_PORT,
+    },
+    { form: "an http loopback that writes no port", address: "http://localhost", port: 80 },
+    {
+      form: "an http loopback that writes its default port",
+      address: "http://localhost:80",
+      port: 80,
+    },
+    { form: "an https loopback that writes no port", address: "https://localhost", port: 443 },
+  ])("returns both names with the port each names when each is $form", ({ address, port }) => {
+    expect(core.staleApiAddresses(apiAddresses(address), TAKEN_PORT)).toEqual([
+      { key: "API_BASE_URL", port },
+      { key: "APP_BASE_URL", port },
+    ]);
+  });
+
+  it.each([
+    {
+      form: "a loopback on the port the API takes",
+      address: `http://127.0.0.1:${String(TAKEN_PORT)}`,
+    },
+    { form: "on another host", address: `http://api.internal.test:${String(OTHER_PORT)}` },
+    {
+      form: "a loopback under a scheme that is neither http nor https",
+      address: `ftp://127.0.0.1:${String(OTHER_PORT)}`,
+    },
+    { form: "a host and a port with no scheme", address: `localhost:${String(OTHER_PORT)}` },
+    { form: "not a URL", address: `127.0.0.1:${String(OTHER_PORT)}` },
+  ])("returns nothing when each is $form", ({ address }) => {
+    expect(core.staleApiAddresses(apiAddresses(address), TAKEN_PORT)).toEqual([]);
+  });
+
+  it("returns the one stale name when the other is on the port the API takes", () => {
+    const values = {
+      API_BASE_URL: `http://127.0.0.1:${String(TAKEN_PORT)}`,
+      APP_BASE_URL: `http://127.0.0.1:${String(OTHER_PORT)}`,
+    };
+
+    expect(core.staleApiAddresses(values, TAKEN_PORT)).toEqual([
+      { key: "APP_BASE_URL", port: OTHER_PORT },
+    ]);
+  });
+
+  it("returns nothing when the file holds neither address", () => {
+    expect(core.staleApiAddresses({}, TAKEN_PORT)).toEqual([]);
   });
 });
