@@ -92,12 +92,13 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 ## Deployment
 
-| Document                                                     | What it covers                                                         |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| [Deployment Checklist](deployment/DEPLOYMENT_CHECKLIST.md)   | What an operator configures before a deployment and verifies after it  |
-| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md) | Variable reference                                                     |
-| [Image Build Model](deployment/image-build-model.md)         | How the `api` and `workers` images reach a production tree             |
-| [Container Base Images](deployment/base-images.md)           | The images' distroless bases, their digest pins and what verifies them |
+| Document                                                     | What it covers                                                                                                                                                                                |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Deployment Checklist](deployment/DEPLOYMENT_CHECKLIST.md)   | What an operator configures before a deployment and verifies after it                                                                                                                         |
+| [Deployment Inventory](deployment/DEPLOYMENT_INVENTORY.md)   | Generated (`pnpm deployment:inventory`, checked by `pnpm check:deployment`): every name the workflows and the environment schemas read, and the checklist row or classification that holds it |
+| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md) | Variable reference                                                                                                                                                                            |
+| [Image Build Model](deployment/image-build-model.md)         | How the `api` and `workers` images reach a production tree                                                                                                                                    |
+| [Container Base Images](deployment/base-images.md)           | The images' distroless bases, their digest pins and what verifies them                                                                                                                        |
 
 ## Runbooks
 
