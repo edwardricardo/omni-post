@@ -239,6 +239,7 @@ import {
   parsePort,
   readEnvironment,
   renderEnvironmentFile,
+  staleApiAddresses,
 } from "./lib/start-environment.mjs";
 
 const NAME = "platform-start";
@@ -822,7 +823,10 @@ function readServicesEnvironment(file) {
  * @description Keeps an existing environment file as it is, or writes the one a checkout lacks,
  *   its secrets random, its host ports those settled and each public address on the port the run
  *   starts that app on, and says which. The write creates the file only if nothing is there, so it
- *   never replaces a file that appeared meanwhile and never writes through a link.
+ *   never replaces a file that appeared meanwhile and never writes through a link. A kept file whose
+ *   API addresses are loopback origins on another port than the one the run starts the API on is
+ *   named in one line, with each such variable and its port and the API's port, and nothing else of
+ *   the file: the run goes on, since the file is the operator's.
  * @param {string} file - The environment file's path.
  * @param {Record<string, string> | null} values - What the file holds, `null` when there is none.
  * @param {{ Postgres: number, Redis: number }} ports - The host port each service is published on.
@@ -835,6 +839,14 @@ function readServicesEnvironment(file) {
 function settleEnvironment(file, values, ports, settled, apps = {}) {
   if (values !== null) {
     process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
+    const stale = apps.api === undefined ? [] : staleApiAddresses(values, apps.api);
+    if (stale.length > 0) {
+      const named = stale.map(({ key, port }) => `${key} on ${port}`).join(", ");
+      process.stdout.write(
+        `${NAME}: ${file} names the API on a port it does not take: ${named}, ` +
+          `and the API takes port ${apps.api}\n`
+      );
+    }
     process.stdout.write(settled);
     return values;
   }
@@ -918,7 +930,8 @@ function prepareEnvironment(file, portals) {
   if (problems.length > 0 || api === null || workers === null) throw new StartFailure(problems);
   const settled = `${NAME}: the API takes port ${api}\n${NAME}: the workers take port ${workers}\n`;
   // A checkout without the client portal's package starts no client portal: its address keeps the
-  // default.
+  // default. `manifestPort` gives that missing manifest a `null` port, which `?? undefined` turns
+  // into the absent port the generator reads as "use the default".
   const client = portals.find(({ app }) => app === CLIENT)?.port ?? undefined;
   const apps = { api, ...(client !== undefined && { client }) };
   return { values: settleEnvironment(file, values, ports, settled, apps), ports, api, workers };

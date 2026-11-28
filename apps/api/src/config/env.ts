@@ -67,9 +67,11 @@ const PUBLIC_ORIGIN_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:"]);
  * (https://url.spec.whatwg.org/#concept-url-origin) and the `URL.origin` getter returns it
  * (https://url.spec.whatwg.org/#dom-url-origin; RFC 6454 §4 and §6.2): a scheme, a host, and a port
  * only when it is not the scheme's default. Credentials, a path (a lone `/` included), a query or a
- * fragment, even an empty one, capitals the parser would lower, and a default port written out are
- * all refused, so whatever a reader appends lands on that origin's own path. The refusal names the
- * rule and never the value.
+ * fragment, even an empty one, capitals the parser would lower, a host name in other characters
+ * than ASCII (the serialization writes it in punycode, https://url.spec.whatwg.org/#concept-domain-to-ascii),
+ * surrounding whitespace the parser would strip, and a default port written out are all refused,
+ * so whatever a reader appends lands on that origin's own path. The refusal names the rule and
+ * never the value.
  */
 const publicOrigin = z.string().superRefine((raw, ctx) => {
   const url = URL.canParse(raw) ? new URL(raw) : undefined;
@@ -77,9 +79,10 @@ const publicOrigin = z.string().superRefine((raw, ctx) => {
     ctx.addIssue({
       code: "custom",
       message:
-        "must be an http or https origin written as the origin serializes: the scheme, the host " +
-        "and a port that is not the scheme's default, in lowercase, with no credentials, path, " +
-        "query, fragment or trailing slash",
+        "must be an http or https origin written as the origin serializes: the scheme in " +
+        "lowercase, the host in lowercase ASCII (a name with other characters in its punycode " +
+        "form) and a port that is not the scheme's default, with no credentials, path, query, " +
+        "fragment or trailing slash, and no surrounding whitespace",
     });
   }
 });
@@ -597,8 +600,8 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
         // Removal tripwire: each removed variable still set refuses the boot, read
         // from the RAW env so a dead key never enters the env's type.
         for (const removed of REMOVED_VARIABLES) {
-          const set = runtimeEnv[removed.name];
-          if (set !== undefined && set.trim() !== "") {
+          const rawValue = runtimeEnv[removed.name];
+          if (rawValue !== undefined && rawValue.trim() !== "") {
             ctx.addIssue({ code: "custom", path: [removed.name], message: removed.message });
           }
         }

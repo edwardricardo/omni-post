@@ -202,6 +202,39 @@ export function missingKeys(values) {
   return REQUIRED_KEYS.filter((key) => !values[key]);
 }
 
+/** A loopback host as a URL writes it: IPv4 `127.0.0.0/8`, `localhost`, or IPv6 `[::1]`. */
+const LOOPBACK_HOST = /^(?:127(?:\.\d{1,3}){3}|localhost|\[::1\])$/;
+
+/** The port an `http` or `https` URL names when it writes none. */
+const DEFAULT_PORTS = new Map([
+  ["http:", 80],
+  ["https:", 443],
+]);
+
+/**
+ * @function staleApiAddresses
+ * @description The API addresses of an environment file that name a loopback origin on another
+ *   port than the one the run starts the API on, each with the port it names. An address on another
+ *   host is left alone, since a file may point at another server on purpose, and so is a value that
+ *   is not an `http` or `https` URL, which the API's own schema refuses.
+ * @param {Record<string, string>} values - The file's variables.
+ * @param {number} apiPort - The port the run starts the API on.
+ * @returns {Array<{ key: string, port: number }>} Each such address and its port, in file order.
+ */
+export function staleApiAddresses(values, apiPort) {
+  /** @type {Array<{ key: string, port: number }>} */
+  const stale = [];
+  for (const key of ["API_BASE_URL", "APP_BASE_URL"]) {
+    const raw = values[key];
+    const url = raw !== undefined && URL.canParse(raw) ? new URL(raw) : null;
+    const fallback = url === null ? undefined : DEFAULT_PORTS.get(url.protocol);
+    if (url === null || fallback === undefined || !LOOPBACK_HOST.test(url.hostname)) continue;
+    const port = url.port === "" ? fallback : Number(url.port);
+    if (port !== apiPort) stale.push({ key, port });
+  }
+  return stale;
+}
+
 /**
  * @function parsePort
  * @description Reads a TCP port written as text.

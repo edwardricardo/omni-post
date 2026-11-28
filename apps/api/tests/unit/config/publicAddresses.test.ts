@@ -98,8 +98,37 @@ const NOT_ORIGINS = [
   { form: "an origin that writes out its scheme's default port", value: "https://host.test:443" },
 ] as const;
 
-/** Origins a public address may be: an `https` host, and an `http` loopback address with a port. */
-const ORIGINS = ["https://host.test", "http://127.0.0.1:3200"] as const;
+/**
+ * Origins a public address may be: an `https` host, an `http` loopback address with a port, and a
+ * host whose name has other characters than ASCII written in its punycode form.
+ */
+const ORIGINS = [
+  "https://host.test",
+  "http://127.0.0.1:3200",
+  "https://xn--bcher-kva.example",
+] as const;
+
+/**
+ * Values the origin rule refuses that an operator could write by mistake, each with the part of
+ * the refusal's sentence that says how to write it instead.
+ */
+const MISWRITTEN_ORIGINS = [
+  {
+    form: "a host written in Unicode",
+    value: "https://bücher.example",
+    rule: "the host in lowercase ASCII (a name with other characters in its punycode form)",
+  },
+  {
+    form: "an origin with leading whitespace",
+    value: " https://host.test",
+    rule: "no surrounding whitespace",
+  },
+  {
+    form: "an origin with trailing whitespace",
+    value: "https://host.test ",
+    rule: "no surrounding whitespace",
+  },
+] as const;
 
 describe("the API's environment requires each public address", () => {
   beforeEach(() => {
@@ -172,6 +201,27 @@ describe("a public address is an http or https origin and nothing more", () => {
       });
       expect(refusal?.message).not.toContain(value);
       expect(JSON.stringify(refusal?.params)).not.toContain(value);
+    }
+  );
+
+  it.each(
+    PUBLIC_ADDRESS_VARIABLES.flatMap((variable) =>
+      MISWRITTEN_ORIGINS.map(({ form, value, rule }) => ({ variable, form, value, rule }))
+    )
+  )(
+    "refuses $variable written as $form, saying how to write it and never the value",
+    ({ variable, value, rule }) => {
+      const refusal = refusalUnder(parseApiEnv, makeApiEnv({ [variable]: value }));
+
+      expect(refusal).toMatchObject({
+        code: "ENV_VARIABLES_REFUSED",
+        params: { variables: [variable] },
+      });
+      expect(causeText(refusal)).toContain(`\n  - ${variable}: `);
+      expect(causeText(refusal)).toContain(rule);
+      expect(refusal?.message).not.toContain(value);
+      expect(JSON.stringify(refusal?.params)).not.toContain(value);
+      expect(causeText(refusal)).not.toContain(value);
     }
   );
 

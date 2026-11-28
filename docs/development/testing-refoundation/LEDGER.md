@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1284  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16302 |
+| Blocks                  | 16306 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -731,7 +731,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/config/env.test.ts`                                                              | test             | 37     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/config/envRefusal.test.ts`                                                       | test             | 8      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/config/nameDigestRing.test.ts`                                                   | test             | 20     | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/config/publicAddresses.test.ts`                                                  | test             | 8      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/config/publicAddresses.test.ts`                                                  | test             | 9      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/content/syncEngineContentRead.test.ts`                                           | test             | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/contentRoutes.test.ts`                                                           | test             | 34     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/crossPlatformDataFetcher.test.ts`                                                | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
@@ -1029,7 +1029,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/planQueryCommand.test.ts`                                                | test             | 44     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planReadersAgree.test.ts`                                                | test             | 4      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planRecords.test.ts`                                                     | test             | 47     | 0          | KEEP       | machine                         | behavioural          |
-| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 178    | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 181    | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
