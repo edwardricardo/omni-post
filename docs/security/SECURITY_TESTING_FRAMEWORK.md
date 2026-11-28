@@ -424,8 +424,8 @@ DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 
 # Authentication
-JWT_SECRET=your-jwt-secret
-ENCRYPTION_KEY=your-encryption-key
+JWT_ACCESS_SECRET=your-jwt-access-secret
+PLATFORM_ENCRYPTION_KEY=your-platform-encryption-key
 
 # External Services
 SNYK_TOKEN=your-snyk-token

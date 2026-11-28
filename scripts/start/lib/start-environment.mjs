@@ -8,16 +8,18 @@
  *   TWO CONSUMERS make up the platform. Compose interpolates every `${NAME:?}` of
  *   `docker-compose.yml` whatever services it is asked for, so Postgres and Redis alone need the
  *   seven variables the file names, Grafana's and MinIO's included. The API refuses to boot without
- *   the fifteen its schema declares with no default (`apps/api/src/config/env.ts`), its three
+ *   the thirteen its schema declares with no default (`apps/api/src/config/env.ts`), its three
  *   public addresses among them; the workers' three are among them too. A new file also receives
- *   what the development tools need: the development seed's `ADMIN_PASSWORD`, the password of the
- *   administrator it creates (`infra/prisma/src/seedGuard.ts`). The suite holds the generated
- *   environment to all of them.
+ *   what the development tools need: `SHADOW_DATABASE_URL`, the empty database `prisma migrate dev`
+ *   diffs a migration against (`infra/prisma/prisma.config.ts`), and the development seed's
+ *   `ADMIN_PASSWORD`, the password of the administrator it creates (`infra/prisma/src/seedGuard.ts`).
+ *   The suite holds the generated environment to all of them.
  *
  *   ONE LIST PER PURPOSE. What the platform reads is what an existing file must hold:
  *   `REQUIRED_KEYS` is read off the platform's generator, so the two cannot drift. What the
  *   development tools need is generated for a new file and never required of an existing one: the
- *   platform never reads it, and a tool whose variable is missing refuses by itself, naming it.
+ *   platform never reads it, so a file without it still starts the platform, and the tool that
+ *   reads it answers for it (the seed refuses without its password, naming it).
  *
  *   THREE READERS take the file: Compose, Node's loader (`process.loadEnvFile`, `--env-file`) and a
  *   shell that sources it. A value outside the plain set is written in single quotes, the one
@@ -77,9 +79,10 @@ const HEADER = [
 
 /**
  * The variables the platform reads, in file order: the seven Compose interpolates, the host ports
- * when one was chosen, and the fifteen the API requires, its public addresses last.
+ * when one was chosen, and the thirteen the API requires, its public addresses last.
  * @param {GenerationOptions} options - The random source, and the ports the run settled.
- * @returns {Array<[string, string]>} Each variable with its value.
+ * @returns {{ entries: Array<[string, string]>, databaseUrl: string }} Each variable with its
+ *   value, and the URL of the platform's database, beside which the development tools' sits.
  */
 function platformEntries({ randomBytes, postgresHostPort, redisHostPort, apiPort, clientPort }) {
   const hex = (/** @type {number} */ size) => randomBytes(size).toString("hex");
@@ -111,15 +114,14 @@ function platformEntries({ randomBytes, postgresHostPort, redisHostPort, apiPort
   if (redisHostPort !== undefined) {
     entries.push(["REDIS_HOST_PORT", String(redisHostPort)]);
   }
+  const platformDatabase = databaseUrl(database);
   entries.push(
-    ["DATABASE_URL", databaseUrl(database)],
-    ["SHADOW_DATABASE_URL", databaseUrl(`${database}_shadow`)],
+    ["DATABASE_URL", platformDatabase],
     ["REDIS_URL", `redis://${LOOPBACK}:${redisHostPort ?? DEFAULT_REDIS_HOST_PORT}`]
   );
   for (const key of HMAC_SECRETS) entries.push([key, hex(32)]);
   entries.push(
     ["PLATFORM_ENCRYPTION_KEY", randomBytes(32).toString("base64")],
-    ["OAUTH_ENCRYPTION_KEY", hex(32)],
     ["DELETION_NAME_DIGEST_KEY_RING", JSON.stringify({ 1: hex(32) })]
   );
   // Each app's address is where the run that writes the file serves it. Webhooks and single
@@ -130,17 +132,25 @@ function platformEntries({ randomBytes, postgresHostPort, redisHostPort, apiPort
     ["API_BASE_URL", api],
     ["APP_BASE_URL", api]
   );
-  return entries;
+  return { entries, databaseUrl: platformDatabase };
 }
 
 /**
- * The variables the development tools need and the platform never reads: the development seed's
- * administrator password, which its password rule requires and takes no default for.
+ * The variables the development tools need and the platform never reads: the shadow database
+ * `prisma migrate dev` diffs a migration against, on the platform's server, as its user, under its
+ * database's name followed by `_shadow`; and the development seed's administrator password, which
+ * its password rule requires and takes no default for.
  * @param {{ randomBytes: (size: number) => Buffer }} options - The random source.
+ * @param {string} databaseUrl - The URL of the platform's database.
  * @returns {Array<[string, string]>} Each variable with its value.
  */
-function developmentToolEntries({ randomBytes }) {
-  return [["ADMIN_PASSWORD", randomBytes(24).toString("hex")]];
+function developmentToolEntries({ randomBytes }, databaseUrl) {
+  const shadow = new URL(databaseUrl);
+  shadow.pathname = `${shadow.pathname}_shadow`;
+  return [
+    ["SHADOW_DATABASE_URL", shadow.href],
+    ["ADMIN_PASSWORD", randomBytes(24).toString("hex")],
+  ];
 }
 
 /**
@@ -151,7 +161,8 @@ function developmentToolEntries({ randomBytes }) {
  * @returns {Array<[string, string]>} Each variable with its value.
  */
 export function generateEnvironment(options) {
-  return [...platformEntries(options), ...developmentToolEntries(options)];
+  const platform = platformEntries(options);
+  return [...platform.entries, ...developmentToolEntries(options, platform.databaseUrl)];
 }
 
 /** A random source of zeros, for a generation whose values are discarded and names kept. */
@@ -163,7 +174,7 @@ const discarded = { randomBytes: (/** @type {number} */ size) => Buffer.alloc(si
  * only the names are kept, so the generator stays the one place that says which variables there
  * are.
  */
-export const REQUIRED_KEYS = platformEntries(discarded).map(([key]) => key);
+export const REQUIRED_KEYS = platformEntries(discarded).entries.map(([key]) => key);
 
 /**
  * @function renderEnvironmentFile

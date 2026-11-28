@@ -56,8 +56,7 @@ API_ORIGIN="http://127.0.0.1:${API_PORT}"
   echo "APP_BASE_URL=${API_ORIGIN}"
   # HMAC-style secrets: env.ts only requires z.string().min(32).
   for k in JWT_ACCESS_SECRET JWT_REFRESH_SECRET CUSTOMER_JWT_SECRET \
-           ADMIN_JWT_ACCESS_SECRET ADMIN_JWT_REFRESH_SECRET COOKIE_SECRET \
-           OAUTH_ENCRYPTION_KEY; do
+           ADMIN_JWT_ACCESS_SECRET ADMIN_JWT_REFRESH_SECRET COOKIE_SECRET; do
     echo "${k}=citest-${k}-deterministic-nonproduction-padding-string"
   done
   echo "PLATFORM_ENCRYPTION_KEY=${PLATFORM_KEY}"
