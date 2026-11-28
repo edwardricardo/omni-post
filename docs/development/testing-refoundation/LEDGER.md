@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1296  |
+| Files                   | 1297  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1124  |
+| KEEP                    | 1125  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1284  |
+| Machine rows            | 1285  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16311 |
+| Blocks                  | 16324 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1030,6 +1030,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/planReadersAgree.test.ts`                                                | test             | 4      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/planRecords.test.ts`                                                     | test             | 47     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 181    | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/pullImage.test.ts`                                                       | test             | 13     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
