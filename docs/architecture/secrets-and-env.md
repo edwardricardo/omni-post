@@ -26,13 +26,13 @@ Every backend module imports `env` from `apps/api/src/config/env.ts`. The schema
 
 ## Key categories
 
-| Category                  | Contract                                              | Examples                                                                    |
-| ------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
-| **Required**              | Schema enforces; boot fails if missing or `< 32` char | `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `PLATFORM_ENCRYPTION_KEY` |
-| **Optional with default** | Schema applies default if unset                       | `PORT=3000`, `NODE_ENV=development`, `LOG_LEVEL=info`                       |
-| **Optional**              | `undefined` is fine; consumer handles it              | `OPENAI_API_KEY` (AI feature auto-disables)                                 |
-| **Conditional**           | Required if a sibling toggle is set                   | `STRIPE_SECRET_KEY` required when `PAYMENT_PROVIDER=stripe`                 |
-| **Retired**               | Not declared; boot fails while it is set, naming it   | `OAUTH_ENCRYPTION_KEY`, `JWT_SECRET`, `TRUSTED_PROXY_HOP_COUNT`             |
+| Category                  | Contract                                              | Examples                                                                                                       |
+| ------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Required**              | Schema enforces; boot fails if missing or `< 32` char | `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `PLATFORM_ENCRYPTION_KEY`                                    |
+| **Optional with default** | Schema applies default if unset                       | `PORT=3000`, `NODE_ENV=development`, `LOG_LEVEL=info`                                                          |
+| **Optional**              | `undefined` is fine; consumer handles it              | `OPENAI_API_KEY` (AI feature auto-disables)                                                                    |
+| **Conditional**           | Required if a sibling toggle is set                   | `STRIPE_SECRET_KEY` required when `PAYMENT_PROVIDER=stripe`                                                    |
+| **Retired**               | Not declared; boot fails while it is set, naming it   | `OAUTH_ENCRYPTION_KEY`, `JWT_SECRET`, `TRUSTED_PROXY_HOP_COUNT`, `CLIENT_APP_URL`, `FRONTEND_URL`, `ADMIN_URL` |
 
 Conditional validation is enforced at the point of use (e.g. `paymentAdapterFactory.ts` throws if Stripe is selected but its secrets are unset), not in the Zod schema, because the schema can't easily express cross-field constraints without losing the simple "all-fields-optional or required" mental model.
 
@@ -182,7 +182,7 @@ Production: separate runbook (`docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`) c
 
 ## Troubleshooting
 
-**"The environment was refused: these variables are missing or not valid: …"** — the schema rejected one or more values. The API's module raises the registry's `ENV_VARIABLES_REFUSED` (`environmentRefusal`, `apps/api/src/config/env.ts`), whose message names each refused variable and never a value. Its cause, **"Environment validation failed. Refusing to boot."**, lists every offending key with its constraint, and the API's start prints it under `[cause]`; the first-administrator command prints the names only, never the cause's text. The workers' module (`apps/workers/src/config/env.ts`) raises its own error, whose message is that cause's text. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port), a retired name still set (`OAUTH_ENCRYPTION_KEY` or `JWT_SECRET`: delete it). One refusal names every cause at once: each variable its own schema refuses, each rule over the whole environment (the trusted-proxy pair, the key ring's contiguity and its active version) whose variables pass their own schema, and each retired name still set.
+**"The environment was refused: these variables are missing or not valid: …"** — the schema rejected one or more values. The API's module raises the registry's `ENV_VARIABLES_REFUSED` (`environmentRefusal`, `apps/api/src/config/env.ts`), whose message names each refused variable and never a value. Its cause, **"Environment validation failed. Refusing to boot."**, lists every offending key with its constraint, and the API's start prints it under `[cause]`; the first-administrator command prints the names only, never the cause's text. The workers' module (`apps/workers/src/config/env.ts`) raises its own error, whose message is that cause's text. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port), a retired name still set (the six of [DEPLOYMENT_CHECKLIST.md](../deployment/DEPLOYMENT_CHECKLIST.md#refused-while-set), each with what the operator does). One refusal names every cause at once: each variable its own schema refuses, each rule over the whole environment (the trusted-proxy pair, the key ring's contiguity and its active version) whose variables pass their own schema, and each retired name still set.
 
 **Test suite fails with the same error** — `.env.test` is missing a key the schema requires, or still holds a retired one. Add a missing key with a deterministic dummy value (`>= 32` chars); delete a retired one.
 

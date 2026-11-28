@@ -411,7 +411,7 @@ REDIS_URL=redis://...
 
 # Authentication
 JWT_ACCESS_SECRET=your-jwt-access-secret
-ENCRYPTION_KEY=your-encryption-key
+PLATFORM_ENCRYPTION_KEY=your-platform-encryption-key
 
 # External Services
 SNYK_TOKEN=your-snyk-token
