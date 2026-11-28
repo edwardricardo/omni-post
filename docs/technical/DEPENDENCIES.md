@@ -391,6 +391,11 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 | MinIO      | minio/minio:latest          | 9000, 9001 | S3-compatible media storage (API, console)                        |
 | MinIO init | minio/mc:latest             | —          | Creates the `omni-post-media` bucket once MinIO is up, then exits |
 
+In CI, the `Platform Start` job pulls the PostgreSQL and Redis images above before
+Compose starts them, and every job that runs its own PostgreSQL and Redis pulls
+its images too, all through `scripts/ci/pull-image.mjs`: `mirror.gcr.io` first,
+Docker Hub when the mirror cannot answer.
+
 ### GitHub Actions Workflows (13)
 
 1. **ci.yml** — Main CI: lint, test, build, security, provider tests, frontend tests
