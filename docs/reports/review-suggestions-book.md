@@ -969,6 +969,7 @@
 | SB-953 | The plan stands alone, the pipe by descriptor (`8efe1f744`), review-e25c737efc422b93  | R3-fifo-linux-only                                               | `apps/api/tests/unit/scripts/planQueryCommand.test.ts:169-174`                                                                              | reliability                  | closed: declined with a reason (see Closed with a reason)                                                                                                       |
 | SB-954 | F-01's closure, the dead secrets (`542c95920`), review-a7bd97a04e61723e               | R2-003                                                           | `apps/api/tests/unit/config/retiredSecrets.test.ts:46-53`                                                                                   | readability                  | open: the suite split by rule, and its list of retired names held to the production table                                                                       |
 | SB-955 | F-01's closure, the dead secrets (`542c95920`), review-a7bd97a04e61723e               | R2-004                                                           | `apps/api/src/config/env.ts:607-612`                                                                                                        | readability                  | open: the two key-ring rules share one parsed ring                                                                                                              |
+| SB-956 | F-01's closure, the image supply (`5cd74f9a7`), review-c401b054a56b9ac0               | R3-001                                                           | `scripts/ci/pull-image.mjs:300`                                                                                                             | reliability                  | open: one case for a spawn error that carries no code                                                                                                           |
 | SB-954 | The plan stands alone, the pipe by descriptor (`8efe1f744`), review-e25c737efc422b93  | R3-fifo-setup-leak                                               | `apps/api/tests/unit/scripts/planQueryCommand.test.ts:170-176`                                                                              | reliability                  | deferred: non-blocking, native review of `8efe1f744` (2026-11-27)                                                                                               |
 
 ## Entries — code and prose
@@ -2721,6 +2722,14 @@
 - **Suggestion:** parse `DELETION_NAME_DIGEST_KEY_RING` once and hand both rules the parsed ring.
 - **Why justified:** the duplication is harmless: each rule runs only when the ring passed its own schema, and both parse the same text.
 - **To implement:** with the next edit of the key-ring rules.
+
+### SB-956 — no case holds a spawn error that carries no code
+
+- **Source:** the native review of the last commit of F-01's closure, the image supply (`5cd74f9a7`, review-c401b054a56b9ac0), finding `R3-001` (SUGGESTION).
+- **Location:** `scripts/ci/pull-image.mjs:300`.
+- **Suggestion:** one in-process case whose `docker` returns an error with no `code`: the routine takes the error's message as the reason and retries the attempt.
+- **Why justified:** the classification is right as written (an error that names no code cannot be one of the six that mean the program cannot be executed); Node sets a code on the spawn errors the routine can meet, and the cases hold each listed code, the bound and two retried codes.
+- **To implement:** with the next edit of the routine.
 
 ## Implemented
 
