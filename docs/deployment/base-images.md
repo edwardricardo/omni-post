@@ -287,8 +287,9 @@ smoke does not satisfy; both portal images answer 200 on `/api/health` and `/`
 and the same Trivy, saved from each built image, exits 0 with no HIGH or
 CRITICAL vulnerability in any of the four (`debian 13.7` and 767, 529, 25 and 25
 `node-pkg` targets for `api`, `workers`, `admin` and `client`). The gate itself
-is the `Container Security` job of the pull request, whose scanner is
-`aquasecurity/trivy-action@master`; this section records the local read.
+is the `Container Security` job of the pull request, which runs
+`aquasecurity/trivy-action` at the commit of its release v0.36.0, as
+`production-ci.yml` pins it; this section records the local read.
 
 ### Re-pinned on 2026-11-26: libzstd1 `1.5.7+dfsg-1+deb13u1`
 
@@ -406,6 +407,36 @@ every Dockerfile.
 
 ---
 
+## The Dockerfile frontend
+
+Line 1 of each of the four Dockerfiles names the BuildKit frontend that parses
+the rest of the file:
+
+```
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
+```
+
+The frontend is an image BuildKit pulls before it reads a line of the build, so
+a tag alone lets the registry decide which bytes build every image. The
+directive takes a tag and a digest
+([Docker: custom Dockerfile syntax](https://docs.docker.com/build/buildkit/frontend/)),
+and with both, the digest decides. `1.29.0` is the latest stable release on
+2026-11-28 (published 2026-11-11), and the digest is that of its
+multi-platform index, read twice that day and alike in both: from Docker Hub's
+tag API (`hub.docker.com/v2/namespaces/docker/repositories/dockerfile/tags`),
+where `1.29.0`, `1.29`, `1` and `latest` share it, and from the
+`Docker-Content-Digest` header the registry returns for
+`registry-1.docker.io/v2/docker/dockerfile/manifests/1.29.0`. The `-labs` tags
+are a separate channel of experimental syntax and are not taken.
+
+Dependabot does not move this line: its Docker parser reads `FROM` lines alone
+(`docker/lib/dependabot/docker/file_parser.rb` of dependabot-core, read on
+2026-11-28). It moves by item 7 of §"How to extend", and
+`apps/api/tests/unit/scripts/imageSupply.test.ts` holds the four lines to one
+version and one digest.
+
+---
+
 ## The glibc direction
 
 `argon2` ships a prebuilt native binary that must match the runtime ABI. The
@@ -520,3 +551,8 @@ request that brought `production-ci.yml` to the branch list of `ci.yml`.
    move in all four Dockerfiles with `packageManager`, read from the release API
    (`gh api repos/pnpm/pnpm/releases/tags/v<version>`) and reproduced by
    downloading the assets.
+7. **Moving the Dockerfile frontend** → line 1 of all four Dockerfiles moves in
+   one change, to the latest stable `docker/dockerfile` release, never a `-labs`
+   tag, with the digest of its index read twice and alike: from Docker Hub's tag
+   API and from the registry's `Docker-Content-Digest` header, as
+   §"The Dockerfile frontend" did.

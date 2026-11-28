@@ -42,39 +42,23 @@ jobs:
       contents: read
       issues: write
 
-    services:
-      postgres:
-        # pgvector-enabled image — the glossary/style-guide migrations CREATE
-        # EXTENSION vector, which plain postgres images don't ship.
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: password123
-          POSTGRES_USER: postgres
-          POSTGRES_DB: omnipostdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start Postgres and Redis
+        uses: ./.github/actions/start-service-containers
+        with:
+          # pgvector-enabled image — the glossary/style-guide migrations CREATE
+          # EXTENSION vector, which plain postgres images don't ship.
+          postgres-image: pgvector/pgvector:pg16
+          postgres-db: omnipostdb
+          postgres-user: postgres
+          postgres-password: password123
+          redis-image: redis:7-alpine
 
       - name: Setup test environment
         # `public`, not `test`: the migrations and the adapter-pg test client
@@ -158,3 +142,7 @@ jobs:
               body,
               labels: ['chaos-failure', 'P1', 'reliability'],
             });
+
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
+        uses: ./.github/actions/service-container-logs

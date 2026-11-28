@@ -148,31 +148,6 @@ jobs:
     # 30 cancelled a run whose every step was green; with the cache the job takes about 6 minutes.
     timeout-minutes: 45
     needs: security-audit
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -183,6 +158,15 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start Postgres and Redis
+        uses: ./.github/actions/start-service-containers
+        with:
+          postgres-image: postgres:16-alpine
+          postgres-db: test_db
+          postgres-user: test_user
+          postgres-password: test_pass
+          redis-image: redis:7-alpine
 
       # PR path is build-only: ci.yml owns PR validation (full turbo typecheck
       # in Lint and Format, sharded coverage suite, Package Tests, integration
@@ -230,6 +214,10 @@ jobs:
             apps/*/.next
           retention-days: 7
 
+      - name: Print the Postgres and Redis logs (the job failed or was cancelled)
+        if: failure() || cancelled()
+        uses: ./.github/actions/service-container-logs
+
   # Container Build and Security Scan
   container-security:
     name: Container Security
@@ -238,10 +226,11 @@ jobs:
     # Runs on PRs and main-push alike. The Dockerfiles build cleanly now, so the
     # matrix produces real signal on PRs and can gate merges as a required check.
     needs: test-and-build
+    # No `security-events: write`: the code-scanning upload runs in `container-security-report`,
+    # which holds it, so this job's verdict is the scan's alone.
     permissions:
       contents: read
       packages: write
-      security-events: write
 
     # Each leg reports its image's Node version under its own service's key, for the
     # `node-runtime-advisory` job below. GitHub combines a matrix's outputs across its legs, and
@@ -270,6 +259,12 @@ jobs:
       # stays a runtime variable. Computed once here so the scanned build and the
       # push below pass the same argument.
       SENTRY_DSN_BUILD_ARG: ${{ matrix.service == 'admin' && format('NEXT_PUBLIC_SENTRY_DSN={0}', vars.ADMIN_NEXT_PUBLIC_SENTRY_DSN) || matrix.service == 'client' && format('NEXT_PUBLIC_SENTRY_DSN={0}', vars.CLIENT_NEXT_PUBLIC_SENTRY_DSN) || '' }}
+      # Where the scanner's database lives, and the prefix of its cache key. In the job's
+      # environment, not in a step's output: an earlier failure skips the step that would write
+      # the output and leaves it empty, and the SARIF step runs after such a failure. Not named
+      # `TRIVY_*`, because Trivy reads every such variable as one of its own options.
+      SCANNER_DB_DIR: ${{ github.workspace }}/.cache/trivy
+      SCANNER_DB_KEY_PREFIX: trivy-db-
 
     steps:
       - name: Checkout repository
@@ -282,7 +277,7 @@ jobs:
           # image and the Dockerfile frontend), it asks Google's pull-through cache first and
           # Docker Hub when the cache cannot answer, so a rate limit there does not fail the build.
           # The images another job or Compose pulls (the Postgres and Redis services) do not pass
-          # through BuildKit and still come straight from Docker Hub.
+          # through BuildKit: those jobs pull them with scripts/ci/pull-image.mjs, in the same order.
           buildkitd-config-inline: |
             [registry."docker.io"]
               mirrors = ["mirror.gcr.io"]
@@ -488,6 +483,35 @@ jobs:
             [ "$bytes" -gt 2000 ] || { echo "::error::${{ matrix.service }} rendered only $bytes bytes for / — too small to be a page, so this is an error shell or a redirect loop, not a render"; exit 1; }
           fi
 
+      # The scanner's vulnerability database, cached the way every cache of this repository is:
+      # `main` restores and saves it, every other ref restores what `main` saved and saves
+      # nothing (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md section 6). The action's own cache saves
+      # from every ref, so both Trivy steps turn it off and read the job's SCANNER_DB_DIR
+      # instead. The key changes daily, as the database does; a new day restores the newest entry
+      # by its prefix and Trivy brings it up to date. The key is written once here and read by the
+      # two cache steps below.
+      - name: Name the Trivy database cache
+        id: trivy-db
+        run: |
+          set -euo pipefail
+          echo "key=${SCANNER_DB_KEY_PREFIX}$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Trivy database
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.SCANNER_DB_DIR }}
+          key: ${{ steps.trivy-db.outputs.key }}
+          restore-keys: ${{ env.SCANNER_DB_KEY_PREFIX }}
+
+      - name: Restore the Trivy database (read-only)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.SCANNER_DB_DIR }}
+          key: ${{ steps.trivy-db.outputs.key }}
+          restore-keys: ${{ env.SCANNER_DB_KEY_PREFIX }}
+
       # THE GATE, and it is `table` on purpose. With `format: sarif` the action
       # documents that it "enforces output of all vulnerabilities regardless of
       # configured severities" unless `limit-severities-for-sarif` is set — so
@@ -498,17 +522,25 @@ jobs:
       #
       # `table` respects `severity`, and it prints what it caught — so the gate
       # explains itself instead of failing silently into a file.
+      #
+      # The action runs at the commit of a release, never a tag or a branch: a compromise of the
+      # Trivy ecosystem rewrote the action's version tags (GHSA-69fq-xp46-6x23). At that commit
+      # the action calls `setup-trivy` by commit too. `version` names the Trivy release the action
+      # installs, the latest stable one; the action's own default is an older release.
       - name: Run Trivy vulnerability scanner
         id: gate
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: local/${{ matrix.service }}:scan
           format: "table"
           severity: "CRITICAL,HIGH"
           exit-code: "1"
-          # Explicit path required: the action runs Trivy in its own container,
-          # so the repo-root .trivyignore is not auto-discovered.
+          # The action hands Trivy the ignore files this input lists, and no other, through
+          # TRIVY_IGNOREFILE.
           trivyignores: .trivyignore
+          version: v0.76.2
+          cache: "false"
+          cache-dir: ${{ env.SCANNER_DB_DIR }}
 
       # The SARIF is for the Security tab, NOT for gating, so it keeps the
       # action's default breadth on purpose: every severity, so MEDIUM and LOW
@@ -518,8 +550,8 @@ jobs:
       # Conditioned on the BUILD, not on `always()`: a build failure leaves no
       # image, so `always()` would run this against a tag that does not exist,
       # Trivy would error, `continue-on-error` would swallow it, no file would be
-      # written, and the upload below would then look for a SARIF that was never
-      # produced — three silent no-ops in a row.
+      # written, and the hand-over below would then look for a SARIF that was
+      # never produced.
       #
       # `!cancelled()` is load-bearing, not noise. GitHub Actions wraps any `if:`
       # that names no status function in an implicit `success()`, so
@@ -531,22 +563,31 @@ jobs:
       - name: Trivy SARIF for code scanning (never gates)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: local/${{ matrix.service }}:scan
           format: "sarif"
           output: "trivy-results-${{ matrix.service }}.sarif"
           exit-code: "0"
           trivyignores: .trivyignore
+          version: v0.76.2
+          cache: "false"
+          cache-dir: ${{ env.SCANNER_DB_DIR }}
 
-      # Same reasoning as the step above, `!cancelled()` included: without a
-      # status function the implicit `success()` would skip this whenever the
-      # gate went red, which is when the report is most worth uploading.
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
+      # The report goes to code scanning from `container-security-report`, a job no ruleset
+      # requires, so an outage of the upload shows red there and decides nothing here. This step
+      # hands the file over and never gates either: an artifact store that fails it costs the
+      # report, which that job then names as missing. Same condition as the step above, for the
+      # same reasons.
+      - name: Hand the Trivy SARIF to the report job (never gates)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: "trivy-results-${{ matrix.service }}.sarif"
+          name: trivy-sarif-${{ matrix.service }}
+          path: trivy-results-${{ matrix.service }}.sarif
+          retention-days: 7
+          if-no-files-found: error
 
       # This step used to write its numbers ONLY to $GITHUB_STEP_SUMMARY and then
       # `exit 1`, so a run that failed on size printed neither the size nor the
@@ -612,6 +653,45 @@ jobs:
           # exports.
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', matrix.service) || '' }}
+
+  # Each image's Trivy report goes to code scanning from this job, so a failed upload, or a report
+  # the scan could not hand over, shows red here and decides nothing in `Container Security`,
+  # which a ruleset requires to merge and whose verdict is the scan's alone. No ruleset requires
+  # this job and no job needs it. It runs whatever the scan's verdict was, a red scan being when
+  # its report is most worth reading, and is skipped when the scan was skipped, since no image
+  # was built.
+  container-security-report:
+    name: Container Security Report (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: container-security
+    if: ${{ !cancelled() && needs.container-security.result != 'skipped' }}
+    # The upload needs `security-events: write`; `actions: read` and `contents: read` are needed in
+    # a private repository only ("Uploading a SARIF file to GitHub", docs.github.com). The job
+    # checks nothing out, and an artifact of its own run needs no permission to download.
+    permissions:
+      security-events: write
+
+    strategy:
+      matrix:
+        service: [api, workers, admin, client]
+      fail-fast: false
+
+    steps:
+      - name: Download the Trivy SARIF of the image
+        uses: actions/download-artifact@v8
+        with:
+          name: trivy-sarif-${{ matrix.service }}
+
+      # The category is named, not derived: the action would derive it from this job's id, and
+      # code scanning would then hold each image's findings as a second analysis beside the one
+      # it keeps under the scan job's id. Each image has its own category, since one workflow run
+      # that uploads two reports of one tool under one category fails.
+      - name: Upload the Trivy SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results-${{ matrix.service }}.sarif
+          category: .github/workflows/production-ci.yml:container-security/service:${{ matrix.service }}
 
   # The image scanner reads an image's OS packages and its module manifests, never the `node`
   # executable a distroless base ships without a package record, so this job holds that executable

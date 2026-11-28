@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 # ==============================================================================
 # Workers Service Dockerfile — node:26-bookworm-slim (glibc) -> distroless
 # non-root runtime. glibc base matches the distroless argon2 ABI.
