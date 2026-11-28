@@ -55,6 +55,36 @@ const SECRET_MIN = 32;
 const urlString = z.string().url();
 
 /**
+ * The schemes a public origin may have: the two of the URL Standard's special schemes a browser
+ * loads a page from. `ws`, `wss` and `ftp` have origins as well, and nothing sends a browser to one.
+ */
+const PUBLIC_ORIGIN_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:"]);
+
+/**
+ * A public origin: the start of every link, redirect and callback URL the API builds on one of its
+ * public addresses, each reader appending a path that starts with `/`. The value must be the
+ * serialization of its own origin, as the URL Standard defines an origin
+ * (https://url.spec.whatwg.org/#concept-url-origin) and the `URL.origin` getter returns it
+ * (https://url.spec.whatwg.org/#dom-url-origin; RFC 6454 §4 and §6.2): a scheme, a host, and a port
+ * only when it is not the scheme's default. Credentials, a path (a lone `/` included), a query or a
+ * fragment, even an empty one, capitals the parser would lower, and a default port written out are
+ * all refused, so whatever a reader appends lands on that origin's own path. The refusal names the
+ * rule and never the value.
+ */
+const publicOrigin = z.string().superRefine((raw, ctx) => {
+  const url = URL.canParse(raw) ? new URL(raw) : undefined;
+  if (url === undefined || !PUBLIC_ORIGIN_SCHEMES.has(url.protocol) || url.origin !== raw) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "must be an http or https origin written as the origin serializes: the scheme, the host " +
+        "and a port that is not the scheme's default, in lowercase, with no credentials, path, " +
+        "query, fragment or trailing slash",
+    });
+  }
+});
+
+/**
  * Boolean coerced from "true"/"false"/"1"/"0". Defaults handled per-field via
  * `.default()` rather than here so each toggle's default is locally visible.
  */
@@ -158,14 +188,14 @@ const serverSchema = {
   // The links, redirects and callback URLs the API builds toward the client portal, a webhook
   // sender and an identity provider start with one of these, so none has a default: a fallback
   // would send a reset link, a payment gateway's return or a single sign-on callback to a host no
-  // operator chose.
+  // operator chose. Each is an http or https origin and nothing more (`publicOrigin`).
   // The client portal: reset, referral and e-mail links, billing return URLs, and the redirect
   // that ends a provider connection.
-  CLIENT_URL: urlString,
+  CLIENT_URL: publicOrigin,
   // The API as a webhook subscription names it.
-  API_BASE_URL: urlString,
+  API_BASE_URL: publicOrigin,
   // The API as single sign-on names it: the OIDC `redirect_uri` and the SAML ACS URL.
-  APP_BASE_URL: urlString,
+  APP_BASE_URL: publicOrigin,
 
   // ── Media ───────────────────────────────────────────────────────────
   ALLOWED_MEDIA_HOSTS: z.string().optional(),

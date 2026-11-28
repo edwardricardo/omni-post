@@ -30,7 +30,11 @@ const CORE = path.join(ROOT, "scripts", "start", "lib", "start-environment.mjs")
 /** The part of the start's pure core this suite reads. */
 interface EnvironmentModule {
   LOOPBACK: string;
-  generateEnvironment(options: { randomBytes: (size: number) => Buffer }): Array<[string, string]>;
+  generateEnvironment(options: {
+    randomBytes: (size: number) => Buffer;
+    apiPort?: number;
+    clientPort?: number;
+  }): Array<[string, string]>;
   missingKeys(values: Record<string, string | undefined>): string[];
   apiPort(fromShell: string | undefined, fromFile: string | undefined): number | null;
 }
@@ -47,10 +51,13 @@ function clientPortalDevPort(): string {
   return /\s-p\s+(\d+)/.exec(manifest.scripts?.dev ?? "")?.[1] ?? "";
 }
 
-/** A freshly generated environment, variable by variable. */
-function generated(): Record<string, string> {
-  return Object.fromEntries(core.generateEnvironment({ randomBytes }));
+/** A freshly generated environment, variable by variable, for the app ports a run gives. */
+function generated(ports: { apiPort?: number; clientPort?: number } = {}): Record<string, string> {
+  return Object.fromEntries(core.generateEnvironment({ randomBytes, ...ports }));
 }
+
+/** App ports a run gives that are neither app's default. */
+const RUN_PORTS = { apiPort: 4321, clientPort: 4322 } as const;
 
 describe("the generated environment's public addresses", () => {
   beforeEach(() => {
@@ -78,7 +85,7 @@ describe("the generated environment's public addresses", () => {
     });
   });
 
-  it("names the client portal on the loopback, at the port its dev script fixes", () => {
+  it("names the client portal on the loopback, at the port its dev script fixes, when the run gives none", () => {
     const client = new URL(generated().CLIENT_URL ?? "");
 
     expect(clientPortalDevPort()).not.toBe("");
@@ -90,11 +97,28 @@ describe("the generated environment's public addresses", () => {
     ]);
   });
 
-  it("names the API on the loopback, at the port it takes by default, for webhooks and sign-on alike", () => {
+  it("names the API on the loopback, at the port it takes by default, for webhooks and sign-on alike, when the run gives none", () => {
     const values = generated();
     const api = `http://${core.LOOPBACK}:${String(core.apiPort(undefined, undefined))}`;
 
     expect([values.API_BASE_URL, values.APP_BASE_URL]).toEqual([api, api]);
+  });
+
+  it("names the API and the client portal at the ports the run gives them, and writes no PORT", () => {
+    const values = generated(RUN_PORTS);
+    const api = `http://${core.LOOPBACK}:${String(RUN_PORTS.apiPort)}`;
+
+    expect({
+      CLIENT_URL: values.CLIENT_URL,
+      API_BASE_URL: values.API_BASE_URL,
+      APP_BASE_URL: values.APP_BASE_URL,
+      PORT: values.PORT,
+    }).toEqual({
+      CLIENT_URL: `http://${core.LOOPBACK}:${String(RUN_PORTS.clientPort)}`,
+      API_BASE_URL: api,
+      APP_BASE_URL: api,
+      PORT: undefined,
+    });
   });
 
   it("names each public address an existing environment file lacks", () => {

@@ -1,12 +1,14 @@
 /**
  * @file providerOAuthCallbackAddress.test.ts
  * @description Where a provider's OAuth callback sends the browser back: the client portal's
- *   connections page, on the origin `CLIENT_URL` names. A request's host headers and query
- *   parameters do not move it. The env module is replaced by a mutable object and the handler is
- *   re-imported per case, because the provider configurations read env when they load.
+ *   connections page, on the origin `CLIENT_URL` names, after a connection that succeeded and after
+ *   one that failed. A request's host headers and query parameters do not move it. The env module is
+ *   replaced by a mutable object and the handler is re-imported per case, because the provider
+ *   configurations read env when they load; the provider's token and user endpoints are a `fetch`
+ *   double.
  * @layer infrastructure
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { OAuthFlowRecord, OAuthFlowStorePort } from "@ports/core";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
@@ -23,10 +25,23 @@ const ACCOUNT_ID = "6f1c2a1e-1d7b-4c3e-9a51-2b8f0f7d4a10";
 const PROJECT_ID = "0b6c9a0e-5e2f-4f7a-8d3c-7c1e9b2a6f42";
 const FOREIGN_ORIGIN = "https://elsewhere.example.test";
 
-/** A handler over doubles, loaded under an environment that holds the public addresses. */
-async function loadHandler() {
+/** The X application's credentials, which let the callback exchange its code. */
+const X_PAIR = { X_CLIENT_ID: "x-client-id", X_CLIENT_SECRET: "x-client-secret" };
+
+const fetchSpy = vi.fn<typeof fetch>();
+
+/**
+ * A handler over doubles, loaded under an environment that holds the public addresses and the
+ * variables a case adds; the channel double finds no channel and saves the new one.
+ */
+async function loadHandler(variables: Record<string, string> = {}) {
   for (const key of Object.keys(mockEnv)) delete mockEnv[key];
-  Object.assign(mockEnv, { NODE_ENV: "test", LOG_LEVEL: "silent" }, makePublicAddressEnv());
+  Object.assign(
+    mockEnv,
+    { NODE_ENV: "test", LOG_LEVEL: "silent" },
+    makePublicAddressEnv(),
+    variables
+  );
   vi.resetModules();
   const { ProviderOAuthHandler } = await import("../../../src/auth/providerOAuthFlow.js");
   const record: OAuthFlowRecord = {
@@ -37,11 +52,16 @@ async function loadHandler() {
     createdAt: new Date().toISOString(),
   };
   const store = { put: vi.fn(async () => undefined), consume: vi.fn(async () => record) };
-  return new ProviderOAuthHandler(
+  const channels = {
+    findByProjectProviderAccount: vi.fn(async () => null),
+    save: vi.fn(async () => ({ ok: true, value: undefined })),
+  };
+  const handler = new ProviderOAuthHandler(
     store satisfies OAuthFlowStorePort,
-    { findByProjectProviderAccount: vi.fn(), save: vi.fn() } as unknown as ChannelRepository,
+    channels as unknown as ChannelRepository,
     { findById: vi.fn(async () => ({ ok: true, value: {} })) } as unknown as ProjectRepositoryPort
   );
+  return { handler, channels };
 }
 
 /** A callback request to `/auth/callback/x`, with the query and headers a case gives it. */
@@ -70,10 +90,10 @@ function makeReply() {
   return { reply: reply as unknown as FastifyReply, sent };
 }
 
-/** The redirect's origin and path, and the one query parameter a case reads. */
-function landing(location: string | undefined, parameter: string) {
+/** The redirect's origin and path, and its query parameters. */
+function landing(location: string | undefined) {
   const url = new URL(location ?? "");
-  return { at: `${url.origin}${url.pathname}`, [parameter]: url.searchParams.get(parameter) };
+  return { at: `${url.origin}${url.pathname}`, query: Object.fromEntries(url.searchParams) };
 }
 
 const CONNECTIONS = `${makePublicAddressEnv().CLIENT_URL}/dashboard/connections`;
@@ -81,22 +101,28 @@ const CONNECTIONS = `${makePublicAddressEnv().CLIENT_URL}/dashboard/connections`
 describe("the OAuth callback's redirect", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchSpy.mockResolvedValue(new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("lands on the client portal's connections page when the callback's parameters are invalid", async () => {
-    const handler = await loadHandler();
+    const { handler } = await loadHandler();
     const { reply, sent } = makeReply();
 
     await handler.handleCallback(makeCallbackRequest({ state: "state-1" }), reply);
 
-    expect(landing(sent.location, "error")).toEqual({
+    expect(landing(sent.location)).toEqual({
       at: CONNECTIONS,
-      error: "Invalid OAuth callback parameters",
+      query: { error: "Invalid OAuth callback parameters" },
     });
   });
 
   it("lands on the client portal's connections page when the provider refused the consent", async () => {
-    const handler = await loadHandler();
+    const { handler } = await loadHandler();
     const { reply, sent } = makeReply();
 
     await handler.handleCallback(
@@ -104,14 +130,17 @@ describe("the OAuth callback's redirect", () => {
       reply
     );
 
-    expect(landing(sent.location, "error")).toEqual({
+    expect(landing(sent.location)).toEqual({
       at: CONNECTIONS,
-      error: "OAuth error: access_denied",
+      query: { error: "OAuth error: access_denied" },
     });
   });
 
-  it("keeps the client portal's origin whatever host headers and redirect parameters the request carries", async () => {
-    const handler = await loadHandler();
+  it("lands on the client portal's connections page after a connection that succeeded, whatever host headers and redirect parameters the request carries", async () => {
+    const { handler, channels } = await loadHandler(X_PAIR);
+    fetchSpy
+      .mockResolvedValueOnce(Response.json({ access_token: "tw-access", expires_in: 7200 }))
+      .mockResolvedValueOnce(Response.json({ data: { id: "u-1", name: "Test User" } }));
     const { reply, sent } = makeReply();
     const foreignHost = new URL(FOREIGN_ORIGIN).host;
 
@@ -133,6 +162,10 @@ describe("the OAuth callback's redirect", () => {
       reply
     );
 
-    expect(landing(sent.location, "status")).toEqual({ at: CONNECTIONS, status: null });
+    expect(landing(sent.location)).toEqual({
+      at: CONNECTIONS,
+      query: { provider: "x", status: "connected" },
+    });
+    expect(channels.save).toHaveBeenCalledTimes(1);
   });
 });

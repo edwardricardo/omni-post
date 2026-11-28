@@ -12,25 +12,25 @@ What an operator configures for a deployment, and the evidence for each requirem
 
 ## Quick Reference: Required Variables
 
-The API refuses to boot without these fifteen, and the workers without three of them. The portals require none. `pnpm start:platform` generates all fifteen, each secret random and each address on the loopback where the development run serves it, in a checkout with no `.env` (`scripts/start/lib/start-environment.mjs`).
+The API refuses to boot without these fifteen, and the workers without three of them. The portals require none. `pnpm start:platform` generates all fifteen in a checkout with no `.env`, each secret random and each address on the loopback, on the port the run starts that app on: the API's on the `PORT` the run gives it, the client portal's on the port its `dev` script fixes. A run with `--services-only` starts neither app and writes their default ports, 3000 and 3200 (`scripts/start/lib/start-environment.mjs`).
 
-| Variable                        | Deployables                   | Example                                              |
-| ------------------------------- | ----------------------------- | ---------------------------------------------------- |
-| `DATABASE_URL`                  | api, workers                  | `postgresql://user:pass@host:5432/omnipostdb`        |
-| `SHADOW_DATABASE_URL`           | api                           | `postgresql://user:pass@host:5432/omnipostdb_shadow` |
-| `REDIS_URL`                     | api, workers                  | `redis://host:6379`                                  |
-| `JWT_ACCESS_SECRET`             | api                           | 32 characters or more                                |
-| `JWT_REFRESH_SECRET`            | api                           | 32 characters or more                                |
-| `CUSTOMER_JWT_SECRET`           | api                           | 32 characters or more                                |
-| `ADMIN_JWT_ACCESS_SECRET`       | api                           | 32 characters or more                                |
-| `ADMIN_JWT_REFRESH_SECRET`      | api                           | 32 characters or more                                |
-| `COOKIE_SECRET`                 | api                           | 32 characters or more                                |
-| `PLATFORM_ENCRYPTION_KEY`       | api, workers, the same values | 32 characters or more                                |
-| `OAUTH_ENCRYPTION_KEY`          | api                           | 32 characters or more; no code reads it (DEF-44)     |
-| `DELETION_NAME_DIGEST_KEY_RING` | api                           | `{"1":"<64 lowercase hex characters>"}`              |
-| `CLIENT_URL`                    | api                           | `https://app.yourdomain.com`                         |
-| `API_BASE_URL`                  | api                           | `https://api.yourdomain.com`                         |
-| `APP_BASE_URL`                  | api                           | `https://api.yourdomain.com`                         |
+| Variable                        | Deployables                   | Example                                                   |
+| ------------------------------- | ----------------------------- | --------------------------------------------------------- |
+| `DATABASE_URL`                  | api, workers                  | `postgresql://user:pass@host:5432/omnipostdb`             |
+| `SHADOW_DATABASE_URL`           | api                           | `postgresql://user:pass@host:5432/omnipostdb_shadow`      |
+| `REDIS_URL`                     | api, workers                  | `redis://host:6379`                                       |
+| `JWT_ACCESS_SECRET`             | api                           | 32 characters or more                                     |
+| `JWT_REFRESH_SECRET`            | api                           | 32 characters or more                                     |
+| `CUSTOMER_JWT_SECRET`           | api                           | 32 characters or more                                     |
+| `ADMIN_JWT_ACCESS_SECRET`       | api                           | 32 characters or more                                     |
+| `ADMIN_JWT_REFRESH_SECRET`      | api                           | 32 characters or more                                     |
+| `COOKIE_SECRET`                 | api                           | 32 characters or more                                     |
+| `PLATFORM_ENCRYPTION_KEY`       | api, workers, the same values | 32 characters or more                                     |
+| `OAUTH_ENCRYPTION_KEY`          | api                           | 32 characters or more; no code reads it (DEF-44)          |
+| `DELETION_NAME_DIGEST_KEY_RING` | api                           | `{"1":"<64 lowercase hex characters>"}`                   |
+| `CLIENT_URL`                    | api                           | An `http` or `https` origin: `https://app.yourdomain.com` |
+| `API_BASE_URL`                  | api                           | An `http` or `https` origin: `https://api.yourdomain.com` |
+| `APP_BASE_URL`                  | api                           | An `http` or `https` origin: `https://api.yourdomain.com` |
 
 `NODE_ENV` and `PORT` are not required: unset, they are `development` and `3000`. The three public addresses have no default: the links, redirects and callback URLs the API builds toward the client portal, a webhook sender and an identity provider start with one of them ([Core Application](#core-application)).
 
@@ -38,15 +38,15 @@ The API refuses to boot without these fifteen, and the workers without three of 
 
 ## Core Application
 
-| Variable       | Required | Default       | Description                                                                                                                                                                                       |
-| -------------- | -------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`     | No       | `development` | `development`, `production`, `test` or `staging` for the API and the workers; `development`, `production` or `test` for the portals                                                               |
-| `PORT`         | No       | `3000`        | API server listening port                                                                                                                                                                         |
-| `CLIENT_URL`   | Yes      | --            | The client portal's public address: password reset, referral and e-mail links, the payment gateway's return URLs and the redirect that ends a provider connection                                 |
-| `API_BASE_URL` | Yes      | --            | The API's public address as a webhook subscription names it: `<API_BASE_URL>/webhooks/<provider>`                                                                                                 |
-| `APP_BASE_URL` | Yes      | --            | The API's public address as single sign-on names it: the OIDC `redirect_uri` (`<APP_BASE_URL>/auth/oidc/<account>/callback`) and the SAML ACS URL (`<APP_BASE_URL>/auth/saml/<account>/callback`) |
+| Variable       | Required | Default       | Description                                                                                                                                                                                                                           |
+| -------------- | -------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`     | No       | `development` | `development`, `production`, `test` or `staging` for the API and the workers; `development`, `production` or `test` for the portals                                                                                                   |
+| `PORT`         | No       | `3000`        | API server listening port                                                                                                                                                                                                             |
+| `CLIENT_URL`   | Yes      | --            | The client portal's public origin, `http` or `https` and nothing more: password reset, referral and e-mail links, the payment gateway's return URLs and the redirect that ends a provider connection                                  |
+| `API_BASE_URL` | Yes      | --            | The API's public origin, `http` or `https` and nothing more, as a webhook subscription names it: `<API_BASE_URL>/webhooks/<provider>`                                                                                                 |
+| `APP_BASE_URL` | Yes      | --            | The API's public origin, `http` or `https` and nothing more, as single sign-on names it: the OIDC `redirect_uri` (`<APP_BASE_URL>/auth/oidc/<account>/callback`) and the SAML ACS URL (`<APP_BASE_URL>/auth/saml/<account>/callback`) |
 
-The three public addresses have no default, and no reader falls back to another host: the API refuses to boot without each of them, naming it. Each is written without a trailing slash, since every reader appends a path that starts with `/`. `API_BASE_URL` and `APP_BASE_URL` both name the API, so they hold the same address when one host serves it.
+The three public addresses have no default, and no reader falls back to another host: the API refuses to boot without each of them, naming it and never its value. Each is an `http` or `https` origin written as the origin serializes ([URL Standard](https://url.spec.whatwg.org/#concept-url-origin), [RFC 6454 §6.2](https://www.rfc-editor.org/rfc/rfc6454#section-6.2)): the scheme, the host, and a port only when it is not the scheme's default, in lowercase, with no credentials, path, query, fragment or trailing slash, since every reader appends a path that starts with `/`. `https://app.example.com` and `http://127.0.0.1:3200` are origins; `https://app.example.com/`, `https://app.example.com:443`, `https://user@app.example.com`, `HTTPS://APP.EXAMPLE.COM` and `localhost:3200` refuse the boot. `API_BASE_URL` and `APP_BASE_URL` both name the API, so they hold the same origin when one host serves it.
 
 ---
 

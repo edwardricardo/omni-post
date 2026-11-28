@@ -820,16 +820,19 @@ function readServicesEnvironment(file) {
 /**
  * @function settleEnvironment
  * @description Keeps an existing environment file as it is, or writes the one a checkout lacks,
- *   its secrets random and its host ports those settled, and says which. The write creates the
- *   file only if nothing is there, so it never replaces a file that appeared meanwhile and never
- *   writes through a link.
+ *   its secrets random, its host ports those settled and each public address on the port the run
+ *   starts that app on, and says which. The write creates the file only if nothing is there, so it
+ *   never replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
  * @param {Record<string, string> | null} values - What the file holds, `null` when there is none.
  * @param {{ Postgres: number, Redis: number }} ports - The host port each service is published on.
  * @param {string} settled - The lines that say what else the run settled, printed after the file's.
+ * @param {{ api?: number, client?: number }} [apps] - The port the run starts the API on and the
+ *   one it starts the client portal on; a run that reads no app's port gives neither, and the
+ *   addresses name each app's default.
  * @returns {Record<string, string>} What the file holds.
  */
-function settleEnvironment(file, values, ports, settled) {
+function settleEnvironment(file, values, ports, settled, apps = {}) {
   if (values !== null) {
     process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
     process.stdout.write(settled);
@@ -839,6 +842,8 @@ function settleEnvironment(file, values, ports, settled) {
     randomBytes,
     ...(ports.Postgres !== DEFAULT_POSTGRES_HOST_PORT && { postgresHostPort: ports.Postgres }),
     ...(ports.Redis !== DEFAULT_REDIS_HOST_PORT && { redisHostPort: ports.Redis }),
+    ...(apps.api !== undefined && { apiPort: apps.api }),
+    ...(apps.client !== undefined && { clientPort: apps.client }),
   });
   try {
     writeFileSync(file, renderEnvironmentFile(entries), { flag: "wx", mode: 0o600 });
@@ -912,7 +917,11 @@ function prepareEnvironment(file, portals) {
   }
   if (problems.length > 0 || api === null || workers === null) throw new StartFailure(problems);
   const settled = `${NAME}: the API takes port ${api}\n${NAME}: the workers take port ${workers}\n`;
-  return { values: settleEnvironment(file, values, ports, settled), ports, api, workers };
+  // A checkout without the client portal's package starts no client portal: its address keeps the
+  // default.
+  const client = portals.find(({ app }) => app === CLIENT)?.port ?? undefined;
+  const apps = { api, ...(client !== undefined && { client }) };
+  return { values: settleEnvironment(file, values, ports, settled, apps), ports, api, workers };
 }
 
 /**

@@ -38,8 +38,23 @@ export const DEFAULT_REDIS_HOST_PORT = 6379;
 /** The port the API takes when neither the calling shell nor the environment file names one. */
 const DEFAULT_API_PORT = 3000;
 
-/** The client portal's development port: the one its `dev` script hands `next dev -p`. */
+/**
+ * The client portal's development port, the one its `dev` script hands `next dev -p`: the port its
+ * address names when the run that writes the file reads no app's port.
+ */
 const CLIENT_PORTAL_PORT = 3200;
+
+/**
+ * @typedef {object} GenerationOptions
+ * @property {(size: number) => Buffer} randomBytes The random source every secret is drawn from.
+ * @property {number} [postgresHostPort] The host port Postgres is published on, when it is not the
+ *   compose file's default.
+ * @property {number} [redisHostPort] The host port Redis is published on, when it is not the compose
+ *   file's default.
+ * @property {number} [apiPort] The port the run starts the API on; without it, the API's default.
+ * @property {number} [clientPort] The port the run starts the client portal on; without it, the one
+ *   its `dev` script fixes in the repository.
+ */
 
 /** The API's HMAC secrets: its schema asks each for 32 characters or more. */
 const HMAC_SECRETS = [
@@ -63,12 +78,10 @@ const HEADER = [
 /**
  * The variables the platform reads, in file order: the seven Compose interpolates, the host ports
  * when one was chosen, and the fifteen the API requires, its public addresses last.
- * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
- *   The random source every secret is drawn from, and the host ports to publish when they are not
- *   the compose file's defaults.
+ * @param {GenerationOptions} options - The random source, and the ports the run settled.
  * @returns {Array<[string, string]>} Each variable with its value.
  */
-function platformEntries({ randomBytes, postgresHostPort, redisHostPort }) {
+function platformEntries({ randomBytes, postgresHostPort, redisHostPort, apiPort, clientPort }) {
   const hex = (/** @type {number} */ size) => randomBytes(size).toString("hex");
   const user = "omnipost";
   const database = "omnipostdb";
@@ -109,11 +122,11 @@ function platformEntries({ randomBytes, postgresHostPort, redisHostPort }) {
     ["OAUTH_ENCRYPTION_KEY", hex(32)],
     ["DELETION_NAME_DIGEST_KEY_RING", JSON.stringify({ 1: hex(32) })]
   );
-  // Webhooks and single sign-on name the same API in development: the one this run starts, on the
-  // port it takes when nothing names another.
-  const api = `http://${LOOPBACK}:${DEFAULT_API_PORT}`;
+  // Each app's address is where the run that writes the file serves it. Webhooks and single
+  // sign-on name the same API in development.
+  const api = `http://${LOOPBACK}:${apiPort ?? DEFAULT_API_PORT}`;
   entries.push(
-    ["CLIENT_URL", `http://${LOOPBACK}:${CLIENT_PORTAL_PORT}`],
+    ["CLIENT_URL", `http://${LOOPBACK}:${clientPort ?? CLIENT_PORTAL_PORT}`],
     ["API_BASE_URL", api],
     ["APP_BASE_URL", api]
   );
@@ -134,9 +147,7 @@ function developmentToolEntries({ randomBytes }) {
  * @function generateEnvironment
  * @description The environment of a checkout that has none, in file order: what the platform
  *   reads, then what the development tools need.
- * @param {{ randomBytes: (size: number) => Buffer, postgresHostPort?: number, redisHostPort?: number }} options
- *   The random source every secret is drawn from, and the host ports to publish when they are not
- *   the compose file's defaults.
+ * @param {GenerationOptions} options - The random source, and the ports the run settled.
  * @returns {Array<[string, string]>} Each variable with its value.
  */
 export function generateEnvironment(options) {
