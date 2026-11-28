@@ -27,7 +27,7 @@
       "total": 1296
     },
     "blocks": {
-      "total": 16310,
+      "total": 16311,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 15999
+        "BEHAVIOURAL": 16000
       }
     },
     "deleted": {
@@ -85370,7 +85370,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 10,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::holds the three, in values the API's schema accepts as written",
@@ -85429,8 +85429,15 @@
           "bodyHash": "e3afe2577c9fac0363716d02baf95945d2ef48f26eed17e9ffe19706c2fdea45"
         },
         {
-          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns nothing when the file holds neither address",
+          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns API_BASE_URL first when the file writes APP_BASE_URL first and both are stale",
           "line": 218,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "03add95b6f32d2cde9419660553f73327678c47dfd16fdd2e05815654034c645"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/startEnvironmentPublicAddresses.test.ts::returns nothing when the file holds neither address",
+          "line": 228,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ab2a3523ef223f5c04e76f124d646097d21dba1982143f423ce02bd0a85c89a"

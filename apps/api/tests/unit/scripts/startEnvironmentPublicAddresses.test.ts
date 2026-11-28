@@ -134,9 +134,9 @@ describe("the generated environment's public addresses", () => {
   });
 });
 
-/** The port the run starts the API on, and a port it does not take. */
+/** The port the run starts the API on, and a port derived from it, so the two always differ. */
 const TAKEN_PORT = RUN_PORTS.apiPort;
-const OTHER_PORT = 5000;
+const OTHER_PORT = TAKEN_PORT + 1000;
 
 /** An environment file whose two API addresses are both `address`. */
 function apiAddresses(address: string): Record<string, string> {
@@ -212,6 +212,16 @@ describe("the API addresses of a kept environment file", () => {
 
     expect(core.staleApiAddresses(values, TAKEN_PORT)).toEqual([
       { key: "APP_BASE_URL", port: OTHER_PORT },
+    ]);
+  });
+
+  it("returns API_BASE_URL first when the file writes APP_BASE_URL first and both are stale", () => {
+    const stale = `http://127.0.0.1:${String(OTHER_PORT)}`;
+    const values = { APP_BASE_URL: stale, API_BASE_URL: stale };
+
+    expect(core.staleApiAddresses(values, TAKEN_PORT).map(({ key }) => key)).toEqual([
+      "API_BASE_URL",
+      "APP_BASE_URL",
     ]);
   });
 
