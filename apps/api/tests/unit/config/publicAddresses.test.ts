@@ -13,10 +13,16 @@
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type ParseApiEnv,
+  type RefusalFields,
+  causeText,
+  loadParseApiEnv,
+  refusalUnder,
+} from "../helpers/apiEnvRefusal.js";
+import {
   PUBLIC_ADDRESS_VARIABLES,
   makeApiEnv,
   makePublicAddressEnv,
-  withEnvironment,
 } from "../helpers/publicAddressEnv.js";
 
 // `env.ts` calls `process.loadEnvFile()` on import, which would add an env file's variables to the
@@ -35,40 +41,6 @@ const RETIRED_INSTRUCTIONS: Record<(typeof RETIRED_VARIABLES)[number], string> =
   FRONTEND_URL: "Set CLIENT_URL to the client portal's origin, then unset FRONTEND_URL.",
   ADMIN_URL: "Nothing in the API reads it, so its value configures nothing. Unset it.",
 };
-
-type ParseApiEnv = typeof import("../../../src/config/env.js").parseApiEnv;
-
-/** The fields every reader of a registered error relies on. */
-interface RefusalFields {
-  readonly code: string;
-  readonly message: string;
-  readonly params: unknown;
-  readonly cause?: unknown;
-}
-
-/** The schema's text a refusal carries as its cause, which the API's start shows; empty without. */
-function causeText(refusal: RefusalFields | undefined): string {
-  return refusal?.cause instanceof Error ? refusal.cause.message : "";
-}
-
-/** The real `parseApiEnv`, loaded with an environment the schema accepts. */
-async function loadParseApiEnv(): Promise<ParseApiEnv> {
-  const module = await withEnvironment(makeApiEnv(), () => import("../../../src/config/env.js"));
-  return module.parseApiEnv;
-}
-
-/** What a `parseApiEnv` raises for an environment, read by its fields; undefined when it accepts it. */
-function refusalUnder(
-  parseApiEnv: ParseApiEnv,
-  environment: Record<string, string | undefined>
-): RefusalFields | undefined {
-  try {
-    parseApiEnv(environment);
-    return undefined;
-  } catch (error: unknown) {
-    return error as RefusalFields;
-  }
-}
 
 /** What a freshly loaded `parseApiEnv` raises for an environment; undefined when it accepts it. */
 async function refusalOf(

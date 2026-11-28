@@ -119,7 +119,9 @@ const serverSchema = {
   // it names the non-bypassing `omnipost_app` role, so every statement the app
   // issues is subject to the `tenant_isolation` row-level policies.
   DATABASE_URL: urlString,
-  SHADOW_DATABASE_URL: urlString,
+  // The empty database `prisma migrate dev` diffs a migration against. The API never connects to
+  // it and `prisma migrate deploy` does not use it; `infra/prisma/prisma.config.ts` reads it.
+  SHADOW_DATABASE_URL: urlString.optional(),
   // The MIGRATE/OWNER channel, and the other half of that pair. Optional
   // because an environment that has not cut over yet has only one URL, and
   // `infra/prisma/prisma.config.ts` falls back to DATABASE_URL when it is
@@ -141,7 +143,6 @@ const serverSchema = {
   REDIS_PASSWORD: z.string().optional(),
 
   // ── Auth secrets (REQUIRED — CWE-798 zero tolerance) ────────────────
-  JWT_SECRET: z.string().min(SECRET_MIN).optional(),
   JWT_ACCESS_SECRET: z.string().min(SECRET_MIN),
   JWT_REFRESH_SECRET: z.string().min(SECRET_MIN),
   CUSTOMER_JWT_SECRET: z.string().min(SECRET_MIN),
@@ -155,7 +156,6 @@ const serverSchema = {
   // process that stamps a key version and the one that resolves it read the
   // same variables. The rotation procedure lives in the fragment's JSDoc.
   ...platformEncryptionKeyEnvFields(SECRET_MIN),
-  OAUTH_ENCRYPTION_KEY: z.string().min(SECRET_MIN),
 
   // The HMAC key ring that degrades a tombstone's plaintext `name` into a
   // keyed digest once its retention window closes. REQUIRED with no default:
@@ -384,11 +384,11 @@ const serverSchema = {
   // that power to everything inside it.
   TRUSTED_PROXY_RANGES: z.string().optional(),
 
-  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here,
-  // and neither are the retired address names. Each is rejected from the raw
-  // runtime env in `createFinalSchema` below (`REMOVED_VARIABLES`), so it stays
-  // out of the validated env's type while still refusing to boot when an
-  // operator leaves it set (see the tripwire there for why silence is unsafe).
+  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here, and neither
+  // are the retired address names or the retired secrets. Each is rejected from the raw runtime
+  // env in `createFinalSchema` below (`REMOVED_VARIABLES`), so it stays out of the validated
+  // env's type while still refusing to boot when an operator leaves it set (see the tripwire
+  // there for why silence is unsafe).
 
   // ── DeletionRecord plaintext retention window ───────────────────────
   // How long a tombstone keeps the deleted entity's `name` in PLAINTEXT, in
@@ -474,7 +474,9 @@ const onValidationError = (issues: readonly SchemaIssue[]): never => {
  * or that nothing did, and what the operator does. A removed variable left merely unread is a trap:
  * the operator who still sets it believes it is in force. Each is refused while it is set, a value
  * that is empty or only blanks counting as unset, and read from the raw environment so it never
- * enters the env's type. An entry is deleted once no deployed environment sets the variable.
+ * enters the env's type. The constraint is written from the name alone and never quotes the value,
+ * since some of these are secrets. An entry is deleted once no deployed environment sets the
+ * variable.
  */
 const REMOVED_VARIABLES: ReadonlyArray<{ readonly name: string; readonly message: string }> = [
   {
@@ -506,7 +508,182 @@ const REMOVED_VARIABLES: ReadonlyArray<{ readonly name: string; readonly message
       "ADMIN_URL was removed. Nothing in the API reads it, so its value configures nothing. " +
       "Unset it.",
   },
+  {
+    name: "OAUTH_ENCRYPTION_KEY",
+    message:
+      "OAUTH_ENCRYPTION_KEY was removed. Nothing in the API reads it and nothing replaced it: " +
+      "the table it was meant to encrypt no longer exists, so its value protects nothing. " +
+      "Delete it from the environment.",
+  },
+  {
+    name: "JWT_SECRET",
+    message:
+      "JWT_SECRET was removed. Nothing in the API reads it and nothing replaced it, so its value " +
+      "configures nothing. Delete it from the environment.",
+  },
 ];
+
+/**
+ * The issues of the removed variables still set, each naming the variable with its constraint. They
+ * are read from the raw environment, never from the parsed value.
+ */
+function removedVariableIssues(runtimeEnv: Record<string, string | undefined>): SchemaIssue[] {
+  return REMOVED_VARIABLES.filter(({ name }) => {
+    const rawValue = runtimeEnv[name];
+    return rawValue !== undefined && rawValue.trim() !== "";
+  }).map(({ name, message }) => ({ path: [name], message }));
+}
+
+/** A variable the schema declares, by its name. */
+type DeclaredVariable = keyof typeof serverSchema;
+
+/**
+ * The values of `variables` as their own schemas parse them from the raw environment, defaults
+ * applied, or undefined when one of them fails its schema.
+ */
+function parsedVariables(
+  variables: readonly DeclaredVariable[],
+  runtimeEnv: Record<string, string | undefined>
+): Readonly<Record<string, unknown>> | undefined {
+  const values: Record<string, unknown> = {};
+  for (const variable of variables) {
+    const schema: z.ZodType = serverSchema[variable];
+    const parsed = schema.safeParse(runtimeEnv[variable]);
+    if (!parsed.success) return undefined;
+    values[variable] = parsed.data;
+  }
+  return values;
+}
+
+/**
+ * The trusted-proxy MODE and RANGES are only meaningful as a pair: selecting `trusted-ranges`
+ * without a valid range list has no safe interpretation, so it must refuse to boot rather than
+ * silently degrade to `socket-only` and collapse every caller into one rate-limit bucket. This is the
+ * boundary rejection; `TrustedProxyPolicy`'s non-empty tuple is what makes the state unrepresentable
+ * once past it (see security/trustedProxy.ts).
+ */
+function proxyTrustIssues(values: Readonly<Record<string, unknown>>): SchemaIssue[] {
+  const mode = values["TRUSTED_PROXY_MODE"];
+  const raw = values["TRUSTED_PROXY_RANGES"];
+  const parsed = parseTrustedProxyRanges(typeof raw === "string" ? raw : undefined);
+
+  if (mode === "trusted-ranges" && !parsed.ok) {
+    return [
+      {
+        path: ["TRUSTED_PROXY_RANGES"],
+        message:
+          `${parsed.reason} — required when TRUSTED_PROXY_MODE=trusted-ranges. ` +
+          "Refusing to boot rather than falling back to socket-only, which would " +
+          "collapse every caller into one shared rate-limit bucket without saying so.",
+      },
+    ];
+  }
+
+  if (mode === "socket-only" && parsed.ok) {
+    return [
+      {
+        path: ["TRUSTED_PROXY_RANGES"],
+        message:
+          "TRUSTED_PROXY_RANGES is set but TRUSTED_PROXY_MODE=socket-only ignores every " +
+          "forwarding header, so the list would never be consulted while reading as " +
+          "though it were. Set TRUSTED_PROXY_MODE=trusted-ranges, or clear the ranges.",
+      },
+    ];
+  }
+
+  return [];
+}
+
+/**
+ * The name-digest key ring as its own schema accepted it. The two ring rules read it here rather
+ * than on the field because both are about the ring AS A WHOLE, and the second one needs the
+ * pointer, which a per-key schema cannot see.
+ */
+function keyRingOf(
+  values: Readonly<Record<string, unknown>>
+): Parameters<typeof firstMissingRingVersion>[0] | undefined {
+  const source = values["DELETION_NAME_DIGEST_KEY_RING"];
+  const ring = parseNameDigestKeyRing(typeof source === "string" ? source : "");
+  return ring.ok ? ring.ring : undefined;
+}
+
+/**
+ * The ring is append-only: a generation removed from it cannot verify the rows still pinned to it,
+ * and those rows can never be re-digested, so a gap refuses to boot.
+ */
+function keyRingGapIssues(values: Readonly<Record<string, unknown>>): SchemaIssue[] {
+  const ring = keyRingOf(values);
+  const missing = ring === undefined ? undefined : firstMissingRingVersion(ring);
+  if (missing === undefined) return [];
+  return [
+    {
+      path: ["DELETION_NAME_DIGEST_KEY_RING"],
+      message:
+        `DELETION_NAME_DIGEST_KEY_RING is missing version ${missing} ` +
+        "(versions must be contiguous from 1). A generation removed from the ring " +
+        "cannot verify the rows still pinned to it, and those rows can never be " +
+        "re-digested — the name they recorded is gone. Restore the entry.",
+    },
+  ];
+}
+
+/** New digests are computed under the active version, so it names an entry of the ring. */
+function activeVersionIssues(values: Readonly<Record<string, unknown>>): SchemaIssue[] {
+  const ring = keyRingOf(values);
+  const active = values["DELETION_NAME_DIGEST_ACTIVE_VERSION"];
+  if (ring === undefined || typeof active !== "number" || ring.has(active)) return [];
+  return [
+    {
+      path: ["DELETION_NAME_DIGEST_ACTIVE_VERSION"],
+      message:
+        `DELETION_NAME_DIGEST_ACTIVE_VERSION=${active} names no ring entry. ` +
+        "Refusing to boot rather than degrading to an arbitrary generation, which " +
+        "would pin new rows to a key the operator never chose.",
+    },
+  ];
+}
+
+/**
+ * The rules over the whole environment, each with the declared variables it reads. Per-key schemas
+ * cannot see each other, so each rule reads its variables through their own schemas and runs only
+ * when every one of them passes: it never reasons about a value already refused, and it runs
+ * whatever the other variables did.
+ */
+const WHOLE_ENVIRONMENT_RULES: ReadonlyArray<{
+  readonly reads: readonly DeclaredVariable[];
+  readonly issues: (values: Readonly<Record<string, unknown>>) => SchemaIssue[];
+}> = [
+  { reads: ["TRUSTED_PROXY_MODE", "TRUSTED_PROXY_RANGES"], issues: proxyTrustIssues },
+  { reads: ["DELETION_NAME_DIGEST_KEY_RING"], issues: keyRingGapIssues },
+  {
+    reads: ["DELETION_NAME_DIGEST_KEY_RING", "DELETION_NAME_DIGEST_ACTIVE_VERSION"],
+    issues: activeVersionIssues,
+  },
+];
+
+/** The issues of the rules over the whole environment, then those of the removed variables. */
+function environmentWideIssues(runtimeEnv: Record<string, string | undefined>): SchemaIssue[] {
+  const ruleIssues = WHOLE_ENVIRONMENT_RULES.flatMap(({ reads, issues }) => {
+    const values = parsedVariables(reads, runtimeEnv);
+    return values === undefined ? [] : issues(values);
+  });
+  return [...ruleIssues, ...removedVariableIssues(runtimeEnv)];
+}
+
+/**
+ * The environment a validator is handed, as a map of its string values. The rules over the whole
+ * environment and the removed variables read the same map the declared variables are validated
+ * from, so every reader sees one value for a name: a variable written with no value is unset for
+ * all of them.
+ */
+function environmentOf(input: unknown): Record<string, string | undefined> {
+  const environment: Record<string, string | undefined> = {};
+  if (typeof input !== "object" || input === null) return environment;
+  for (const [name, value] of Object.entries(input)) {
+    if (typeof value === "string") environment[name] = value;
+  }
+  return environment;
+}
 
 /**
  * @function parseApiEnv
@@ -525,87 +702,26 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
     server: serverSchema,
 
     /**
-     * Cross-field validation hook. Per-key schemas cannot see each other, and
-     * the trusted-proxy MODE and RANGES are only meaningful as a pair: selecting
-     * `trusted-ranges` without a valid range list has no safe interpretation, so
-     * it must refuse to boot rather than silently degrade to `socket-only` and
-     * collapse every caller into one rate-limit bucket. This is the boundary
-     * rejection; `TrustedProxyPolicy`'s non-empty tuple is what makes the state
-     * unrepresentable once past it (see security/trustedProxy.ts).
+     * Each declared variable by its own schema, then the rules over the whole environment and the
+     * removed variables, added outside Zod's checks: Zod runs no refinement of the object once a
+     * variable fails its type (left out, a word where a number belongs, a number that must be
+     * whole and is not), so a rule inside it would name its cause only at the next boot. Here one
+     * refusal names every cause at once.
      */
-    createFinalSchema: (shape) =>
-      z.object(shape).superRefine((value, ctx) => {
-        const mode = (value as { TRUSTED_PROXY_MODE?: string }).TRUSTED_PROXY_MODE;
-        const raw = (value as { TRUSTED_PROXY_RANGES?: string }).TRUSTED_PROXY_RANGES;
-        const parsed = parseTrustedProxyRanges(raw);
-
-        if (mode === "trusted-ranges" && !parsed.ok) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["TRUSTED_PROXY_RANGES"],
-            message:
-              `${parsed.reason} — required when TRUSTED_PROXY_MODE=trusted-ranges. ` +
-              "Refusing to boot rather than falling back to socket-only, which would " +
-              "collapse every caller into one shared rate-limit bucket without saying so.",
-          });
-        }
-
-        if (mode === "socket-only" && parsed.ok) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["TRUSTED_PROXY_RANGES"],
-            message:
-              "TRUSTED_PROXY_RANGES is set but TRUSTED_PROXY_MODE=socket-only ignores every " +
-              "forwarding header, so the list would never be consulted while reading as " +
-              "though it were. Set TRUSTED_PROXY_MODE=trusted-ranges, or clear the ranges.",
-          });
-        }
-
-        // Ring consistency. Both rules live here rather than on the field
-        // because both are about the ring AS A WHOLE, and the second one needs
-        // the pointer, which a per-key schema cannot see. The ring's SHAPE was
-        // already validated on the field, so a re-parse here either succeeds or
-        // the field issue is already reported and this block is moot.
-        const ringSource = (value as { DELETION_NAME_DIGEST_KEY_RING?: string })
-          .DELETION_NAME_DIGEST_KEY_RING;
-        const ring = parseNameDigestKeyRing(ringSource ?? "");
-        if (ring.ok) {
-          const missing = firstMissingRingVersion(ring.ring);
-          if (missing !== undefined) {
-            ctx.addIssue({
-              code: "custom",
-              path: ["DELETION_NAME_DIGEST_KEY_RING"],
-              message:
-                `DELETION_NAME_DIGEST_KEY_RING is missing version ${missing} ` +
-                "(versions must be contiguous from 1). A generation removed from the ring " +
-                "cannot verify the rows still pinned to it, and those rows can never be " +
-                "re-digested — the name they recorded is gone. Restore the entry.",
-            });
-          }
-
-          const active = (value as { DELETION_NAME_DIGEST_ACTIVE_VERSION?: number })
-            .DELETION_NAME_DIGEST_ACTIVE_VERSION;
-          if (active !== undefined && !ring.ring.has(active)) {
-            ctx.addIssue({
-              code: "custom",
-              path: ["DELETION_NAME_DIGEST_ACTIVE_VERSION"],
-              message:
-                `DELETION_NAME_DIGEST_ACTIVE_VERSION=${active} names no ring entry. ` +
-                "Refusing to boot rather than degrading to an arbitrary generation, which " +
-                "would pin new rows to a key the operator never chose.",
-            });
-          }
-        }
-
-        // Removal tripwire: each removed variable still set refuses the boot, read
-        // from the RAW env so a dead key never enters the env's type.
-        for (const removed of REMOVED_VARIABLES) {
-          const rawValue = runtimeEnv[removed.name];
-          if (rawValue !== undefined && rawValue.trim() !== "") {
-            ctx.addIssue({ code: "custom", path: [removed.name], message: removed.message });
-          }
-        }
-      }),
+    createFinalSchema: (shape) => {
+      const declared = z.object(shape);
+      const standard: z.core.$ZodStandardSchema<typeof declared> = {
+        version: 1,
+        vendor: declared["~standard"].vendor,
+        validate: (input) => {
+          const result = declared["~standard"].validate(input);
+          const added = environmentWideIssues(environmentOf(input));
+          if (result instanceof Promise || added.length === 0) return result;
+          return { issues: [...(result.issues ?? []), ...added] };
+        },
+      };
+      return { "~standard": standard };
+    },
 
     /**
      * `runtimeEnv` is the raw map to validate; t3-env validates the subset

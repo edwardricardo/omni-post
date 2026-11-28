@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1296  |
+| Files                   | 1299  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1124  |
+| KEEP                    | 1127  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1284  |
+| Machine rows            | 1287  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16311 |
+| Blocks                  | 16325 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -732,6 +732,8 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/config/envRefusal.test.ts`                                                       | test             | 8      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/config/nameDigestRing.test.ts`                                                   | test             | 20     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/config/publicAddresses.test.ts`                                                  | test             | 9      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/config/retiredSecrets.test.ts`                                                   | test             | 9      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/config/wholeEnvironmentRules.test.ts`                                            | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/content/syncEngineContentRead.test.ts`                                           | test             | 3      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/contentRoutes.test.ts`                                                           | test             | 34     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/crossPlatformDataFetcher.test.ts`                                                | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
@@ -798,6 +800,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/helpers/InMemoryAuditEmitter.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                         | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditLogRepository.ts`                                           | helper           | 0      | 0          | KEEP       | machine                         | imported             |
 | `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts`                                            | helper           | 0      | 0          | KEEP       | machine                         | imported             |
+| `apps/api/tests/unit/helpers/apiEnvRefusal.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                         | imported             |
 | `apps/api/tests/unit/helpers/caseScope.test.ts`                                                       | test             | 5      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/helpers/factories.ts`                                                            | helper           | 0      | 0          | KEEP       | machine                         | imported             |
 | `apps/api/tests/unit/helpers/fakeLoggerPort.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                         | imported             |

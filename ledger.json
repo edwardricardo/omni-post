@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1296,
+      "total": 1299,
       "byShape": {
-        "test": 1043,
+        "test": 1045,
         "integration-test": 93,
         "live-test": 17,
         "spec": 10,
         "k6": 6,
         "runner": 0,
-        "helper": 127,
+        "helper": 128,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1124,
+        "KEEP": 1127,
         "ADJUDICATE": 99,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1284,
+      "machine": 1287,
       "confirmed": 12,
-      "total": 1296
+      "total": 1299
     },
     "blocks": {
-      "total": 16311,
+      "total": 16325,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 16000
+        "BEHAVIOURAL": 16014
       }
     },
     "deleted": {
@@ -39341,259 +39341,259 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/config/env.test.ts::loads when all required keys present and ≥32 chars",
-          "line": 82,
+          "line": 80,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "edcb889888e56d1408ba17e4daa145aa39942f05cc567ad262f3ea2e020901f5"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot when JWT_ACCESS_SECRET is missing",
-          "line": 87,
+          "line": 85,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea220c36c65244426277959ab1fde7babcd589a37019a574dca8c547b593c5e7"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot when JWT_ACCESS_SECRET is < 32 chars",
-          "line": 93,
+          "line": 91,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ad09a4691cf6c9b929f896f5d53f465d4038c83f36d921510ad7c5b8d689b70"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot when DATABASE_URL is missing",
-          "line": 99,
+          "line": 97,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6863f56f12e6c416c3f04c2f54a4d73c657eb438c08bae9db0cefcb655c2c872"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot when DATABASE_URL is malformed (not a URL)",
-          "line": 103,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bdd3902036382d38e26ccddf79208fbdcc1420577c60276d88b21805dc80fb4d"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::applies PORT default of 3000",
-          "line": 109,
+          "line": 107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "094929a8d97eb46155aa27a92bf2c8e5c166ebc78c5a780bdd0634f158a421be"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::applies NODE_ENV default of 'development' when unset",
-          "line": 114,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3492fa744b9b44c0cb1de29f0cc320f1092961093fe537d6ea8fa727dbdcb370"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::applies LOG_LEVEL default of 'info'",
-          "line": 119,
+          "line": 117,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "183f9570c4200f947ef2a2c077c23dd61398f8a8658ed4b375983c7a43b97857"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::coerces TRACING_ENABLED='true' to boolean true",
-          "line": 124,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9c101fa8aaa5119145461d36a82800914d2e95f2e1538041ca9a89bae4dbb63"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::leaves API_DOCS_ENABLED off when unset",
-          "line": 131,
+          "line": 129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d1c1dcca259952c52bc526253c4e9f084b1450d686ec685961af7595fc4043a2"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::coerces API_DOCS_ENABLED='true' to boolean true",
-          "line": 138,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba181a0e9fe6ebfade2ad6aacb034b3758782a0a6ec0b77ca4e3b33139921290"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::refuses to boot on an API_DOCS_ENABLED value that is not a boolean",
-          "line": 145,
+          "line": 143,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca7e40b1cd10155ae022ca45a109b28e0253dae01ebc72b7bdb0524efb161ad4"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::coerces PORT='5000' to number 5000",
-          "line": 149,
+          "line": 147,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "09031b616927471e75de5fbee445f05780d1791ca2cdd8d5ef7478b11ce34ca8"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::applies the 7-year policy default when unset",
-          "line": 161,
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b6f725182d25f4208d02982d80cd83823b60c4fbc706daea8b8f59320ff2be3"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::accepts a value inside the window",
-          "line": 168,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0fde16bf41effad40e61c3a5474f715a1f633cb4e1a475aed07f1710dd0927f6"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot below the 1-year floor",
-          "line": 175,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dfa8583cc659bac05f27c0c9c6298ae41469d5f27c40c15d3ee7866d3791c9ce"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot above the 7-year policy ceiling",
-          "line": 181,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "99ee240bb7c8e1def82d3a3b9f7402fd050a6328d0634a9142dcb99224246407"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects boot on a non-integer window",
-          "line": 187,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0422c9d3dd141181b7a4fe6740c79093902d6c4aaa1fd288d53d427612afad5f"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::treats KEY='' (empty string) as undefined so defaults apply",
-          "line": 195,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1007415caa871249f3cab5924f4c2f5ed9ae4692fe9b3a12c3924c91715be2a6"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::treats LOG_LEVEL='' as undefined so default 'info' applies",
-          "line": 200,
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f4e82834bd63dee131ae0b9f24e91dc8ef6b6c84b76c285218ff9bc91a9a3d7"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects invalid NODE_ENV value",
-          "line": 207,
+          "line": 205,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a59791a27e336c40ca1cb8d0514a86dc0d746911993d1f5987c3a37fa2faab0e"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects invalid STORAGE_PROVIDER value",
-          "line": 211,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ffdee3a637cb4f11166c92a8d147031424fd81578e4f7898bf9fe623caca5e6"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects invalid PAYMENT_PROVIDER value",
-          "line": 217,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38f8868e6bf6172b61c8b23310120dccb981b4078cecf01a666d3ce76e0479af"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects %j, naming the bare-host shape it expects",
-          "line": 225,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "efb27ba73b42e1800dd9bb2482ca73629860c3315727ffd8413d9a6d41399fb1"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::accepts a bare host",
-          "line": 238,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62b496e5e4b6eb8ace499b9d2afe20322d50b5cff5475d9e42d47c9d4bad8259"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::defaults to socket-only when nothing is configured",
-          "line": 250,
+          "line": 248,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4e81067ecdf8fc53aefa08d5b58f2e1635ba98bd943b1d6c012461a423c5618"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::accepts trusted-ranges when ranges are configured",
-          "line": 255,
+          "line": 253,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03644203b7689547504e484c2ef45043527dd3d6664e7c7e6afe5f76fc9cfb96"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::REFUSES to boot when trusted-ranges is selected with no ranges",
-          "line": 264,
+          "line": 262,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1375ac43784e8ef6189b340fea577c76e4d3cda9c21af01e2dbf2838b8dc7dd"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::REFUSES to boot when trusted-ranges is selected with an empty range list",
-          "line": 270,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1b14ca575de2f8cd3ddcd33e10e2ef07c2d33da0e51d3d183c6858a7e0d20e6d"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::REFUSES to boot on a malformed CIDR and names the offending entry",
-          "line": 276,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c9bab033990714dd985cfaa1d5dae83fc804fd421a8dcf972278b5430e7d1d83"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::REFUSES to boot on a hostname — proxy trust is by address, never by name",
-          "line": 285,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "92dd05b836291c997a84990bb4a59de361749f4ccd2d2bc9f39202f8da176bfd"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::REFUSES to boot on socket-only paired with ranges that would never be consulted",
-          "line": 294,
+          "line": 292,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "608f26acfb73cb6b37abd77d74ce8e08a0006a6e4ecacd9b530ad6099faebe17"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::rejects an unknown mode rather than falling back to a default",
-          "line": 300,
+          "line": 298,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "61d453f614bec0450abf5366cbbf4fd70639ebed3b50912503d7d5daa7b1611c"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::REFUSES to boot when the removed TRUSTED_PROXY_HOP_COUNT is still set",
-          "line": 306,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "22f113a9935b1f03b9644592394cbfbb78c75a7bbe000f39b53abf611da5293f"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::still refuses when the removed variable is set to its old safe default of 0",
-          "line": 315,
+          "line": 313,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9d7299a801056973329a74e7d2c010471e3321ebceea20859cfbe7b2964b13b"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::includes 'Refusing to boot' phrase to flag intentional fail-fast",
-          "line": 323,
+          "line": 321,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66a0f9f139b19a05ca33d924012220b255cb38e6b35436a2c10b45d3e997391f"
         },
         {
           "id": "apps/api/tests/unit/config/env.test.ts::references the architecture doc for guidance",
-          "line": 329,
+          "line": 327,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ffd12b1c23a9e62ead92f40d0e33e9e52830cc515263ca22c35d14a04974ccaa"
@@ -39621,56 +39621,56 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::raises ENV_VARIABLES_REFUSED naming each refused variable once, in name order",
-          "line": 107,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da0b7a60cb436d633f5eb38d6a81d529470e42c00d632bf595831f10d90c95dc"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::carries no value of a refused variable in its message or its parameters",
-          "line": 118,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b93b090e3ebf12d6bb69137bf835391cf539ea747eb4722188f4587902b2aff6"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::names only the variable when its constraint quotes the value it refused, which stays in the cause",
-          "line": 127,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87341feb2e69cd8e1f5e743e312a2e9e8522aff1f2ca54799624d208f6d9e38f"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::keeps the schema's text, each refused variable with its constraint, as its cause",
-          "line": 138,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc37fc043d3b5a9238dd0464d3c51edbda6ff9705d0d1fde51ed374bae2be4b5"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::accepts the base environment and raises nothing",
-          "line": 153,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "001edc58524c2594b7d4d363a28b44a37d3723c03710aff07de6d8d9c245a532"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::names a variable by the first segment of each issue's path, once each, in name order",
-          "line": 159,
+          "line": 157,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5d2cd0a6fb17458d7f3dfd5969eeb5a1f2c6a5492181e8f10ec84298129a75c7"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::names nothing for an issue with no path and keeps it in its cause under (root)",
-          "line": 178,
+          "line": 176,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "903ef28855af41e6ecc0be02d9d79cb241c7c301ef85eeb78215a70858618eed"
         },
         {
           "id": "apps/api/tests/unit/config/envRefusal.test.ts::names (unnamed) when no issue has a path",
-          "line": 193,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c2abfaa205d35ca50ff0912e2759487dd50115ade6967ddd6a04b549b102cf2"
@@ -39694,140 +39694,140 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::parses a single generation into a map of 32-byte buffers",
-          "line": 106,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "544065285ce04a19dea05dcdd058764593930805a0a4f1982854d38ac01e049f"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::parses several generations, keyed by NUMBER rather than by string",
-          "line": 118,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7db0bfa897e8b0e5530519e85aabd2c6df74b969cf9e24d321dcf46bdddca307"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::names the offending version when key material is malformed",
-          "line": 127,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6834844c792da8e3345287c23ffb20b99e805629c7ff24ec4f46121c48ed70bc"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::accepts a well-formed ring and pointer",
-          "line": 136,
+          "line": 134,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba5a6c2bc8bb239cfadfd8a7ed4949d14fbee7d45f07c94dcf9e2d5f0304b5e2"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::defaults the active pointer to generation 1",
-          "line": 147,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79998917a40eb75afead5dee746fefefa17f6647655bab51eb4bade13b36ca39"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when the ring is absent — there is no default key",
-          "line": 153,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "96b7322884a570e0681db20f5980dbd5c80f1fefce797dc8a0aeb9cc0aa49b89"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when the ring is an empty string",
-          "line": 160,
+          "line": 158,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9b26fbf0160f045c508debb84bbbc7a5b25e4a573b009e1685fb48297265a71"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when the ring is not valid JSON",
-          "line": 167,
+          "line": 165,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a283d3d247b3057c569e0229c4e9563304cfcc44dcf8a38778bcd885c0c20cc"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when the ring is JSON but not an object",
-          "line": 174,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e105ac8e0ddb1baaf45358789becef320bb7062cb8d21b29ff7da50d4e8475be"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when the ring holds no generation at all",
-          "line": 181,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6f5f4ddd9a3df9ce20d5003c92637f8f7891d0e617682f40824b9c1e8fef5ef"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on a non-version key, naming it",
-          "line": 185,
+          "line": 183,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "076b0267e88c17ef9e9df5ae5a38c695fd92613341bb5268659ca47cb724d6a0"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on a zero or negative version, naming it",
-          "line": 192,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b75aa403178ebbe6d293a388d78c379b3fa53a2aff370f8c1ee833f273fb971"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on key material shorter than 32 bytes, naming its version",
-          "line": 199,
+          "line": 197,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4aa371b792ecfd89807d78ced20d9eca2a3adb712e683150003882e9da67ea1"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on UPPERCASE hex, naming its version",
-          "line": 206,
+          "line": 204,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4e5af926bfbf2fa8b8f3eea531f7b5944702ee4d9f0230bf6b4862a6a50f98d"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on non-hex key material, naming its version",
-          "line": 216,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95aa108862986fe4aeec6fb5c1b0cc3a32631120879d8ca7b2fcec4dde3450be"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on a gapped ring, naming the missing version",
-          "line": 223,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f70e930ad869778176d44ecbb229b1c709bbd31d1601249d16ff3b4cdc9b5c25"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when generation 1 itself was removed",
-          "line": 232,
+          "line": 230,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c4fe3385c037c3fb9d2d60823839278d2ccaa9715f2f2b9376248fe0c2cc5b0"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot when the pointer names a version the ring lacks",
-          "line": 242,
+          "line": 240,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8bf2ba20a86b03ce11468f6bb940221bff10d7753099ba0a68d211c35a8e0eba"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::refuses to boot on a pointer below 1",
-          "line": 249,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "253587d7d19631f244712bb97fbe3f467ace1fe511364464b16a183e00dbd5e1"
         },
         {
           "id": "apps/api/tests/unit/config/nameDigestRing.test.ts::never reuses PLATFORM_ENCRYPTION_KEY as the digest key",
-          "line": 256,
+          "line": 254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7819162c824e498e10c48f05718578bdc2de9f366636c100170857d574fea7c4"
@@ -39851,66 +39851,198 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses an environment without %s, naming that variable alone",
-          "line": 138,
+          "line": 110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15f7cb462e1fdf1e6af9e9734c066c660b627977f02b80b09908730828d0243f"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses %s when it is not a URL, naming the variable and never its value",
-          "line": 151,
+          "line": 123,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14a244569039846492a87cdf35728a77703b2e62b2a52920d54f1ebcb82d6bad"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::gives each public address as the environment wrote it",
-          "line": 165,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa88531cd1aead5eba2f03397a916160c1743e9aea9063a2da3a2f317a30c9a0"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses $variable written as $form, naming the variable and never the value",
-          "line": 189,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d3ec9777dce7c52189031e0bac7892dca43bcbf1502a1451238aefdfeb989b4b"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses $variable written as $form, saying how to write it and never the value",
-          "line": 207,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5448f0bdd6fa86b5aa165d2d27fb55bf4f1c3cec8c7e4a0e6608e5e69ae20bd4"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::accepts $variable written as $origin, and gives it as written",
-          "line": 228,
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b747544ed60bce3820b40022f2bcb6d8082105983189fe2fd7dc19aad8953a0"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::refuses %s set alone, naming it and never its value, and says what to do instead",
-          "line": 248,
+          "line": 220,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbb1a679368b7a78a7d43329b94f4619c02685aabafc92b94a16beb9a77ff440"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::accepts an environment that sets none of them, and gives none of them",
-          "line": 267,
+          "line": 239,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bb1c4fa5e7df78e07b266da489d750e23cd8a82f2750163449ce26436a1997e"
         },
         {
           "id": "apps/api/tests/unit/config/publicAddresses.test.ts::takes a retired name set to %j as unset, as the schema takes the removed TRUSTED_PROXY_HOP_COUNT",
-          "line": 273,
+          "line": 245,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0bcaf6c65cfb48aa3b110a1d1266f2ffbe1ecc78ee5735ca0978a9004937fc49"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/config/retiredSecrets.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 9,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::accepts an environment without OAUTH_ENCRYPTION_KEY, and gives no such variable",
+          "line": 118,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "296cb8eb2135167d3ae7484a81e963703ca88b20e819d1df18259ad053c2c132"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::accepts an environment without SHADOW_DATABASE_URL, and gives it as unset",
+          "line": 128,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9cb4809efa8cedb40da92d88120b7b62d6a72a93a18a579351e057acd5cdf949"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::gives SHADOW_DATABASE_URL as the environment wrote it when it is set",
+          "line": 137,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2f8f22be36eefbe82fae625bfd7770c3a7914eedc0d97ddcac9109dc99037d69"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::refuses a SHADOW_DATABASE_URL that is not a URL, naming it and never its value",
+          "line": 145,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "90df4fe14d47a76989f346486823685fa9217f67df28d441b57ac8486cbc2ea5"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::refuses $variable set alone, naming it and its constraint and never its value",
+          "line": 173,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c7bb45ae5f6dd15cc74ec686e4527bce8de946bfbe2209e59bab182115264c2b"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::writes nothing to standard output or standard error while it refuses $variable",
+          "line": 190,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7182a71bbbbf3d95b5321f7cfb1ba954fb99c435e9d6118b1732efb17fb75b07"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::takes $variable set to $value as unset, as for every other retired name",
+          "line": 205,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "eeb1869caa808a51a398ccf95af3614f8490a32fdfc87d061525483d01c34878"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::names %s beside the declared variables that fail their own rule, and never its value",
+          "line": 228,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "520a09f8564f1d25dd997afacd2e1a15532887fc7f277716429c64fa0d32e0f9"
+        },
+        {
+          "id": "apps/api/tests/unit/config/retiredSecrets.test.ts::names a retired name beside a variable that a rule over the whole environment refuses",
+          "line": 249,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "11f83d3791419789a35126a31ad56bafd28d8437497a7123bdb08dd864e35ff9"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/config/wholeEnvironmentRules.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 5,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/config/wholeEnvironmentRules.test.ts::names $variable alone when $rule refuses an environment that fails nothing else",
+          "line": 121,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0ec96a304ca21f63441a145c64be7ea647f234a26be751b30e9617803ecd5e72"
+        },
+        {
+          "id": "apps/api/tests/unit/config/wholeEnvironmentRules.test.ts::names $variable, refused by $rule, beside variables that failed their own schema",
+          "line": 136,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5cd3cfdced4811d2eacd72c915c9ab6aadb9372abc4958e5ae69561474249e21"
+        },
+        {
+          "id": "apps/api/tests/unit/config/wholeEnvironmentRules.test.ts::refuses an active version of %s by its own schema alone, with no claim about the ring",
+          "line": 166,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0c0ef62820ae0754497a7f452ff0c2b163c266b4d78349688a6ed25e51f468c3"
+        },
+        {
+          "id": "apps/api/tests/unit/config/wholeEnvironmentRules.test.ts::refuses a blank TRUSTED_PROXY_MODE by its own schema alone, with no claim about the ranges",
+          "line": 185,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6f37800c03eb89c0f7c47c711a8753dd61062e7b4be26804bb80b2b6371861ff"
+        },
+        {
+          "id": "apps/api/tests/unit/config/wholeEnvironmentRules.test.ts::names $variable when the environment writes $written",
+          "line": 210,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c33dc7f06c8c1cd6a019b5717f01002fcd88ff8e9740602bd3941af51a1138d3"
         }
       ],
       "verdict": "KEEP",
@@ -51643,6 +51775,22 @@
       "importers": 4
     },
     {
+      "path": "apps/api/tests/unit/helpers/apiEnvRefusal.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 3
+    },
+    {
       "path": "apps/api/tests/unit/helpers/caseScope.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -51863,7 +52011,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 10
+      "importers": 13
     },
     {
       "path": "apps/api/tests/unit/helpers/seedCustomerRoles.ts",
@@ -93314,28 +93462,28 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/smoke/env-redis-required.test.ts::returns a typed REDIS_URL when all required vars are present",
-          "line": 64,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "27e397c5fa05c41c0d8afb08752601a87756418edf01138db45639e0e3ed471f"
         },
         {
           "id": "apps/api/tests/unit/smoke/env-redis-required.test.ts::refuses to boot with REDIS_URL in the message when REDIS_URL is missing",
-          "line": 73,
+          "line": 71,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1b36d9c0acc9f029f308f3333ba531162ad55b4b665ab5c742ec0bf57458ee98"
         },
         {
           "id": "apps/api/tests/unit/smoke/env-redis-required.test.ts::refuses to boot when REDIS_URL is an empty string (emptyStringAsUndefined)",
-          "line": 77,
+          "line": 75,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d0d6b41ff5c1e9db9c076b9d59d22ee1cb70b56d9f67df87cc4d206dc1538bf"
         },
         {
           "id": "apps/api/tests/unit/smoke/env-redis-required.test.ts::refuses to boot when REDIS_URL is not a valid URL",
-          "line": 81,
+          "line": 79,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c0398251bc4d32c707e47413f9d2f7a6ac4d8a62c401f8bbf882ca532af7d7f1"

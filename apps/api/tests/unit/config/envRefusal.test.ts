@@ -23,7 +23,6 @@ const PLANTED = "planted-Env-Value-z7m4";
 const BASE_ENV: Record<string, string> = {
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://postgres:password123@localhost:5432/omnipostdb",
-  SHADOW_DATABASE_URL: "postgresql://postgres:password123@localhost:5432/omnipostdb_shadow",
   REDIS_URL: "redis://localhost:6379",
   JWT_ACCESS_SECRET: "a-very-long-jwt-access-secret-for-testing-only",
   JWT_REFRESH_SECRET: "a-very-long-jwt-refresh-secret-for-testing-only",
@@ -32,7 +31,6 @@ const BASE_ENV: Record<string, string> = {
   ADMIN_JWT_REFRESH_SECRET: "a-very-long-admin-refresh-secret-for-testing-only",
   COOKIE_SECRET: "a-very-long-cookie-secret-for-testing-purposes-only",
   PLATFORM_ENCRYPTION_KEY: "a-very-long-platform-encryption-key-testing-only",
-  OAUTH_ENCRYPTION_KEY: "a-very-long-oauth-encryption-key-for-testing-only",
   DELETION_NAME_DIGEST_KEY_RING:
     '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
   ...makePublicAddressEnv(),
@@ -52,8 +50,8 @@ const REFUSED_VARIABLES = ["COOKIE_SECRET", "DATABASE_URL", "JWT_ACCESS_SECRET",
 
 /**
  * An environment whose one refused variable is refused by a cross-field rule whose constraint
- * quotes the entry it refused: the rules over the whole environment run only once every variable
- * passes its own.
+ * quotes the entry it refused: a rule over the whole environment runs once every variable it reads
+ * passes its own schema.
  */
 const QUOTED_VALUE_ENV: Record<string, string | undefined> = {
   ...BASE_ENV,
