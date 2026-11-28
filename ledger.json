@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1297,
+      "total": 1299,
       "byShape": {
-        "test": 1044,
+        "test": 1045,
         "integration-test": 93,
         "live-test": 17,
         "spec": 10,
         "k6": 6,
         "runner": 0,
-        "helper": 127,
+        "helper": 128,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1125,
+        "KEEP": 1127,
         "ADJUDICATE": 99,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1285,
+      "machine": 1287,
       "confirmed": 12,
-      "total": 1297
+      "total": 1299
     },
     "blocks": {
-      "total": 16324,
+      "total": 16341,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 16013
+        "BEHAVIOURAL": 16030
       }
     },
     "deleted": {
@@ -78832,6 +78832,142 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/scripts/imageSupply.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 17,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::is named on line 1 of every image's Dockerfile by an exact version and its digest, the same in all four",
+          "line": 308,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e085c93864485c5b25c97b552ffc89101efc8ac6e3d699fe97bc7819d4ae3fb7"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are started by no services block in any job of %s",
+          "line": 322,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f8698ca3ca5b170dd25bc71e8fc3da30249c266e78a743bb513d4ca45b97142d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are started in $workflow job $job by the shared action, with that job's images and credentials",
+          "line": 330,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9733b79af8ddbc3c228ee58f8d8ad3ef02806668d4c3fc831519281fe390979c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::are followed in $workflow job $job, as its last step, by the shared step that prints their logs when the job failed",
+          "line": 340,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "84f1cdb8ee8787ceb63c9d684ec8fb4dd8680fa1a877a197e25e1890d6b2305b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::pull both images with the routine and run each container with its port, --pull never, the password from the environment and its health check",
+          "line": 352,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "841990c68d70f78285851a0f167d316e7f60304a1a61cb2523dae78fabd83c3c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::print the log of each container the start action runs",
+          "line": 370,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f62a482f36a87471d58c82c5c98de0935d3ad2e578c15541bfcdb7270cdc1354"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::run the action at a full commit, name one Trivy version and turn the action's cache off",
+          "line": 383,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "45b1a8fb594df4ff7be184f4eca9f686c45f810c8dfb9670150ba7c0a5cd0772"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::read a database that main alone saves and every other ref restores, at the directory both steps name",
+          "line": 400,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "25122b58fd6ea030fc84bdc79fe6da2962ff7fcbb8ebbc41dbb1e61d0f64ac76"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::read the database's directory from the job's environment, which no step's condition can leave empty",
+          "line": 420,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5c9f151798b942aa7d2d8057bdc497abb30f9a6839901e972313085f20fe1a76"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::restore the database before either Trivy step runs",
+          "line": 434,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "aa48f8128e2c1a9399ae835203fe68fc60af2dd93af6cd6a1bb884961cffc4a2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::hands the SARIF over in a step that never gates and runs whenever the SARIF step runs",
+          "line": 450,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "72f1e347f292844002ec9add03abcab0b16a5a740fa0add5148fbdbbb9137494"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::downloads the report under the name the scan hands it over with and uploads it under the category of the scan job's analysis",
+          "line": 459,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bb1773cd4fe444088a5f7c375c228dcf46651d29d3d1692487306d6b1245dde9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::runs in a job no ruleset requires, after the scan and whatever its verdict, while the scan keeps its required contexts",
+          "line": 474,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "20b79bd9198a3fa16363b7daabd362226282c5be9743513ee6461b9669b205d5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::holds security-events: write and nothing else, a permission the scan job does not hold",
+          "line": 487,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "790b49178689b7798fffe28b005d78027d9ce32fcad2b30004c948e298347dde"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::pulls the images Compose names for Postgres and Redis with the routine, before the start",
+          "line": 499,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d35831ff306453c2fcf9a515387c8eddb8d0f991ef3e6e2ed2ed01d6aaef86f1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::runs the routine with a mirror that cannot answer and requires Docker Hub, then with no source that can answer and requires the exit that names the image",
+          "line": 525,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f4386b4de2c04d2d1457bba2c709c8341bbd40c0a3586e5ba2873348e5ac7b36"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/imageSupply.test.ts::each start with set -euo pipefail",
+          "line": 548,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "808ecb452e886335a371ffea07b35d797b7b2bcce64a5edfcd6558dab700a4e1"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/scripts/instructionContextGate.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -85430,35 +85566,35 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/shardReporters.test.ts::resolves to the shared selection $expected under $signals",
-          "line": 259,
+          "line": 109,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "798bdcddfbc37fdcb1e5b0bbefb74a25eb76e1595cb06620a370b13bda00926d"
         },
         {
           "id": "apps/api/tests/unit/scripts/shardReporters.test.ts::is found exactly once in the workflow",
-          "line": 289,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "deb44fd3110351d649f55f957d5b952064d58c29fa75981ebbbda6e8532e5c36"
         },
         {
           "id": "apps/api/tests/unit/scripts/shardReporters.test.ts::names no reporter on its command, so the configured reporters are the ones installed",
-          "line": 293,
+          "line": 143,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "16092557e8a70f1e982012549456fe076535126edc8586ed9bae789c9eecba73"
         },
         {
           "id": "apps/api/tests/unit/scripts/shardReporters.test.ts::sets the variable that makes the api config write the blob beside the readable output",
-          "line": 300,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "587bae3db466cfcc796cb4d3f82bd6ae9cec4811cd6bc1b349bfb31f7eb023d9"
         },
         {
           "id": "apps/api/tests/unit/scripts/shardReporters.test.ts::is followed in its job by exactly one upload of the blob directory, failing when it is empty",
-          "line": 310,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e7e1571a932bcba0c8e64a199c0c61fea0a0e10c893ab7e9e38d7b31edeb8a40"
@@ -86059,6 +86195,22 @@
       "subject": null,
       "duplicate": null,
       "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/workflowYaml.test-helpers.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 2
     },
     {
       "path": "apps/api/tests/unit/secureSchemas.basic.test.ts",

@@ -21,39 +21,23 @@ jobs:
     permissions:
       contents: read
 
-    services:
-      postgres:
-        # pgvector-enabled image — the glossary/style-guide migrations CREATE
-        # EXTENSION vector, which plain postgres images don't ship.
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: password123
-          POSTGRES_USER: postgres
-          POSTGRES_DB: omnipostdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start Postgres and Redis
+        uses: ./.github/actions/start-service-containers
+        with:
+          # pgvector-enabled image — the glossary/style-guide migrations CREATE
+          # EXTENSION vector, which plain postgres images don't ship.
+          postgres-image: pgvector/pgvector:pg16
+          postgres-db: omnipostdb
+          postgres-user: postgres
+          postgres-password: password123
+          redis-image: redis:7-alpine
 
       - name: Setup test environment
         # Per-app env files were consolidated into the repo root, so the
@@ -89,6 +73,10 @@ jobs:
       - name: Run full test suite (cache bypassed)
         run: pnpm turbo run test --force
 
+      - name: Print the Postgres and Redis logs (the job failed)
+        if: failure()
+        uses: ./.github/actions/service-container-logs
+
   # The services tier in an order drawn from a seed, once per matrix entry, so a
   # suite that passes only after another one has run turns red here instead of
   # passing in the merge gate's byte order. One seed drives both levels: the
@@ -117,39 +105,23 @@ jobs:
     env:
       OMNIPOST_APP_DB_PASSWORD: approle123
 
-    services:
-      postgres:
-        # pgvector-enabled image — the glossary/style-guide migrations CREATE
-        # EXTENSION vector, which plain postgres images don't ship.
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: password123
-          POSTGRES_USER: postgres
-          POSTGRES_DB: omnipostdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start Postgres and Redis
+        uses: ./.github/actions/start-service-containers
+        with:
+          # pgvector-enabled image — the glossary/style-guide migrations CREATE
+          # EXTENSION vector, which plain postgres images don't ship.
+          postgres-image: pgvector/pgvector:pg16
+          postgres-db: omnipostdb
+          postgres-user: postgres
+          postgres-password: password123
+          redis-image: redis:7-alpine
 
       - name: Setup test environment
         # The Integration Tests job's synthesis: everything that loads .env.test
@@ -230,6 +202,10 @@ jobs:
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
         run: pnpm --filter @apps/api run test:integration
+
+      - name: Print the Postgres and Redis logs (the job failed)
+        if: failure()
+        uses: ./.github/actions/service-container-logs
 
   # One issue tracks the nightly, whichever job turned it red: a red night comments
   # on the open issue or opens it, a green night closes it. A per-job, per-failure

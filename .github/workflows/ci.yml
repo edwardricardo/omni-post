@@ -102,39 +102,23 @@ jobs:
     env:
       OMNIPOST_APP_DB_PASSWORD: approle123
 
-    services:
-      postgres:
-        # pgvector-enabled image — the glossary/style-guide migrations CREATE
-        # EXTENSION vector, which plain postgres images don't ship.
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: password123
-          POSTGRES_USER: postgres
-          POSTGRES_DB: omnipostdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start Postgres and Redis
+        uses: ./.github/actions/start-service-containers
+        with:
+          # pgvector-enabled image — the glossary/style-guide migrations CREATE
+          # EXTENSION vector, which plain postgres images don't ship.
+          postgres-image: pgvector/pgvector:pg16
+          postgres-db: omnipostdb
+          postgres-user: postgres
+          postgres-password: password123
+          redis-image: redis:7-alpine
 
       # No turbo cache step here on purpose: this job never invokes turbo, so
       # restoring .turbo cost ~46 MB/run and only entered (and lost) the save race.
@@ -250,6 +234,10 @@ jobs:
           fi
           echo "API types are in sync with the OpenAPI spec."
 
+      - name: Print the Postgres and Redis logs (the job failed)
+        if: failure()
+        uses: ./.github/actions/service-container-logs
+
   coverage-merge:
     name: Coverage Merge
     runs-on: ubuntu-latest
@@ -352,39 +340,23 @@ jobs:
       TEST_API_URL: http://localhost:3000
       TEST_WORKERS_READY_URL: http://localhost:3300/health/ready
 
-    services:
-      postgres:
-        # pgvector-enabled image — the glossary/style-guide migrations CREATE
-        # EXTENSION vector, which plain postgres images don't ship.
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: password123
-          POSTGRES_USER: postgres
-          POSTGRES_DB: omnipostdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start Postgres and Redis
+        uses: ./.github/actions/start-service-containers
+        with:
+          # pgvector-enabled image — the glossary/style-guide migrations CREATE
+          # EXTENSION vector, which plain postgres images don't ship.
+          postgres-image: pgvector/pgvector:pg16
+          postgres-db: omnipostdb
+          postgres-user: postgres
+          postgres-password: password123
+          redis-image: redis:7-alpine
 
       # No turbo cache step here on purpose: this job never invokes turbo, so
       # restoring .turbo cost ~46 MB/run and only entered (and lost) the save race.
@@ -627,6 +599,10 @@ jobs:
           # would still report success — the exact shape this tier exists to
           # remove. The liveness verdict is therefore the step's exit status.
           exit "$liveness"
+
+      - name: Print the Postgres and Redis logs (the job failed)
+        if: failure()
+        uses: ./.github/actions/service-container-logs
 
   build:
     name: Build Check
@@ -1012,6 +988,15 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
+      - name: Pull the images Compose starts, the mirror first and Docker Hub second
+        # The start runs `docker compose up -d postgres redis`, which pulls an image it does not
+        # find in one attempt and from Docker Hub alone, and pulls nothing when both are present.
+        # These are the images docker-compose.yml names for those two services.
+        run: |
+          set -euo pipefail
+          node scripts/ci/pull-image.mjs pgvector/pgvector:pg16
+          node scripts/ci/pull-image.mjs redis:7
+
       - name: Start the platform from the documented sequence
         # 180 s for each application, where the command's default is 60: on a CI runner the
         # portals' predev builds every workspace package each portal imports, cold, and Next.js
@@ -1132,3 +1117,52 @@ jobs:
             cat "$log"
             echo "::endgroup::"
           done
+
+  # ── The fallback of the image pulls, shown on every run ──
+  # The jobs that start Postgres and Redis pull them through scripts/ci/pull-image.mjs, which asks
+  # mirror.gcr.io first and Docker Hub second, so their runs show the mirror answering. This job
+  # shows the two other paths: with a mirror that cannot answer, Docker Hub serves the image; with
+  # no source that can answer, the routine fails and names the image. Hosts under `.invalid` never
+  # resolve (RFC 6761, section 6.4). A job of its own, which no ruleset requires and no job needs,
+  # so a Docker Hub outage it meets blocks no merge while the required jobs still have the mirror,
+  # and its red is about the fallback alone. It runs beside the other jobs, adding no time to a
+  # run, on the runner's Node with nothing installed.
+  image-pull-fallback:
+    name: Image Pull Fallback
+    runs-on: ubuntu-latest
+    # Three attempts at the mirror, each bounded by 90 s, with pauses of 5 s and 10 s, then one
+    # small image from Docker Hub.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Docker Hub serves the image when the mirror cannot answer
+        run: |
+          set -euo pipefail
+          # Removed first, so the pull below is a real one wherever the job runs.
+          docker image rm --force redis:7-alpine > /dev/null 2>&1 || true
+          served="$(node scripts/ci/pull-image.mjs --source mirror.invalid --source docker.io redis:7-alpine)"
+          printf '%s\n' "$served"
+          if [ "$served" != "pull-image: redis:7-alpine served by docker.io" ]; then
+            echo "::error title=Image pull fallback::with a mirror that cannot answer, the routine did not report Docker Hub serving redis:7-alpine"
+            exit 1
+          fi
+          docker image inspect redis:7-alpine > /dev/null
+
+      - name: No source that can answer fails the pull, naming the image
+        run: |
+          set -euo pipefail
+          status=0
+          node scripts/ci/pull-image.mjs --source mirror.invalid --source registry.invalid --attempts 1 \
+            redis:7-alpine 2> "$RUNNER_TEMP/unserved.txt" || status=$?
+          cat "$RUNNER_TEMP/unserved.txt"
+          last="$(tail -n 1 "$RUNNER_TEMP/unserved.txt")"
+          expected="pull-image: no source served redis:7-alpine after 1 attempt at each of mirror.invalid, registry.invalid"
+          if [ "$status" -ne 1 ] || [ "$last" != "$expected" ]; then
+            echo "::error title=Image pull with no source::the routine exited $status, where 1 is expected, and its last line is not the one that names redis:7-alpine"
+            exit 1
+          fi

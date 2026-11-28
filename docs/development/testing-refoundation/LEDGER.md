@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1297  |
+| Files                   | 1299  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1125  |
+| KEEP                    | 1127  |
 | ADJUDICATE              | 99    |
 | unmeasured              | 0     |
-| Machine rows            | 1285  |
+| Machine rows            | 1287  |
 | Confirmed rows          | 12    |
-| Blocks                  | 16324 |
+| Blocks                  | 16341 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1008,6 +1008,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/hardProbe.test.ts`                                                       | test             | 63     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/holdsGate.test.ts`                                                       | test             | 48     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/i18nLint.test.ts`                                                        | test             | 27     | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/imageSupply.test.ts`                                                     | test             | 17     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/instructionContextGate.test.ts`                                          | test             | 91     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/jscpdBaselineGate.test.ts`                                               | test             | 13     | 0          | ADJUDICATE | machine                         | opaque               |
 | `apps/api/tests/unit/scripts/jsdocRules.test.ts`                                                      | test             | 11     | 0          | KEEP       | machine                         | behavioural          |
@@ -1041,6 +1042,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/supportIndex.test.ts`                                                    | test             | 10     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`                                              | test             | 9      | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/scripts/workersDevScript.test.ts`                                                | test             | 2      | 0          | KEEP       | machine                         | behavioural          |
+| `apps/api/tests/unit/scripts/workflowYaml.test-helpers.ts`                                            | helper           | 0      | 0          | KEEP       | machine                         | imported             |
 | `apps/api/tests/unit/secureSchemas.basic.test.ts`                                                     | test             | 31     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/secureSchemas.social.test.ts`                                                    | test             | 31     | 0          | KEEP       | machine                         | behavioural          |
 | `apps/api/tests/unit/security/ChannelCredentialsCrypto.test.ts`                                       | test             | 8      | 0          | KEEP       | machine                         | behavioural          |
