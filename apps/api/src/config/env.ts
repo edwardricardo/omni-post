@@ -538,8 +538,9 @@ function removedVariableIssues(runtimeEnv: Record<string, string | undefined>): 
 type DeclaredVariable = keyof typeof serverSchema;
 
 /**
- * The values of `variables` as their own schemas parse them from the raw environment, defaults
- * applied, or undefined when one of them fails its schema.
+ * The values of `variables` as their own schemas parse them from the environment the validator is
+ * handed, in which a variable written with no value is unset, defaults applied; or undefined when
+ * one of them fails its schema.
  */
 function parsedVariables(
   variables: readonly DeclaredVariable[],
@@ -716,8 +717,13 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
         validate: (input) => {
           const result = declared["~standard"].validate(input);
           const added = environmentWideIssues(environmentOf(input));
-          if (result instanceof Promise || added.length === 0) return result;
-          return { issues: [...(result.issues ?? []), ...added] };
+          if (added.length === 0) return result;
+          // A result still pending gets the added issues once it settles, so no refusal is lost
+          // if a declared variable ever gains an asynchronous check.
+          const withAdded = (settled: Awaited<typeof result>) => ({
+            issues: [...(settled.issues ?? []), ...added],
+          });
+          return result instanceof Promise ? result.then(withAdded) : withAdded(result);
         },
       };
       return { "~standard": standard };

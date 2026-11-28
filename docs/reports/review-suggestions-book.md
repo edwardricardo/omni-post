@@ -967,6 +967,8 @@
 | SB-951 | The plan stands alone, the tag probe (`fea918a2c`), review-16f8f3342b4a4f92           | R3-001                                                           | `apps/api/tests/unit/scripts/planQueryCommand.test.ts:471-472`                                                                              | reliability                  | deferred: non-blocking, native review of `fea918a2c` (2026-11-27)                                                                                               |
 | SB-952 | The plan stands alone, the closed-pipe helper (`1ed3771ae`), review-d0110b57901ec58a  | R3-001                                                           | `apps/api/tests/unit/scripts/planQueryCommand.test.ts:160-164`                                                                              | reliability                  | closed: implemented in `workstream/plan-stands-alone-final` (see Closed with a reason)                                                                          |
 | SB-953 | The plan stands alone, the pipe by descriptor (`8efe1f744`), review-e25c737efc422b93  | R3-fifo-linux-only                                               | `apps/api/tests/unit/scripts/planQueryCommand.test.ts:169-174`                                                                              | reliability                  | closed: declined with a reason (see Closed with a reason)                                                                                                       |
+| SB-954 | F-01's closure, the dead secrets (`542c95920`), review-a7bd97a04e61723e               | R2-003                                                           | `apps/api/tests/unit/config/retiredSecrets.test.ts:46-53`                                                                                   | readability                  | open: the suite split by rule, and its list of retired names held to the production table                                                                       |
+| SB-955 | F-01's closure, the dead secrets (`542c95920`), review-a7bd97a04e61723e               | R2-004                                                           | `apps/api/src/config/env.ts:607-612`                                                                                                        | readability                  | open: the two key-ring rules share one parsed ring                                                                                                              |
 | SB-954 | The plan stands alone, the pipe by descriptor (`8efe1f744`), review-e25c737efc422b93  | R3-fifo-setup-leak                                               | `apps/api/tests/unit/scripts/planQueryCommand.test.ts:170-176`                                                                              | reliability                  | deferred: non-blocking, native review of `8efe1f744` (2026-11-27)                                                                                               |
 
 ## Entries — code and prose
@@ -2703,6 +2705,22 @@
 - **Suggestion:** one case per documented limit: a token whose value is `currentcolor` and one whose value is the sentinel `rgb(1, 2, 3)`.
 - **Why justified:** the limits are stated in the function's doc comment (`packages/ui/src/storybook/index.tsx:101-104`) and the cases beside (`:190-205`) pin the refusal of a token that holds no colour, which is the same branch; no story reads a token of either kind.
 - **To implement:** with the next edit of the suite or of `tokenColor`.
+
+### SB-954 — the retired-names suite copies the production list and holds three subjects
+
+- **Source:** the native review of the first slice of F-01's closure, the dead secrets (`542c95920`, review-a7bd97a04e61723e), finding `R2-003` (SUGGESTION).
+- **Location:** `apps/api/tests/unit/config/retiredSecrets.test.ts:46-53`.
+- **Suggestion:** hold the suite's hand-written `RETIRED_NAMES` to the names of the production `REMOVED_VARIABLES`, so a later retirement cannot be left out of the cases that name every cause; move the `SHADOW_DATABASE_URL` cases and the cases on a refusal naming every cause to suites named for them.
+- **Why justified:** the list is written by hand on purpose, as the suite's own statement of the contract, and the deployment checklist's table of the variables refused while set names the same six; nothing is wrong today.
+- **To implement:** with the next variable that is retired.
+
+### SB-955 — the two key-ring rules each parse the ring again
+
+- **Source:** the native review of the first slice of F-01's closure, the dead secrets (`542c95920`, review-a7bd97a04e61723e), finding `R2-004` (SUGGESTION).
+- **Location:** `apps/api/src/config/env.ts:607-612`.
+- **Suggestion:** parse `DELETION_NAME_DIGEST_KEY_RING` once and hand both rules the parsed ring.
+- **Why justified:** the duplication is harmless: each rule runs only when the ring passed its own schema, and both parse the same text.
+- **To implement:** with the next edit of the key-ring rules.
 
 ## Implemented
 
